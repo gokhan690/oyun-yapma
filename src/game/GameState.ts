@@ -1281,8 +1281,6 @@ export class GameState {
     const elapsed = Math.min(awayMs, this.offlineCapMs())
     if (elapsed < 60_000) return 0
     const elapsedSec = elapsed / 1000
-    this.gameTimeMs += realSecondsToGameMs(elapsedSec)
-    this.isNight = isGameNight(this.gameTimeMs)
     let amount = 0
     for (const p of PRODUCERS) {
       let inc = this.producerIncome(p)
