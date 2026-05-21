@@ -3,6 +3,7 @@ import type { AdManager } from '../ads/AdManager'
 import type { SoundManager } from '../audio/SoundManager'
 import type { SaveManager } from '../security/SaveManager'
 import { formatMoney, PRODUCERS } from '../game/Economy'
+import { assetUrl } from '../utils/assetUrl'
 import { currentRank, rankProgress } from '../game/PlayerRank'
 import { dayBonusExtra, nightBonusExtra } from '../game/PrestigeTree'
 import { calcPrestigePoints, prestigeMultiplier } from '../game/Prestige'
@@ -67,6 +68,7 @@ export class HUD {
   private state: GameState
   private ads: AdManager
   private sound: SoundManager
+  private saveManager: SaveManager
   private unsub: (() => void) | null = null
 
   constructor(
@@ -79,6 +81,7 @@ export class HUD {
     this.state = state
     this.ads = ads
     this.sound = sound
+    this.saveManager = saveManager
     this.root = app
     this.modals = new ModalManager()
     this.statsBar = new StatsBar(state)
@@ -159,7 +162,7 @@ export class HUD {
     tapInner.className = 'tap-inner'
     const mascot = document.createElement('img')
     mascot.className = 'tap-mascot'
-    mascot.src = '/assets/mascot.svg'
+    mascot.src = assetUrl('assets/mascot.svg')
     mascot.alt = ''
     mascot.onerror = () => {
       mascot.remove()
@@ -351,10 +354,7 @@ export class HUD {
     this.goalsSheet.scrim.addEventListener('click', onActionClick)
     this.goalsSheet.sheet.addEventListener('click', onActionClick)
 
-    this.settings.layer.addEventListener('click', (e) => {
-      const el = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null
-      if (el?.dataset.action === 'close-settings') this.settings.hide()
-    })
+    this.settings.layer.addEventListener('click', onActionClick)
     this.statsScreen.layer.addEventListener('click', (e) => {
       const el = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null
       if (el?.dataset.action === 'close-stats') this.statsScreen.hide()
@@ -371,6 +371,15 @@ export class HUD {
         this.scheduleUiSync()
         this.renderProgressStrip()
         this.checkRankUp()
+      }
+      if (ev.type === 'illegal_raid') {
+        const p = PRODUCERS.find((x) => x.id === ev.producerId)
+        this.modals.showToast(this.root, `🚨 Baskın! ${p?.name ?? 'Illegal iş'} — ${formatMoney(ev.fine)} ceza`)
+        this.renderAll()
+      }
+      if (ev.type === 'producer_unlocked') {
+        this.modals.showToast(this.root, '🔓 Yeni işletme erken açıldı!')
+        this.refreshShop(true)
       }
       if (ev.type === 'passive_income') {
         this.patchShopAffordability()
@@ -565,6 +574,52 @@ export class HUD {
           },
         )
         break
+      case 'early-unlock':
+        if (id && this.state.earlyUnlockProducer(id)) {
+          this.refreshShop(true)
+        } else if (id) {
+          this.modals.showToast(this.root, 'Erken açmak için yeterli para yok')
+        }
+        break
+      case 'biz-filter':
+        if (id) {
+          this.shop.setBizTypeFilter(id as 'all' | 'legal' | 'illegal')
+          this.refreshShop(true)
+        }
+        break
+      case 'save-profile': {
+        const nameInput = this.root.querySelector<HTMLInputElement>('#profile-name')
+        const yearInput = this.root.querySelector<HTMLInputElement>('#profile-birth-year')
+        if (nameInput?.value.trim()) this.state.playerName = nameInput.value.trim().slice(0, 24)
+        if (yearInput?.value) {
+          const y = Number(yearInput.value)
+          if (y >= 1920 && y <= new Date().getFullYear()) this.state.birthYear = y
+        }
+        this.modals.showToast(this.root, 'Profil kaydedildi')
+        this.statsScreen.render()
+        break
+      }
+      case 'export-legacy': {
+        const code = this.saveManager.exportLegacyCode(this.state)
+        void navigator.clipboard.writeText(code).then(() => {
+          this.modals.showToast(this.root, 'Miras kodu panoya kopyalandı')
+        }).catch(() => {
+          prompt('Miras kodunu kopyala:', code)
+        })
+        break
+      }
+      case 'import-legacy': {
+        const input = this.root.querySelector<HTMLTextAreaElement>('#legacy-import')
+        const code = input?.value ?? prompt('Miras kodunu yapıştır:') ?? ''
+        const result = this.saveManager.importLegacyCode(this.state, code)
+        if (result.ok) {
+          this.modals.showToast(this.root, 'Miras kodu yüklendi!')
+          this.renderAll()
+        } else {
+          this.modals.showToast(this.root, result.reason ?? 'Kod geçersiz')
+        }
+        break
+      }
       case 'buy-business':
         if (id) {
           const mode = this.shop.getBuyMode()

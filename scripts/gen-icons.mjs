@@ -14,6 +14,12 @@ const items = [
   { id: 'uydu', c: '#a78bfa', shape: 'sat' },
   { id: 'merkezbankasi', c: '#c4b5fd', shape: 'bank' },
   { id: 'galaksiyum', c: '#8b5cf6', shape: 'galaxy' },
+  { id: 'kafe', c: '#92400e', shape: 'office' },
+  { id: 'mobil_app', c: '#0ea5e9', shape: 'chip' },
+  { id: 'enerji', c: '#eab308', shape: 'rocket' },
+  { id: 'bahis', c: '#7f1d1d', shape: 'net' },
+  { id: 'piramit', c: '#991b1b', shape: 'tower' },
+  { id: 'offshore', c: '#1e3a5f', shape: 'bank' },
 ]
 
 const shapes = {

@@ -3,6 +3,7 @@ import { ACHIEVEMENTS } from '../../game/Achievements'
 import { currentRank } from '../../game/PlayerRank'
 import { PRODUCERS, formatMoney } from '../../game/Economy'
 import type { Leaderboard } from '../../game/Leaderboard'
+import { playerAge } from '../../utils/assetUrl'
 
 export class StatsScreen {
   readonly layer: HTMLElement
@@ -52,7 +53,10 @@ export class StatsScreen {
   private renderStats(): void {
     const lb = this.leaderboard.getData()
     const rank = currentRank(this.state.lifetimeTotalEarned)
+    const age = playerAge(this.state.birthYear)
     const rows: [string, string][] = [
+      ['Baron', this.state.playerName || 'Baron'],
+      ...(age !== null ? [['Yaş', `${age}`] as [string, string]] : []),
       ['Rütbe', `${rank.emoji} ${rank.name}`],
       ['Toplam kazanç (run)', formatMoney(this.state.totalEarned)],
       ['Yaşam boyu kazanç', formatMoney(this.state.lifetimeTotalEarned)],

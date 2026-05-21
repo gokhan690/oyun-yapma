@@ -1,4 +1,4 @@
-import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, formatMoney, type ProducerDef, type UpgradeDef } from './Economy'
+import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, type ProducerDef, type UpgradeDef } from './Economy'
 import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, prestigeMultiplier } from './Prestige'
 import { globalSynergyBonus, producerSynergyBonus } from './Synergies'
 import {
@@ -103,6 +103,9 @@ export interface SerializableState {
   nightEarningsSession: number
   hapticsEnabled: boolean
   reducedMotion: boolean
+  playerName: string
+  birthYear: number
+  forcedUnlocks: string[]
 }
 
 export interface ProducerBreakdown {
@@ -143,7 +146,8 @@ export type GameEvent =
   | { type: 'market_event'; crash: boolean }
   | { type: 'auto_buy'; producerId: string }
   | { type: 'nav_changed'; view: string }
-  | { type: 'purchase_juice'; x: number; y: number; amount: number }
+  | { type: 'illegal_raid'; fine: number; producerId: string }
+  | { type: 'producer_unlocked'; producerId: string }
 
 const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
@@ -197,6 +201,10 @@ export class GameState {
   hapticsEnabled = true
   reducedMotion = false
   isNight = isNightHour(new Date().getHours())
+  playerName = 'Baron'
+  birthYear = 0
+  forcedUnlocks = new Set<string>()
+  private lastIllegalRiskCheck = 0
 
   comboCount = 0
   comboMultiplier = 1
@@ -257,6 +265,7 @@ export class GameState {
       this.tickStock(now)
       this.tickDayNight(now)
       this.tickAutoBuy(now)
+      this.tickIllegalRisk(now)
       if (dt > 0 && dt < 1) {
         const income = this.incomePerSecond() * dt
         if (income > 0) {
@@ -396,6 +405,24 @@ export class GameState {
     }
   }
 
+  private tickIllegalRisk(now: number): void {
+    if (now - this.lastIllegalRiskCheck < 60_000) return
+    this.lastIllegalRiskCheck = now
+    for (const p of PRODUCERS) {
+      if (!p.illegal || !p.riskChance) continue
+      const owned = this.producers[p.id] ?? 0
+      if (owned <= 0) continue
+      if (Math.random() > p.riskChance) continue
+      const finePct = p.riskFinePct ?? 0.15
+      const fine = Math.floor(this.money * finePct)
+      if (fine <= 0) continue
+      this.money = Math.max(0, this.money - fine)
+      this.emit({ type: 'illegal_raid', fine, producerId: p.id })
+      this.emit({ type: 'money_changed' })
+      break
+    }
+  }
+
   private tickAutoBuy(now: number): void {
     const cooldown = autoBuyCooldownMs(this.prestigeTree)
     if (now - this.lastAutoBuyTick < cooldown) return
@@ -513,7 +540,19 @@ export class GameState {
   }
 
   unlockedProducers(): ProducerDef[] {
-    return PRODUCERS.filter((p) => isProducerUnlocked(p, this.totalEarned))
+    return PRODUCERS.filter((p) => isProducerUnlocked(p, this.totalEarned, this.forcedUnlocks))
+  }
+
+  earlyUnlockProducer(id: string): boolean {
+    const def = PRODUCERS.find((p) => p.id === id)
+    if (!def || isProducerUnlocked(def, this.totalEarned, this.forcedUnlocks)) return false
+    const cost = earlyUnlockCost(def)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.forcedUnlocks.add(id)
+    this.emit({ type: 'producer_unlocked', producerId: id })
+    this.emit({ type: 'money_changed' })
+    return true
   }
 
   ownedBusinessTiers(): number {
@@ -675,7 +714,7 @@ export class GameState {
 
   buyProducer(id: string, count = 1): boolean {
     const def = PRODUCERS.find((p) => p.id === id)
-    if (!def || !isProducerUnlocked(def, this.totalEarned)) return false
+    if (!def || !isProducerUnlocked(def, this.totalEarned, this.forcedUnlocks)) return false
     const owned = this.producers[id] ?? 0
     const cost = this.producerCostFor(def, owned, count)
     if (!this.canAfford(cost)) return false
@@ -1046,6 +1085,7 @@ export class GameState {
     this.managerAutoBuy = {}
     for (const p of PRODUCERS) this.managerAutoBuy[p.id] = false
     this.nightEarningsSession = 0
+    this.forcedUnlocks.clear()
     this.emit({ type: 'money_changed' })
   }
 
@@ -1121,6 +1161,9 @@ export class GameState {
       nightEarningsSession: this.nightEarningsSession,
       hapticsEnabled: this.hapticsEnabled,
       reducedMotion: this.reducedMotion,
+      playerName: this.playerName,
+      birthYear: this.birthYear,
+      forcedUnlocks: [...this.forcedUnlocks],
     }
   }
 
@@ -1180,6 +1223,9 @@ export class GameState {
     this.nightEarningsSession = data.nightEarningsSession ?? 0
     this.hapticsEnabled = data.hapticsEnabled ?? true
     this.reducedMotion = data.reducedMotion ?? false
+    this.playerName = data.playerName ?? 'Baron'
+    this.birthYear = data.birthYear ?? 0
+    this.forcedUnlocks = new Set(data.forcedUnlocks ?? [])
     this.lastSaveTime = data.lastSaveTime
     this.isNight = isNightHour(new Date().getHours())
     this.ensureDailyGoal()

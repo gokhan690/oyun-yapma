@@ -88,6 +88,37 @@ export class SaveManager {
     }
   }
 
+  /** Çocuğa / başka cihaza aktarmak için miras kodu */
+  exportLegacyCode(state: GameState): string {
+    const data = state.toJSON()
+    data.lastSaveTime = Date.now()
+    const json = JSON.stringify(data)
+    const envelope: SaveEnvelope = {
+      payload: obfuscate(json),
+      checksum: computeChecksum(json),
+      version: CURRENT_VERSION,
+    }
+    return btoa(JSON.stringify(envelope))
+  }
+
+  importLegacyCode(state: GameState, code: string): { ok: boolean; reason?: string } {
+    try {
+      const trimmed = code.trim()
+      if (!trimmed) return { ok: false, reason: 'Kod boş' }
+      const envelope = JSON.parse(atob(trimmed)) as SaveEnvelope
+      if (!envelope.payload || !envelope.checksum) return { ok: false, reason: 'Geçersiz kod' }
+      const json = deobfuscate(envelope.payload)
+      if (computeChecksum(json) !== envelope.checksum) return { ok: false, reason: 'Kod bozuk' }
+      const data = JSON.parse(json) as SerializableState
+      if (!validateState(data)) return { ok: false, reason: 'Kayıt doğrulanamadı' }
+      state.loadFrom({ ...data, lastSaveTime: Date.now() })
+      this.save(state)
+      return { ok: true }
+    } catch {
+      return { ok: false, reason: 'Kod okunamadı' }
+    }
+  }
+
   private tryLoad(
     state: GameState,
     key: string,
@@ -258,6 +289,9 @@ function applyV3Defaults(legacy: LegacyState): SerializableState {
     nightEarningsSession: legacy.nightEarningsSession ?? 0,
     hapticsEnabled: legacy.hapticsEnabled ?? true,
     reducedMotion: legacy.reducedMotion ?? false,
+    playerName: legacy.playerName ?? 'Baron',
+    birthYear: legacy.birthYear ?? 0,
+    forcedUnlocks: legacy.forcedUnlocks ?? [],
   }
 }
 
@@ -278,6 +312,9 @@ function applyV4Defaults(state: SerializableState): SerializableState {
     nightEarningsSession: state.nightEarningsSession ?? 0,
     hapticsEnabled: state.hapticsEnabled ?? true,
     reducedMotion: state.reducedMotion ?? false,
+    playerName: state.playerName ?? 'Baron',
+    birthYear: state.birthYear ?? 0,
+    forcedUnlocks: state.forcedUnlocks ?? [],
     stock,
   }
 }

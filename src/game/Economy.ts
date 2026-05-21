@@ -8,6 +8,12 @@ export interface ProducerDef {
   baseCost: number
   baseIncome: number
   costMultiplier: number
+  /** Yüksek gelir, baskın riski */
+  illegal?: boolean
+  /** Dakikada bir risk kontrolü olasılığı (0–1) */
+  riskChance?: number
+  /** Baskında kaybedilen cüzdan yüzdesi */
+  riskFinePct?: number
 }
 
 export interface UpgradeDef {
@@ -23,15 +29,21 @@ export interface UpgradeDef {
 export const PRODUCERS: ProducerDef[] = [
   { id: 'stajyer', name: 'Limonata Tezgahı', emoji: '🍋', description: 'Küçük ama cesur bir girişim.', tier: 1, unlockAt: 0, baseCost: 20, baseIncome: 0.04, costMultiplier: 1.22 },
   { id: 'robot', name: 'E-ticaret Sitesi', emoji: '🛒', description: 'Online satışlar başladı.', tier: 2, unlockAt: 500, baseCost: 150, baseIncome: 0.35, costMultiplier: 1.22 },
+  { id: 'kafe', name: 'Kahve Zinciri', emoji: '☕', description: 'Her köşede bir şube.', tier: 2, unlockAt: 2_500, baseCost: 400, baseIncome: 0.85, costMultiplier: 1.22 },
   { id: 'ofis', name: 'Restoran Zinciri', emoji: '🍽️', description: 'Lezzetli büyüme.', tier: 3, unlockAt: 5_000, baseCost: 750, baseIncome: 1.4, costMultiplier: 1.22 },
   { id: 'fabrika', name: 'Lojistik Merkezi', emoji: '🚚', description: 'Tedarik zinciri güçleniyor.', tier: 4, unlockAt: 50_000, baseCost: 4_500, baseIncome: 5.5, costMultiplier: 1.22 },
+  { id: 'mobil_app', name: 'Mobil Uygulama', emoji: '📱', description: 'Abonelik geliri akıyor.', tier: 4, unlockAt: 200_000, baseCost: 8_000, baseIncome: 9, costMultiplier: 1.22 },
   { id: 'holding', name: 'Yazılım Şirketi', emoji: '💻', description: 'Teknoloji imparatorluğu.', tier: 5, unlockAt: 2_000_000, baseCost: 22_000, baseIncome: 22, costMultiplier: 1.22 },
   { id: 'uzay', name: 'Gayrimenkul Portföyü', emoji: '🏙️', description: 'Arsa ve bina yatırımları.', tier: 6, unlockAt: 15_000_000, baseCost: 150_000, baseIncome: 90, costMultiplier: 1.22 },
+  { id: 'enerji', name: 'Güneş Enerjisi Santrali', emoji: '☀️', description: 'Temiz enerji, temiz kâr.', tier: 6, unlockAt: 50_000_000, baseCost: 280_000, baseIncome: 180, costMultiplier: 1.22 },
   { id: 'ai', name: 'Holding Birleşmesi', emoji: '🤝', description: 'Rakiplerle stratejik birleşme.', tier: 7, unlockAt: 150_000_000, baseCost: 750_000, baseIncome: 360, costMultiplier: 1.22 },
   { id: 'tuzaq', name: 'Borsa IPO', emoji: '📈', description: 'Halka arz — zirve noktası.', tier: 8, unlockAt: 2_000_000_000, baseCost: 4_000_000, baseIncome: 1400, costMultiplier: 1.22 },
   { id: 'uydu', name: 'Uydu İnternet Ağı', emoji: '🛰️', description: 'Küresel bağlantı imparatorluğu.', tier: 9, unlockAt: 15_000_000_000, baseCost: 25_000_000, baseIncome: 5200, costMultiplier: 1.22 },
   { id: 'merkezbankasi', name: 'Küresel Merkez Bankası', emoji: '🏦', description: 'Para basan makine.', tier: 10, unlockAt: 150_000_000_000, baseCost: 150_000_000, baseIncome: 21000, costMultiplier: 1.22 },
   { id: 'galaksiyum', name: 'Galaktik Tekno-İmparatorluk', emoji: '🌌', description: 'Evreni avucunun içine aldın.', tier: 11, unlockAt: 1_500_000_000_000, baseCost: 1_500_000_000, baseIncome: 85000, costMultiplier: 1.22 },
+  { id: 'bahis', name: 'Gizli Bahis Ağı', emoji: '🎲', description: 'Yüksek gelir, yüksek risk.', tier: 3, unlockAt: 12_000, baseCost: 2_500, baseIncome: 3.2, costMultiplier: 1.25, illegal: true, riskChance: 0.06, riskFinePct: 0.18 },
+  { id: 'piramit', name: 'Piramit Şema', emoji: '🔺', description: 'Kısa vadede patlar, uzun vadede yakalanırsın.', tier: 5, unlockAt: 800_000, baseCost: 35_000, baseIncome: 55, costMultiplier: 1.25, illegal: true, riskChance: 0.05, riskFinePct: 0.22 },
+  { id: 'offshore', name: 'Offshore Hesap', emoji: '🏝️', description: 'Vergiden kaç, radar altında kal.', tier: 7, unlockAt: 80_000_000, baseCost: 900_000, baseIncome: 520, costMultiplier: 1.25, illegal: true, riskChance: 0.04, riskFinePct: 0.15 },
 ]
 
 export const UPGRADES: UpgradeDef[] = [
@@ -72,12 +84,21 @@ export function maxAffordable(def: ProducerDef, owned: number, money: number, co
   return count
 }
 
-export function isProducerUnlocked(def: ProducerDef, totalEarned: number): boolean {
-  return totalEarned >= def.unlockAt
+export function isProducerUnlocked(
+  def: ProducerDef,
+  totalEarned: number,
+  forcedUnlocks?: ReadonlySet<string>,
+): boolean {
+  return totalEarned >= def.unlockAt || forcedUnlocks?.has(def.id) === true
+}
+
+export function earlyUnlockCost(def: ProducerDef): number {
+  return Math.max(def.baseCost * 5, Math.floor(def.unlockAt * 0.2))
 }
 
 export function producerIconPath(id: string): string {
-  return `/icons/businesses/${id}.svg`
+  const base = import.meta.env.BASE_URL
+  return `${base}icons/businesses/${id}.svg`
 }
 
 export function formatMoney(value: number): string {

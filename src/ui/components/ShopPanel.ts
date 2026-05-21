@@ -1,5 +1,5 @@
 import type { GameState } from '../../game/GameState'
-import { PRODUCERS, UPGRADES, formatMoney, producerIconPath, type ProducerDef, type UpgradeDef } from '../../game/Economy'
+import { PRODUCERS, UPGRADES, formatMoney, producerIconPath, earlyUnlockCost, isProducerUnlocked, type ProducerDef, type UpgradeDef } from '../../game/Economy'
 import { RESEARCH_NODES, researchCost } from '../../game/Research'
 import { ACHIEVEMENTS, type AchievementDef } from '../../game/Achievements'
 import { getActiveSynergies } from '../../game/Synergies'
@@ -14,6 +14,7 @@ export type BuyMode = 1 | 10 | 'max'
 export type IpoSubTab = 'stock' | 'prestige' | 'ipo'
 export type UpgradeFilter = 'all' | 'click' | 'global' | 'producer'
 export type AchievementCategory = 'all' | 'earn' | 'click' | 'business' | 'ipo'
+export type BizTypeFilter = 'all' | 'legal' | 'illegal'
 
 const TAB_SUBTITLES: Record<string, string> = {
   businesses: 'İşletme satın al ve genişlet',
@@ -43,6 +44,7 @@ export class ShopPanel {
   private upgradeFilter: UpgradeFilter = 'all'
   private achievementCategory: AchievementCategory = 'all'
   private achievementViewMode: 'grid' | 'list' = 'grid'
+  private bizTypeFilter: BizTypeFilter = 'all'
 
   constructor() {
     this.root = document.createElement('section')
@@ -167,6 +169,10 @@ export class ShopPanel {
 
   toggleAchievementView(): void {
     this.achievementViewMode = this.achievementViewMode === 'grid' ? 'list' : 'grid'
+  }
+
+  setBizTypeFilter(filter: BizTypeFilter): void {
+    this.bizTypeFilter = filter
   }
 
   hasShopBadge(state: GameState): boolean {
@@ -446,6 +452,22 @@ export class ShopPanel {
     }
 
     if (!patchOnly) {
+      let filterBar = panel.querySelector('.biz-type-filters') as HTMLElement | null
+      if (!filterBar) {
+        filterBar = this.createFilterPills([
+          { id: 'all', label: 'Tümü' },
+          { id: 'legal', label: '✅ Yasal' },
+          { id: 'illegal', label: '🕶️ Illegal' },
+        ], this.bizTypeFilter, 'biz-filter')
+        filterBar.classList.add('biz-type-filters')
+        panel.prepend(filterBar)
+      } else {
+        filterBar.querySelectorAll('.filter-pill').forEach((node) => {
+          const btn = node as HTMLButtonElement
+          btn.classList.toggle('active', btn.dataset.id === this.bizTypeFilter)
+        })
+      }
+
       const revDist = this.createRevenueDistribution(state)
       let revEl = panel.querySelector('.revenue-distribution') as HTMLElement | null
       if (revDist) {
@@ -457,7 +479,13 @@ export class ShopPanel {
     }
 
     const visibleIds = new Set<string>()
-    for (const p of state.unlockedProducers()) {
+    const unlocked = state.unlockedProducers().filter((p) => {
+      if (this.bizTypeFilter === 'legal') return !p.illegal
+      if (this.bizTypeFilter === 'illegal') return !!p.illegal
+      return true
+    })
+
+    for (const p of unlocked) {
       const owned = state.producers[p.id] ?? 0
       let count = this.buyMode === 'max' ? state.countMaxAffordable(p.id) : this.buyMode
       if (count < 1) count = 1
@@ -470,6 +498,7 @@ export class ShopPanel {
         panel.appendChild(card)
       }
       card.hidden = false
+      card.classList.toggle('biz-card-illegal', !!p.illegal)
       const buyCount = this.buyMode === 'max' ? Math.max(1, state.countMaxAffordable(p.id)) : count
       this.updateBusinessCard(card, p, state, owned, buyCount)
     }
@@ -482,34 +511,59 @@ export class ShopPanel {
     }
 
     if (!patchOnly) {
-      const nextLockedDef = PRODUCERS.find((p) => !visibleIds.has(p.id))
+      const nextLockedDef = PRODUCERS.find((p) => {
+        if (isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks)) return false
+        if (this.bizTypeFilter === 'legal' && p.illegal) return false
+        if (this.bizTypeFilter === 'illegal' && !p.illegal) return false
+        return true
+      })
       if (nextLockedDef) {
         let lockedCard = panel.querySelector('.biz-card-locked-preview') as HTMLElement | null
         if (!lockedCard) {
           lockedCard = document.createElement('div')
           lockedCard.className = 'biz-card biz-card-locked-preview'
+          lockedCard.dataset.producerId = nextLockedDef.id
           const inner = document.createElement('div')
           inner.className = 'biz-card-locked-inner'
           const emojiEl = document.createElement('span')
           emojiEl.className = 'biz-emoji'
-          emojiEl.textContent = nextLockedDef.emoji
+          const icon = document.createElement('img')
+          icon.className = 'biz-icon'
+          icon.src = producerIconPath(nextLockedDef.id)
+          icon.alt = ''
+          icon.onerror = () => {
+            icon.remove()
+            emojiEl.textContent = nextLockedDef.emoji
+          }
+          emojiEl.appendChild(icon)
           const infoEl = document.createElement('div')
           const nameEl = document.createElement('strong')
           nameEl.textContent = nextLockedDef.name
           const descEl = document.createElement('small')
+          descEl.className = 'biz-lock-desc'
           descEl.textContent = nextLockedDef.description
-          infoEl.append(nameEl, descEl)
+          const hintEl = document.createElement('small')
+          hintEl.className = 'biz-lock-hint'
+          hintEl.textContent = 'İşletmeler toplam kazanç ile açılır (cüzdan değil)'
+          infoEl.append(nameEl, descEl, hintEl)
           inner.append(emojiEl, infoEl)
           const overlay = document.createElement('div')
           overlay.className = 'biz-locked-overlay'
           const lockIcon = document.createElement('span')
           lockIcon.className = 'biz-locked-icon'
-          lockIcon.textContent = '🔒'
+          lockIcon.textContent = nextLockedDef.illegal ? '🕶️' : '🔒'
           const lockText = document.createElement('span')
           lockText.className = 'biz-locked-text'
-          overlay.append(lockIcon, lockText)
+          const earlyBtn = document.createElement('button')
+          earlyBtn.type = 'button'
+          earlyBtn.className = 'btn-early-unlock'
+          earlyBtn.dataset.action = 'early-unlock'
+          earlyBtn.dataset.id = nextLockedDef.id
+          overlay.append(lockIcon, lockText, earlyBtn)
           lockedCard.append(inner, overlay)
           panel.appendChild(lockedCard)
+        } else {
+          lockedCard.dataset.producerId = nextLockedDef.id
         }
         const pct = nextLockedDef.unlockAt > 0
           ? (state.totalEarned / nextLockedDef.unlockAt) * 100
@@ -519,7 +573,13 @@ export class ShopPanel {
           const remaining = Math.max(0, nextLockedDef.unlockAt - state.totalEarned)
           const ips = state.incomePerSecond()
           const eta = ips > 0 ? remaining / ips : Infinity
-          lockText.textContent = `${formatMoney(state.totalEarned)} / ${formatMoney(nextLockedDef.unlockAt)} · ~${this.formatEta(eta)}`
+          lockText.textContent = `Toplam kazanç: ${formatMoney(state.totalEarned)} / ${formatMoney(nextLockedDef.unlockAt)} · ~${this.formatEta(eta)}`
+        }
+        const earlyBtn = lockedCard.querySelector('.btn-early-unlock') as HTMLButtonElement | null
+        if (earlyBtn) {
+          const cost = earlyUnlockCost(nextLockedDef)
+          earlyBtn.textContent = `Erken aç — ${formatMoney(cost)}`
+          earlyBtn.disabled = !state.canAfford(cost)
         }
         let progressBar = lockedCard.querySelector('.unlock-progress') as HTMLElement | null
         if (!progressBar) {
