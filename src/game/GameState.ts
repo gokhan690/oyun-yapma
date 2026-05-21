@@ -532,7 +532,7 @@ export class GameState {
       this.sessionEarned += amount
       this.updateMissionProgress('earn_money', amount)
       this.updateWeeklyProgress(amount)
-      this.addSeasonXp(Math.floor(amount / 2000))
+      this.addSeasonXp(Math.floor(amount / 3500))
       this.emit({ type: 'money_changed' })
       this.checkMilestones(prevLifetime)
       this.checkAchievements()

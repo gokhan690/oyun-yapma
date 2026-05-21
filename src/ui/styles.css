@@ -1226,8 +1226,74 @@ html.theme-night body {
 .goal-block { margin-bottom: 14px; }
 .goal-track { height: 8px; background: #0a1628; border-radius: 999px; overflow: hidden; margin-top: 6px; }
 .goal-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); }
-.shop-tabs-pill { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 4px 0 8px; touch-action: pan-x; scroll-behavior: smooth; }
-.shop-tabs-pill .tab-btn { flex-shrink: 0; scroll-snap-align: start; padding: 6px 12px; border-radius: 999px; font-size: 0.72rem; white-space: nowrap; position: relative; }
+.shop-tabs-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.shop-tabs-wrap::before,
+.shop-tabs-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 16px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.shop-tabs-wrap::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--surface) 0%, transparent 100%);
+}
+
+.shop-tabs-wrap::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--surface) 0%, transparent 100%);
+}
+
+.shop-tabs-pill {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 14px;
+  padding: 8px 14px 10px;
+  touch-action: pan-x;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.shop-tabs-pill::-webkit-scrollbar {
+  display: none;
+}
+
+.shop-tabs-pill .tab-btn {
+  flex-shrink: 0;
+  scroll-snap-align: center;
+  padding: 10px 16px;
+  min-height: 40px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  position: relative;
+  border: 1px solid transparent;
+  background: var(--surface2);
+  color: var(--muted);
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  font-family: inherit;
+}
+
+.shop-tabs-pill .tab-btn.active {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(251, 191, 36, 0.08) 100%);
+  color: var(--accent);
+  border-color: rgba(251, 191, 36, 0.45);
+  box-shadow: 0 2px 10px rgba(251, 191, 36, 0.15);
+}
 .tab-badge { position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; background: #ef4444; border-radius: 50%; }
 .modal-layer.is-open { display: flex; align-items: center; justify-content: center; }
 .modal-scrim {
@@ -1341,7 +1407,11 @@ html.theme-night body {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   scroll-behavior: smooth;
-  padding: 0 10px 10px;
+  padding: 12px 12px 16px;
+}
+
+.tab-panel[hidden] {
+  display: none !important;
 }
 
 .tab-panel.tab-fade-in {
@@ -1349,8 +1419,8 @@ html.theme-night body {
 }
 
 @keyframes tabFadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1652,34 +1722,104 @@ html.theme-night .tap-wrap { border-color: rgba(167,139,250,0.45); }
 
 /* ── Aşama 5 ──────────────────────────────────────────────── */
 
-/* B1 — Sticky shop header */
-.shop-panel:not(.shop-tab-businesses) {
-  --buy-modes-h: 0px;
+/* B1 — Shop chrome (sabit üst alan, sticky yok) */
+.shop-chrome {
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid rgba(45, 74, 111, 0.5);
+  z-index: 5;
+}
+
+.shop-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.shop-panel:not(.shop-tab-businesses) .buy-modes.is-hidden {
+  display: none;
 }
 
 .shop-header {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: linear-gradient(180deg, var(--surface) 80%, rgba(18,32,53,0.95) 100%);
+  position: static;
+  flex-shrink: 0;
 }
 
 .buy-modes {
-  position: sticky;
-  top: var(--shop-header-h);
-  z-index: 4;
-  background: var(--surface);
-  padding-top: 4px;
+  position: static;
+  flex-shrink: 0;
 }
 
 .shop-tabs-pill {
-  position: sticky;
-  top: calc(var(--shop-header-h) + var(--buy-modes-h));
-  z-index: 4;
-  background: var(--surface);
-  padding-bottom: 6px;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, black 10px, black calc(100% - 10px), transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0, black 10px, black calc(100% - 10px), transparent 100%);
+  position: static;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.shop-tab-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(26, 45, 74, 0.95) 0%, rgba(18, 32, 53, 0.9) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.shop-tab-hero-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(251, 191, 36, 0.12);
+  border-radius: 14px;
+}
+
+.shop-tab-hero-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shop-tab-hero-text strong {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.shop-tab-hero-text small {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.shop-tab-hero-stat {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--accent);
+  background: rgba(251, 191, 36, 0.12);
+  padding: 6px 10px;
+  border-radius: 10px;
+  text-align: center;
+  max-width: 90px;
+  line-height: 1.3;
+}
+
+.achieve-detail-wrap {
+  margin-bottom: 12px;
 }
 
 /* S2 — Custom scrollbar */
@@ -1733,9 +1873,18 @@ html.theme-night .tap-wrap { border-color: rgba(167,139,250,0.45); }
 
 /* S3 — Manager avatar */
 .manager-portrait {
+  width: 56px;
+  height: 56px;
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.2);
   border: 2px solid var(--border);
   box-shadow: 0 0 12px rgba(251,191,36,0.1);
   transition: border-color 0.2s;
+  flex-shrink: 0;
 }
 .manager-card:has(.auto-buy-btn) .manager-portrait {
   border-color: var(--green);
@@ -1784,17 +1933,18 @@ html.theme-night .tap-wrap { border-color: rgba(167,139,250,0.45); }
 .shop-card {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
   text-align: left;
   border: 1px solid var(--border);
   background: linear-gradient(135deg, var(--surface2) 0%, rgba(26, 45, 74, 0.6) 100%);
   color: var(--text);
-  border-radius: 14px;
-  padding: 12px 14px;
-  margin-bottom: 8px;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
   font-family: inherit;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  min-height: 72px;
 }
 
 button.shop-card {
@@ -1809,14 +1959,14 @@ button.shop-card {
 
 .shop-card-icon {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.4rem;
+  font-size: 1.6rem;
   background: rgba(0, 0, 0, 0.25);
-  border-radius: 12px;
+  border-radius: 14px;
 }
 
 .shop-card-body {
@@ -1827,23 +1977,25 @@ button.shop-card {
   gap: 3px;
 }
 
-.shop-card-body strong,
-.shop-card-body small {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.shop-card-body strong {
+  font-size: 0.92rem;
 }
 
 .shop-card-body small {
+  font-size: 0.78rem;
   color: var(--muted);
-  font-size: 0.72rem;
+  white-space: normal;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .shop-card-price {
   flex-shrink: 0;
   font-weight: 800;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
@@ -2053,11 +2205,37 @@ button.shop-card {
 .achieve-detail-banner {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 12px;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 14px;
   border: 1px solid var(--border);
   background: var(--surface2);
+}
+
+.achieve-banner-emoji {
+  font-size: 2.2rem;
+  flex-shrink: 0;
+}
+
+.achieve-banner-info strong {
+  font-size: 1rem;
+}
+
+.achieve-banner-info small {
+  font-size: 0.8rem;
+}
+
+.achieve-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.achieve-cell {
+  aspect-ratio: 1;
+  min-height: 64px;
+  border-radius: 14px;
 }
 
 .achieve-detail-banner.placeholder {

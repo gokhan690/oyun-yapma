@@ -98,7 +98,21 @@ export class ShopPanel {
       this.panels[id] = panel
     }
 
-    this.root.append(header, buyModes, tabs, ...Object.values(this.panels))
+    const tabsWrap = document.createElement('div')
+    tabsWrap.className = 'shop-tabs-wrap'
+    tabsWrap.appendChild(tabs)
+
+    const chrome = document.createElement('div')
+    chrome.className = 'shop-chrome'
+    chrome.append(header, buyModes, tabsWrap)
+
+    const body = document.createElement('div')
+    body.className = 'shop-body'
+    for (const panel of Object.values(this.panels)) {
+      body.appendChild(panel)
+    }
+
+    this.root.append(chrome, body)
   }
 
   setTab(id: string): void {
@@ -118,9 +132,10 @@ export class ShopPanel {
       }
     }
     this.buyModesEl.hidden = id !== 'businesses'
+    this.buyModesEl.classList.toggle('is-hidden', id !== 'businesses')
     this.updateShopSubtitle(id)
     const activeBtn = this.tabButtons.find((b) => b.dataset.tab === id)
-    activeBtn?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' })
+    activeBtn?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
   }
 
   selectAchievement(id: string): void {
@@ -229,6 +244,29 @@ export class ShopPanel {
       const small = document.createElement('small')
       small.textContent = subtitle
       el.appendChild(small)
+    }
+    return el
+  }
+
+  private createTabHero(icon: string, title: string, subtitle: string, stat?: string): HTMLElement {
+    const el = document.createElement('div')
+    el.className = 'shop-tab-hero'
+    const iconEl = document.createElement('span')
+    iconEl.className = 'shop-tab-hero-icon'
+    iconEl.textContent = icon
+    const text = document.createElement('div')
+    text.className = 'shop-tab-hero-text'
+    const h = document.createElement('strong')
+    h.textContent = title
+    const sub = document.createElement('small')
+    sub.textContent = subtitle
+    text.append(h, sub)
+    el.append(iconEl, text)
+    if (stat) {
+      const statEl = document.createElement('span')
+      statEl.className = 'shop-tab-hero-stat'
+      statEl.textContent = stat
+      el.appendChild(statEl)
     }
     return el
   }
@@ -496,7 +534,7 @@ export class ShopPanel {
 
     const hiredCount = PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0 && hasManager(state.managers, p.id)).length
     const ownedCount = PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0).length
-    panel.appendChild(this.createSectionHeader('Yönetim', `${hiredCount}/${ownedCount} yönetici aktif`))
+    panel.appendChild(this.createTabHero('👔', 'Yönetim Merkezi', 'Yöneticiler geliri artırır ve offline kazancı yükseltir', `${hiredCount}/${ownedCount} aktif`))
 
     for (const p of PRODUCERS) {
       const owned = state.producers[p.id] ?? 0
@@ -586,7 +624,7 @@ export class ShopPanel {
     const panel = this.panels.upgrades!
     panel.replaceChildren()
     const list = state.availableUpgrades()
-    panel.appendChild(this.createSectionHeader('Yükseltmeler', `${list.length} mevcut`))
+    panel.appendChild(this.createTabHero('⬆️', 'Yükseltmeler', 'Kalıcı güç artışları — stratejik seçimler yap', `${list.length} mevcut`))
 
     if (list.length === 0) {
       panel.appendChild(this.createEmptyState('⬆️', 'Tüm yükseltmeler alındı!', 'IPO sonrası yeni bonuslar açılabilir'))
@@ -616,7 +654,7 @@ export class ShopPanel {
       desc.textContent = u.description
       const tag = document.createElement('span')
       tag.className = 'shop-effect-tag'
-      tag.textContent = this.upgradeEffectLabel(u)
+      tag.textContent = `${this.upgradeEffectLabel(u)} · ${u.description.includes('x') ? u.description.match(/x[\d.]+/)?.[0] ?? '' : ''}`
       body.append(name, desc, tag)
 
       const price = document.createElement('span')
@@ -631,7 +669,9 @@ export class ShopPanel {
   private renderResearch(state: GameState): void {
     const panel = this.panels.research!
     panel.replaceChildren()
-    panel.appendChild(this.createSectionHeader('Ar-Ge', 'Kalıcı bonuslar'))
+    const totalLevels = RESEARCH_NODES.reduce((s, n) => s + (state.research[n.id] ?? 0), 0)
+    const maxLevels = RESEARCH_NODES.reduce((s, n) => s + n.maxLevel, 0)
+    panel.appendChild(this.createTabHero('🔬', 'Ar-Ge Laboratuvarı', 'Uzun vadeli bonuslar — her seviye kalıcı etki', `${totalLevels}/${maxLevels} seviye`))
 
     for (const node of RESEARCH_NODES) {
       const level = state.research[node.id] ?? 0
@@ -684,7 +724,7 @@ export class ShopPanel {
 
     const done = state.missions.filter((m) => m.claimed).length
     const ready = state.missions.filter((m) => m.progress >= m.target && !m.claimed).length
-    panel.appendChild(this.createSectionHeader('Günlük Görevler', `${done}/${state.missions.length} tamamlandı${ready > 0 ? ` · ${ready} hazır` : ''}`))
+    panel.appendChild(this.createTabHero('📋', 'Günlük Görevler', 'Her gün yeni hedefler — ödülleri kaçırma', `${done}/${state.missions.length} tamam${ready > 0 ? ` · ${ready} hazır` : ''}`))
 
     for (const m of state.missions) {
       const pct = (m.progress / m.target) * 100
@@ -768,31 +808,20 @@ export class ShopPanel {
     const panel = this.panels.achievements!
     panel.replaceChildren()
 
-    const stickyHeader = document.createElement('div')
-    stickyHeader.className = 'achieve-sticky-header'
-
-    const progressRow = document.createElement('div')
-    progressRow.className = 'achieve-progress-row'
     const pct = Math.round((state.achievements.size / ACHIEVEMENTS.length) * 100)
-    const ring = document.createElement('div')
-    ring.className = 'achieve-progress-ring'
-    ring.style.background = `conic-gradient(var(--accent) ${pct * 3.6}deg, var(--surface2) 0)`
-    ring.innerHTML = `<span>${pct}%</span>`
-    const progressText = document.createElement('p')
-    progressText.className = 'achieve-progress'
-    progressText.textContent = `${state.achievements.size}/${ACHIEVEMENTS.length} başarım açıldı`
-    progressRow.append(ring, progressText)
+    panel.appendChild(this.createTabHero('🏆', 'Başarım Galerisi', 'Hedefleri tamamla, kalıcı ödüller kazan', `${pct}% · ${state.achievements.size}/${ACHIEVEMENTS.length}`))
+
+    const detailWrap = document.createElement('div')
+    detailWrap.className = 'achieve-detail-wrap'
 
     const selected = this.selectedAchievementId
       ? ACHIEVEMENTS.find((a) => a.id === this.selectedAchievementId) ?? null
       : null
-    const banner = this.buildAchievementBanner(
+    detailWrap.appendChild(this.buildAchievementBanner(
       selected,
       selected ? state.achievements.has(selected.id) : false,
-    )
-
-    stickyHeader.append(progressRow, banner)
-    panel.appendChild(stickyHeader)
+    ))
+    panel.appendChild(detailWrap)
 
     const grid = document.createElement('div')
     grid.className = 'achieve-grid'
@@ -816,7 +845,7 @@ export class ShopPanel {
     const panel = this.panels.ipo!
     panel.replaceChildren()
 
-    panel.appendChild(this.createSectionHeader('Borsa', 'Hisse al/sat, piyasa takibi'))
+    panel.appendChild(this.createTabHero('📈', 'Borsa & IPO', 'Hisse al/sat, prestij ağacını geliştir, birleşme yap', `${state.prestigePoints} hisse puanı`))
 
     const tickerTabs = document.createElement('div')
     tickerTabs.className = 'ticker-tabs'
