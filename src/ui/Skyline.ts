@@ -13,6 +13,7 @@ export class Skyline {
   private skyEl: HTMLElement
   private startTime = Date.now()
   private lastNight: boolean | null = null
+  private parallaxRaf: number | null = null
 
   constructor(container: HTMLElement) {
     this.el = document.createElement('div')
@@ -76,9 +77,17 @@ export class Skyline {
       this.layerFront.style.transform = `translateX(${Math.sin(t * 0.3 + 1) * 12}px)`
       this.starsEl.style.transform = `translateX(${Math.sin(t * 0.1) * 4}px)`
       this.updateDayNight()
-      requestAnimationFrame(tick)
+      this.parallaxRaf = requestAnimationFrame(tick)
     }
-    requestAnimationFrame(tick)
+    this.parallaxRaf = requestAnimationFrame(tick)
+  }
+
+  destroy(): void {
+    if (this.parallaxRaf !== null) {
+      cancelAnimationFrame(this.parallaxRaf)
+      this.parallaxRaf = null
+    }
+    this.el.remove()
   }
 
   private updateDayNight(): void {
