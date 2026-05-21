@@ -1,0 +1,8 @@
+# Render Static Site — https://render.com/docs/static-sites
+services:
+  - type: web
+    name: is-imparatorlugu
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    # VITE_BASE belirtilmez → vite.config.ts base = '/' (Render kök URL)
