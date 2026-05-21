@@ -1,6 +1,8 @@
 import type { GameState } from '../../game/GameState'
 import type { SoundManager } from '../../audio/SoundManager'
 import type { SaveManager } from '../../security/SaveManager'
+import { THEMES, type ThemeId } from '../../game/Themes'
+import { rescheduleFromPrefs } from '../../notifications/NotificationManager'
 
 export class SettingsPanel {
   readonly layer: HTMLElement
@@ -9,6 +11,7 @@ export class SettingsPanel {
   private saveManager: SaveManager
   private onTutorialRestart: () => void
   private onReset: () => void
+  private onThemeChange: (themeId: ThemeId) => void
 
   constructor(
     state: GameState,
@@ -16,12 +19,14 @@ export class SettingsPanel {
     saveManager: SaveManager,
     onTutorialRestart: () => void,
     onReset: () => void,
+    onThemeChange: (themeId: ThemeId) => void = () => {},
   ) {
     this.state = state
     this.sound = sound
     this.saveManager = saveManager
     this.onTutorialRestart = onTutorialRestart
     this.onReset = onReset
+    this.onThemeChange = onThemeChange
     this.layer = document.createElement('div')
     this.layer.className = 'slide-panel settings-panel'
     this.build()
@@ -87,6 +92,34 @@ export class SettingsPanel {
     importBtn.textContent = '⬇️ Miras kodunu yükle'
     body.appendChild(importBtn)
 
+    body.appendChild(this.sectionTitle('Görünüm'))
+
+    const themeWrap = document.createElement('div')
+    themeWrap.className = 'settings-theme-grid'
+    themeWrap.id = 'theme-picker'
+    body.appendChild(themeWrap)
+
+    body.appendChild(this.sectionTitle('Bildirimler'))
+    body.appendChild(this.notifHint())
+
+    const notifDaily = this.notifToggle('Günlük ödül hatırlatması', 'notif-daily', () => this.state.notificationPrefs.dailyReward, (v) => {
+      this.state.notificationPrefs.dailyReward = v
+      void this.syncNotifications()
+    })
+    body.appendChild(notifDaily)
+
+    const notifPassive = this.notifToggle('Pasif gelir hatırlatması', 'notif-passive', () => this.state.notificationPrefs.passiveIncome, (v) => {
+      this.state.notificationPrefs.passiveIncome = v
+      void this.syncNotifications()
+    })
+    body.appendChild(notifPassive)
+
+    const notifGoal = this.notifToggle('Günlük hedef hatırlatması', 'notif-goal', () => this.state.notificationPrefs.goalNear, (v) => {
+      this.state.notificationPrefs.goalNear = v
+      void this.syncNotifications()
+    })
+    body.appendChild(notifGoal)
+
     body.appendChild(this.sectionTitle('Oyun'))
 
     const soundRow = this.toggleRow('Ses efektleri', this.sound.isEnabled(), () => {
@@ -121,7 +154,7 @@ export class SettingsPanel {
 
     const version = document.createElement('p')
     version.className = 'version-tag'
-    version.textContent = 'İş İmparatorluğu v2.2.0'
+    version.textContent = 'İş İmparatorluğu v2.4.0'
     body.appendChild(version)
 
     const hapticRow = this.toggleRow('Titreşim', this.state.hapticsEnabled, () => {
@@ -158,12 +191,73 @@ export class SettingsPanel {
     return row
   }
 
+  private notifHint(): HTMLElement {
+    const p = document.createElement('p')
+    p.className = 'settings-hint'
+    p.textContent = 'Native uygulamada bildirim zamanlarını özelleştir. Web sürümünde in-app hatırlatıcılar kullanılır.'
+    return p
+  }
+
+  private notifToggle(
+    label: string,
+    id: string,
+    get: () => boolean,
+    set: (v: boolean) => void,
+  ): HTMLElement {
+    const row = document.createElement('label')
+    row.className = 'settings-row'
+    const span = document.createElement('span')
+    span.textContent = label
+    const input = document.createElement('input')
+    input.type = 'checkbox'
+    input.id = id
+    input.checked = get()
+    input.addEventListener('change', () => set(input.checked))
+    row.append(span, input)
+    return row
+  }
+
+  private async syncNotifications(): Promise<void> {
+    await rescheduleFromPrefs(this.state.notificationPrefs)
+  }
+
+  private renderThemePicker(): void {
+    const wrap = this.layer.querySelector('#theme-picker')
+    if (!wrap) return
+    wrap.replaceChildren()
+    for (const t of THEMES) {
+      const unlocked = this.state.unlockedThemes.has(t.id)
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `theme-pick-btn${this.state.activeTheme === t.id ? ' active' : ''}`
+      btn.dataset.action = 'set-theme'
+      btn.dataset.id = t.id
+      btn.textContent = unlocked ? t.name : `${t.name} 🔒`
+      btn.disabled = !unlocked
+      wrap.appendChild(btn)
+    }
+  }
+
   show(): void {
     const nameInput = this.layer.querySelector<HTMLInputElement>('#profile-name')
     const yearInput = this.layer.querySelector<HTMLInputElement>('#profile-birth-year')
     if (nameInput) nameInput.value = this.state.playerName
     if (yearInput && this.state.birthYear) yearInput.value = String(this.state.birthYear)
+    const daily = this.layer.querySelector<HTMLInputElement>('#notif-daily')
+    const passive = this.layer.querySelector<HTMLInputElement>('#notif-passive')
+    const goal = this.layer.querySelector<HTMLInputElement>('#notif-goal')
+    if (daily) daily.checked = this.state.notificationPrefs.dailyReward
+    if (passive) passive.checked = this.state.notificationPrefs.passiveIncome
+    if (goal) goal.checked = this.state.notificationPrefs.goalNear
+    this.renderThemePicker()
     this.layer.classList.add('is-open')
+  }
+
+  applyTheme(themeId: ThemeId): void {
+    if (!this.state.unlockedThemes.has(themeId)) return
+    this.state.setActiveTheme(themeId)
+    this.onThemeChange(themeId)
+    this.renderThemePicker()
   }
 
   hide(): void {

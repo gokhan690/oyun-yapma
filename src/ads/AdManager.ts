@@ -8,6 +8,7 @@ export type RewardedAdType =
   | 'stock_hint'
   | 'manager_discount'
   | 'season_xp'
+  | 'heat_shield'
 
 export interface AdRewardResult {
   success: boolean

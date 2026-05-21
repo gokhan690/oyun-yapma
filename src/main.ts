@@ -6,6 +6,7 @@ import { AdManager } from './ads/AdManager'
 import { SoundManager } from './audio/SoundManager'
 import { HUD } from './ui/HUD'
 import { scheduleDailyReminder } from './notifications/NotificationManager'
+import { applyDocumentTheme } from './utils/themeApply'
 
 function bootstrap(): void {
   const app = document.querySelector<HTMLDivElement>('#app')
@@ -31,6 +32,8 @@ function bootstrap(): void {
   }
   ads.syncRewardedCount(state.rewardedAdsToday, state.rewardedAdsDay)
 
+  applyDocumentTheme(state.activeTheme)
+
   const hud = new HUD(state, ads, sound, saveManager, app)
 
   if (saveCorrupted) {
@@ -46,14 +49,12 @@ function bootstrap(): void {
     if (offlineAmount > 0) {
       hud.showOfflinePopup(offlineAmount)
     }
+    if (state.hasPendingComeback()) {
+      window.setTimeout(() => hud.showComebackPopup(), 1200)
+    }
   }
 
-  if (state.canClaimDaily()) {
-    window.setTimeout(() => {
-      const amount = state.claimDailyReward()
-      if (amount > 0) hud.renderAll()
-    }, 800)
-  }
+  window.setTimeout(() => hud.showDailyRewardIfAvailable(), 900)
 
   state.startTick()
   state.startEventLoop()
@@ -61,7 +62,7 @@ function bootstrap(): void {
   hud.renderAll()
 
   document.addEventListener('click', () => sound.resume(), { once: true })
-  void scheduleDailyReminder()
+  void scheduleDailyReminder(state.notificationPrefs)
   } catch (err) {
     console.error('Bootstrap hatası:', err)
     const bootErr = document.querySelector<HTMLDivElement>('#boot-error')

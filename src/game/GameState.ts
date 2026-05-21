@@ -32,6 +32,7 @@ import {
   rewardForTier,
   hasClaimableTier,
   seasonWeekKey,
+  tierProgress,
   type SeasonState,
 } from './SeasonPass'
 import {
@@ -50,6 +51,8 @@ import {
   autoBuyCooldownMs,
   prestigeMultBonus,
   ownedNodeCount,
+  heatDecayBonus,
+  hasRaidInsurance,
 } from './PrestigeTree'
 import { localDayKey, yesterdayLocalKey, isNightHour } from './dateUtils'
 import {
@@ -58,7 +61,15 @@ import {
   weekKey,
   type WeeklyEventState,
 } from './WeeklyEvent'
-import { DAILY_GOAL_TARGET, dailyGoalDayKey } from './DailyGoal'
+import { dailyGoalDayKey, scaledDailyGoalTarget } from './DailyGoal'
+import {
+  LAWYER_PROTECTION_MS,
+  LAUNDER_DURATION_MS,
+  HEAT_SHIELD_DURATION_MS,
+  type UndergroundActionId,
+} from './Underground'
+import { themeForTier, type ThemeId } from './Themes'
+import { storyBeat } from './StoryBeats'
 
 export interface SerializableState {
   money: number
@@ -107,6 +118,28 @@ export interface SerializableState {
   birthYear: number
   forcedUnlocks: string[]
   illegalHeat: number
+  unlockedThemes: string[]
+  activeTheme: ThemeId
+  codexUnlockDates: Record<string, string>
+  undergroundCooldowns: Record<string, number>
+  heatShieldUntil: number
+  heatProtectionUntil: number
+  launderingUntil: number
+  lastActiveAt: number
+  comebackClaimedDay: string | null
+  comebackPending: number
+  notificationPrefs: { dailyReward: boolean; passiveIncome: boolean; goalNear: boolean }
+  surpriseInvestorUntil: number
+  surpriseInvestorDay: string
+  seenStoryBeats: string[]
+  earnedBadges: string[]
+  raidsToday: number
+  raidsDay: string
+  heatWasCritical: boolean
+  heatSurvived: boolean
+  undergroundLawyerUsed: boolean
+  comebackClaimed: boolean
+  streakMilestonesClaimed: number[]
 }
 
 export interface ProducerBreakdown {
@@ -150,6 +183,13 @@ export type GameEvent =
   | { type: 'illegal_raid'; fine: number; producerId: string }
   | { type: 'producer_unlocked'; producerId: string }
   | { type: 'illegal_heat'; heat: number }
+  | { type: 'underground_action'; actionId: string }
+  | { type: 'story_beat'; beatId: string; text: string }
+  | { type: 'comeback_ready'; amount: number }
+  | { type: 'surprise_investor'; until: number }
+  | { type: 'near_miss'; kind: string; message: string }
+  | { type: 'theme_unlocked'; themeId: ThemeId }
+  | { type: 'badge_earned'; badgeId: string }
 
 const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
@@ -157,6 +197,8 @@ const CRIT_MULT = 10
 const BASE_CLICK = 1
 const BASE_OFFLINE_CAP_MS = 8 * 60 * 60 * 1000
 const AD_BOOST_DURATION_MS = 5 * 60 * 1000
+const COMEBACK_MIN_AWAY_MS = 24 * 60 * 60 * 1000
+const STREAK_MILESTONES = [7, 14, 30]
 const COMBO_WINDOW_MS = 1500
 
 export class GameState {
@@ -207,8 +249,32 @@ export class GameState {
   birthYear = 0
   forcedUnlocks = new Set<string>()
   illegalHeat = 0
+  unlockedThemes = new Set<string>(['default'])
+  activeTheme: ThemeId = 'default'
+  codexUnlockDates: Record<string, string> = {}
+  undergroundCooldowns: Record<string, number> = {}
+  heatShieldUntil = 0
+  heatProtectionUntil = 0
+  launderingUntil = 0
+  lastActiveAt = Date.now()
+  comebackClaimedDay: string | null = null
+  comebackPending = 0
+  notificationPrefs = { dailyReward: true, passiveIncome: true, goalNear: true }
+  surpriseInvestorUntil = 0
+  surpriseInvestorDay = ''
+  seenStoryBeats = new Set<string>()
+  earnedBadges = new Set<string>()
+  raidsToday = 0
+  raidsDay = todayKey()
+  heatWasCritical = false
+  heatSurvived = false
+  undergroundLawyerUsed = false
+  comebackClaimed = false
+  streakMilestonesClaimed: number[] = []
   private lastIllegalRiskCheck = 0
   private lastHeatTick = 0
+  private lastSurpriseCheck = 0
+  private nudgeFlags = new Set<string>()
 
   comboCount = 0
   comboMultiplier = 1
@@ -271,6 +337,8 @@ export class GameState {
       this.tickAutoBuy(now)
       this.tickIllegalRisk(now)
       this.tickIllegalHeat(now)
+      this.tickSurpriseInvestor(now)
+      this.tickNearMiss(now)
       if (dt > 0 && dt < 1) {
         const income = this.incomePerSecond() * dt
         if (income > 0) {
@@ -413,14 +481,38 @@ export class GameState {
   private tickIllegalHeat(now: number): void {
     if (now - this.lastHeatTick < 15_000) return
     this.lastHeatTick = now
-    const target = this.targetIllegalHeat()
+    if (Date.now() < this.heatShieldUntil) return
+
     const prev = this.illegalHeat
+    if (this.illegalHeat >= 80) this.heatWasCritical = true
+
+    if (Date.now() < this.launderingUntil) {
+      this.illegalHeat = Math.max(0, this.illegalHeat - 15)
+    }
+
+    const target = this.targetIllegalHeat()
+    const decayMult = 1 + heatDecayBonus(this.prestigeTree)
     if (Math.abs(target - this.illegalHeat) < 0.5) {
       this.illegalHeat = target
-    } else {
+    } else if (target > this.illegalHeat) {
       this.illegalHeat += (target - this.illegalHeat) * 0.15
+    } else {
+      this.illegalHeat += (target - this.illegalHeat) * 0.15 * decayMult
     }
-    if (target <= 0) this.illegalHeat = Math.max(0, this.illegalHeat - 2)
+    if (target <= 0) this.illegalHeat = Math.max(0, this.illegalHeat - 2 * decayMult)
+
+    if (this.heatWasCritical && this.illegalHeat < 55) {
+      this.heatSurvived = true
+      this.heatWasCritical = false
+      this.checkAchievements()
+    }
+
+    if (this.illegalHeat >= 80 && !this.seenStoryBeats.has('heat_critical')) {
+      this.triggerStoryBeat('heat_critical')
+    } else if (this.illegalHeat >= 55 && !this.seenStoryBeats.has('heat_high')) {
+      this.triggerStoryBeat('heat_high')
+    }
+
     if (Math.round(prev) !== Math.round(this.illegalHeat)) {
       this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
     }
@@ -438,7 +530,10 @@ export class GameState {
       }
     }
     if (types === 0) return 0
-    return Math.min(100, types * 12 + owned * 4)
+    let heat = Math.min(100, types * 12 + owned * 4)
+    if (this.purchasedUpgrades.has('offshore_laundry')) heat *= 0.8
+    if (this.hasCodexLegalComplete()) heat = Math.min(100, heat * 0.9)
+    return heat
   }
 
   illegalRiskLabel(): string {
@@ -459,6 +554,14 @@ export class GameState {
   private tickIllegalRisk(now: number): void {
     if (now - this.lastIllegalRiskCheck < 60_000) return
     this.lastIllegalRiskCheck = now
+    if (Date.now() < this.heatProtectionUntil) return
+
+    const today = todayKey()
+    if (this.raidsDay !== today) {
+      this.raidsDay = today
+      this.raidsToday = 0
+    }
+
     const heatMult = 1 + this.illegalHeat / 100
     for (const p of PRODUCERS) {
       if (!p.illegal || !p.riskChance) continue
@@ -466,11 +569,13 @@ export class GameState {
       if (owned <= 0) continue
       const chance = Math.min(0.35, p.riskChance * heatMult)
       if (Math.random() > chance) continue
-      const finePct = (p.riskFinePct ?? 0.15) * (0.8 + this.illegalHeat / 200)
+      let finePct = (p.riskFinePct ?? 0.15) * (0.8 + this.illegalHeat / 200)
+      if (hasRaidInsurance(this.prestigeTree) && this.raidsToday === 0) finePct *= 0.5
       const fine = Math.floor(this.money * finePct)
       if (fine <= 0) continue
       this.money = Math.max(0, this.money - fine)
       this.illegalHeat = Math.min(100, this.illegalHeat + 20)
+      this.raidsToday++
       this.emit({ type: 'illegal_raid', fine, producerId: p.id })
       this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
       this.emit({ type: 'money_changed' })
@@ -555,6 +660,8 @@ export class GameState {
     if (this.getEventBoostActive()) mult *= 3
     mult *= 1 + globalSynergyBonus(this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
     mult *= 1 + passiveBonus(this.prestigeTree)
+    if (this.hasCodexLegalComplete()) mult *= 1.05
+    if (Date.now() < this.surpriseInvestorUntil) mult *= 2
     return mult
   }
 
@@ -646,17 +753,19 @@ export class GameState {
 
   private trackDailyGoal(amount: number): void {
     this.ensureDailyGoal()
-    const bucketBefore = Math.floor(this.dailyGoalEarned / 100)
+    const target = this.dailyGoalTarget()
+    const bucketBefore = Math.floor(this.dailyGoalEarned / Math.max(1, target / 10))
     this.dailyGoalEarned += amount
-    const bucketAfter = Math.floor(this.dailyGoalEarned / 100)
-    if (bucketBefore !== bucketAfter || this.dailyGoalEarned >= DAILY_GOAL_TARGET) {
-      this.emit({ type: 'daily_goal_updated', earned: this.dailyGoalEarned, target: DAILY_GOAL_TARGET })
+    const bucketAfter = Math.floor(this.dailyGoalEarned / Math.max(1, target / 10))
+    if (bucketBefore !== bucketAfter || this.dailyGoalEarned >= target) {
+      this.emit({ type: 'daily_goal_updated', earned: this.dailyGoalEarned, target })
     }
   }
 
   claimDailyGoalReward(): number {
     this.ensureDailyGoal()
-    if (this.dailyGoalClaimed || this.dailyGoalEarned < DAILY_GOAL_TARGET) return 0
+    const target = this.dailyGoalTarget()
+    if (this.dailyGoalClaimed || this.dailyGoalEarned < target) return 0
     this.dailyGoalClaimed = true
     const reward = Math.max(500, this.incomePerSecond() * 60)
     this.addMoney(reward)
@@ -777,6 +886,19 @@ export class GameState {
     this.producers[id] = owned + count
     this.businessesBoughtSession += count
     this.updateMissionProgress('buy_business', count)
+    if (!this.codexUnlockDates[id]) {
+      this.codexUnlockDates[id] = todayKey()
+    }
+    if (def.illegal && !this.seenStoryBeats.has('illegal_first')) {
+      this.triggerStoryBeat('illegal_first')
+    }
+    if (this.hasCodexLegalComplete()) {
+      this.awardBadge('codex_legal')
+      this.triggerStoryBeat('codex_legal')
+    }
+    if (this.hasCodexAllComplete()) {
+      this.awardBadge('codex_all')
+    }
     this.emit({ type: 'purchase' })
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
@@ -887,7 +1009,14 @@ export class GameState {
     } else if (reward.type === 'boost') {
       this.adIncomeBoostUntil = Date.now() + reward.value * 60_000
       this.emit({ type: 'ad_boost', until: this.adIncomeBoostUntil })
+    } else if (reward.type === 'theme') {
+      const themeId = themeForTier(tier)
+      if (themeId) this.unlockTheme(themeId)
     }
+    if (tier >= 10) this.awardBadge('season_10')
+    if (tier >= 20) this.awardBadge('season_20')
+    if (tier >= 30) this.awardBadge('season_30')
+    this.updateMissionProgress('season_tier', 1)
     this.emit({ type: 'season_claimed', tier, reward: reward.label })
     this.checkAchievements()
     return true
@@ -929,8 +1058,195 @@ export class GameState {
     if (this.stock.tickers[id]) this.stock.activeTickerId = id
   }
 
+  dailyGoalTarget(): number {
+    return scaledDailyGoalTarget(this.incomePerSecond())
+  }
+
+  hasCodexLegalComplete(): boolean {
+    return PRODUCERS.filter((p) => !p.illegal).every((p) => (this.producers[p.id] ?? 0) >= 1)
+  }
+
+  hasCodexAllComplete(): boolean {
+    return PRODUCERS.every((p) => (this.producers[p.id] ?? 0) >= 1)
+  }
+
+  codexCompletionBonus(): { legal: boolean; all: boolean } {
+    return { legal: this.hasCodexLegalComplete(), all: this.hasCodexAllComplete() }
+  }
+
+  unlockTheme(themeId: ThemeId): void {
+    if (!this.unlockedThemes.has(themeId)) {
+      this.unlockedThemes.add(themeId)
+      this.emit({ type: 'theme_unlocked', themeId })
+      this.awardBadge(`theme_${themeId}`)
+      if (themeId !== 'default') this.triggerStoryBeat(`theme_${themeId}`)
+    }
+  }
+
+  setActiveTheme(themeId: ThemeId): void {
+    if (!this.unlockedThemes.has(themeId)) return
+    this.activeTheme = themeId
+  }
+
+  triggerStoryBeat(beatId: string): void {
+    if (this.seenStoryBeats.has(beatId)) return
+    this.seenStoryBeats.add(beatId)
+    const beat = storyBeat(beatId)
+    if (beat) this.emit({ type: 'story_beat', beatId, text: beat.text })
+  }
+
+  awardBadge(badgeId: string): void {
+    if (this.earnedBadges.has(badgeId)) return
+    this.earnedBadges.add(badgeId)
+    this.emit({ type: 'badge_earned', badgeId })
+  }
+
+  undergroundCooldownRemaining(actionId: UndergroundActionId): number {
+    const until = this.undergroundCooldowns[actionId] ?? 0
+    return Math.max(0, until - Date.now())
+  }
+
+  canUseUnderground(actionId: UndergroundActionId): { ok: boolean; reason?: string } {
+    if (this.undergroundCooldownRemaining(actionId) > 0) {
+      return { ok: false, reason: 'Bekleme süresi' }
+    }
+    const ips = this.incomePerSecond()
+    if (actionId === 'lawyer') {
+      const cost = ips * 120
+      if (!this.canAfford(cost)) return { ok: false, reason: 'Yetersiz para' }
+    }
+    if (actionId === 'bribe') {
+      const cost = Math.floor(this.money * 0.05)
+      if (cost <= 0 || !this.canAfford(cost)) return { ok: false, reason: 'Yetersiz para' }
+    }
+    if (actionId === 'launder') {
+      const cost = this.illegalIncomePerSecond() * 0.2 * 60
+      if (this.illegalIncomePerSecond() <= 0) return { ok: false, reason: 'Illegal gelir yok' }
+      if (!this.canAfford(Math.max(1, cost))) return { ok: false, reason: 'Yetersiz para' }
+    }
+    return { ok: true }
+  }
+
+  useUndergroundAction(actionId: UndergroundActionId): boolean {
+    const check = this.canUseUnderground(actionId)
+    if (!check.ok) return false
+    const ips = this.incomePerSecond()
+    const cooldowns: Record<UndergroundActionId, number> = {
+      lawyer: 10 * 60_000,
+      bribe: 5 * 60_000,
+      launder: 15 * 60_000,
+    }
+
+    if (actionId === 'lawyer') {
+      this.money -= ips * 120
+      this.illegalHeat = Math.max(0, this.illegalHeat - 25)
+      this.heatProtectionUntil = Date.now() + LAWYER_PROTECTION_MS
+      this.undergroundLawyerUsed = true
+      this.awardBadge('underground_lawyer')
+    } else if (actionId === 'bribe') {
+      const cost = Math.floor(this.money * 0.05)
+      this.money -= cost
+      this.illegalHeat = Math.max(0, this.illegalHeat - 40)
+    } else if (actionId === 'launder') {
+      const cost = Math.max(1, this.illegalIncomePerSecond() * 0.2 * 60)
+      this.money -= cost
+      this.launderingUntil = Date.now() + LAUNDER_DURATION_MS
+    }
+
+    this.undergroundCooldowns[actionId] = Date.now() + cooldowns[actionId]
+    this.updateMissionProgress('use_underground', 1)
+    this.emit({ type: 'underground_action', actionId })
+    this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
+    this.emit({ type: 'money_changed' })
+    this.checkAchievements()
+    return true
+  }
+
+  activateHeatShield(): void {
+    this.heatShieldUntil = Date.now() + HEAT_SHIELD_DURATION_MS
+  }
+
+  isHeatShieldActive(): boolean {
+    return Date.now() < this.heatShieldUntil
+  }
+
+  isSurpriseInvestorActive(): boolean {
+    return Date.now() < this.surpriseInvestorUntil
+  }
+
+  private tickSurpriseInvestor(now: number): void {
+    if (now - this.lastSurpriseCheck < 60_000) return
+    this.lastSurpriseCheck = now
+    const today = todayKey()
+    if (this.surpriseInvestorDay === today) return
+    if (Math.random() > 0.05) return
+    this.surpriseInvestorDay = today
+    this.surpriseInvestorUntil = Date.now() + 30_000
+    this.triggerStoryBeat('surprise_investor')
+    this.awardBadge('investor')
+    this.emit({ type: 'surprise_investor', until: this.surpriseInvestorUntil })
+  }
+
+  private tickNearMiss(now: number): void {
+    void now
+    const ipo = this.ipoProgress()
+    if (ipo.pct >= 90 && ipo.pct < 100 && !this.nudgeFlags.has('ipo')) {
+      this.nudgeFlags.add('ipo')
+      this.emit({ type: 'near_miss', kind: 'ipo', message: 'Birleşmeye az kaldı!' })
+    }
+    this.ensureSeason()
+    const prog = tierProgress(this.season.xp)
+    if (prog.pct >= 95 && prog.pct < 100 && !this.nudgeFlags.has('season')) {
+      this.nudgeFlags.add('season')
+      this.emit({ type: 'near_miss', kind: 'season', message: 'Sezon tier\'ına az kaldı!' })
+    }
+    if (this.comboCount >= this.comboBest - 2 && this.comboBest >= 10 && !this.nudgeFlags.has('combo')) {
+      this.nudgeFlags.add('combo')
+      this.emit({ type: 'near_miss', kind: 'combo', message: 'Combo rekoruna yakınsın!' })
+    }
+  }
+
+  peekDailyStreakReset(): boolean {
+    if (!this.dailyLastClaim) return false
+    const yesterday = yesterdayKey()
+    return this.dailyLastClaim !== yesterday && this.dailyLastClaim !== todayKey()
+  }
+
+  claimComebackBonus(): number {
+    if (this.comebackPending <= 0) return 0
+    const amount = this.comebackPending
+    this.comebackPending = 0
+    this.comebackClaimed = true
+    this.comebackClaimedDay = todayKey()
+    this.addMoney(amount)
+    this.awardBadge('comeback')
+    return amount
+  }
+
+  hasPendingComeback(): boolean {
+    return this.comebackPending > 0
+  }
+
   applyOfflineEarnings(lastSaveTime: number): number {
-    const elapsed = Math.min(Date.now() - lastSaveTime, this.offlineCapMs())
+    const awayMs = Date.now() - lastSaveTime
+    this.lastActiveAt = Date.now()
+
+    if (awayMs >= COMEBACK_MIN_AWAY_MS && this.comebackClaimedDay !== todayKey()) {
+      const elapsed = Math.min(awayMs, this.offlineCapMs())
+      const elapsedSec = elapsed / 1000
+      let base = 0
+      for (const p of PRODUCERS) {
+        let inc = this.producerIncome(p)
+        if (hasManager(this.managers, p.id)) inc *= 1.5
+        base += inc * elapsedSec
+      }
+      const mult = awayMs >= 72 * 60 * 60 * 1000 ? 3 : awayMs >= 48 * 60 * 60 * 1000 ? 2 : 1.5
+      this.comebackPending = Math.floor(base * mult)
+      this.triggerStoryBeat('comeback')
+      this.emit({ type: 'comeback_ready', amount: this.comebackPending })
+    }
+
+    const elapsed = Math.min(awayMs, this.offlineCapMs())
     if (elapsed < 60_000) return 0
     const elapsedSec = elapsed / 1000
     let amount = 0
@@ -962,15 +1278,29 @@ export class GameState {
     const today = todayKey()
     if (this.dailyLastClaim === today) return 0
     const yesterday = yesterdayKey()
+    const streakBroken = this.dailyLastClaim !== null && this.dailyLastClaim !== yesterday
     if (this.dailyLastClaim === yesterday) {
-      this.dailyStreak = Math.min(this.dailyStreak + 1, 7)
+      this.dailyStreak = Math.min(this.dailyStreak + 1, 30)
     } else {
       this.dailyStreak = 1
     }
     this.dailyLastClaim = today
-    const amount = Math.max(100 * this.dailyStreak, this.incomePerSecond() * 60 * this.dailyStreak)
+    let amount = Math.max(100 * this.dailyStreak, this.incomePerSecond() * 60 * this.dailyStreak)
+    for (const ms of STREAK_MILESTONES) {
+      if (this.dailyStreak >= ms && !this.streakMilestonesClaimed.includes(ms)) {
+        this.streakMilestonesClaimed.push(ms)
+        amount += ms * 1000
+        this.awardBadge(`streak_${ms}`)
+        this.triggerStoryBeat(`streak_${ms}`)
+      }
+    }
     this.addMoney(amount)
+    this.updateMissionProgress('claim_daily', 1)
     this.emit({ type: 'daily_reward', amount, streak: this.dailyStreak })
+    if (streakBroken && this.dailyStreak === 1) {
+      // streak was reset — UI shows warning via peekDailyStreakReset before claim
+    }
+    this.checkAchievements()
     return amount
   }
 
@@ -1142,6 +1472,21 @@ export class GameState {
     this.nightEarningsSession = 0
     this.forcedUnlocks.clear()
     this.illegalHeat = 0
+    this.unlockedThemes = new Set(['default'])
+    this.activeTheme = 'default'
+    this.codexUnlockDates = {}
+    this.undergroundCooldowns = {}
+    this.heatShieldUntil = 0
+    this.heatProtectionUntil = 0
+    this.launderingUntil = 0
+    this.comebackPending = 0
+    this.comebackClaimedDay = null
+    this.comebackClaimed = false
+    this.surpriseInvestorUntil = 0
+    this.surpriseInvestorDay = ''
+    this.seenStoryBeats.clear()
+    this.earnedBadges.clear()
+    this.streakMilestonesClaimed = []
     this.emit({ type: 'money_changed' })
   }
 
@@ -1164,6 +1509,11 @@ export class GameState {
       stockTickerCount: ownedTickerCount(this.stock),
       nightEarnings: this.nightEarningsSession,
       managerAutoBuyCount: this.managerAutoBuyCount(),
+      dailyStreak: this.dailyStreak,
+      comebackClaimed: this.comebackClaimed,
+      heatSurvived: this.heatSurvived,
+      unlockedThemes: [...this.unlockedThemes],
+      undergroundLawyerUsed: this.undergroundLawyerUsed,
     }
     const newOnes = checkNewAchievements(ctx)
     for (const a of newOnes) {
@@ -1221,6 +1571,28 @@ export class GameState {
       birthYear: this.birthYear,
       forcedUnlocks: [...this.forcedUnlocks],
       illegalHeat: this.illegalHeat,
+      unlockedThemes: [...this.unlockedThemes],
+      activeTheme: this.activeTheme,
+      codexUnlockDates: { ...this.codexUnlockDates },
+      undergroundCooldowns: { ...this.undergroundCooldowns },
+      heatShieldUntil: this.heatShieldUntil,
+      heatProtectionUntil: this.heatProtectionUntil,
+      launderingUntil: this.launderingUntil,
+      lastActiveAt: Date.now(),
+      comebackClaimedDay: this.comebackClaimedDay,
+      comebackPending: this.comebackPending,
+      notificationPrefs: { ...this.notificationPrefs },
+      surpriseInvestorUntil: this.surpriseInvestorUntil,
+      surpriseInvestorDay: this.surpriseInvestorDay,
+      seenStoryBeats: [...this.seenStoryBeats],
+      earnedBadges: [...this.earnedBadges],
+      raidsToday: this.raidsToday,
+      raidsDay: this.raidsDay,
+      heatWasCritical: this.heatWasCritical,
+      heatSurvived: this.heatSurvived,
+      undergroundLawyerUsed: this.undergroundLawyerUsed,
+      comebackClaimed: this.comebackClaimed,
+      streakMilestonesClaimed: [...this.streakMilestonesClaimed],
     }
   }
 
@@ -1284,6 +1656,28 @@ export class GameState {
     this.birthYear = data.birthYear ?? 0
     this.forcedUnlocks = new Set(data.forcedUnlocks ?? [])
     this.illegalHeat = data.illegalHeat ?? 0
+    this.unlockedThemes = new Set(data.unlockedThemes ?? ['default'])
+    this.activeTheme = (data.activeTheme ?? 'default') as ThemeId
+    this.codexUnlockDates = { ...(data.codexUnlockDates ?? {}) }
+    this.undergroundCooldowns = { ...(data.undergroundCooldowns ?? {}) }
+    this.heatShieldUntil = data.heatShieldUntil ?? 0
+    this.heatProtectionUntil = data.heatProtectionUntil ?? 0
+    this.launderingUntil = data.launderingUntil ?? 0
+    this.lastActiveAt = data.lastActiveAt ?? Date.now()
+    this.comebackClaimedDay = data.comebackClaimedDay ?? null
+    this.comebackPending = data.comebackPending ?? 0
+    this.notificationPrefs = data.notificationPrefs ?? { dailyReward: true, passiveIncome: true, goalNear: true }
+    this.surpriseInvestorUntil = data.surpriseInvestorUntil ?? 0
+    this.surpriseInvestorDay = data.surpriseInvestorDay ?? ''
+    this.seenStoryBeats = new Set(data.seenStoryBeats ?? [])
+    this.earnedBadges = new Set(data.earnedBadges ?? [])
+    this.raidsToday = data.raidsToday ?? 0
+    this.raidsDay = data.raidsDay ?? todayKey()
+    this.heatWasCritical = data.heatWasCritical ?? false
+    this.heatSurvived = data.heatSurvived ?? false
+    this.undergroundLawyerUsed = data.undergroundLawyerUsed ?? false
+    this.comebackClaimed = data.comebackClaimed ?? false
+    this.streakMilestonesClaimed = data.streakMilestonesClaimed ?? []
     this.lastSaveTime = data.lastSaveTime
     this.isNight = isNightHour(new Date().getHours())
     this.ensureDailyGoal()

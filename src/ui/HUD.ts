@@ -19,6 +19,9 @@ import { Leaderboard } from '../game/Leaderboard'
 import { BottomNav, type NavView } from './components/BottomNav'
 import { GoalsSheet } from './components/GoalsSheet'
 import { EventsPanel } from './components/EventsPanel'
+import { UndergroundSheet } from './components/UndergroundSheet'
+import { applyDocumentTheme } from '../utils/themeApply'
+import type { ThemeId } from '../game/Themes'
 import { activeTicker } from '../game/StockMarket'
 import { hapticLight, hapticHeavy } from '../utils/haptics'
 
@@ -52,6 +55,7 @@ export class HUD {
   private bottomNav: BottomNav
   private goalsSheet: GoalsSheet
   private eventsPanel: EventsPanel
+  private undergroundSheet: UndergroundSheet
   private adBannerSlot!: HTMLElement
   private statsBar: StatsBar
   private shop: ShopPanel
@@ -93,10 +97,13 @@ export class HUD {
     this.bottomNav = new BottomNav()
     this.goalsSheet = new GoalsSheet()
     this.eventsPanel = new EventsPanel()
+    this.undergroundSheet = new UndergroundSheet()
     this.leaderboard = new Leaderboard()
     this.settings = new SettingsPanel(state, sound, saveManager, () => {
       this.tutorial.restart()
-    }, () => this.renderAll())
+    }, () => this.renderAll(), (themeId) => {
+      applyDocumentTheme(themeId)
+    })
     this.statsScreen = new StatsScreen(state, this.leaderboard)
     this.tutorial = new Tutorial(state)
     this.tutorial.setTabHandler((tab) => this.shop.setTab(tab))
@@ -291,6 +298,12 @@ export class HUD {
     this.heatMeterFill.className = 'progress-fill heat-meter-fill'
     heatBar.appendChild(this.heatMeterFill)
     heatRow.append(heatLabel, this.heatMeterLabel, heatBar)
+    const heatCleanBtn = document.createElement('button')
+    heatCleanBtn.type = 'button'
+    heatCleanBtn.className = 'btn-underground-open'
+    heatCleanBtn.dataset.action = 'open-underground'
+    heatCleanBtn.textContent = 'Temizle'
+    heatRow.appendChild(heatCleanBtn)
     sessionPanel.appendChild(heatRow)
 
     const adsPanel = document.createElement('div')
@@ -307,7 +320,7 @@ export class HUD {
     adChest.innerHTML = '<span class="quick-ad-icon">🎁</span><span class="quick-ad-text"><strong>Sandık</strong><small>Rastgele ödül kazan</small></span>'
     adsPanel.append(adDouble, adChest)
 
-    this.earnView.append(progressStrip, sessionPanel, tapWrap, adsPanel)
+    this.earnView.append(this.weeklyBanner, progressStrip, sessionPanel, tapWrap, adsPanel)
     main.append(this.earnView, this.shop.root, this.eventsPanel.root)
 
     this.adBannerSlot = document.createElement('div')
@@ -315,6 +328,7 @@ export class HUD {
     this.adBannerSlot.id = 'ad-banner'
 
     this.goalsSheet.mount(this.root)
+    this.undergroundSheet.mount(this.root)
     this.root.append(header, main, this.adBannerSlot, this.settings.layer, this.statsScreen.layer, this.modals.layer)
     document.body.appendChild(this.bottomNav.root)
     this.ads.showBanner(this.adBannerSlot)
@@ -343,8 +357,13 @@ export class HUD {
   }
 
   private updateNavBadges(): void {
+    const target = this.state.dailyGoalTarget()
+    const dailyGoalReady = this.state.dailyGoalEarned >= target && !this.state.dailyGoalClaimed
     this.bottomNav.setBadges(
-      this.state.hasClaimableSeasonReward() || (this.state.weekly.progress >= this.state.weekly.target && !this.state.weekly.claimed),
+      this.state.hasClaimableSeasonReward()
+        || (this.state.weekly.progress >= this.state.weekly.target && !this.state.weekly.claimed)
+        || dailyGoalReady
+        || this.state.canClaimDaily(),
       this.shop.hasShopBadge(this.state),
     )
   }
@@ -379,6 +398,8 @@ export class HUD {
 
     this.goalsSheet.scrim.addEventListener('click', onActionClick)
     this.goalsSheet.sheet.addEventListener('click', onActionClick)
+    this.undergroundSheet.scrim.addEventListener('click', onActionClick)
+    this.undergroundSheet.sheet.addEventListener('click', onActionClick)
 
     this.settings.layer.addEventListener('click', onActionClick)
     this.statsScreen.layer.addEventListener('click', (e) => {
@@ -495,6 +516,35 @@ export class HUD {
       }
       if (ev.type === 'weekly_updated') {
         this.goalsSheet.render(this.state)
+        this.renderWeeklyBanner()
+        this.updateNavBadges()
+      }
+      if (ev.type === 'story_beat') {
+        this.modals.showToast(this.root, ev.text)
+      }
+      if (ev.type === 'near_miss') {
+        this.modals.showToast(this.root, ev.message)
+      }
+      if (ev.type === 'surprise_investor') {
+        this.modals.showToast(this.root, '💎 Sürpriz yatırımcı — 30 sn x2 gelir!')
+        this.eventsPanel.render(this.state)
+      }
+      if (ev.type === 'comeback_ready') {
+        this.showComebackPopup()
+      }
+      if (ev.type === 'theme_unlocked') {
+        this.modals.showToast(this.root, `🎨 Yeni tema: ${ev.themeId}!`)
+        applyDocumentTheme(this.state.activeTheme)
+      }
+      if (ev.type === 'badge_earned') {
+        this.modals.showToast(this.root, '🏅 Yeni rozet kazandın!')
+        if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
+      }
+      if (ev.type === 'underground_action') {
+        this.undergroundSheet.render(this.state)
+        this.renderHeatMeter()
+      }
+      if (ev.type === 'daily_reward') {
         this.updateNavBadges()
       }
       if (ev.type === 'stock_trade') {
@@ -540,6 +590,7 @@ export class HUD {
     const w = this.state.weekly
     const pct = Math.min(100, (w.progress / w.target) * 100)
     this.weeklyBanner.replaceChildren()
+    this.weeklyBanner.hidden = false
     const text = document.createElement('span')
     text.textContent = `🗓️ ${def.name}: ${Math.floor(w.progress)}/${w.target}`
     const bar = document.createElement('div')
@@ -593,20 +644,59 @@ export class HUD {
       case 'close-stats':
         this.setView('earn')
         break
-      case 'daily':
+      case 'daily': {
         if (!this.state.canClaimDaily()) {
           this.modals.showToast(this.root, 'Bugünkü ödül alındı')
           return
         }
+        const streakLost = this.state.peekDailyStreakReset()
+        const nextStreak = this.state.dailyLastClaim && !streakLost
+          ? this.state.dailyStreak + 1
+          : 1
+        const preview = Math.max(100 * nextStreak, this.state.incomePerSecond() * 60 * nextStreak)
         this.modals.showDailyReward(
-          this.state.dailyStreak + 1,
-          formatMoney(Math.max(100, this.state.incomePerSecond() * 60)),
+          nextStreak,
+          formatMoney(preview),
           () => {
-            this.state.claimDailyReward()
+            const amount = this.state.claimDailyReward()
+            if (amount > 0) this.modals.showToast(this.root, `+${formatMoney(amount)}`)
             this.renderAll()
           },
+          streakLost,
         )
         break
+      }
+      case 'open-underground':
+        this.undergroundSheet.render(this.state)
+        this.undergroundSheet.open()
+        break
+      case 'close-underground':
+        this.undergroundSheet.close()
+        break
+      case 'underground-use':
+        if (id && this.state.useUndergroundAction(id as 'lawyer' | 'bribe' | 'launder')) {
+          this.modals.showToast(this.root, 'Underground aksiyon kullanıldı')
+          this.undergroundSheet.render(this.state)
+          this.renderHeatMeter()
+        } else {
+          this.modals.showToast(this.root, 'Aksiyon kullanılamadı')
+        }
+        break
+      case 'set-theme':
+        if (id) {
+          this.settings.applyTheme(id as ThemeId)
+          applyDocumentTheme(id as ThemeId)
+        }
+        break
+      case 'claim-comeback': {
+        const amount = this.state.claimComebackBonus()
+        if (amount > 0) {
+          this.modals.close()
+          this.modals.showToast(this.root, `Comeback bonusu: +${formatMoney(amount)}`)
+          this.renderAll()
+        }
+        break
+      }
       case 'early-unlock':
         if (id && this.state.earlyUnlockProducer(id)) {
           this.refreshShop(true)
@@ -672,6 +762,8 @@ export class HUD {
         if (reward > 0) {
           this.modals.showToast(this.root, `Günlük hedef: +${formatMoney(reward)}`)
           this.renderDailyGoalBar()
+          this.eventsPanel.render(this.state)
+          this.updateNavBadges()
         }
         break
       }
@@ -804,6 +896,9 @@ export class HUD {
         break
       case 'ad-chest':
         await this.handleAdChest()
+        break
+      case 'ad-heat-shield':
+        await this.handleAdHeatShield()
         break
       case 'ad-restore-event':
         await this.handleRestoreEvent()
@@ -1153,12 +1248,60 @@ export class HUD {
     this.eventsPanel.render(this.state)
   }
 
+  private async handleAdHeatShield(): Promise<void> {
+    const result = await this.ads.showRewarded('heat_shield')
+    if (!result.success) {
+      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      return
+    }
+    this.state.incrementRewardedAdCount()
+    this.state.activateHeatShield()
+    this.modals.showToast(this.root, '🛡️ Heat kalkanı 15 dk aktif!')
+    this.undergroundSheet.render(this.state)
+    this.renderHeatMeter()
+  }
+
+  showDailyRewardIfAvailable(): void {
+    if (!this.state.canClaimDaily()) return
+    const streakLost = this.state.peekDailyStreakReset()
+    const nextStreak = this.state.dailyLastClaim && !streakLost
+      ? this.state.dailyStreak + 1
+      : 1
+    const preview = Math.max(100 * nextStreak, this.state.incomePerSecond() * 60 * nextStreak)
+    this.modals.showDailyReward(
+      nextStreak,
+      formatMoney(preview),
+      () => {
+        const amount = this.state.claimDailyReward()
+        if (amount > 0) this.modals.showToast(this.root, `+${formatMoney(amount)}`)
+        this.renderAll()
+      },
+      streakLost,
+    )
+  }
+
+  showComebackPopup(): void {
+    if (!this.state.hasPendingComeback()) return
+    const claim = document.createElement('button')
+    claim.type = 'button'
+    claim.className = 'btn-primary'
+    claim.dataset.action = 'claim-comeback'
+    claim.textContent = 'Topla'
+    this.modals.show(
+      'Seni özledik Baron!',
+      `Geri dönüş bonusun: ${formatMoney(this.state.comebackPending)}`,
+      [claim],
+    )
+  }
+
   renderAll(): void {
+    applyDocumentTheme(this.state.activeTheme)
     this.statsBar.render()
     this.refreshShop(true)
     this.skyline.update(this.state.ownedBusinessTiers())
     this.goalsSheet.render(this.state)
     this.eventsPanel.render(this.state)
+    this.renderWeeklyBanner()
     this.renderDayNightChip()
     this.renderProgressStrip()
     this.updateNavBadges()

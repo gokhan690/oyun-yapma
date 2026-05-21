@@ -40,17 +40,18 @@ export class ModalManager {
     this.openLayer()
   }
 
-  showDailyReward(streak: number, amount: string, onClaim: () => void): void {
+  showDailyReward(streak: number, amount: string, onClaim: () => void, streakLost = false): void {
     this.layer.replaceChildren()
     const scrim = document.createElement('div')
     scrim.className = 'modal-scrim'
     const modal = document.createElement('div')
     modal.className = 'game-modal daily-reward-modal modal-enter'
-    modal.innerHTML = `<div class="reward-box">🎁</div><h2>Günlük Ödül</h2><p>${streak}. gün streak!</p><strong class="reward-amount">+${amount}</strong>`
+    const lostNote = streakLost ? '<p class="streak-lost-warn">⚠️ Serin sıfırlandı — yeniden başlıyorsun!</p>' : ''
+    modal.innerHTML = `<div class="reward-box">🎁</div><h2>Günlük Ödül</h2>${lostNote}<p>${streak}. gün streak!</p><strong class="reward-amount">+${amount}</strong>`
 
-    const dayInCycle = ((streak - 1) % 7) + 1
+    const dayInCycle = streak % 7 || 7
     const calendar = document.createElement('div')
-    calendar.className = 'streak-calendar'
+    calendar.className = 'streak-calendar streak-calendar-extended'
     for (let i = 1; i <= 7; i++) {
       const day = document.createElement('div')
       if (i < dayInCycle) day.className = 'streak-day streak-done'
@@ -60,6 +61,13 @@ export class ModalManager {
       calendar.appendChild(day)
     }
     modal.appendChild(calendar)
+
+    if (streak >= 7) {
+      const ms = document.createElement('p')
+      ms.className = 'streak-milestone-note'
+      ms.textContent = streak >= 30 ? '🏆 Efsane seri bonusu!' : streak >= 14 ? '💪 Demir irade bonusu!' : '🔥 7 gün bonusu!'
+      modal.appendChild(ms)
+    }
 
     const btn = document.createElement('button')
     btn.type = 'button'

@@ -1,4 +1,4 @@
-export type MissionType = 'clicks' | 'buy_business' | 'buy_upgrade' | 'earn_money' | 'season_xp' | 'autobuy_enable'
+export type MissionType = 'clicks' | 'buy_business' | 'buy_upgrade' | 'earn_money' | 'season_xp' | 'autobuy_enable' | 'use_underground' | 'claim_daily' | 'season_tier'
 
 export interface MissionDef {
   id: string
@@ -30,6 +30,9 @@ const POOL: Omit<MissionDef, 'id'>[] = [
   { type: 'earn_money', label: '₺ kazan', target: 25000, rewardMoney: 5000 },
   { type: 'season_xp', label: 'sezon XP kazan', target: 200, rewardMoney: 3000 },
   { type: 'autobuy_enable', label: 'işletmede auto-buy aç', target: 1, rewardBoostMinutes: 3 },
+  { type: 'use_underground', label: 'underground aksiyon kullan', target: 1, rewardMoney: 2500 },
+  { type: 'claim_daily', label: 'günlük ödül topla', target: 1, rewardMoney: 1500 },
+  { type: 'season_tier', label: 'sezon tier ödülü topla', target: 1, rewardMoney: 4000 },
 ]
 
 export function generateDailyMissions(seed: string): MissionProgress[] {

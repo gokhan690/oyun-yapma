@@ -8,7 +8,7 @@ import { calcPrestigePoints, prestigeMultiplier } from '../../game/Prestige'
 import { managerCost, hasManager } from '../../game/Managers'
 import { profitLoss, sparklinePath, STOCK_DEFS } from '../../game/StockMarket'
 import { PRESTIGE_TREE_NODES, canBuyNode, hasNode } from '../../game/PrestigeTree'
-import { dailyGoalProgress } from '../../game/DailyGoal'
+import { dailyGoalProgress, scaledDailyGoalTarget } from '../../game/DailyGoal'
 
 export type BuyMode = 1 | 10 | 'max'
 export type IpoSubTab = 'stock' | 'prestige' | 'ipo'
@@ -274,7 +274,7 @@ export class ShopPanel {
     const illegalIps = state.illegalIncomePerSecond()
     const ownedBiz = PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0).length
     const nextUnlock = PRODUCERS.find((p) => state.totalEarned < p.unlockAt)
-    const goalPct = Math.floor(dailyGoalProgress(state.dailyGoalEarned))
+    const goalPct = Math.floor(dailyGoalProgress(state.dailyGoalEarned, scaledDailyGoalTarget(state.incomePerSecond())))
     const nextText = nextUnlock ? `${nextUnlock.emoji} ${nextUnlock.name}` : 'Hepsi açık'
     const hasIllegal = illegalIps > 0
     const heatPct = Math.round(state.illegalHeat)
@@ -992,8 +992,18 @@ export class ShopPanel {
     panel.appendChild(this.createTabHero('📋', 'Günlük Görevler', 'Her gün yeni hedefler — ödülleri kaçırma', `${done}/${state.missions.length} tamam${ready > 0 ? ` · ${ready} hazır` : ''}`))
 
     const summary = document.createElement('div')
-    summary.className = 'mission-daily-summary'
-    summary.innerHTML = `<span>🔥 Seri: <strong>${state.dailyStreak} gün</strong></span><span>Hedef: ${ready} hazır ödül</span>`
+    summary.className = 'mission-daily-summary streak-card'
+    const streakPct = Math.min(100, (state.dailyStreak / 30) * 100)
+    summary.innerHTML = `
+      <div class="streak-ring-wrap">
+        <div class="streak-ring" style="background: conic-gradient(var(--accent) ${streakPct}%, rgba(255,255,255,0.08) ${streakPct}%)"></div>
+        <span class="streak-ring-num">${state.dailyStreak}</span>
+      </div>
+      <div class="streak-card-text">
+        <strong>🔥 Giriş serisi</strong>
+        <small>${state.dailyStreak}/30 gün · ${ready} hazır görev</small>
+      </div>
+    `
     panel.appendChild(summary)
 
     const sorted = [...state.missions].sort((a, b) => {

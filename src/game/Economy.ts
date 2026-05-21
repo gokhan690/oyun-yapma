@@ -66,6 +66,7 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'mobil_app_x2', name: 'Premium Abonelik', description: 'Mobil uygulama geliri x2', cost: 45_000, effect: 'producer_mult', value: 2, producerId: 'mobil_app' },
   { id: 'enerji_x2', name: 'Panel Verimliliği', description: 'Güneş santrali geliri x2', cost: 600_000, effect: 'producer_mult', value: 2, producerId: 'enerji' },
   { id: 'click_x10', name: 'Influencer Kampanyası', description: 'Tıklama geliri x10', cost: 500_000, effect: 'click_mult', value: 10 },
+  { id: 'offshore_laundry', name: 'Offshore Aklama', description: 'Illegal gelir −10%, heat −20%', cost: 2_500_000, effect: 'producer_mult', value: 0.9, producerId: 'offshore' },
 ]
 
 export function producerCost(def: ProducerDef, owned: number, count = 1): number {

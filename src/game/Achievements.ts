@@ -27,6 +27,11 @@ export interface AchievementContext {
   stockTickerCount: number
   nightEarnings: number
   managerAutoBuyCount: number
+  dailyStreak: number
+  comebackClaimed: boolean
+  heatSurvived: boolean
+  unlockedThemes: string[]
+  undergroundLawyerUsed: boolean
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -73,6 +78,14 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'illegal_1', name: 'Karanlık Taraf', description: 'İlk illegal işletmeyi aç', emoji: '🕶️', reward: 8_000, check: (c) => (c.producers.bahis ?? 0) >= 1 || (c.producers.piramit ?? 0) >= 1 || (c.producers.offshore ?? 0) >= 1 },
   { id: 'illegal_all', name: 'Underground Kralı', description: '3 illegal işletmenin hepsine sahip ol', emoji: '🎭', reward: 250_000, check: (c) => (c.producers.bahis ?? 0) >= 1 && (c.producers.piramit ?? 0) >= 1 && (c.producers.offshore ?? 0) >= 1 },
   { id: 'earn_100m', name: 'Yüz Milyon Kulübü', description: '100M toplam kazanç', emoji: '💵', reward: 100_000, check: (c) => c.totalEarned >= 100_000_000 },
+  { id: 'streak_14', name: 'Demir İrade', description: '14 günlük giriş serisi', emoji: '💪', reward: 25_000, check: (c) => c.dailyStreak >= 14 },
+  { id: 'streak_30', name: 'Efsane Seri', description: '30 günlük giriş serisi', emoji: '👑', reward: 100_000, check: (c) => c.dailyStreak >= 30 },
+  { id: 'comeback_1', name: 'Geri Dönüş', description: 'Comeback bonusu topla', emoji: '🎉', reward: 15_000, check: (c) => c.comebackClaimed },
+  { id: 'heat_max_survive', name: 'Radar Kaçkını', description: 'Kritik heatten (%80+) kurtul', emoji: '🕶️', reward: 20_000, check: (c) => c.heatSurvived },
+  { id: 'codex_legal', name: 'Yasal Usta', description: 'Tüm yasal işletmeleri aç', emoji: '📗', reward: 50_000, check: (c) => PRODUCERS.filter((p) => !p.illegal).every((p) => (c.producers[p.id] ?? 0) >= 1) },
+  { id: 'codex_all', name: 'Tam Koleksiyon', description: '17 işletmenin hepsine sahip ol', emoji: '📕', reward: 200_000, check: (c) => PRODUCERS.every((p) => (c.producers[p.id] ?? 0) >= 1) },
+  { id: 'theme_3', name: 'Tema Koleksiyoncusu', description: '3 sezon temasını aç', emoji: '🎨', reward: 75_000, check: (c) => c.unlockedThemes.length >= 3 },
+  { id: 'underground_lawyer', name: 'Avukatlık', description: 'Avukat tut aksiyonunu kullan', emoji: '⚖️', reward: 10_000, check: (c) => c.undergroundLawyerUsed },
 ]
 
 export function checkNewAchievements(ctx: AchievementContext): AchievementDef[] {

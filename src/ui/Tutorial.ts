@@ -13,6 +13,9 @@ const STEPS: TutorialStep[] = [
   { target: '.combo-wrap', title: 'Combo', text: '2 saniye içinde art arda tıkla — combo çarpanı artar.' },
   { target: '[data-tab="missions"]', title: 'Görevler', text: 'Günlük görevleri tamamla, bonus kazan.', tab: 'missions' },
   { target: '[data-tab="ipo"]', title: 'IPO', text: '25M kazanınca borsaya çık — kalıcı hisse senedi kazan.', tab: 'ipo' },
+  { target: '[data-id="events"]', title: 'Etkinlikler', text: 'Günlük hedef, haftalık modifier ve sezon yolu burada.' },
+  { target: '.btn-daily', title: 'Günlük Ödül', text: 'Her gün giriş yap, streak bonusu topla!' },
+  { target: '.heat-meter-row', title: 'Illegal Radar', text: 'Illegal işletmeler radar biriktirir. Underground menüsünden temizle.' },
 ]
 
 export class Tutorial {

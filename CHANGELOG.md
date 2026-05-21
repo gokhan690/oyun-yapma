@@ -4,6 +4,48 @@ GitHub commit / release notu olarak kopyalayabilirsin.
 
 ---
 
+## [2.4.0] — 2026-05-21
+
+### Özet (commit mesajı)
+```
+feat: v2.4 bağımlılık paketi — underground, streak, temalar, codex
+```
+
+### GitHub Release / PR özeti
+
+**Başlık:** v2.4.0 — Bağımlılık ve Derinlik Paketi
+
+#### Günlük geri dönüş
+- Günlük ödül artık modal ile manuel toplanıyor (FOMO geri)
+- Streak 30 güne uzatıldı, 7/14/30 milestone bonusları
+- Ölçeklenen günlük hedef (IPS × 5 dk)
+- 24h+ away comeback bonusu
+- Bildirim tercihleri (ayarlar)
+
+#### Underground imparatorluk
+- Avukat, rüşvet, para aklama counterplay
+- Heat kalkanı reklamı
+- Prestij ağacı: heat_decay, raid_insurance
+- offshore_laundry yükseltmesi
+
+#### Koleksiyon ve kozmetik
+- Sezon tema ödülleri uygulanıyor (Altın, Neon, Galaktik)
+- İmparatorluk Defteri (17 işletme codex)
+- Rozet vitrin (profil)
+- 8 yeni başarım
+
+#### Canlı etkinlik merkezi
+- Events Panel 2.0: claim butonları, streak, bonus chip
+- Haftalık banner Kazan ekranında
+- Sürpriz yatırımcı mini-event
+- Near-miss nudge (IPO, sezon, combo)
+- Tutorial +3 adım
+
+#### Kayıt
+- Save v5 migration
+
+---
+
 ## [2.3.0] — 2026-05-21
 
 ### Özet (commit mesajı)

@@ -4,16 +4,20 @@ import { currentRank } from '../../game/PlayerRank'
 import { PRODUCERS, formatMoney } from '../../game/Economy'
 import type { Leaderboard } from '../../game/Leaderboard'
 import { playerAge } from '../../utils/assetUrl'
+import { CodexPanel } from './CodexPanel'
+import { BADGES, badgeDef } from '../../game/Badges'
 
 export class StatsScreen {
   readonly layer: HTMLElement
   private state: GameState
   private leaderboard: Leaderboard
   private content!: HTMLElement
+  private codex: CodexPanel
 
   constructor(state: GameState, leaderboard: Leaderboard) {
     this.state = state
     this.leaderboard = leaderboard
+    this.codex = new CodexPanel()
     this.layer = document.createElement('div')
     this.layer.className = 'slide-panel stats-panel'
     this.build()
@@ -44,10 +48,38 @@ export class StatsScreen {
   render(): void {
     this.content.replaceChildren()
     this.renderStats()
+    this.renderBadges()
+    this.codex.render(this.state)
+    this.content.appendChild(this.codex.root)
     this.renderIncomeSources()
     this.renderHistoryChart()
     this.renderSubmitSection()
     void this.renderOnlineLeaderboard()
+  }
+
+  private renderBadges(): void {
+    const section = document.createElement('div')
+    section.className = 'stats-section badges-section'
+    const title = document.createElement('h3')
+    title.textContent = 'Rozetler'
+    section.appendChild(title)
+    const grid = document.createElement('div')
+    grid.className = 'badges-grid'
+    for (const b of BADGES) {
+      const earned = this.state.earnedBadges.has(b.id)
+      const cell = document.createElement('div')
+      cell.className = `badge-cell${earned ? ' earned' : ''}`
+      cell.title = b.description
+      cell.innerHTML = `<span class="badge-emoji">${earned ? b.emoji : '🔒'}</span><small>${earned ? b.name : '???'}</small>`
+      grid.appendChild(cell)
+    }
+    section.appendChild(grid)
+    const earnedCount = [...this.state.earnedBadges].filter((id) => badgeDef(id)).length
+    const meta = document.createElement('p')
+    meta.className = 'badges-meta'
+    meta.textContent = `${earnedCount}/${BADGES.length} rozet`
+    section.appendChild(meta)
+    this.content.appendChild(section)
   }
 
   private renderStats(): void {

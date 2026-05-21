@@ -6,12 +6,13 @@ import { dailyGoalDayKey } from '../game/DailyGoal'
 import { PRODUCERS } from '../game/Economy'
 import { RESEARCH_NODES } from '../game/Research'
 
+const SAVE_KEY_V5 = 'is_imparatorlugu_save_v5'
 const SAVE_KEY_V4 = 'is_imparatorlugu_save_v4'
 const SAVE_KEY_V3 = 'is_imparatorlugu_save_v3'
 const SAVE_KEY_V2 = 'is_imparatorlugu_save_v2'
 const SAVE_KEY_V1 = 'para_tuzagi_save_v1'
 const OBFUSCATION_KEY = 'PT2026x'
-const CURRENT_VERSION = 4
+const CURRENT_VERSION = 5
 
 interface SaveEnvelope {
   payload: string
@@ -37,12 +38,18 @@ export class SaveManager {
   save(state: GameState): void {
     const data = state.toJSON()
     data.lastSaveTime = Date.now()
-    this.writeSave(data, CURRENT_VERSION, SAVE_KEY_V4)
+    this.writeSave(data, CURRENT_VERSION, SAVE_KEY_V5)
   }
 
   load(state: GameState): { ok: boolean; lastSaveTime: number } {
-    const v4 = this.tryLoad(state, SAVE_KEY_V4, CURRENT_VERSION)
-    if (v4.ok) return v4
+    const v5 = this.tryLoad(state, SAVE_KEY_V5, CURRENT_VERSION)
+    if (v5.ok) return v5
+
+    const v4 = this.tryLoadMigrateV5(state, SAVE_KEY_V4)
+    if (v4.ok) {
+      this.save(state)
+      return v4
+    }
 
     const v3 = this.tryLoadMigrateV3(state, SAVE_KEY_V3)
     if (v3.ok) {
@@ -66,6 +73,7 @@ export class SaveManager {
   }
 
   clear(): void {
+    localStorage.removeItem(SAVE_KEY_V5)
     localStorage.removeItem(SAVE_KEY_V4)
     localStorage.removeItem(SAVE_KEY_V3)
     localStorage.removeItem(SAVE_KEY_V2)
@@ -138,7 +146,7 @@ export class SaveManager {
         return { ok: false, lastSaveTime: Date.now() }
       }
 
-      const data = JSON.parse(json) as SerializableState
+      const data = applyV5Defaults(JSON.parse(json) as SerializableState)
       if (envelope.version !== expectedVersion || !validateState(data)) {
         return { ok: false, lastSaveTime: Date.now() }
       }
@@ -146,6 +154,27 @@ export class SaveManager {
       const lastSaveTime = sanitizeTimestamp(data.lastSaveTime)
       state.loadFrom({ ...data, lastSaveTime })
       return { ok: true, lastSaveTime }
+    } catch {
+      return { ok: false, lastSaveTime: Date.now() }
+    }
+  }
+
+  private tryLoadMigrateV5(state: GameState, key: string): { ok: boolean; lastSaveTime: number } {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) return { ok: false, lastSaveTime: Date.now() }
+
+      const envelope = JSON.parse(raw) as SaveEnvelope
+      const json = deobfuscate(envelope.payload)
+      if (computeChecksum(json) !== envelope.checksum) {
+        return { ok: false, lastSaveTime: Date.now() }
+      }
+
+      const legacy = JSON.parse(json) as SerializableState
+      const migrated = applyV5Defaults(legacy)
+      migrated.lastSaveTime = sanitizeTimestamp(legacy.lastSaveTime)
+      state.loadFrom(migrated)
+      return { ok: true, lastSaveTime: migrated.lastSaveTime }
     } catch {
       return { ok: false, lastSaveTime: Date.now() }
     }
@@ -163,7 +192,7 @@ export class SaveManager {
       }
 
       const legacy = JSON.parse(json) as LegacyState
-      const migrated = applyV4Defaults(applyV3Defaults(legacy))
+      const migrated = applyV5Defaults(applyV4Defaults(applyV3Defaults(legacy)))
       migrated.lastSaveTime = sanitizeTimestamp(legacy.lastSaveTime)
       state.loadFrom(migrated)
       return { ok: true, lastSaveTime: migrated.lastSaveTime }
@@ -188,7 +217,7 @@ export class SaveManager {
       }
 
       const legacy = JSON.parse(json) as LegacyState
-      const migrated = applyV4Defaults(applyV3Defaults(legacy))
+      const migrated = applyV5Defaults(applyV4Defaults(applyV3Defaults(legacy)))
       migrated.lastSaveTime = sanitizeTimestamp(legacy.lastSaveTime)
       state.loadFrom(migrated)
       void version
@@ -210,7 +239,7 @@ export class SaveManager {
       }
 
       const legacy = JSON.parse(json) as LegacyState
-      const migrated = applyV4Defaults(applyV3Defaults(legacy))
+      const migrated = applyV5Defaults(applyV4Defaults(applyV3Defaults(legacy)))
       migrated.lastSaveTime = sanitizeTimestamp(legacy.lastSaveTime)
       state.loadFrom(migrated)
       return { ok: true, lastSaveTime: migrated.lastSaveTime }
@@ -293,6 +322,57 @@ function applyV3Defaults(legacy: LegacyState): SerializableState {
     birthYear: legacy.birthYear ?? 0,
     forcedUnlocks: legacy.forcedUnlocks ?? [],
     illegalHeat: legacy.illegalHeat ?? 0,
+    unlockedThemes: legacy.unlockedThemes ?? ['default'],
+    activeTheme: legacy.activeTheme ?? 'default',
+    codexUnlockDates: legacy.codexUnlockDates ?? {},
+    undergroundCooldowns: legacy.undergroundCooldowns ?? {},
+    heatShieldUntil: legacy.heatShieldUntil ?? 0,
+    heatProtectionUntil: legacy.heatProtectionUntil ?? 0,
+    launderingUntil: legacy.launderingUntil ?? 0,
+    lastActiveAt: legacy.lastActiveAt ?? Date.now(),
+    comebackClaimedDay: legacy.comebackClaimedDay ?? null,
+    comebackPending: legacy.comebackPending ?? 0,
+    notificationPrefs: legacy.notificationPrefs ?? { dailyReward: true, passiveIncome: true, goalNear: true },
+    surpriseInvestorUntil: legacy.surpriseInvestorUntil ?? 0,
+    surpriseInvestorDay: legacy.surpriseInvestorDay ?? '',
+    seenStoryBeats: legacy.seenStoryBeats ?? [],
+    earnedBadges: legacy.earnedBadges ?? [],
+    raidsToday: legacy.raidsToday ?? 0,
+    raidsDay: legacy.raidsDay ?? new Date().toISOString().slice(0, 10),
+    heatWasCritical: legacy.heatWasCritical ?? false,
+    heatSurvived: legacy.heatSurvived ?? false,
+    undergroundLawyerUsed: legacy.undergroundLawyerUsed ?? false,
+    comebackClaimed: legacy.comebackClaimed ?? false,
+    streakMilestonesClaimed: legacy.streakMilestonesClaimed ?? [],
+  }
+}
+
+function applyV5Defaults(state: SerializableState): SerializableState {
+  const base = applyV4Defaults(state)
+  return {
+    ...base,
+    unlockedThemes: base.unlockedThemes ?? ['default'],
+    activeTheme: (base.activeTheme ?? 'default') as SerializableState['activeTheme'],
+    codexUnlockDates: base.codexUnlockDates ?? {},
+    undergroundCooldowns: base.undergroundCooldowns ?? {},
+    heatShieldUntil: base.heatShieldUntil ?? 0,
+    heatProtectionUntil: base.heatProtectionUntil ?? 0,
+    launderingUntil: base.launderingUntil ?? 0,
+    lastActiveAt: base.lastActiveAt ?? Date.now(),
+    comebackClaimedDay: base.comebackClaimedDay ?? null,
+    comebackPending: base.comebackPending ?? 0,
+    notificationPrefs: base.notificationPrefs ?? { dailyReward: true, passiveIncome: true, goalNear: true },
+    surpriseInvestorUntil: base.surpriseInvestorUntil ?? 0,
+    surpriseInvestorDay: base.surpriseInvestorDay ?? '',
+    seenStoryBeats: base.seenStoryBeats ?? [],
+    earnedBadges: base.earnedBadges ?? [],
+    raidsToday: base.raidsToday ?? 0,
+    raidsDay: base.raidsDay ?? new Date().toISOString().slice(0, 10),
+    heatWasCritical: base.heatWasCritical ?? false,
+    heatSurvived: base.heatSurvived ?? false,
+    undergroundLawyerUsed: base.undergroundLawyerUsed ?? false,
+    comebackClaimed: base.comebackClaimed ?? false,
+    streakMilestonesClaimed: base.streakMilestonesClaimed ?? [],
   }
 }
 
