@@ -1,3 +1,5 @@
+import { gameSeasonKey } from './GameClock'
+
 export interface SeasonState {
   weekKey: string
   xp: number
@@ -7,14 +9,13 @@ export interface SeasonState {
 
 export const SEASON_MAX_TIER = 30
 
-export function seasonWeekKey(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-W${Math.ceil((d.getDate() + new Date(d.getFullYear(), d.getMonth(), 1).getDay()) / 7)}`
+export function seasonWeekKey(gameTimeMs = 0): string {
+  return gameSeasonKey(gameTimeMs)
 }
 
-export function createSeasonState(): SeasonState {
+export function createSeasonState(gameTimeMs = 0): SeasonState {
   return {
-    weekKey: seasonWeekKey(),
+    weekKey: seasonWeekKey(gameTimeMs),
     xp: 0,
     claimedTiers: [],
     adXpDoubled: false,

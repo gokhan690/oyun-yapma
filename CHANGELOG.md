@@ -4,6 +4,19 @@ GitHub commit / release notu olarak kopyalayabilirsin.
 
 ---
 
+## [2.6.0] — 2026-05-21
+
+### Özet
+- **Profil bug:** Ayarlardan dönünce boş ekran düzeltildi
+- **Oyun takvimi:** Haftalık/sezon oyun gününe bağlandı (7 / 30 gün)
+- **Piyasa haberleri:** Oyun saatine göre geçici bonus/ceza banner'ı
+- **Hanedan:** Evlilik, çocuklar (max 3), miras devri ile devam
+- **Ekonomi:** Kripto Borsası, Nano Lab, Hanedan Mirası prestij node
+- **Mobil his:** Para pulse, tıklama shrink animasyonu
+- **Kayıt:** Save v7
+
+---
+
 ## [2.5.0] — 2026-05-21
 
 ### Özet

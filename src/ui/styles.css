@@ -3391,3 +3391,62 @@ html.theme-galactic {
 }
 .hud-header { position: relative; }
 
+/* v2.6 — piyasa haberi, hanedan, para pulse */
+.market-news-banner {
+  background: linear-gradient(90deg, rgba(96,165,250,0.25), rgba(251,191,36,0.2));
+  border: 1px solid rgba(96,165,250,0.4);
+  animation: newsTicker 0.4s ease;
+}
+@keyframes newsTicker {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.app-root.money-pulse .stats-bar-root {
+  animation: moneyPulse 0.28s ease;
+}
+@keyframes moneyPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); filter: brightness(1.15); }
+}
+.tap-area:active .tap-inner {
+  transform: scale(0.94);
+  transition: transform 0.08s ease;
+}
+.dynasty-section h3 { margin: 0 0 10px; }
+.dynasty-desc { font-size: 0.75rem; color: var(--muted); margin: 0 0 10px; }
+.dynasty-spouse-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.dynasty-spouse-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text);
+}
+.dynasty-spouse-card:disabled { opacity: 0.45; cursor: not-allowed; }
+.dynasty-spouse-emoji { font-size: 1.6rem; }
+.dynasty-cost { color: var(--accent); font-weight: 700; }
+.dynasty-children { display: flex; flex-direction: column; gap: 8px; }
+.dynasty-child-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+.dynasty-child-card small { display: block; color: var(--muted); font-size: 0.65rem; }
+.dynasty-succession-btn { width: 100%; margin-top: 8px; }
+.dynasty-active-heir { color: #34d399; font-size: 0.75rem; font-weight: 600; }
+.dynasty-spouse-line { font-size: 0.8rem; margin: 0 0 8px; }
+

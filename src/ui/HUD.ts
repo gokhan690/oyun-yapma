@@ -396,7 +396,7 @@ export class HUD {
     this.goalsSheet.close()
     this.modals.close()
     this.bottomNav.setActive(view)
-    this.earnView.hidden = view !== 'earn'
+    this.earnView.hidden = view === 'shop' || view === 'events'
     this.shop.root.hidden = view !== 'shop'
     this.eventsPanel.root.hidden = view !== 'events'
     this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop')
@@ -421,6 +421,17 @@ export class HUD {
         || this.state.canClaimDaily(),
       this.shop.hasShopBadge(this.state),
     )
+  }
+
+  private renderMarketNewsBanner(): void {
+    const headline = this.state.currentMarketHeadline()
+    if (headline) {
+      this.weeklyBanner.hidden = false
+      this.weeklyBanner.className = 'weekly-banner market-news-banner'
+      this.weeklyBanner.textContent = headline
+      return
+    }
+    this.renderWeeklyBanner()
   }
 
   private renderDayNightChip(): void {
@@ -462,7 +473,13 @@ export class HUD {
     this.settings.layer.addEventListener('click', onActionClick)
     this.statsScreen.layer.addEventListener('click', (e) => {
       const el = (e.target as HTMLElement).closest('[data-action]') as HTMLElement | null
-      if (el?.dataset.action === 'close-stats') this.statsScreen.hide()
+      if (el?.dataset.action === 'close-stats') {
+        this.statsScreen.hide()
+        return
+      }
+      if (el?.dataset.action) {
+        void this.handleAction(el.dataset.action, el.dataset.id, el.dataset.count)
+      }
     })
 
     this.unsub = this.state.subscribe((ev) => {
@@ -476,6 +493,8 @@ export class HUD {
         this.scheduleUiSync()
         this.renderProgressStrip()
         this.checkRankUp()
+        this.root.classList.add('money-pulse')
+        window.setTimeout(() => this.root.classList.remove('money-pulse'), 280)
       }
       if (ev.type === 'illegal_raid') {
         const p = PRODUCERS.find((x) => x.id === ev.producerId)
@@ -555,6 +574,14 @@ export class HUD {
       }
       if (ev.type === 'day_night' || ev.type === 'game_time') {
         this.renderDayNightChip()
+        this.renderMarketNewsBanner()
+      }
+      if (ev.type === 'market_news') {
+        this.renderMarketNewsBanner()
+      }
+      if (ev.type === 'dynasty_update') {
+        if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
+        this.renderProfileChip()
       }
       if (ev.type === 'season_updated' || ev.type === 'season_claimed') {
         this.eventsPanel.render(this.state)
@@ -702,6 +729,11 @@ export class HUD {
         break
       case 'close-settings':
         this.settings.hide()
+        if (this.bottomNav.getActive() === 'profile') {
+          this.statsScreen.show()
+        } else {
+          this.setView('earn')
+        }
         break
       case 'close-stats':
         this.setView('earn')
@@ -979,8 +1011,26 @@ export class HUD {
       case 'ad-offline-x2':
         await this.handleAdOffline(2)
         break
-      case 'refresh':
-        this.refreshShop(true)
+      case 'dynasty-marry':
+        if (id && this.state.marrySpouse(id)) {
+          this.modals.showToast(this.root, '💍 Evet! Hanedan kuruldu.')
+          this.statsScreen.render()
+          this.renderProfileChip()
+          this.renderAll()
+        } else {
+          this.modals.showToast(this.root, 'Evlenilemedi — yeterli para yok veya zaten evlisin.')
+        }
+        break
+      case 'dynasty-succession':
+        if (id && this.state.successionToChild(id)) {
+          this.modals.showToast(this.root, `👑 ${this.state.playerName} imparatorluğu devraldı!`)
+          this.statsScreen.render()
+          this.renderProfileChip()
+          this.renderAll()
+        }
+        break
+      case 'dynasty-succession-open':
+        this.modals.showToast(this.root, 'Bir çocuğun altındaki Devral\'a bas.')
         break
       default:
         break
@@ -1411,7 +1461,7 @@ export class HUD {
     this.skyline.update(this.state.ownedBusinessTiers())
     this.goalsSheet.render(this.state)
     this.eventsPanel.render(this.state)
-    this.renderWeeklyBanner()
+    this.renderMarketNewsBanner()
     this.renderDayNightChip()
     this.renderProgressStrip()
     this.updateNavBadges()

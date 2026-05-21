@@ -30,3 +30,15 @@ export function formatGameClock(gameTimeMs: number): string {
   const m = Math.floor((gameTimeMs % MS_PER_GAME_HOUR) / MS_PER_GAME_MINUTE)
   return `Gün ${day} · ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
+
+/** Oyun takviminde hafta (7 oyun günü) */
+export function gameWeekKey(gameTimeMs: number): string {
+  return `gw${Math.floor((gameDay(gameTimeMs) - 1) / 7)}`
+}
+
+/** Oyun takviminde sezon (30 oyun günü) */
+export function gameSeasonKey(gameTimeMs: number): string {
+  return `gs${Math.floor((gameDay(gameTimeMs) - 1) / 30)}`
+}
+
+export { MS_PER_GAME_DAY, MS_PER_GAME_HOUR }

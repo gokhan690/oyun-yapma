@@ -3,9 +3,11 @@ import { migrateLegacyStock } from '../game/StockMarket'
 import { createWeeklyState } from '../game/WeeklyEvent'
 import { createSeasonState } from '../game/SeasonPass'
 import { dailyGoalDayKey } from '../game/DailyGoal'
+import { createDynastyState } from '../game/Dynasty'
 import { PRODUCERS } from '../game/Economy'
 import { RESEARCH_NODES } from '../game/Research'
 
+const SAVE_KEY_V7 = 'is_imparatorlugu_save_v7'
 const SAVE_KEY_V6 = 'is_imparatorlugu_save_v6'
 const SAVE_KEY_V5 = 'is_imparatorlugu_save_v5'
 const SAVE_KEY_V4 = 'is_imparatorlugu_save_v4'
@@ -13,7 +15,7 @@ const SAVE_KEY_V3 = 'is_imparatorlugu_save_v3'
 const SAVE_KEY_V2 = 'is_imparatorlugu_save_v2'
 const SAVE_KEY_V1 = 'para_tuzagi_save_v1'
 const OBFUSCATION_KEY = 'PT2026x'
-const CURRENT_VERSION = 6
+const CURRENT_VERSION = 7
 
 interface SaveEnvelope {
   payload: string
@@ -39,12 +41,18 @@ export class SaveManager {
   save(state: GameState): void {
     const data = state.toJSON()
     data.lastSaveTime = Date.now()
-    this.writeSave(data, CURRENT_VERSION, SAVE_KEY_V6)
+    this.writeSave(data, CURRENT_VERSION, SAVE_KEY_V7)
   }
 
   load(state: GameState): { ok: boolean; lastSaveTime: number } {
-    const v6 = this.tryLoad(state, SAVE_KEY_V6, CURRENT_VERSION)
-    if (v6.ok) return v6
+    const v7 = this.tryLoad(state, SAVE_KEY_V7, CURRENT_VERSION)
+    if (v7.ok) return v7
+
+    const v6 = this.tryLoad(state, SAVE_KEY_V6, 6)
+    if (v6.ok) {
+      this.save(state)
+      return v6
+    }
 
     const v5 = this.tryLoad(state, SAVE_KEY_V5, 5)
     if (v5.ok) {
@@ -80,6 +88,7 @@ export class SaveManager {
   }
 
   clear(): void {
+    localStorage.removeItem(SAVE_KEY_V7)
     localStorage.removeItem(SAVE_KEY_V6)
     localStorage.removeItem(SAVE_KEY_V5)
     localStorage.removeItem(SAVE_KEY_V4)
@@ -353,6 +362,8 @@ function applyV3Defaults(legacy: LegacyState): SerializableState {
     undergroundLawyerUsed: legacy.undergroundLawyerUsed ?? false,
     comebackClaimed: legacy.comebackClaimed ?? false,
     streakMilestonesClaimed: legacy.streakMilestonesClaimed ?? [],
+    dynasty: legacy.dynasty ?? createDynastyState(),
+    activeMarketNews: legacy.activeMarketNews ?? null,
   }
 }
 

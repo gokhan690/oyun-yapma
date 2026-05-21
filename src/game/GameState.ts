@@ -55,13 +55,32 @@ import {
   ownedNodeCount,
   heatDecayBonus,
   hasRaidInsurance,
+  hasNode,
 } from './PrestigeTree'
 import { localDayKey, yesterdayLocalKey } from './dateUtils'
-import { isGameNight, realSecondsToGameMs } from './GameClock'
+import { gameDay, gameHour, gameWeekKey, isGameNight, realSecondsToGameMs } from './GameClock'
+import {
+  createDynastyState,
+  activeDynastyTrait,
+  pickChildName,
+  randomChildTrait,
+  spouseOption,
+  traitClickMult,
+  traitCostMult,
+  traitIllegalMult,
+  traitPassiveMult,
+  type DynastyState,
+} from './Dynasty'
+import {
+  type ActiveMarketNews,
+  newsDef,
+  newsDurationMs,
+  pickMarketNews,
+  type MarketNewsDef,
+} from './MarketNews'
 import {
   createWeeklyState,
   getWeeklyDef,
-  weekKey,
   type WeeklyEventState,
 } from './WeeklyEvent'
 import { dailyGoalDayKey, scaledDailyGoalTarget } from './DailyGoal'
@@ -145,6 +164,8 @@ export interface SerializableState {
   undergroundLawyerUsed: boolean
   comebackClaimed: boolean
   streakMilestonesClaimed: number[]
+  dynasty: DynastyState
+  activeMarketNews: ActiveMarketNews | null
 }
 
 export interface ProducerBreakdown {
@@ -196,6 +217,8 @@ export type GameEvent =
   | { type: 'near_miss'; kind: string; message: string }
   | { type: 'theme_unlocked'; themeId: ThemeId }
   | { type: 'badge_earned'; badgeId: string }
+  | { type: 'market_news'; headline: string; active: boolean }
+  | { type: 'dynasty_update'; kind: string; name?: string }
 
 const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
@@ -278,6 +301,8 @@ export class GameState {
   undergroundLawyerUsed = false
   comebackClaimed = false
   streakMilestonesClaimed: number[] = []
+  dynasty = createDynastyState()
+  activeMarketNews: ActiveMarketNews | null = null
   private lastIllegalRiskCheck = 0
   private lastHeatTick = 0
   private lastSurpriseCheck = 0
@@ -299,6 +324,8 @@ export class GameState {
   private lastMarketEventCheck = 0
   private passiveAccrued = 0
   private lastGameClockEmit = 0
+  private lastDynastyGameDay = 0
+  private lastMarketNewsGameHour = -1
 
   private listeners = new Set<(event: GameEvent) => void>()
   private tickHandle: number | null = null
@@ -326,15 +353,16 @@ export class GameState {
   }
 
   ensureSeason(): void {
-    const key = seasonWeekKey()
+    const key = seasonWeekKey(this.gameTimeMs)
     if (this.season.weekKey !== key) {
-      this.season = createSeasonState()
+      this.season = createSeasonState(this.gameTimeMs)
     }
   }
 
   ensureWeekly(): void {
-    if (this.weekly.weekKey !== weekKey()) {
-      this.weekly = createWeeklyState()
+    const key = gameWeekKey(this.gameTimeMs)
+    if (this.weekly.weekKey !== key) {
+      this.weekly = createWeeklyState(this.gameTimeMs)
     }
   }
 
@@ -378,6 +406,8 @@ export class GameState {
       }
       if (now - this.lastGameClockEmit > 1000) {
         this.lastGameClockEmit = now
+        this.tickMarketNews()
+        this.tickDynasty()
         this.emit({ type: 'game_time' })
       }
       this.tickHandle = requestAnimationFrame(loop)
@@ -695,6 +725,13 @@ export class GameState {
     if (this.hasCodexLegalComplete()) mult *= 1.05
     if (Date.now() < this.surpriseInvestorUntil) mult *= 2
     if (this.ownerFlag('income_x2')) mult *= 2
+    mult *= this.marketNewsGlobalMult()
+    const trait = activeDynastyTrait(this.dynasty)
+    mult *= traitPassiveMult(trait)
+    if (hasNode(this.prestigeTree, 'dynasty_1')) {
+      const t = activeDynastyTrait(this.dynasty)
+      if (t === 'merchant' || t === 'diplomat') mult *= 1.05
+    }
     return mult
   }
 
@@ -713,6 +750,8 @@ export class GameState {
     mult *= this.comboMultiplier
     mult *= 1 + clickBonus(this.prestigeTree)
     mult *= 1 + this.dayNightClickBonus()
+    mult *= traitClickMult(activeDynastyTrait(this.dynasty))
+    mult *= this.marketNewsClickMult()
     return mult
   }
 
@@ -727,7 +766,107 @@ export class GameState {
     mult *= 1 + producerSynergyBonus(def.id, this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
     mult *= managerMultiplier(this.managers, def.id)
     mult *= this.weeklyProducerBonus(def.id)
+    if (def.illegal) mult *= traitIllegalMult(activeDynastyTrait(this.dynasty))
+    mult *= this.marketNewsProducerMult(def.id)
     return def.baseIncome * owned * mult * this.passiveMultiplier()
+  }
+
+  activeMarketNewsDef(): MarketNewsDef | null {
+    if (!this.activeMarketNews) return null
+    if (this.gameTimeMs >= this.activeMarketNews.expiresGameTimeMs) {
+      this.activeMarketNews = null
+      return null
+    }
+    return newsDef(this.activeMarketNews.defId) ?? null
+  }
+
+  currentMarketHeadline(): string | null {
+    return this.activeMarketNewsDef()?.headline ?? null
+  }
+
+  private marketNewsGlobalMult(): number {
+    const n = this.activeMarketNewsDef()
+    if (!n) return 1
+    if (n.effect === 'global_up') return 1 + n.value
+    if (n.effect === 'global_down') return 1 - n.value
+    if (n.effect === 'synergy_up') return 1 + n.value * 0.5
+    return 1
+  }
+
+  private marketNewsClickMult(): number {
+    const n = this.activeMarketNewsDef()
+    if (n?.effect === 'click_up') return 1 + n.value
+    return 1
+  }
+
+  private marketNewsProducerMult(producerId: string): number {
+    const n = this.activeMarketNewsDef()
+    if (n?.effect === 'producer_up' && n.producerId === producerId) return 1 + n.value
+    return 1
+  }
+
+  private tickMarketNews(): void {
+    if (this.activeMarketNews && this.gameTimeMs >= this.activeMarketNews.expiresGameTimeMs) {
+      this.activeMarketNews = null
+      this.emit({ type: 'market_news', headline: '', active: false })
+    }
+    const h = gameHour(this.gameTimeMs)
+    if (h === this.lastMarketNewsGameHour || this.activeMarketNews) return
+    if (h % 4 !== 0) return
+    this.lastMarketNewsGameHour = h
+    const def = pickMarketNews(gameDay(this.gameTimeMs), h)
+    this.activeMarketNews = {
+      defId: def.id,
+      expiresGameTimeMs: this.gameTimeMs + newsDurationMs(def),
+    }
+    this.emit({ type: 'market_news', headline: def.headline, active: true })
+  }
+
+  private tickDynasty(): void {
+    const day = gameDay(this.gameTimeMs)
+    if (day === this.lastDynastyGameDay) return
+    this.lastDynastyGameDay = day
+    if (!this.dynasty.spouseName || this.dynasty.children.length >= 3) return
+    const married = this.dynasty.marriedGameDay ?? day
+    if (day - married < 5) return
+    if (Math.random() > 0.4) return
+    const child = {
+      id: `c${day}_${this.dynasty.children.length}`,
+      name: pickChildName(this.dynasty.children),
+      trait: randomChildTrait(),
+      bornGameDay: day,
+    }
+    this.dynasty.children.push(child)
+    this.emit({ type: 'dynasty_update', kind: 'child_born', name: child.name })
+  }
+
+  marrySpouse(spouseId: string): boolean {
+    if (this.dynasty.spouseName) return false
+    const s = spouseOption(spouseId)
+    if (!s || !this.canAfford(s.cost)) return false
+    this.money -= s.cost
+    this.dynasty.spouseId = s.id
+    this.dynasty.spouseName = s.name
+    this.dynasty.spouseTrait = s.trait
+    this.dynasty.marriedGameDay = gameDay(this.gameTimeMs)
+    this.emit({ type: 'dynasty_update', kind: 'married', name: s.name })
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  successionToChild(childId: string): boolean {
+    const child = this.dynasty.children.find((c) => c.id === childId)
+    if (!child) return false
+    this.playerName = child.name
+    this.dynasty.activeHeirId = child.id
+    this.dynasty.dynastyBonusId = child.id
+    this.dynasty.generation++
+    this.emit({ type: 'dynasty_update', kind: 'succession', name: child.name })
+    return true
+  }
+
+  dynastyCostMult(): number {
+    return traitCostMult(activeDynastyTrait(this.dynasty))
   }
 
   incomePerSecond(): number {
@@ -900,7 +1039,7 @@ export class GameState {
   producerCostFor(def: ProducerDef, owned: number, count = 1): number {
     const raw = producerCost(def, owned, count)
     const efficiencyDiscount = researchEfficiencyBonus(this.research)
-    return Math.floor(raw * (1 - producerCostDiscount(this.prestigeTree)) * (1 - efficiencyDiscount))
+    return Math.floor(raw * (1 - producerCostDiscount(this.prestigeTree)) * (1 - efficiencyDiscount) * this.dynastyCostMult())
   }
 
   countMaxAffordable(id: string): number {
@@ -1709,6 +1848,11 @@ export class GameState {
       undergroundLawyerUsed: this.undergroundLawyerUsed,
       comebackClaimed: this.comebackClaimed,
       streakMilestonesClaimed: [...this.streakMilestonesClaimed],
+      dynasty: {
+        ...this.dynasty,
+        children: this.dynasty.children.map((c) => ({ ...c })),
+      },
+      activeMarketNews: this.activeMarketNews ? { ...this.activeMarketNews } : null,
     }
   }
 
@@ -1795,6 +1939,10 @@ export class GameState {
     this.undergroundLawyerUsed = data.undergroundLawyerUsed ?? false
     this.comebackClaimed = data.comebackClaimed ?? false
     this.streakMilestonesClaimed = data.streakMilestonesClaimed ?? []
+    this.dynasty = data.dynasty
+      ? { ...data.dynasty, children: [...(data.dynasty.children ?? [])] }
+      : createDynastyState()
+    this.activeMarketNews = data.activeMarketNews ?? null
     this.lastSaveTime = data.lastSaveTime
     this.isNight = isGameNight(this.gameTimeMs)
     this.ensureDailyGoal()

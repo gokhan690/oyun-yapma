@@ -20,6 +20,7 @@ export const PRESTIGE_TREE_NODES: PrestigeTreeNode[] = [
   { id: 'day_10', name: 'Sabah Enerjisi', description: 'Gündüz bonusu +%10', cost: 2, branch: 'meta' },
   { id: 'autobuy', name: 'Otomasyon', description: 'Auto-buy cooldown -2 sn', cost: 4, branch: 'meta', requires: 'manager_25' },
   { id: 'prestige_5', name: 'Hisse Değeri', description: 'Prestij çarpanı +%5 ek', cost: 5, branch: 'income', requires: 'offline_2h' },
+  { id: 'dynasty_1', name: 'Hanedan Mirası', description: 'Hanedan trait bonusları +%5 ek', cost: 4, branch: 'meta', requires: 'prestige_5' },
   { id: 'heat_decay', name: 'Temiz İmaj', description: 'Illegal heat %20 daha hızlı düşer', cost: 3, branch: 'meta', requires: 'night_10' },
   { id: 'raid_insurance', name: 'Baskın Sigortası', description: 'Günde ilk baskın cezası yarı', cost: 4, branch: 'meta', requires: 'heat_decay' },
 ]

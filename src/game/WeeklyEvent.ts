@@ -1,3 +1,5 @@
+import { gameWeekKey } from './GameClock'
+
 export type WeeklyModifierType =
   | 'logistics_boost'
   | 'click_marathon'
@@ -31,6 +33,7 @@ export interface WeeklyEventState {
   adDoubled: boolean
 }
 
+/** @deprecated Gerçek hafta — oyun takvimi için gameWeekKey kullan */
 export function weekKey(): string {
   const d = new Date()
   const day = d.getUTCDay()
@@ -45,8 +48,8 @@ export function pickWeeklyEvent(seed: string): WeeklyEventDef {
   return WEEKLY_EVENTS[Math.abs(h) % WEEKLY_EVENTS.length]!
 }
 
-export function createWeeklyState(): WeeklyEventState {
-  const key = weekKey()
+export function createWeeklyState(gameTimeMs = 0): WeeklyEventState {
+  const key = gameWeekKey(gameTimeMs)
   const event = pickWeeklyEvent(key)
   return {
     weekKey: key,
