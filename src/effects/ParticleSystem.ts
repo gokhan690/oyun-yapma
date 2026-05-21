@@ -4,6 +4,7 @@ export class ParticleSystem {
   private particles: Particle[] = []
   private raf: number | null = null
   private maxParticles = 50
+  private resizeHandler: () => void
 
   constructor(container: HTMLElement) {
     this.canvas = document.createElement('canvas')
@@ -12,8 +13,9 @@ export class ParticleSystem {
     if (!ctx) throw new Error('Canvas unsupported')
     this.ctx = ctx
     container.appendChild(this.canvas)
+    this.resizeHandler = () => this.resize()
     this.resize()
-    window.addEventListener('resize', () => this.resize())
+    window.addEventListener('resize', this.resizeHandler)
   }
 
   private resize(): void {
@@ -144,6 +146,7 @@ export class ParticleSystem {
 
   destroy(): void {
     if (this.raf !== null) cancelAnimationFrame(this.raf)
+    window.removeEventListener('resize', this.resizeHandler)
     this.canvas.remove()
   }
 }

@@ -62,8 +62,8 @@ class CapacitorAdProvider implements IAdProvider {
       }
       this.initialized = true
       void RewardAdPluginEvents
-    } catch {
-      // fallback silently
+    } catch (err) {
+      console.warn('AdMob initialization failed', err)
     }
   }
 
@@ -77,17 +77,14 @@ class CapacitorAdProvider implements IAdProvider {
       await AdMob.prepareRewardVideoAd({ adId: unitId, isTesting: import.meta.env.DEV })
       return new Promise((resolve) => {
         let rewarded = false
-        const cleanup = async (): Promise<void> => {
-          const r = await rewardListener
-          const d = await dismissListener
-          await r.remove()
-          await d.remove()
-        }
         const rewardListener = AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
           rewarded = true
         })
         const dismissListener = AdMob.addListener(RewardAdPluginEvents.Dismissed, () => {
-          void cleanup().then(() => resolve(rewarded))
+          Promise.all([rewardListener, dismissListener])
+            .then(([r, d]) => Promise.all([r.remove(), d.remove()]))
+            .catch((err) => console.warn('AdMob listener cleanup failed', err))
+            .finally(() => resolve(rewarded))
         })
         void AdMob.showRewardVideoAd()
       })

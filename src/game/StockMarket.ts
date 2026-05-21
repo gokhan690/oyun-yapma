@@ -90,15 +90,19 @@ export function pushHistory(ticker: StockTicker): void {
 export function tickStockPrice(state: StockState): void {
   let totalChange = 0
   const eventActive = Date.now() < state.marketEventUntil
-  for (const ticker of Object.values(state.tickers)) {
+  const tickerList = Object.values(state.tickers)
+  for (const ticker of tickerList) {
+    if (!Number.isFinite(ticker.price) || ticker.price <= 0) ticker.price = 10
     let change = (Math.random() - 0.5) * ticker.volatility
     if (eventActive) change *= state.marketEventMult
-    ticker.price = Math.max(10, ticker.price * (1 + change))
+    const newPrice = ticker.price * (1 + change)
+    ticker.price = Number.isFinite(newPrice) ? Math.max(10, newPrice) : ticker.price
     pushHistory(ticker)
     totalChange += change
   }
   state.lastTick = Date.now()
-  const avg = totalChange / Object.keys(state.tickers).length
+  const count = tickerList.length
+  const avg = count > 0 ? totalChange / count : 0
   state.trendDirection = avg > 0.02 ? 'up' : avg < -0.02 ? 'down' : 'flat'
 }
 
@@ -119,8 +123,9 @@ export function buyShares(state: StockState, tickerId: string, amount: number, m
   if (bought <= 0) return { cost: 0, bought: 0 }
   const cost = bought * ticker.price
   const totalShares = ticker.shares + bought
+  const prevAvg = Number.isFinite(ticker.avgBuyPrice) ? ticker.avgBuyPrice : 0
   ticker.avgBuyPrice = totalShares > 0
-    ? (ticker.avgBuyPrice * ticker.shares + ticker.price * bought) / totalShares
+    ? (prevAvg * ticker.shares + ticker.price * bought) / totalShares
     : 0
   ticker.shares = totalShares
   return { cost, bought }

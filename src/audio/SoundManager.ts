@@ -75,6 +75,7 @@ export class SoundManager {
       gain.connect(ctx.destination)
       osc.start()
       osc.stop(ctx.currentTime + duration)
+      osc.onended = () => { osc.disconnect(); gain.disconnect() }
     } catch {
       // audio unavailable
     }

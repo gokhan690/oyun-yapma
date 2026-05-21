@@ -9,10 +9,7 @@ export class StatsScreen {
   private leaderboard: Leaderboard
   private content!: HTMLElement
 
-  constructor(
-    state: GameState,
-    leaderboard: Leaderboard,
-  ) {
+  constructor(state: GameState, leaderboard: Leaderboard) {
     this.state = state
     this.leaderboard = leaderboard
     this.layer = document.createElement('div')
@@ -44,19 +41,29 @@ export class StatsScreen {
 
   render(): void {
     this.content.replaceChildren()
+    this.renderStats()
+    this.renderHistoryChart()
+    this.renderSubmitSection()
+    void this.renderOnlineLeaderboard()
+  }
+
+  private renderStats(): void {
     const lb = this.leaderboard.getData()
-    const rows = [
+    const rows: [string, string][] = [
       ['Toplam kazanç (run)', formatMoney(this.state.totalEarned)],
       ['Yaşam boyu kazanç', formatMoney(this.state.lifetimeTotalEarned)],
-      ['Tıklama', String(this.state.totalClicks)],
+      ['Tıklama', this.state.totalClicks.toLocaleString('tr-TR')],
       ['En iyi combo', String(this.state.comboBest)],
       ['IPO sayısı', String(this.state.ipoCount)],
-      ['Hisse puanı', String(this.state.prestigePoints)],
+      ['Hisse puanı', String(Math.floor(this.state.prestigePoints))],
       ['Oyun süresi', formatTime(this.state.playTimeMs)],
       ['Başarım', `${this.state.achievements.size}/${ACHIEVEMENTS.length}`],
       ['Rekor kazanç', formatMoney(lb.bestLifetimeEarned)],
       ['Rekor combo', String(lb.bestCombo)],
     ]
+
+    const section = document.createElement('div')
+    section.className = 'stats-section'
     for (const [label, val] of rows) {
       const row = document.createElement('div')
       row.className = 'stat-row'
@@ -65,7 +72,197 @@ export class StatsScreen {
       const v = document.createElement('strong')
       v.textContent = val
       row.append(l, v)
-      this.content.appendChild(row)
+      section.appendChild(row)
+    }
+
+    // Başarım progress bar
+    const achPct = Math.round((this.state.achievements.size / ACHIEVEMENTS.length) * 100)
+    const achBar = document.createElement('div')
+    achBar.className = 'stats-progress-wrap'
+    achBar.innerHTML = `<div class="stats-progress-label">Başarım İlerlemesi <span>${achPct}%</span></div><div class="stats-progress-track"><div class="stats-progress-fill" style="width:${achPct}%"></div></div>`
+    section.appendChild(achBar)
+
+    this.content.appendChild(section)
+  }
+
+  private renderHistoryChart(): void {
+    const history = this.leaderboard.getData().history
+    if (history.length < 2) return
+
+    const section = document.createElement('div')
+    section.className = 'stats-section'
+    const title = document.createElement('div')
+    title.className = 'stats-section-title'
+    title.textContent = '📈 Kişisel Rekor Geçmişi'
+    section.appendChild(title)
+
+    const values = [...history].reverse().map(e => e.lifetimeEarned)
+    const min = Math.min(...values)
+    const max = Math.max(...values)
+    const range = max - min || 1
+    const w = 280
+    const h = 60
+    const step = w / (values.length - 1)
+
+    const points = values
+      .map((v, i) => {
+        const x = i * step
+        const y = h - ((v - min) / range) * (h - 8) - 4
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+      })
+      .join(' ')
+
+    const areaPoints = `${points} L${w},${h} L0,${h} Z`
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`)
+    svg.setAttribute('class', 'stats-sparkline')
+
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs')
+    const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient')
+    grad.id = 'stats-grad'
+    grad.setAttribute('x1', '0')
+    grad.setAttribute('y1', '0')
+    grad.setAttribute('x2', '0')
+    grad.setAttribute('y2', '1')
+    grad.innerHTML = `<stop offset="0%" stop-color="#fbbf24" stop-opacity="0.4"/><stop offset="100%" stop-color="#fbbf24" stop-opacity="0"/>`
+    defs.appendChild(grad)
+    svg.appendChild(defs)
+
+    const area = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    area.setAttribute('d', areaPoints)
+    area.setAttribute('fill', 'url(#stats-grad)')
+    svg.appendChild(area)
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    line.setAttribute('d', points)
+    line.setAttribute('class', 'stats-sparkline-path')
+    svg.appendChild(line)
+
+    // Nokta işaretçiler
+    values.forEach((v, i) => {
+      const x = i * step
+      const y = h - ((v - min) / range) * (h - 8) - 4
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+      dot.setAttribute('cx', x.toFixed(1))
+      dot.setAttribute('cy', y.toFixed(1))
+      dot.setAttribute('r', '3')
+      dot.setAttribute('class', 'stats-sparkline-dot')
+      svg.appendChild(dot)
+    })
+
+    const labels = document.createElement('div')
+    labels.className = 'stats-chart-labels'
+    labels.innerHTML = `<span>${formatMoney(min)}</span><span>${formatMoney(max)}</span>`
+
+    section.append(svg, labels)
+    this.content.appendChild(section)
+  }
+
+  private renderSubmitSection(): void {
+    const section = document.createElement('div')
+    section.className = 'stats-section stats-submit-section'
+
+    const title = document.createElement('div')
+    title.className = 'stats-section-title'
+    title.textContent = '🌍 Global Sıralamaya Katıl'
+
+    const row = document.createElement('div')
+    row.className = 'stats-submit-row'
+
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.maxLength = 20
+    input.placeholder = 'İsmin'
+    input.className = 'stats-name-input'
+    input.value = this.leaderboard.getPlayerName()
+
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'btn-primary stats-submit-btn'
+    btn.textContent = 'Gönder'
+
+    btn.addEventListener('click', async () => {
+      const name = input.value.trim() || 'Anonim'
+      this.leaderboard.setPlayerName(name)
+      this.leaderboard.update({
+        lifetimeEarned: this.state.lifetimeTotalEarned,
+        comboBest: this.state.comboBest,
+        ipoCount: this.state.ipoCount,
+      })
+      btn.disabled = true
+      btn.textContent = '⏳'
+      const ok = await this.leaderboard.submitScore({
+        lifetimeEarned: this.state.lifetimeTotalEarned,
+        comboBest: this.state.comboBest,
+        ipoCount: this.state.ipoCount,
+      })
+      btn.textContent = ok ? '✅ Gönderildi!' : '❌ Hata'
+      if (ok) {
+        window.setTimeout(() => {
+          const lb = this.content.querySelector('.stats-online-section')
+          if (lb) lb.remove()
+          void this.renderOnlineLeaderboard()
+        }, 800)
+      }
+    })
+
+    row.append(input, btn)
+    section.append(title, row)
+    this.content.appendChild(section)
+  }
+
+  private async renderOnlineLeaderboard(): Promise<void> {
+    const section = document.createElement('div')
+    section.className = 'stats-section stats-online-section'
+
+    const title = document.createElement('div')
+    title.className = 'stats-section-title'
+    title.textContent = '🏆 Top 10 Global'
+
+    const loading = document.createElement('div')
+    loading.className = 'stats-loading'
+    loading.textContent = 'Yükleniyor...'
+
+    section.append(title, loading)
+    this.content.appendChild(section)
+
+    const scores = await this.leaderboard.fetchOnlineScores(10)
+    loading.remove()
+
+    if (scores.length === 0) {
+      const empty = document.createElement('div')
+      empty.className = 'stats-empty'
+      empty.textContent = 'Henüz skor yok — ilk sen ol!'
+      section.appendChild(empty)
+      return
+    }
+
+    const myName = this.leaderboard.getPlayerName()
+    for (const [i, score] of scores.entries()) {
+      const row = document.createElement('div')
+      const isMe = score.player_name === myName
+      row.className = `lb-row${isMe ? ' lb-row-me' : ''}`
+
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
+      const rank = document.createElement('span')
+      rank.className = 'lb-rank'
+      rank.textContent = medal
+
+      const name = document.createElement('span')
+      name.className = 'lb-name'
+      name.textContent = score.player_name
+
+      const val = document.createElement('span')
+      val.className = 'lb-val'
+      val.textContent = formatMoney(score.lifetime_earned)
+
+      const sub = document.createElement('span')
+      sub.className = 'lb-sub'
+      sub.textContent = `${score.ipo_count} IPO`
+
+      row.append(rank, name, val, sub)
+      section.appendChild(row)
     }
   }
 
