@@ -5,6 +5,7 @@ import { THEMES, type ThemeId } from '../../game/Themes'
 import { OWNER_FLAGS, loadOwnerFlags, saveOwnerFlags, type OwnerFlags } from '../../owner/FeatureFlags'
 import {
   clearOwnerSession,
+  devOwnerPinHint,
   isOwnerPinConfigured,
   isOwnerSession,
   refreshOwnerSession,
@@ -28,6 +29,7 @@ export class OwnerPanel {
     this.layer.className = 'owner-panel-layer'
     this.layer.hidden = true
     this.build()
+    document.body.appendChild(this.layer)
   }
 
   private build(): void {
@@ -61,26 +63,39 @@ export class OwnerPanel {
 
   private renderLogin(): void {
     this.body.replaceChildren()
-    const card = document.createElement('div')
-    card.className = 'owner-login-card'
-    card.innerHTML = `
-      <span class="owner-badge">👑</span>
-      <h2>Baron Girişi</h2>
-      <p>Sadece oyun sahibi. Bu ekran normal oyunculara görünmez.</p>
-    `
+    const form = document.createElement('form')
+    form.className = 'owner-login-card'
+    form.setAttribute('novalidate', '')
+
+    const badge = document.createElement('span')
+    badge.className = 'owner-badge'
+    badge.textContent = '👑'
+    const heading = document.createElement('h2')
+    heading.textContent = 'Baron Girişi'
+    const desc = document.createElement('p')
+    desc.textContent = 'Sadece oyun sahibi. Bu ekran normal oyunculara görünmez.'
+
     const input = document.createElement('input')
-    input.type = 'password'
+    input.type = 'text'
+    input.name = 'owner-pin'
     input.className = 'owner-pin-input'
     input.placeholder = 'PIN'
     input.autocomplete = 'off'
+    input.autocapitalize = 'off'
+    input.spellcheck = false
     input.maxLength = 32
+    input.setAttribute('autocorrect', 'off')
+    input.setAttribute('enterkeyhint', 'go')
+    input.setAttribute('inputmode', 'text')
+
     const err = document.createElement('p')
     err.className = 'owner-login-err'
     err.hidden = true
+
     const row = document.createElement('div')
     row.className = 'owner-login-actions'
     const loginBtn = document.createElement('button')
-    loginBtn.type = 'button'
+    loginBtn.type = 'submit'
     loginBtn.className = 'btn-primary'
     loginBtn.textContent = 'Giriş'
     const cancelBtn = document.createElement('button')
@@ -89,50 +104,63 @@ export class OwnerPanel {
     cancelBtn.dataset.action = 'owner-close'
     cancelBtn.textContent = 'İptal'
     row.append(loginBtn, cancelBtn)
-    card.append(input, err, row)
-    this.body.appendChild(card)
+
+    form.append(badge, heading, desc, input, err, row)
+    this.body.appendChild(form)
 
     if (!isOwnerPinConfigured()) {
       err.hidden = false
       err.className = 'owner-login-err owner-login-warn'
       err.textContent = import.meta.env.DEV
         ? 'Dev: .env içinde VITE_OWNER_PIN yoksa varsayılan baron2026 geçerli.'
-        : 'Canlı sitede Render → VITE_OWNER_PIN ayarlanmalı. Yine de PIN girebilirsin.'
+        : 'Canlı sitede Render → VITE_OWNER_PIN ayarlanmalı.'
     }
 
-    input.addEventListener('click', (e) => e.stopPropagation())
-    input.addEventListener('pointerdown', (e) => e.stopPropagation())
-    input.addEventListener('mousedown', (e) => e.stopPropagation())
-    input.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true })
+    const devHint = devOwnerPinHint()
+    if (devHint) {
+      const hint = document.createElement('p')
+      hint.className = 'owner-dev-hint'
+      hint.textContent = `Yerel PIN: ${devHint}`
+      form.appendChild(hint)
+    }
+
+    const stopBubble = (e: Event): void => { e.stopPropagation() }
+    form.addEventListener('click', stopBubble)
+    form.addEventListener('pointerdown', stopBubble)
+    form.addEventListener('mousedown', stopBubble)
+    form.addEventListener('touchstart', stopBubble, { passive: true })
 
     const tryLogin = (): void => {
+      const value = input.value.trim()
       if (!isOwnerPinConfigured()) {
         err.hidden = false
         err.className = 'owner-login-err'
         err.textContent = import.meta.env.DEV
-          ? 'PIN doğrulanamadı. .env → VITE_OWNER_PIN=baron2026 olmalı; dev sunucuyu yeniden başlat.'
+          ? 'PIN doğrulanamadı. Dev sunucuyu durdurup npm run dev ile yeniden başlat.'
           : 'Sunucuda PIN yapılandırılmamış. Render → VITE_OWNER_PIN ekleyip redeploy et.'
         return
       }
-      if (verifyOwnerPin(input.value)) {
+      if (verifyOwnerPin(value)) {
         startOwnerSession()
         this.renderDashboard()
       } else {
         err.hidden = false
         err.className = 'owner-login-err'
-        err.textContent = 'Yanlış PIN'
-        input.value = ''
+        err.textContent = `Yanlış PIN${import.meta.env.DEV ? ` (beklenen: ${devOwnerPinHint()})` : ''}`
+        input.select()
       }
     }
-    loginBtn.addEventListener('click', (e) => {
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault()
       e.stopPropagation()
       tryLogin()
     })
-    input.addEventListener('keydown', (e) => {
-      e.stopPropagation()
-      if (e.key === 'Enter') tryLogin()
+    cancelBtn.addEventListener('click', stopBubble)
+
+    requestAnimationFrame(() => {
+      input.focus({ preventScroll: true })
     })
-    window.setTimeout(() => input.focus(), 150)
   }
 
   private renderDashboard(): void {

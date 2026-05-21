@@ -127,6 +127,9 @@ export class HUD {
       window.setTimeout(() => this.tutorial.start(), 600)
     }
     this.bindOwnerAccess()
+    if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('owner') === '1') {
+      window.setTimeout(() => this.openOwnerPanel(), 500)
+    }
   }
 
   openOwnerPanel(): void {
@@ -135,6 +138,7 @@ export class HUD {
   }
 
   private bindOwnerAccess(): void {
+    const holdMs = import.meta.env.DEV ? 1500 : 3000
     const startProfileHold = (): void => {
       if (this.profileHoldTimer !== null) return
       this.profileHoldTimer = window.setTimeout(() => {
@@ -143,7 +147,7 @@ export class HUD {
         this.suppressProfileNav = true
         window.setTimeout(() => { this.suppressProfileNav = false }, 500)
         void hapticHeavy()
-      }, 3000)
+      }, holdMs)
     }
     const cancelProfileHold = (): void => {
       if (this.profileHoldTimer !== null) {
@@ -382,7 +386,7 @@ export class HUD {
 
     this.goalsSheet.mount(this.root)
     this.undergroundSheet.mount(this.root)
-    this.root.append(header, main, this.adBannerSlot, this.settings.layer, this.statsScreen.layer, this.ownerPanel.layer, this.modals.layer)
+    this.root.append(header, main, this.adBannerSlot, this.settings.layer, this.statsScreen.layer, this.modals.layer)
     document.body.appendChild(this.bottomNav.root)
     this.ads.showBanner(this.adBannerSlot)
     this.renderDayNightChip()
@@ -439,7 +443,7 @@ export class HUD {
 
     const onActionClick = (e: Event): void => {
       const target = e.target as HTMLElement
-      if (target.closest('.owner-pin-input, .owner-panel-body input, .owner-panel-body textarea')) return
+      if (target.closest('.owner-pin-input, .owner-login-card, .owner-panel-body input, .owner-panel-body textarea, .owner-panel-body form')) return
       const el = target.closest('[data-action]') as HTMLElement | null
       if (!el?.dataset.action) return
       if (el instanceof HTMLButtonElement && el.disabled) return
@@ -1372,6 +1376,7 @@ export class HUD {
     this.unsub = null
     this.clearGoldenEventTimer()
     if (this.uiSyncTimer !== null) window.clearTimeout(this.uiSyncTimer)
+    this.ownerPanel.layer.remove()
     this.bottomNav.root.remove()
   }
 }
