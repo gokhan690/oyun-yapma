@@ -106,6 +106,7 @@ export interface SerializableState {
   playerName: string
   birthYear: number
   forcedUnlocks: string[]
+  illegalHeat: number
 }
 
 export interface ProducerBreakdown {
@@ -148,6 +149,7 @@ export type GameEvent =
   | { type: 'nav_changed'; view: string }
   | { type: 'illegal_raid'; fine: number; producerId: string }
   | { type: 'producer_unlocked'; producerId: string }
+  | { type: 'illegal_heat'; heat: number }
 
 const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
@@ -204,7 +206,9 @@ export class GameState {
   playerName = 'Baron'
   birthYear = 0
   forcedUnlocks = new Set<string>()
+  illegalHeat = 0
   private lastIllegalRiskCheck = 0
+  private lastHeatTick = 0
 
   comboCount = 0
   comboMultiplier = 1
@@ -266,6 +270,7 @@ export class GameState {
       this.tickDayNight(now)
       this.tickAutoBuy(now)
       this.tickIllegalRisk(now)
+      this.tickIllegalHeat(now)
       if (dt > 0 && dt < 1) {
         const income = this.incomePerSecond() * dt
         if (income > 0) {
@@ -405,19 +410,69 @@ export class GameState {
     }
   }
 
+  private tickIllegalHeat(now: number): void {
+    if (now - this.lastHeatTick < 15_000) return
+    this.lastHeatTick = now
+    const target = this.targetIllegalHeat()
+    const prev = this.illegalHeat
+    if (Math.abs(target - this.illegalHeat) < 0.5) {
+      this.illegalHeat = target
+    } else {
+      this.illegalHeat += (target - this.illegalHeat) * 0.15
+    }
+    if (target <= 0) this.illegalHeat = Math.max(0, this.illegalHeat - 2)
+    if (Math.round(prev) !== Math.round(this.illegalHeat)) {
+      this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
+    }
+  }
+
+  private targetIllegalHeat(): number {
+    let owned = 0
+    let types = 0
+    for (const p of PRODUCERS) {
+      if (!p.illegal) continue
+      const n = this.producers[p.id] ?? 0
+      if (n > 0) {
+        types++
+        owned += n
+      }
+    }
+    if (types === 0) return 0
+    return Math.min(100, types * 12 + owned * 4)
+  }
+
+  illegalRiskLabel(): string {
+    if (this.illegalHeat < 25) return 'Düşük'
+    if (this.illegalHeat < 55) return 'Orta'
+    if (this.illegalHeat < 80) return 'Yüksek'
+    return 'Kritik'
+  }
+
+  illegalIncomePerSecond(): number {
+    return PRODUCERS.filter((p) => p.illegal).reduce((s, p) => s + this.producerIncome(p), 0)
+  }
+
+  legalIncomePerSecond(): number {
+    return this.incomePerSecond() - this.illegalIncomePerSecond()
+  }
+
   private tickIllegalRisk(now: number): void {
     if (now - this.lastIllegalRiskCheck < 60_000) return
     this.lastIllegalRiskCheck = now
+    const heatMult = 1 + this.illegalHeat / 100
     for (const p of PRODUCERS) {
       if (!p.illegal || !p.riskChance) continue
       const owned = this.producers[p.id] ?? 0
       if (owned <= 0) continue
-      if (Math.random() > p.riskChance) continue
-      const finePct = p.riskFinePct ?? 0.15
+      const chance = Math.min(0.35, p.riskChance * heatMult)
+      if (Math.random() > chance) continue
+      const finePct = (p.riskFinePct ?? 0.15) * (0.8 + this.illegalHeat / 200)
       const fine = Math.floor(this.money * finePct)
       if (fine <= 0) continue
       this.money = Math.max(0, this.money - fine)
+      this.illegalHeat = Math.min(100, this.illegalHeat + 20)
       this.emit({ type: 'illegal_raid', fine, producerId: p.id })
+      this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
       this.emit({ type: 'money_changed' })
       break
     }
@@ -429,7 +484,7 @@ export class GameState {
     this.lastAutoBuyTick = now
     for (const p of PRODUCERS) {
       if (!this.managerAutoBuy[p.id] || !hasManager(this.managers, p.id)) continue
-      if (!isProducerUnlocked(p, this.totalEarned)) continue
+      if (!isProducerUnlocked(p, this.totalEarned, this.forcedUnlocks)) continue
       if (this.buyProducer(p.id, 1)) {
         this.emit({ type: 'auto_buy', producerId: p.id })
         break
@@ -1086,6 +1141,7 @@ export class GameState {
     for (const p of PRODUCERS) this.managerAutoBuy[p.id] = false
     this.nightEarningsSession = 0
     this.forcedUnlocks.clear()
+    this.illegalHeat = 0
     this.emit({ type: 'money_changed' })
   }
 
@@ -1164,6 +1220,7 @@ export class GameState {
       playerName: this.playerName,
       birthYear: this.birthYear,
       forcedUnlocks: [...this.forcedUnlocks],
+      illegalHeat: this.illegalHeat,
     }
   }
 
@@ -1226,6 +1283,7 @@ export class GameState {
     this.playerName = data.playerName ?? 'Baron'
     this.birthYear = data.birthYear ?? 0
     this.forcedUnlocks = new Set(data.forcedUnlocks ?? [])
+    this.illegalHeat = data.illegalHeat ?? 0
     this.lastSaveTime = data.lastSaveTime
     this.isNight = isNightHour(new Date().getHours())
     this.ensureDailyGoal()

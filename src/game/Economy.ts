@@ -62,6 +62,10 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'uydu_x2', name: 'Orbital Verimlilik', description: 'Uydu ağı geliri x2', cost: 60_000_000, effect: 'producer_mult', value: 2, producerId: 'uydu' },
   { id: 'merkezbankasi_x2', name: 'Para Politikası', description: 'Merkez bankası geliri x2', cost: 400_000_000, effect: 'producer_mult', value: 2, producerId: 'merkezbankasi' },
   { id: 'global_mega', name: 'Süper Büyüme', description: 'Tüm gelir x2', cost: 20_000_000, effect: 'global_mult', value: 2 },
+  { id: 'kafe_x2', name: 'Franchise Kahve', description: 'Kahve zinciri geliri x2', cost: 5_000, effect: 'producer_mult', value: 2, producerId: 'kafe' },
+  { id: 'mobil_app_x2', name: 'Premium Abonelik', description: 'Mobil uygulama geliri x2', cost: 45_000, effect: 'producer_mult', value: 2, producerId: 'mobil_app' },
+  { id: 'enerji_x2', name: 'Panel Verimliliği', description: 'Güneş santrali geliri x2', cost: 600_000, effect: 'producer_mult', value: 2, producerId: 'enerji' },
+  { id: 'click_x10', name: 'Influencer Kampanyası', description: 'Tıklama geliri x10', cost: 500_000, effect: 'click_mult', value: 10 },
 ]
 
 export function producerCost(def: ProducerDef, owned: number, count = 1): number {

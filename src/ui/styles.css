@@ -2715,6 +2715,140 @@ button.shop-card {
   text-overflow: ellipsis;
   max-width: 100%;
 }
+.hub-stat-illegal strong { color: #f87171; }
+.hub-stat-heat strong { color: #fb923c; }
+.profile-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 4px 0 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  text-align: left;
+}
+.profile-chip-name {
+  font-weight: 700;
+  font-size: 0.82rem;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-chip-age {
+  font-size: 0.68rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.heat-meter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.heat-meter-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.heat-meter-status {
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-left: auto;
+}
+.heat-meter-bar {
+  flex: 1 1 100%;
+  height: 8px;
+}
+.heat-meter-fill {
+  background: linear-gradient(90deg, #fbbf24, #f97316);
+  transition: width 0.3s ease;
+}
+.heat-meter-fill.heat-high {
+  background: linear-gradient(90deg, #f97316, #ef4444);
+}
+.heat-meter-fill.heat-critical {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+  animation: heatPulse 1.2s ease-in-out infinite;
+}
+@keyframes heatPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+.biz-risk-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+  z-index: 2;
+}
+.events-hero {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.events-hero-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.events-hero-icon { font-size: 1.6rem; line-height: 1; }
+.events-hero-text { flex: 1; min-width: 0; }
+.events-hero-text strong { display: block; font-size: 0.88rem; margin-bottom: 2px; }
+.events-hero-text small { font-size: 0.68rem; color: var(--muted); line-height: 1.35; }
+.events-hero-stat {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.events-hero-bar { margin-bottom: 10px; }
+.events-hero-daily { border-color: rgba(52, 211, 153, 0.35); }
+.events-hero-weekly { border-color: rgba(96, 165, 250, 0.35); }
+.events-hero-season { border-color: rgba(168, 85, 247, 0.35); }
+.events-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.events-heat-banner {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.events-heat-banner small {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+.events-heat-banner.heat-alert {
+  animation: heatPulse 1.5s ease-in-out infinite;
+  border-color: #ef4444;
+}
 .shop-filter-pills, .ipo-sub-tabs {
   display: flex;
   gap: 6px;

@@ -270,12 +270,22 @@ export class ShopPanel {
 
   private renderShopHub(state: GameState): void {
     const ips = state.incomePerSecond()
+    const legalIps = state.legalIncomePerSecond()
+    const illegalIps = state.illegalIncomePerSecond()
     const ownedBiz = PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0).length
     const nextUnlock = PRODUCERS.find((p) => state.totalEarned < p.unlockAt)
     const goalPct = Math.floor(dailyGoalProgress(state.dailyGoalEarned))
     const nextText = nextUnlock ? `${nextUnlock.emoji} ${nextUnlock.name}` : 'Hepsi açık'
+    const hasIllegal = illegalIps > 0
+    const heatPct = Math.round(state.illegalHeat)
+    const illegalStat = hasIllegal
+      ? `<span class="hub-stat hub-stat-illegal"><strong>${formatMoney(illegalIps)}/sn</strong><small>🕶️ Illegal</small></span>
+         <span class="hub-stat hub-stat-heat"><strong>${state.illegalRiskLabel()}</strong><small>Radar ${heatPct}%</small></span>`
+      : ''
     this.shopHubEl.innerHTML = `
-      <span class="hub-stat"><strong>${formatMoney(ips)}/sn</strong><small>Gelir</small></span>
+      <span class="hub-stat"><strong>${formatMoney(ips)}/sn</strong><small>Toplam gelir</small></span>
+      <span class="hub-stat"><strong>${formatMoney(legalIps)}/sn</strong><small>Yasal</small></span>
+      ${illegalStat}
       <span class="hub-stat"><strong>${ownedBiz}</strong><small>İşletme</small></span>
       <span class="hub-stat"><strong>${nextText}</strong><small>Sıradaki</small></span>
       <span class="hub-stat"><strong>${goalPct}%</strong><small>Günlük hedef</small></span>
@@ -676,6 +686,13 @@ export class ShopPanel {
     tierBadge.textContent = `T${p.tier}`
     card.appendChild(tierBadge)
 
+    if (p.illegal) {
+      const riskBadge = document.createElement('span')
+      riskBadge.className = 'biz-risk-badge'
+      riskBadge.textContent = '🕶️ Risk'
+      card.appendChild(riskBadge)
+    }
+
     return card
   }
 
@@ -716,6 +733,12 @@ export class ShopPanel {
       const ms = Number((dot as HTMLElement).dataset.milestone)
       dot.classList.toggle('reached', owned >= ms)
     })
+
+    if (p.illegal && p.riskChance) {
+      const riskBadge = card.querySelector('.biz-risk-badge')
+      const chancePct = Math.round(p.riskChance * 100 * (1 + state.illegalHeat / 100))
+      if (riskBadge) riskBadge.textContent = `🕶️ Baskın ~${chancePct}%/dk`
+    }
   }
 
   private renderManagement(state: GameState): void {

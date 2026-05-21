@@ -4,6 +4,42 @@ GitHub commit / release notu olarak kopyalayabilirsin.
 
 ---
 
+## [2.3.0] — 2026-05-21
+
+### Özet (commit mesajı)
+```
+feat: v2.3 illegal heat, profil chip ve içerik genişletme
+```
+
+### GitHub Release / PR özeti
+
+**Başlık:** v2.3.0 — Illegal radar, profil chip ve içerik genişletme
+
+#### Illegal heat sistemi
+- Illegal işletmeler radar (heat) biriktirir; heat arttıkça baskın şansı yükselir
+- Kazan ekranında radar göstergesi (session panel)
+- Mağaza hub: yasal/illegal gelir ayrımı + radar durumu
+- Illegal kartlarda dinamik baskın risk badge
+
+#### Profil & miras
+- Header'da profil chip (isim + yaş)
+- Miras kodu export/import (ayarlar)
+
+#### İçerik
+- 6 yeni işletme: kafe, mobil app, enerji (yasal) + bahis, piramit, offshore (illegal)
+- Erken aç butonu (forced unlock)
+- Yeni yükseltmeler: kafe_x2, mobil_app_x2, enerji_x2, click_x10
+- Yeni başarımlar: galaksiyum, kafe, illegal, earn_100m
+
+#### Etkinlik paneli
+- Hero kartlar: günlük hedef, haftalık etkinlik, sezon yolu
+- Radar uyarı banner'ı
+
+#### Deploy
+- Render static site base path fix (VITE_BASE)
+
+---
+
 ## [2.2.0] — 2026-05-21
 
 ### Özet (commit mesajı)

@@ -292,6 +292,7 @@ function applyV3Defaults(legacy: LegacyState): SerializableState {
     playerName: legacy.playerName ?? 'Baron',
     birthYear: legacy.birthYear ?? 0,
     forcedUnlocks: legacy.forcedUnlocks ?? [],
+    illegalHeat: legacy.illegalHeat ?? 0,
   }
 }
 
@@ -315,6 +316,7 @@ function applyV4Defaults(state: SerializableState): SerializableState {
     playerName: state.playerName ?? 'Baron',
     birthYear: state.birthYear ?? 0,
     forcedUnlocks: state.forcedUnlocks ?? [],
+    illegalHeat: state.illegalHeat ?? 0,
     stock,
   }
 }

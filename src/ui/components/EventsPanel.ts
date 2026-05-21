@@ -1,5 +1,7 @@
 import type { GameState } from '../../game/GameState'
+import { formatMoney } from '../../game/Economy'
 import { currentTier, tierProgress, rewardForTier, SEASON_MAX_TIER } from '../../game/SeasonPass'
+import { dailyGoalProgress, DAILY_GOAL_TARGET } from '../../game/DailyGoal'
 
 export class EventsPanel {
   readonly root: HTMLElement
@@ -14,44 +16,109 @@ export class EventsPanel {
     state.ensureSeason()
     this.root.replaceChildren()
 
-    const weeklySec = document.createElement('div')
-    weeklySec.className = 'events-section'
+    const goalPct = Math.floor(dailyGoalProgress(state.dailyGoalEarned))
+    const dailyHero = document.createElement('div')
+    dailyHero.className = 'events-hero events-hero-daily'
+    dailyHero.innerHTML = `
+      <div class="events-hero-top">
+        <span class="events-hero-icon">🎯</span>
+        <div class="events-hero-text">
+          <strong>Günlük hedef</strong>
+          <small>${formatMoney(state.dailyGoalEarned)} / ${formatMoney(DAILY_GOAL_TARGET)}</small>
+        </div>
+        <span class="events-hero-stat">${goalPct}%</span>
+      </div>
+    `
+    const dailyBar = document.createElement('div')
+    dailyBar.className = 'progress-bar events-hero-bar'
+    const dailyFill = document.createElement('div')
+    dailyFill.className = 'progress-fill'
+    dailyFill.style.width = `${goalPct}%`
+    dailyBar.appendChild(dailyFill)
+    dailyHero.appendChild(dailyBar)
+
+    const heat = state.illegalHeat
+    const hasIllegal = heat > 0 || state.illegalIncomePerSecond() > 0
+    if (hasIllegal) {
+      const heatWarn = document.createElement('div')
+      heatWarn.className = `events-heat-banner${heat >= 55 ? ' heat-alert' : ''}`
+      heatWarn.innerHTML = `
+        <span>🕶️ Radar: ${state.illegalRiskLabel()} (${Math.round(heat)}%)</span>
+        <small>Illegal gelir arttıkça baskın riski yükselir</small>
+      `
+      this.root.appendChild(heatWarn)
+    }
+
+    if (Date.now() < state.stock.marketEventUntil) {
+      const market = document.createElement('div')
+      market.className = 'market-event-banner'
+      market.textContent = state.stock.marketEventMult < 0
+        ? '📉 Piyasa çöküşü aktif!'
+        : '📈 Piyasa rallisi aktif!'
+      this.root.appendChild(market)
+    }
+
     const def = state.getWeeklyEventDef()
     const w = state.weekly
-    weeklySec.innerHTML = `<h3>🗓️ ${def.name}</h3><p>${def.description}</p>`
+    const wPct = Math.min(100, (w.progress / w.target) * 100)
+    const weeklyHero = document.createElement('div')
+    weeklyHero.className = 'events-hero events-hero-weekly'
+    weeklyHero.innerHTML = `
+      <div class="events-hero-top">
+        <span class="events-hero-icon">🗓️</span>
+        <div class="events-hero-text">
+          <strong>${def.name}</strong>
+          <small>${def.description}</small>
+        </div>
+        <span class="events-hero-stat">${Math.floor(wPct)}%</span>
+      </div>
+    `
     const wBar = document.createElement('div')
-    wBar.className = 'progress-bar'
+    wBar.className = 'progress-bar events-hero-bar'
     const wFill = document.createElement('div')
     wFill.className = 'progress-fill'
-    wFill.style.width = `${Math.min(100, (w.progress / w.target) * 100)}%`
+    wFill.style.width = `${wPct}%`
     wBar.appendChild(wFill)
-    weeklySec.appendChild(wBar)
+    weeklyHero.appendChild(wBar)
+
+    const weeklyActions = document.createElement('div')
+    weeklyActions.className = 'events-actions'
     if (w.progress >= w.target && !w.claimed) {
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = 'btn-primary'
       btn.dataset.action = 'claim-weekly'
       btn.textContent = 'Haftalık ödülü topla'
-      weeklySec.appendChild(btn)
+      weeklyActions.appendChild(btn)
     }
     const adWeekly = document.createElement('button')
     adWeekly.type = 'button'
     adWeekly.className = 'btn-ad'
     adWeekly.dataset.action = 'ad-weekly'
-    adWeekly.textContent = '📺 Etkinlik 2x (reklam)'
-    weeklySec.appendChild(adWeekly)
+    adWeekly.textContent = '📺 Etkinlik 2x'
+    weeklyActions.appendChild(adWeekly)
+    weeklyHero.appendChild(weeklyActions)
 
-    const seasonSec = document.createElement('div')
-    seasonSec.className = 'events-section season-section'
     const prog = tierProgress(state.season.xp)
-    seasonSec.innerHTML = `<h3>👑 İmparatorluk Yolu</h3><p>Tier ${prog.tier}/${SEASON_MAX_TIER} — ${prog.current}/${prog.needed} XP</p>`
+    const seasonHero = document.createElement('div')
+    seasonHero.className = 'events-hero events-hero-season'
+    seasonHero.innerHTML = `
+      <div class="events-hero-top">
+        <span class="events-hero-icon">👑</span>
+        <div class="events-hero-text">
+          <strong>İmparatorluk Yolu</strong>
+          <small>Tier ${prog.tier}/${SEASON_MAX_TIER} — ${prog.current}/${prog.needed} XP</small>
+        </div>
+        <span class="events-hero-stat">T${prog.tier}</span>
+      </div>
+    `
     const sBar = document.createElement('div')
-    sBar.className = 'progress-bar'
+    sBar.className = 'progress-bar events-hero-bar'
     const sFill = document.createElement('div')
     sFill.className = 'progress-fill season-fill'
     sFill.style.width = `${prog.pct}%`
     sBar.appendChild(sFill)
-    seasonSec.appendChild(sBar)
+    seasonHero.appendChild(sBar)
 
     const track = document.createElement('div')
     track.className = 'season-track'
@@ -74,24 +141,15 @@ export class EventsPanel {
       }
       track.appendChild(node)
     }
-    seasonSec.appendChild(track)
+    seasonHero.appendChild(track)
 
     const adSeason = document.createElement('button')
     adSeason.type = 'button'
     adSeason.className = 'btn-ad'
     adSeason.dataset.action = 'ad-season-xp'
     adSeason.textContent = '📺 Sezon XP 2x'
-    seasonSec.appendChild(adSeason)
+    seasonHero.appendChild(adSeason)
 
-    if (Date.now() < state.stock.marketEventUntil) {
-      const market = document.createElement('div')
-      market.className = 'market-event-banner'
-      market.textContent = state.stock.marketEventMult < 0
-        ? '📉 Piyasa çöküşü aktif!'
-        : '📈 Piyasa rallisi aktif!'
-      this.root.appendChild(market)
-    }
-
-    this.root.append(weeklySec, seasonSec)
+    this.root.append(dailyHero, weeklyHero, seasonHero)
   }
 }

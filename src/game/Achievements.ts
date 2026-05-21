@@ -1,3 +1,5 @@
+import { PRODUCERS } from './Economy'
+
 export interface AchievementDef {
   id: string
   name: string
@@ -65,7 +67,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'mega_biz', name: 'Mega Fabrikatör', description: 'Tek bir işletmeden 50+ adet', emoji: '🏭', reward: 8_000, check: (c) => Object.values(c.producers).some((n) => n >= 50) },
   { id: 'tree_5', name: 'Prestij Ustası', description: 'Prestij ağacında 5 node', emoji: '🌲', reward: 20_000, check: (c) => c.prestigeTreeCount >= 5 },
   { id: 'billion_earned', name: 'Milyarder', description: '1 milyar toplam kazan', emoji: '💰', reward: 1_000_000, check: (c) => c.totalEarned >= 1_000_000_000 },
-  { id: 'all_businesses', name: 'İmparatorluk Kurucusu', description: 'Tüm 11 işletmeye sahip ol', emoji: '🌍', reward: 500_000, check: (c) => Object.keys(c.producers).length >= 11 && Object.values(c.producers).every((n) => n >= 1) },
+  { id: 'all_businesses', name: 'İmparatorluk Kurucusu', description: 'Tüm yasal işletmelere sahip ol', emoji: '🌍', reward: 500_000, check: (c) => PRODUCERS.filter((p) => !p.illegal).every((p) => (c.producers[p.id] ?? 0) >= 1) },
+  { id: 'galaksiyum_1', name: 'Galaktik Baron', description: 'Galaktik imparatorluğu kur', emoji: '🌌', reward: 2_000_000, check: (c) => (c.producers.galaksiyum ?? 0) >= 1 },
+  { id: 'kafe_5', name: 'Barista Patronu', description: '5 kahve zinciri', emoji: '☕', reward: 3_000, check: (c) => (c.producers.kafe ?? 0) >= 5 },
+  { id: 'illegal_1', name: 'Karanlık Taraf', description: 'İlk illegal işletmeyi aç', emoji: '🕶️', reward: 8_000, check: (c) => (c.producers.bahis ?? 0) >= 1 || (c.producers.piramit ?? 0) >= 1 || (c.producers.offshore ?? 0) >= 1 },
+  { id: 'illegal_all', name: 'Underground Kralı', description: '3 illegal işletmenin hepsine sahip ol', emoji: '🎭', reward: 250_000, check: (c) => (c.producers.bahis ?? 0) >= 1 && (c.producers.piramit ?? 0) >= 1 && (c.producers.offshore ?? 0) >= 1 },
+  { id: 'earn_100m', name: 'Yüz Milyon Kulübü', description: '100M toplam kazanç', emoji: '💵', reward: 100_000, check: (c) => c.totalEarned >= 100_000_000 },
 ]
 
 export function checkNewAchievements(ctx: AchievementContext): AchievementDef[] {

@@ -3,7 +3,7 @@ import type { AdManager } from '../ads/AdManager'
 import type { SoundManager } from '../audio/SoundManager'
 import type { SaveManager } from '../security/SaveManager'
 import { formatMoney, PRODUCERS } from '../game/Economy'
-import { assetUrl } from '../utils/assetUrl'
+import { assetUrl, playerAge } from '../utils/assetUrl'
 import { currentRank, rankProgress } from '../game/PlayerRank'
 import { dayBonusExtra, nightBonusExtra } from '../game/PrestigeTree'
 import { calcPrestigePoints, prestigeMultiplier } from '../game/Prestige'
@@ -40,6 +40,10 @@ export class HUD {
   private sessionClickIncome!: HTMLElement
   private sessionComboMult!: HTMLElement
   private sessionPassiveIncome!: HTMLElement
+  private profileChip!: HTMLButtonElement
+  private heatMeterFill!: HTMLElement
+  private heatMeterLabel!: HTMLElement
+  private heatMeterRow!: HTMLElement
   private weeklyBanner!: HTMLElement
   private goalsChip!: HTMLButtonElement
   private dayNightChip!: HTMLElement
@@ -141,7 +145,12 @@ export class HUD {
     dailyBtn.textContent = '🎁'
     actions.append(this.goalsChip, this.dayNightChip, dailyBtn)
     titleRow.append(title, actions)
-    header.append(titleRow, this.statsBar.root)
+    this.profileChip = document.createElement('button')
+    this.profileChip.type = 'button'
+    this.profileChip.className = 'profile-chip'
+    this.profileChip.dataset.action = 'nav-view'
+    this.profileChip.dataset.id = 'profile'
+    header.append(titleRow, this.profileChip, this.statsBar.root)
 
     const main = document.createElement('main')
     main.className = 'game-main'
@@ -267,6 +276,23 @@ export class HUD {
     sessionGrid.append(clickBlock, comboBlock, passiveBlock)
     sessionPanel.appendChild(sessionGrid)
 
+    const heatRow = document.createElement('div')
+    heatRow.className = 'heat-meter-row'
+    heatRow.hidden = true
+    this.heatMeterRow = heatRow
+    const heatLabel = document.createElement('span')
+    heatLabel.className = 'heat-meter-title'
+    heatLabel.textContent = '🕶️ Radar'
+    this.heatMeterLabel = document.createElement('span')
+    this.heatMeterLabel.className = 'heat-meter-status'
+    const heatBar = document.createElement('div')
+    heatBar.className = 'progress-bar heat-meter-bar'
+    this.heatMeterFill = document.createElement('div')
+    this.heatMeterFill.className = 'progress-fill heat-meter-fill'
+    heatBar.appendChild(this.heatMeterFill)
+    heatRow.append(heatLabel, this.heatMeterLabel, heatBar)
+    sessionPanel.appendChild(heatRow)
+
     const adsPanel = document.createElement('div')
     adsPanel.className = 'quick-ads collapsible-boosts'
     const adDouble = document.createElement('button')
@@ -375,7 +401,14 @@ export class HUD {
       if (ev.type === 'illegal_raid') {
         const p = PRODUCERS.find((x) => x.id === ev.producerId)
         this.modals.showToast(this.root, `🚨 Baskın! ${p?.name ?? 'Illegal iş'} — ${formatMoney(ev.fine)} ceza`)
+        this.renderHeatMeter()
         this.renderAll()
+      }
+      if (ev.type === 'illegal_heat') {
+        this.renderHeatMeter()
+        if (this.bottomNav.getActive() === 'shop') {
+          this.shop.render(this.state, false)
+        }
       }
       if (ev.type === 'producer_unlocked') {
         this.modals.showToast(this.root, '🔓 Yeni işletme erken açıldı!')
@@ -855,6 +888,28 @@ export class HUD {
     }
 
     this.renderSessionPanel()
+    this.renderProfileChip()
+    this.renderHeatMeter()
+  }
+
+  private renderProfileChip(): void {
+    const name = this.state.playerName.trim() || 'Baron'
+    const age = playerAge(this.state.birthYear)
+    const ageText = age !== null ? `${age} yaş` : 'Profil'
+    this.profileChip.innerHTML = `<span class="profile-chip-name">${name}</span><span class="profile-chip-age">${ageText}</span>`
+    this.profileChip.title = 'Profil ve istatistikler'
+  }
+
+  private renderHeatMeter(): void {
+    const heat = this.state.illegalHeat
+    const hasIllegal = PRODUCERS.some((p) => p.illegal && (this.state.producers[p.id] ?? 0) > 0)
+    this.heatMeterRow.hidden = !hasIllegal
+    if (!hasIllegal) return
+    const pct = Math.min(100, Math.round(heat))
+    this.heatMeterFill.style.width = `${pct}%`
+    this.heatMeterFill.classList.toggle('heat-high', heat >= 55)
+    this.heatMeterFill.classList.toggle('heat-critical', heat >= 80)
+    this.heatMeterLabel.textContent = `${this.state.illegalRiskLabel()} · ${pct}%`
   }
 
   private renderSessionPanel(): void {
