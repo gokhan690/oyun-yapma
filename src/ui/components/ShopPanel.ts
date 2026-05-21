@@ -371,6 +371,26 @@ export class ShopPanel {
     if (ownedEl && ownedEl.textContent !== ownedText) ownedEl.textContent = ownedText
     if (costEl && costEl.textContent !== costText) costEl.textContent = costText
     if (incEl && incEl.textContent !== incText) incEl.textContent = incText
+
+    // Milestone dots (10, 25, 50, 100 adet)
+    let dotsEl = card.querySelector('.biz-milestone-dots') as HTMLElement | null
+    if (!dotsEl) {
+      dotsEl = document.createElement('div')
+      dotsEl.className = 'biz-milestone-dots'
+      for (const ms of [10, 25, 50, 100]) {
+        const dot = document.createElement('div')
+        dot.className = 'biz-milestone-dot'
+        dot.title = `${ms} adet`
+        dotsEl.appendChild(dot)
+      }
+      const bottom = card.querySelector('.biz-bottom')
+      if (bottom) bottom.after(dotsEl)
+    }
+    const milestones = [10, 25, 50, 100]
+    const dotEls = dotsEl.querySelectorAll('.biz-milestone-dot')
+    milestones.forEach((ms, i) => {
+      dotEls[i]?.classList.toggle('reached', owned >= ms)
+    })
   }
 
   private renderManagement(state: GameState): void {
@@ -481,9 +501,16 @@ export class ShopPanel {
       name.textContent = `${node.name} (${level}/${node.maxLevel})`
       const desc = document.createElement('small')
       desc.textContent = node.description
+      const dotsWrap = document.createElement('div')
+      dotsWrap.className = 'research-level-dots'
+      for (let i = 0; i < node.maxLevel; i++) {
+        const dot = document.createElement('div')
+        dot.className = `research-level-dot${i < level ? ' filled' : ''}`
+        dotsWrap.appendChild(dot)
+      }
       const costEl = document.createElement('span')
       costEl.textContent = maxed ? 'MAX' : node.currency === 'money' ? formatMoney(cost) : `${cost} hisse`
-      card.append(name, desc, costEl)
+      card.append(name, desc, dotsWrap, costEl)
       panel.appendChild(card)
     }
   }
