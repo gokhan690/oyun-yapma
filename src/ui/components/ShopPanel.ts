@@ -172,6 +172,15 @@ export class ShopPanel {
     })
   }
 
+  flashCard(producerId: string): void {
+    const card = this.businessCards.get(producerId)
+    if (!card) return
+    card.classList.remove('just-bought')
+    void card.offsetWidth
+    card.classList.add('just-bought')
+    window.setTimeout(() => card.classList.remove('just-bought'), 450)
+  }
+
   private renderBusinesses(state: GameState, patchOnly = false): void {
     const panel = this.panels.businesses!
     const synergies = getActiveSynergies(state.producers).filter((s) => s.active)
@@ -213,6 +222,42 @@ export class ShopPanel {
       if (!visibleIds.has(id)) {
         card.remove()
         this.businessCards.delete(id)
+      }
+    }
+
+    if (!patchOnly) {
+      const nextLockedDef = PRODUCERS.find(p => !visibleIds.has(p.id))
+      if (nextLockedDef) {
+        let lockedCard = panel.querySelector('.biz-card-locked-preview') as HTMLElement | null
+        if (!lockedCard) {
+          lockedCard = document.createElement('div')
+          lockedCard.className = 'biz-card biz-card-locked-preview'
+          const inner = document.createElement('div')
+          inner.className = 'biz-card-locked-inner'
+          const emojiEl = document.createElement('span')
+          emojiEl.className = 'biz-emoji'
+          emojiEl.textContent = nextLockedDef.emoji
+          const infoEl = document.createElement('div')
+          const nameEl = document.createElement('strong')
+          nameEl.textContent = nextLockedDef.name
+          const descEl = document.createElement('small')
+          descEl.textContent = nextLockedDef.description
+          infoEl.append(nameEl, descEl)
+          inner.append(emojiEl, infoEl)
+          const overlay = document.createElement('div')
+          overlay.className = 'biz-locked-overlay'
+          const lockIcon = document.createElement('span')
+          lockIcon.className = 'biz-locked-icon'
+          lockIcon.textContent = '🔒'
+          const lockText = document.createElement('span')
+          lockText.className = 'biz-locked-text'
+          lockText.textContent = `${formatMoney(nextLockedDef.unlockAt)} kazan, açılır`
+          overlay.append(lockIcon, lockText)
+          lockedCard.append(inner, overlay)
+          panel.appendChild(lockedCard)
+        }
+      } else {
+        panel.querySelector('.biz-card-locked-preview')?.remove()
       }
     }
 
@@ -491,23 +536,20 @@ export class ShopPanel {
     progress.textContent = `${state.achievements.size}/${ACHIEVEMENTS.length} başarım`
     panel.appendChild(progress)
 
+    const grid = document.createElement('div')
+    grid.className = 'achieve-grid'
     for (const a of ACHIEVEMENTS) {
       const done = state.achievements.has(a.id)
-      const card = document.createElement('div')
-      card.className = `achieve-card${done ? ' done' : ''}`
+      const cell = document.createElement('div')
+      cell.className = `achieve-cell${done ? ' done' : ''}`
+      cell.title = `${a.name}: ${a.description} (+${formatMoney(a.reward)})`
       const emoji = document.createElement('span')
-      emoji.textContent = a.emoji
-      const info = document.createElement('div')
-      const name = document.createElement('strong')
-      name.textContent = a.name
-      const desc = document.createElement('small')
-      desc.textContent = a.description
-      info.append(name, desc)
-      const reward = document.createElement('span')
-      reward.textContent = done ? '✓' : formatMoney(a.reward)
-      card.append(emoji, info, reward)
-      panel.appendChild(card)
+      emoji.className = 'achieve-cell-emoji'
+      emoji.textContent = done ? a.emoji : '🔒'
+      cell.appendChild(emoji)
+      grid.appendChild(cell)
     }
+    panel.appendChild(grid)
   }
 
   private renderIpo(state: GameState): void {
@@ -545,7 +587,8 @@ export class ShopPanel {
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
     path.setAttribute('d', sparklinePath(ticker.history, 120, 32))
     path.setAttribute('fill', 'none')
-    path.setAttribute('stroke', pl >= 0 ? '#34d399' : '#f87171')
+    const trendColor = state.stock.trendDirection === 'up' ? '#34d399' : state.stock.trendDirection === 'down' ? '#f87171' : '#60a5fa'
+    path.setAttribute('stroke', trendColor)
     path.setAttribute('stroke-width', '2')
     spark.appendChild(path)
 
@@ -626,12 +669,19 @@ export class ShopPanel {
       ? `${pending} hisse senedi kazanacaksın. Kalıcı çarpan: x${prestigeMultiplier(state.prestigePoints + pending).toFixed(2)}`
       : `IPO için enaz ${formatMoney(PRESTIGE_THRESHOLD)} toplam kazanç gerekir.`
 
+    const ipoPct = Math.min(100, (state.totalEarned / PRESTIGE_THRESHOLD) * 100)
     const bar = document.createElement('div')
-    bar.className = 'progress-bar'
+    bar.className = 'progress-bar ipo-progress-bar'
     const fill = document.createElement('div')
-    fill.className = 'progress-fill'
-    fill.style.width = `${Math.min(100, (state.totalEarned / PRESTIGE_THRESHOLD) * 100)}%`
+    fill.className = `progress-fill ipo-progress-fill${ipoPct >= 80 ? ' ipo-near' : ''}`
+    fill.style.width = `${ipoPct}%`
     bar.appendChild(fill)
+    for (const ms of [25, 50, 75]) {
+      const tick = document.createElement('div')
+      tick.className = 'ipo-milestone-tick'
+      tick.style.left = `${ms}%`
+      bar.appendChild(tick)
+    }
 
     const btn = document.createElement('button')
     btn.type = 'button'

@@ -1,6 +1,6 @@
 import type { GameState } from '../../game/GameState'
 import { ACHIEVEMENTS } from '../../game/Achievements'
-import { formatMoney } from '../../game/Economy'
+import { PRODUCERS, formatMoney } from '../../game/Economy'
 import type { Leaderboard } from '../../game/Leaderboard'
 
 export class StatsScreen {
@@ -42,6 +42,7 @@ export class StatsScreen {
   render(): void {
     this.content.replaceChildren()
     this.renderStats()
+    this.renderIncomeSources()
     this.renderHistoryChart()
     this.renderSubmitSection()
     void this.renderOnlineLeaderboard()
@@ -82,6 +83,44 @@ export class StatsScreen {
     achBar.innerHTML = `<div class="stats-progress-label">Başarım İlerlemesi <span>${achPct}%</span></div><div class="stats-progress-track"><div class="stats-progress-fill" style="width:${achPct}%"></div></div>`
     section.appendChild(achBar)
 
+    this.content.appendChild(section)
+  }
+
+  private renderIncomeSources(): void {
+    const total = this.state.incomePerSecond()
+    if (total <= 0) return
+
+    const section = document.createElement('div')
+    section.className = 'stats-section'
+    const title = document.createElement('div')
+    title.className = 'stats-section-title'
+    title.textContent = '💰 Gelir Kaynakları'
+    section.appendChild(title)
+
+    const items = PRODUCERS
+      .map(def => ({ def, income: this.state.producerIncome(def) }))
+      .filter(item => item.income > 0)
+      .sort((a, b) => b.income - a.income)
+
+    for (const { def, income } of items) {
+      const pct = (income / total) * 100
+      const row = document.createElement('div')
+      row.className = 'income-source-row'
+      const label = document.createElement('div')
+      label.className = 'income-source-label'
+      label.textContent = `${def.emoji} ${def.name}`
+      const track = document.createElement('div')
+      track.className = 'income-source-track'
+      const fill = document.createElement('div')
+      fill.className = 'income-source-fill'
+      fill.style.width = `${pct}%`
+      track.appendChild(fill)
+      const pctEl = document.createElement('span')
+      pctEl.className = 'income-source-pct'
+      pctEl.textContent = `${pct.toFixed(1)}%`
+      row.append(label, track, pctEl)
+      section.appendChild(row)
+    }
     this.content.appendChild(section)
   }
 
