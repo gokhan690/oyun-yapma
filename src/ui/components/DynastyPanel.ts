@@ -116,12 +116,12 @@ export class DynastyPanel {
     const card = document.createElement('div')
     card.className = 'dynasty-child-card'
     const isHeir = this.state.dynasty.dynastyBonusId === c.id
-    card.innerHTML = `
+      card.innerHTML = `
       <span class="dynasty-child-emoji">${isHeir ? '👑' : '🧒'}</span>
       <div>
         <strong>${c.name}</strong>
         <small>${TRAIT_LABEL[c.trait]}</small>
-        <small>Gün ${c.bornGameDay}'de doğdu</small>
+        <small>Gün ${c.bornGameDay}'de doğdu · Eğitim ${Math.floor(c.educationXp ?? 0)}%</small>
       </div>
     `
     const pick = document.createElement('button')

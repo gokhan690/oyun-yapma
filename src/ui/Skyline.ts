@@ -1,4 +1,5 @@
 import { PRODUCERS, producerIconPath } from '../game/Economy'
+import { isGameNight } from '../game/GameClock'
 
 const BUILDING_HEIGHTS = [36, 44, 52, 48, 56, 64, 72, 80, 88, 96, 104]
 
@@ -15,6 +16,7 @@ export class Skyline {
   private skyEl: HTMLElement
   private startTime = Date.now()
   private lastNight: boolean | null = null
+  private gameTimeMs = 0
   private parallaxRaf: number | null = null
 
   constructor(container: HTMLElement) {
@@ -52,7 +54,8 @@ export class Skyline {
     this.animateParallax()
   }
 
-  update(tierCount: number): void {
+  update(tierCount: number, gameTimeMs?: number): void {
+    if (gameTimeMs !== undefined) this.gameTimeMs = gameTimeMs
     this.buildingsEl.replaceChildren()
     const count = Math.min(PRODUCERS.length, Math.max(0, tierCount))
     for (let i = 0; i < count; i++) {
@@ -98,8 +101,7 @@ export class Skyline {
   }
 
   private updateDayNight(): void {
-    const hour = new Date().getHours()
-    const night = isNightHour(hour)
+    const night = this.gameTimeMs > 0 ? isGameNight(this.gameTimeMs) : isNightHour(new Date().getHours())
     if (this.lastNight === night) return
     this.lastNight = night
     this.el.classList.toggle('skyline-night', night)

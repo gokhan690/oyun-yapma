@@ -53,6 +53,7 @@ export class StatsScreen {
     this.dynasty.render()
     this.content.appendChild(this.dynasty.root)
     this.renderStats()
+    this.renderAchievements()
     this.renderBadges()
     this.codex.render(this.state)
     this.content.appendChild(this.codex.root)
@@ -127,6 +128,26 @@ export class StatsScreen {
     achBar.innerHTML = `<div class="stats-progress-label">Başarım İlerlemesi <span>${achPct}%</span></div><div class="stats-progress-track"><div class="stats-progress-fill" style="width:${achPct}%"></div></div>`
     section.appendChild(achBar)
 
+    this.content.appendChild(section)
+  }
+
+  private renderAchievements(): void {
+    const section = document.createElement('div')
+    section.className = 'stats-section achievements-section'
+    const title = document.createElement('h3')
+    title.textContent = 'Başarımlar'
+    section.appendChild(title)
+    const grid = document.createElement('div')
+    grid.className = 'achieve-grid profile-achieve-grid'
+    for (const a of ACHIEVEMENTS) {
+      const done = this.state.achievements.has(a.id)
+      const cell = document.createElement('div')
+      cell.className = `achieve-cell${done ? ' done' : ''}`
+      cell.title = `${a.name}: ${a.description}`
+      cell.innerHTML = `<span class="achieve-cell-emoji">${done ? a.emoji : '🔒'}</span><small>${done ? a.name : '???'}</small>`
+      grid.appendChild(cell)
+    }
+    section.appendChild(grid)
     this.content.appendChild(section)
   }
 

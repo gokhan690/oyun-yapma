@@ -4,10 +4,11 @@ import { prestigeMultiplier } from '../../game/Prestige'
 
 export class StatsBar {
   readonly root: HTMLElement
-  private moneyEl: HTMLElement
-  private incomeEl: HTMLElement
-  private stockEl: HTMLElement
-  private boostEl: HTMLElement
+  private heroEl!: HTMLElement
+  private moneyEl!: HTMLElement
+  private incomeChip!: HTMLElement
+  private prestigeChip!: HTMLElement
+  private boostChip!: HTMLElement
   private displayedMoney = 0
   private moneyTarget = 0
   private rafId: number | null = null
@@ -16,31 +17,40 @@ export class StatsBar {
   constructor(state: GameState) {
     this.state = state
     this.root = document.createElement('div')
-    this.root.className = 'stats-bar'
-    this.moneyEl = this.stat('Para', '💰', '0', 'money-stat')
-    this.incomeEl = this.stat('Gelir', '⚡', '0/sn', 'income-stat')
-    this.stockEl = this.stat('Çarpan', '📊', 'x1.00', 'stock-stat')
-    this.boostEl = this.stat('Bonus', '🔥', '—', 'boost-stat')
-    this.root.append(this.moneyEl, this.incomeEl, this.stockEl, this.boostEl)
+    this.root.className = 'stats-bar stats-bar-hero'
+    this.build()
     this.startMoneyLoop()
   }
 
-  private stat(label: string, icon: string, val: string, cls: string): HTMLElement {
-    const el = document.createElement('div')
-    el.className = `stat ${cls}`
-    const top = document.createElement('div')
-    top.className = 'stat-top'
-    const i = document.createElement('span')
-    i.className = 'stat-icon'
-    i.textContent = icon
-    const v = document.createElement('span')
-    v.className = 'stat-value'
-    v.textContent = val
-    top.append(i, v)
-    const l = document.createElement('span')
-    l.className = 'stat-label'
-    l.textContent = label
-    el.append(top, l)
+  private build(): void {
+    this.heroEl = document.createElement('div')
+    this.heroEl.className = 'stats-hero'
+
+    const moneyBlock = document.createElement('div')
+    moneyBlock.className = 'stats-hero-money'
+    const moneyLabel = document.createElement('span')
+    moneyLabel.className = 'stats-hero-label'
+    moneyLabel.textContent = 'Para'
+    this.moneyEl = document.createElement('span')
+    this.moneyEl.className = 'stats-hero-value money-stat-value'
+    this.moneyEl.textContent = '0'
+    moneyBlock.append(moneyLabel, this.moneyEl)
+
+    const chips = document.createElement('div')
+    chips.className = 'stats-hero-chips'
+    this.incomeChip = this.chip('⚡', '0/sn')
+    this.prestigeChip = this.chip('📊', 'x1.00')
+    this.boostChip = this.chip('🔥', '—')
+    chips.append(this.incomeChip, this.prestigeChip, this.boostChip)
+
+    this.heroEl.append(moneyBlock, chips)
+    this.root.appendChild(this.heroEl)
+  }
+
+  private chip(icon: string, val: string): HTMLElement {
+    const el = document.createElement('span')
+    el.className = 'stats-chip'
+    el.innerHTML = `<span class="stats-chip-icon">${icon}</span><span class="stats-chip-value">${val}</span>`
     return el
   }
 
@@ -51,15 +61,22 @@ export class StatsBar {
   render(updateAll = true): void {
     this.moneyTarget = this.state.money
     if (!updateAll) return
-    this.setVal(this.incomeEl, `${formatMoney(this.state.incomePerSecond())}/sn`)
-    this.setVal(this.stockEl, `x${prestigeMultiplier(this.state.prestigePoints).toFixed(2)}`)
-    if (this.state.isAdBoostActive()) {
+    this.updateMeta()
+  }
+
+  private updateMeta(): void {
+    this.setChip(this.incomeChip, `${formatMoney(this.state.incomePerSecond())}/sn`)
+    this.setChip(this.prestigeChip, `x${prestigeMultiplier(this.state.prestigePoints).toFixed(2)}`)
+    if (this.state.isShopBoostActive()) {
+      const sec = Math.ceil(this.state.shopBoostRemainingMs() / 1000)
+      this.setChip(this.boostChip, `+50% ${sec}sn`)
+    } else if (this.state.isAdBoostActive()) {
       const sec = Math.ceil(this.state.adBoostRemainingMs() / 1000)
-      this.setVal(this.boostEl, `2x ${sec}sn`)
+      this.setChip(this.boostChip, `2x ${sec}sn`)
     } else if (this.state.getEventBoostActive()) {
-      this.setVal(this.boostEl, '3x Viral')
+      this.setChip(this.boostChip, '3x Viral')
     } else {
-      this.setVal(this.boostEl, '—')
+      this.setChip(this.boostChip, '—')
     }
   }
 
@@ -75,21 +92,13 @@ export class StatsBar {
       } else {
         this.displayedMoney += diff * 0.25
       }
-      this.setVal(this.moneyEl, formatMoney(this.displayedMoney))
+      const formatted = formatMoney(this.displayedMoney)
+      if (this.moneyEl.textContent !== formatted) this.moneyEl.textContent = formatted
 
       const now = performance.now()
       if (now - lastMeta > 450) {
         lastMeta = now
-        this.setVal(this.incomeEl, `${formatMoney(this.state.incomePerSecond())}/sn`)
-        this.setVal(this.stockEl, `x${prestigeMultiplier(this.state.prestigePoints).toFixed(2)}`)
-        if (this.state.isAdBoostActive()) {
-          const sec = Math.ceil(this.state.adBoostRemainingMs() / 1000)
-          this.setVal(this.boostEl, `2x ${sec}sn`)
-        } else if (this.state.getEventBoostActive()) {
-          this.setVal(this.boostEl, '3x Viral')
-        } else {
-          this.setVal(this.boostEl, '—')
-        }
+        this.updateMeta()
       }
 
       this.rafId = requestAnimationFrame(tick)
@@ -101,8 +110,8 @@ export class StatsBar {
     if (this.rafId !== null) cancelAnimationFrame(this.rafId)
   }
 
-  private setVal(stat: HTMLElement, value: string): void {
-    const v = stat.querySelector('.stat-value')
+  private setChip(chip: HTMLElement, value: string): void {
+    const v = chip.querySelector('.stats-chip-value')
     if (v && v.textContent !== value) v.textContent = value
   }
 }

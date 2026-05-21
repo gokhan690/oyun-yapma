@@ -1,7 +1,6 @@
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, UPGRADES, formatMoney, producerIconPath, earlyUnlockCost, isProducerUnlocked, type ProducerDef, type UpgradeDef } from '../../game/Economy'
 import { RESEARCH_NODES, researchCost } from '../../game/Research'
-import { ACHIEVEMENTS, type AchievementDef } from '../../game/Achievements'
 import { getActiveSynergies } from '../../game/Synergies'
 import { PRESTIGE_THRESHOLD } from '../../game/GameState'
 import { calcPrestigePoints, prestigeMultiplier } from '../../game/Prestige'
@@ -9,21 +8,35 @@ import { managerCost, hasManager } from '../../game/Managers'
 import { profitLoss, sparklinePath, STOCK_DEFS } from '../../game/StockMarket'
 import { PRESTIGE_TREE_NODES, canBuyNode, hasNode } from '../../game/PrestigeTree'
 import { dailyGoalProgress, scaledDailyGoalTarget } from '../../game/DailyGoal'
+import { assetUrl } from '../../utils/assetUrl'
+import {
+  getBestRecommendation,
+  sortProducers,
+  formatRoi,
+  producerRoiSeconds,
+  formatRecommendationSummary,
+  type BizSortOrder,
+} from '../../game/ShopAdvisor'
+import { UNDERGROUND_TREE_NODES, treeNodeCost } from '../../game/UndergroundTree'
 
 export type BuyMode = 1 | 10 | 'max'
+export type ShopHub = 'growth' | 'powerup' | 'finance'
+export type GrowthSub = 'businesses' | 'management'
+export type PowerupSub = 'upgrades' | 'research'
 export type IpoSubTab = 'stock' | 'prestige' | 'ipo'
 export type UpgradeFilter = 'all' | 'click' | 'global' | 'producer'
-export type AchievementCategory = 'all' | 'earn' | 'click' | 'business' | 'ipo'
 export type BizTypeFilter = 'all' | 'legal' | 'illegal'
 
-const TAB_SUBTITLES: Record<string, string> = {
-  businesses: 'İşletme satın al ve genişlet',
-  management: 'Yönetici işe al, otomasyon kur',
-  upgrades: 'Gelir ve tıklama güçlendir',
-  research: 'Kalıcı bonuslar araştır',
-  missions: 'Günlük görevleri tamamla',
-  achievements: 'Başarımları keşfet',
-  ipo: 'Borsa ve şirket birleşmesi',
+const HUB_SUBTITLES: Record<ShopHub, string> = {
+  growth: 'İşletme satın al, yönetici işe al',
+  powerup: 'Yükseltme ve Ar-Ge',
+  finance: 'Borsa, prestij ve IPO',
+}
+
+const HUB_ICONS: Record<ShopHub, string> = {
+  growth: assetUrl('icons/nav/shop.svg'),
+  powerup: assetUrl('icons/businesses/ai.svg'),
+  finance: assetUrl('icons/businesses/tuzaq.svg'),
 }
 
 const MILESTONES = [1, 10, 25, 50, 100]
@@ -31,25 +44,44 @@ const MILESTONES = [1, 10, 25, 50, 100]
 export class ShopPanel {
   readonly root: HTMLElement
   private buyMode: BuyMode = 1
-  private activeTab = 'businesses'
+  private activeHub: ShopHub = 'growth'
+  private growthSub: GrowthSub = 'businesses'
+  private powerupSub: PowerupSub = 'upgrades'
   private panels: Record<string, HTMLElement> = {}
   private tabButtons: HTMLButtonElement[] = []
+  private subTabButtons: HTMLButtonElement[] = []
   private buyModesEl!: HTMLElement
   private shopSubEl!: HTMLElement
   private shopHubEl!: HTMLElement
+  private advisorEl!: HTMLElement
+  private subTabsEl!: HTMLElement
   private businessCards = new Map<string, HTMLDivElement>()
   private synergyEl: HTMLElement | null = null
-  private selectedAchievementId: string | null = null
   private ipoSubTab: IpoSubTab = 'stock'
   private upgradeFilter: UpgradeFilter = 'all'
-  private achievementCategory: AchievementCategory = 'all'
-  private achievementViewMode: 'grid' | 'list' = 'grid'
   private bizTypeFilter: BizTypeFilter = 'all'
+  private bizSortOrder: BizSortOrder = 'profit'
 
   constructor() {
     this.root = document.createElement('section')
-    this.root.className = 'shop-panel shop-tab-businesses'
+    this.root.className = 'shop-panel shop-hub-growth'
     this.build()
+  }
+
+  private resolveTab(id: string): { hub: ShopHub; growthSub?: GrowthSub; powerupSub?: PowerupSub; ipoSub?: IpoSubTab } {
+    if (id === 'growth' || id === 'powerup' || id === 'finance') return { hub: id }
+    if (id === 'businesses' || id === 'management') return { hub: 'growth', growthSub: id }
+    if (id === 'upgrades' || id === 'research') return { hub: 'powerup', powerupSub: id }
+    if (id === 'ipo' || id === 'stock' || id === 'prestige') {
+      return { hub: 'finance', ipoSub: id === 'stock' || id === 'prestige' ? id : this.ipoSubTab }
+    }
+    return { hub: 'growth', growthSub: 'businesses' }
+  }
+
+  private activePanelId(): string {
+    if (this.activeHub === 'growth') return this.growthSub
+    if (this.activeHub === 'powerup') return this.powerupSub
+    return 'ipo'
   }
 
   private build(): void {
@@ -60,7 +92,7 @@ export class ShopPanel {
     title.textContent = 'Mağaza'
     this.shopSubEl = document.createElement('span')
     this.shopSubEl.className = 'shop-sub'
-    this.shopSubEl.textContent = TAB_SUBTITLES.businesses
+    this.shopSubEl.textContent = HUB_SUBTITLES.growth
     header.append(title, this.shopSubEl)
 
     const buyModes = document.createElement('div')
@@ -77,31 +109,40 @@ export class ShopPanel {
       buyModes.appendChild(btn)
     }
 
+    this.advisorEl = document.createElement('div')
+    this.advisorEl.className = 'shop-advisor-strip'
+
+    this.subTabsEl = document.createElement('div')
+    this.subTabsEl.className = 'shop-sub-tabs'
+
     const tabs = document.createElement('div')
-    tabs.className = 'shop-tabs-pill'
-    const tabDefs = [
-      { id: 'businesses', label: 'İşletme', icon: '🏢' },
-      { id: 'management', label: 'Yönetim', icon: '👔' },
-      { id: 'upgrades', label: 'Yükselt', icon: '⬆️' },
-      { id: 'research', label: 'Ar-Ge', icon: '🔬' },
-      { id: 'missions', label: 'Görev', icon: '📋' },
-      { id: 'achievements', label: 'Başarım', icon: '🏆' },
-      { id: 'ipo', label: 'Borsa', icon: '📈' },
+    tabs.className = 'shop-tabs-pill shop-hub-tabs'
+    const hubDefs: { id: ShopHub; label: string }[] = [
+      { id: 'growth', label: 'Büyüme' },
+      { id: 'powerup', label: 'Güçlendir' },
+      { id: 'finance', label: 'Finans' },
     ]
-    for (const t of tabDefs) {
+    for (const t of hubDefs) {
       const btn = document.createElement('button')
       btn.type = 'button'
-      btn.className = 'tab-btn'
+      btn.className = 'tab-btn shop-hub-btn'
       btn.dataset.action = 'shop-tab'
       btn.dataset.id = t.id
       btn.dataset.tab = t.id
-      btn.innerHTML = `<span>${t.icon}</span> ${t.label}`
-      if (t.id === 'businesses') btn.classList.add('active')
+      const img = document.createElement('img')
+      img.src = HUB_ICONS[t.id]
+      img.alt = ''
+      img.width = 18
+      img.height = 18
+      const label = document.createElement('span')
+      label.textContent = t.label
+      btn.append(img, label)
+      if (t.id === 'growth') btn.classList.add('active')
       this.tabButtons.push(btn)
       tabs.appendChild(btn)
     }
 
-    for (const id of tabDefs.map((t) => t.id)) {
+    for (const id of ['businesses', 'management', 'upgrades', 'research', 'ipo']) {
       const panel = document.createElement('div')
       panel.className = 'tab-panel'
       panel.dataset.panel = id
@@ -117,7 +158,8 @@ export class ShopPanel {
     chrome.className = 'shop-chrome'
     this.shopHubEl = document.createElement('div')
     this.shopHubEl.className = 'shop-hub-strip'
-    chrome.append(header, this.shopHubEl, buyModes, tabsWrap)
+    chrome.append(header, this.shopHubEl, this.advisorEl, buyModes, this.subTabsEl, tabsWrap)
+    this.renderSubTabs()
 
     const body = document.createElement('div')
     body.className = 'shop-body'
@@ -129,13 +171,18 @@ export class ShopPanel {
   }
 
   setTab(id: string): void {
-    this.activeTab = id
-    this.root.className = `shop-panel shop-tab-${id}`
+    const resolved = this.resolveTab(id)
+    this.activeHub = resolved.hub
+    if (resolved.growthSub) this.growthSub = resolved.growthSub
+    if (resolved.powerupSub) this.powerupSub = resolved.powerupSub
+    if (resolved.ipoSub) this.ipoSubTab = resolved.ipoSub
+    const panelId = this.activePanelId()
+    this.root.className = `shop-panel shop-hub-${this.activeHub}`
     for (const btn of this.tabButtons) {
-      btn.classList.toggle('active', btn.dataset.tab === id)
+      btn.classList.toggle('active', btn.dataset.tab === this.activeHub)
     }
     for (const [pid, panel] of Object.entries(this.panels)) {
-      const show = pid === id
+      const show = pid === panelId
       panel.hidden = !show
       if (show) {
         panel.scrollTop = 0
@@ -144,15 +191,60 @@ export class ShopPanel {
         panel.classList.add('tab-fade-in')
       }
     }
-    this.buyModesEl.hidden = id !== 'businesses'
-    this.buyModesEl.classList.toggle('is-hidden', id !== 'businesses')
-    this.updateShopSubtitle(id)
-    const activeBtn = this.tabButtons.find((b) => b.dataset.tab === id)
+    this.renderSubTabs()
+    const showBuy = (this.activeHub === 'growth' && this.growthSub === 'businesses')
+      || (this.activeHub === 'powerup' && this.powerupSub === 'upgrades')
+    this.buyModesEl.hidden = !showBuy
+    this.buyModesEl.classList.toggle('is-hidden', !showBuy)
+    this.shopSubEl.textContent = HUB_SUBTITLES[this.activeHub]
+    const activeBtn = this.tabButtons.find((b) => b.dataset.tab === this.activeHub)
     activeBtn?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
   }
 
-  selectAchievement(id: string): void {
-    this.selectedAchievementId = id
+  setGrowthSub(sub: GrowthSub): void {
+    this.growthSub = sub
+    this.setTab(sub)
+  }
+
+  setPowerupSub(sub: PowerupSub): void {
+    this.powerupSub = sub
+    this.setTab(sub)
+  }
+
+  goToFinanceStock(tickerId?: string): void {
+    this.ipoSubTab = 'stock'
+    this.setTab('finance')
+    if (tickerId) this.highlightStockTicker = tickerId
+  }
+
+  private highlightStockTicker: string | null = null
+
+  private renderSubTabs(): void {
+    this.subTabsEl.replaceChildren()
+    this.subTabButtons = []
+    if (this.activeHub === 'growth') {
+      for (const [id, label] of [['businesses', 'İşletme'], ['management', 'Yönetim']] as const) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = `shop-sub-tab${this.growthSub === id ? ' active' : ''}`
+        btn.dataset.action = 'shop-sub-tab'
+        btn.dataset.id = id
+        btn.textContent = label
+        this.subTabButtons.push(btn)
+        this.subTabsEl.appendChild(btn)
+      }
+    } else if (this.activeHub === 'powerup') {
+      for (const [id, label] of [['upgrades', 'Yükseltme'], ['research', 'Ar-Ge']] as const) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = `shop-sub-tab${this.powerupSub === id ? ' active' : ''}`
+        btn.dataset.action = 'shop-sub-tab'
+        btn.dataset.id = id
+        btn.textContent = label
+        this.subTabButtons.push(btn)
+        this.subTabsEl.appendChild(btn)
+      }
+    }
   }
 
   setIpoSubTab(tab: IpoSubTab): void {
@@ -163,14 +255,6 @@ export class ShopPanel {
     this.upgradeFilter = filter
   }
 
-  setAchievementCategory(cat: AchievementCategory): void {
-    this.achievementCategory = cat
-  }
-
-  toggleAchievementView(): void {
-    this.achievementViewMode = this.achievementViewMode === 'grid' ? 'list' : 'grid'
-  }
-
   setBizTypeFilter(filter: BizTypeFilter): void {
     this.bizTypeFilter = filter
   }
@@ -179,16 +263,29 @@ export class ShopPanel {
     state.ensureMissions()
     const missionReady = state.missions.some((m) => m.progress >= m.target && !m.claimed)
     const ipoReady = state.prestigeEligible()
-    return missionReady || ipoReady
+    const upgradeReady = state.availableUpgrades().some((u) => state.canAfford(state.upgradeCostFor(u)))
+    const earlyUnlock = PRODUCERS.some((p) => {
+      if (isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks)) return false
+      return state.canAfford(earlyUnlockCost(p))
+    })
+    return missionReady || ipoReady || upgradeReady || earlyUnlock
   }
 
   updateTabBadges(state: GameState): void {
     state.ensureMissions()
     for (const btn of this.tabButtons) {
-      const tab = btn.dataset.tab
+      const hub = btn.dataset.tab as ShopHub
       let show = false
-      if (tab === 'missions') show = state.missions.some((m) => m.progress >= m.target && !m.claimed)
-      if (tab === 'ipo') show = state.prestigeEligible()
+      if (hub === 'finance') show = state.prestigeEligible()
+      if (hub === 'powerup') {
+        show = state.availableUpgrades().some((u) => state.canAfford(state.upgradeCostFor(u)))
+      }
+      if (hub === 'growth') {
+        show = PRODUCERS.some((p) => {
+          if (isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks)) return false
+          return state.canAfford(earlyUnlockCost(p))
+        })
+      }
       let badge = btn.querySelector('.tab-badge') as HTMLElement | null
       if (show && !badge) {
         badge = document.createElement('span')
@@ -200,7 +297,7 @@ export class ShopPanel {
   }
 
   getActiveTab(): string {
-    return this.activeTab
+    return this.activeHub
   }
 
   getBuyMode(): BuyMode {
@@ -209,12 +306,14 @@ export class ShopPanel {
 
   render(state: GameState, onlyActiveTab = false, patch = false): void {
     this.renderShopHub(state)
-    if (patch && this.activeTab === 'businesses') {
+    this.renderAdvisorStrip(state)
+    const panelId = this.activePanelId()
+    if (patch && panelId === 'businesses') {
       this.renderBusinesses(state, true)
       return
     }
     if (onlyActiveTab) {
-      this.renderTab(state, this.activeTab)
+      this.renderTab(state, panelId)
       this.updateTabBadges(state)
       return
     }
@@ -222,14 +321,48 @@ export class ShopPanel {
     this.renderManagement(state)
     this.renderUpgrades(state)
     this.renderResearch(state)
-    this.renderMissions(state)
-    this.renderAchievements(state)
     this.renderIpo(state)
     this.updateTabBadges(state)
   }
 
   patchAffordability(state: GameState): void {
-    if (this.activeTab === 'businesses') this.renderBusinesses(state, true)
+    if (this.activePanelId() === 'businesses') this.renderBusinesses(state, true)
+    this.renderAdvisorStrip(state)
+  }
+
+  private renderAdvisorStrip(state: GameState): void {
+    const rec = getBestRecommendation(state)
+    this.advisorEl.replaceChildren()
+    if (!rec) {
+      this.advisorEl.hidden = true
+      return
+    }
+    this.advisorEl.hidden = false
+    const card = document.createElement('div')
+    card.className = `shop-advisor-card${rec.affordable ? '' : ' shop-advisor-locked'}`
+    const text = document.createElement('div')
+    text.className = 'shop-advisor-text'
+    text.innerHTML = `<strong>Şimdi al</strong><span>${formatRecommendationSummary(rec)}</span><small>${rec.reason}</small>`
+    const actions = document.createElement('div')
+    actions.className = 'shop-advisor-actions'
+    const buyBtn = document.createElement('button')
+    buyBtn.type = 'button'
+    buyBtn.className = 'btn-primary btn-sm'
+    buyBtn.dataset.action = 'advisor-buy'
+    buyBtn.dataset.id = `${rec.kind}:${rec.id}`
+    buyBtn.textContent = rec.affordable ? 'Satın al' : `Eksik: ${formatMoney(Math.max(0, rec.cost - state.money))}`
+    buyBtn.disabled = !rec.affordable
+    actions.appendChild(buyBtn)
+    if (!rec.affordable && state.pendingOfflineEarnings > 0) {
+      const adBtn = document.createElement('button')
+      adBtn.type = 'button'
+      adBtn.className = 'btn-ad btn-sm'
+      adBtn.dataset.action = 'ad-offline'
+      adBtn.textContent = '📺 Offline topla'
+      actions.appendChild(adBtn)
+    }
+    card.append(text, actions)
+    this.advisorEl.appendChild(card)
   }
 
   private renderTab(state: GameState, tab: string): void {
@@ -238,10 +371,12 @@ export class ShopPanel {
       case 'management': this.renderManagement(state); break
       case 'upgrades': this.renderUpgrades(state); break
       case 'research': this.renderResearch(state); break
-      case 'missions': this.renderMissions(state); break
-      case 'achievements': this.renderAchievements(state); break
       case 'ipo': this.renderIpo(state); break
     }
+  }
+
+  setBizSortOrder(order: BizSortOrder): void {
+    this.bizSortOrder = order
   }
 
   setBuyMode(mode: BuyMode): void {
@@ -262,10 +397,6 @@ export class ShopPanel {
     void card.offsetWidth
     card.classList.add('just-bought')
     window.setTimeout(() => card.classList.remove('just-bought'), 450)
-  }
-
-  private updateShopSubtitle(tab: string): void {
-    this.shopSubEl.textContent = TAB_SUBTITLES[tab] ?? 'İşletme & yükseltme'
   }
 
   private renderShopHub(state: GameState): void {
@@ -290,14 +421,6 @@ export class ShopPanel {
       <span class="hub-stat"><strong>${nextText}</strong><small>Sıradaki</small></span>
       <span class="hub-stat"><strong>${goalPct}%</strong><small>Günlük hedef</small></span>
     `
-  }
-
-  private achievementCat(a: AchievementDef): AchievementCategory {
-    const id = a.id
-    if (id.includes('click') || id.includes('combo') || id.includes('tap')) return 'click'
-    if (id.includes('prestige') || id.includes('ipo') || id.includes('stock') || id.includes('season') || id.includes('tree') || id.includes('weekly')) return 'ipo'
-    if (id.includes('business') || id.includes('manager') || id.includes('producer') || PRODUCERS.some((p) => id.includes(p.id))) return 'business'
-    return 'earn'
   }
 
   private createFilterPills(
@@ -464,17 +587,33 @@ export class ShopPanel {
     if (!patchOnly) {
       let filterBar = panel.querySelector('.biz-type-filters') as HTMLElement | null
       if (!filterBar) {
+        const wrap = document.createElement('div')
+        wrap.className = 'biz-filter-row'
         filterBar = this.createFilterPills([
           { id: 'all', label: 'Tümü' },
-          { id: 'legal', label: '✅ Yasal' },
-          { id: 'illegal', label: '🕶️ Illegal' },
+          { id: 'legal', label: 'Yasal' },
+          { id: 'illegal', label: 'Illegal' },
         ], this.bizTypeFilter, 'biz-filter')
         filterBar.classList.add('biz-type-filters')
-        panel.prepend(filterBar)
+        const sortBar = this.createFilterPills([
+          { id: 'profit', label: 'En karlı' },
+          { id: 'cheap', label: 'En ucuz' },
+          { id: 'name', label: 'A-Z' },
+          { id: 'unlockable', label: 'Kilit' },
+        ], this.bizSortOrder, 'biz-sort')
+        sortBar.classList.add('biz-sort-filters')
+        wrap.append(filterBar, sortBar)
+        panel.prepend(wrap)
       } else {
         filterBar.querySelectorAll('.filter-pill').forEach((node) => {
           const btn = node as HTMLButtonElement
-          btn.classList.toggle('active', btn.dataset.id === this.bizTypeFilter)
+          if (btn.closest('.biz-type-filters')) {
+            btn.classList.toggle('active', btn.dataset.id === this.bizTypeFilter)
+          }
+        })
+        panel.querySelector('.biz-sort-filters')?.querySelectorAll('.filter-pill').forEach((node) => {
+          const btn = node as HTMLButtonElement
+          btn.classList.toggle('active', btn.dataset.id === this.bizSortOrder)
         })
       }
 
@@ -489,11 +628,15 @@ export class ShopPanel {
     }
 
     const visibleIds = new Set<string>()
-    const unlocked = state.unlockedProducers().filter((p) => {
-      if (this.bizTypeFilter === 'legal') return !p.illegal
-      if (this.bizTypeFilter === 'illegal') return !!p.illegal
-      return true
-    })
+    const unlocked = sortProducers(
+      state.unlockedProducers().filter((p) => {
+        if (this.bizTypeFilter === 'legal') return !p.illegal
+        if (this.bizTypeFilter === 'illegal') return !!p.illegal
+        return true
+      }),
+      this.bizSortOrder,
+      state,
+    )
 
     for (const p of unlocked) {
       const owned = state.producers[p.id] ?? 0
@@ -724,10 +867,32 @@ export class ShopPanel {
       ? `${formatMoney(cost)} (x${affordableCount})`
       : formatMoney(cost)
     const incText = owned > 0 ? `${formatMoney(income)}/sn` : `+${formatMoney(p.baseIncome)}/sn`
+    const roiSec = producerRoiSeconds(state, p, buyCount)
+    const roiText = `ROI ~${formatRoi(roiSec)}`
 
     if (ownedEl && ownedEl.textContent !== ownedText) ownedEl.textContent = ownedText
     if (costEl && costEl.textContent !== costText) costEl.textContent = costText
     if (incEl && incEl.textContent !== incText) incEl.textContent = incText
+
+    let roiEl = card.querySelector('.biz-roi') as HTMLElement | null
+    if (!roiEl) {
+      roiEl = document.createElement('span')
+      roiEl.className = 'biz-roi'
+      card.querySelector('.biz-bottom')?.appendChild(roiEl)
+    }
+    if (roiEl.textContent !== roiText) roiEl.textContent = roiText
+
+    const synIds = getActiveSynergies(state.producers).flatMap((s) => [...s.def.requires, s.def.targetProducer ?? ''])
+    let synBadge = card.querySelector('.biz-synergy-badge') as HTMLElement | null
+    if (synIds.includes(p.id)) {
+      if (!synBadge) {
+        synBadge = document.createElement('span')
+        synBadge.className = 'biz-synergy-badge'
+        card.appendChild(synBadge)
+      }
+      synBadge.textContent = '⚡ Sinerji'
+      synBadge.hidden = false
+    } else if (synBadge) synBadge.hidden = true
 
     card.querySelectorAll('.biz-milestone-dot').forEach((dot) => {
       const ms = Number((dot as HTMLElement).dataset.milestone)
@@ -878,7 +1043,7 @@ export class ShopPanel {
     }
 
     for (const u of list) {
-      const upgradeCost = Math.floor(u.cost * (1 - (hasNode(state.prestigeTree, 'upgrade_10') ? 0.1 : 0)))
+      const upgradeCost = state.upgradeCostFor(u)
       const affordable = state.canAfford(upgradeCost)
 
       const card = document.createElement('button')
@@ -925,6 +1090,31 @@ export class ShopPanel {
       }
       panel.appendChild(details)
     }
+
+    this.renderPowerupAdCards(state, panel)
+  }
+
+  private renderPowerupAdCards(state: GameState, panel: HTMLElement): void {
+    let ads = panel.querySelector('.shop-ad-cards') as HTMLElement | null
+    if (!ads) {
+      ads = document.createElement('div')
+      ads.className = 'shop-ad-cards'
+      panel.appendChild(ads)
+    }
+    ads.replaceChildren()
+    const boost = document.createElement('button')
+    boost.type = 'button'
+    boost.className = 'shop-ad-card'
+    boost.dataset.action = 'ad-shop-boost'
+    boost.innerHTML = '<span>📺</span><div><strong>15 dk +50% gelir</strong><small>Reklam izle</small></div>'
+    boost.disabled = state.isShopBoostActive()
+    const disc = document.createElement('button')
+    disc.type = 'button'
+    disc.className = 'shop-ad-card'
+    disc.dataset.action = 'ad-upgrade-discount'
+    disc.innerHTML = '<span>📺</span><div><strong>Sonraki yükseltme −30%</strong><small>Tek kullanım</small></div>'
+    disc.disabled = state.upgradeDiscountActive
+    ads.append(boost, disc)
   }
 
   private renderResearch(state: GameState): void {
@@ -982,173 +1172,6 @@ export class ShopPanel {
     panel.appendChild(treeGrid)
   }
 
-  private renderMissions(state: GameState): void {
-    const panel = this.panels.missions!
-    panel.replaceChildren()
-    state.ensureMissions()
-
-    const done = state.missions.filter((m) => m.claimed).length
-    const ready = state.missions.filter((m) => m.progress >= m.target && !m.claimed).length
-    panel.appendChild(this.createTabHero('📋', 'Günlük Görevler', 'Her gün yeni hedefler — ödülleri kaçırma', `${done}/${state.missions.length} tamam${ready > 0 ? ` · ${ready} hazır` : ''}`))
-
-    const summary = document.createElement('div')
-    summary.className = 'mission-daily-summary streak-card'
-    const streakPct = Math.min(100, (state.dailyStreak / 30) * 100)
-    summary.innerHTML = `
-      <div class="streak-ring-wrap">
-        <div class="streak-ring" style="background: conic-gradient(var(--accent) ${streakPct}%, rgba(255,255,255,0.08) ${streakPct}%)"></div>
-        <span class="streak-ring-num">${state.dailyStreak}</span>
-      </div>
-      <div class="streak-card-text">
-        <strong>🔥 Giriş serisi</strong>
-        <small>${state.dailyStreak}/30 gün · ${ready} hazır görev</small>
-      </div>
-    `
-    panel.appendChild(summary)
-
-    const sorted = [...state.missions].sort((a, b) => {
-      const aReady = a.progress >= a.target && !a.claimed ? 1 : 0
-      const bReady = b.progress >= b.target && !b.claimed ? 1 : 0
-      return bReady - aReady
-    })
-
-    for (const m of sorted) {
-      const pct = (m.progress / m.target) * 100
-      const isReady = m.progress >= m.target && !m.claimed
-
-      const card = document.createElement('div')
-      card.className = `shop-card mission-card${isReady ? ' mission-ready' : ''}${m.claimed ? ' mission-claimed' : ''}`
-
-      const label = document.createElement('p')
-      label.className = 'mission-label'
-      label.textContent = m.label
-
-      const bar = this.createProgressBar(pct)
-      const meta = document.createElement('div')
-      meta.className = 'mission-meta'
-      const status = document.createElement('span')
-      status.textContent = `${Math.floor(m.progress)}/${m.target} (${Math.floor(pct)}%)`
-      const reward = document.createElement('small')
-      reward.textContent = m.rewardMoney > 0 ? `Ödül: ${formatMoney(m.rewardMoney)}` : `Ödül: ${m.rewardBoostMinutes}dk 2x`
-      meta.append(status, reward)
-
-      card.append(label, bar, meta)
-
-      if (isReady) {
-        const actions = document.createElement('div')
-        actions.className = 'shop-card-actions'
-        const claimBtn = document.createElement('button')
-        claimBtn.type = 'button'
-        claimBtn.className = 'btn-primary'
-        claimBtn.dataset.action = 'claim-mission'
-        claimBtn.dataset.id = m.id
-        claimBtn.textContent = 'Topla'
-        const adBtn = document.createElement('button')
-        adBtn.type = 'button'
-        adBtn.className = 'btn-ad'
-        adBtn.dataset.action = 'claim-mission-ad'
-        adBtn.dataset.id = m.id
-        adBtn.textContent = '📺 x2'
-        actions.append(claimBtn, adBtn)
-        card.appendChild(actions)
-      } else if (m.claimed) {
-        const doneEl = document.createElement('span')
-        doneEl.className = 'mission-done'
-        doneEl.textContent = '✓ Tamamlandı'
-        card.appendChild(doneEl)
-      }
-
-      panel.appendChild(card)
-    }
-  }
-
-  private buildAchievementBanner(a: AchievementDef | null, unlocked: boolean): HTMLElement {
-    const banner = document.createElement('div')
-    banner.className = `achieve-detail-banner${a ? (unlocked ? ' done' : ' locked') : ' placeholder'}`
-
-    if (!a) {
-      banner.innerHTML = '<span class="achieve-banner-emoji">🏆</span><div><strong>Bir başarım seç</strong><small>Detayları görmek için aşağıdaki hücrelere dokun</small></div>'
-      return banner
-    }
-
-    const emoji = document.createElement('span')
-    emoji.className = 'achieve-banner-emoji'
-    emoji.textContent = unlocked ? a.emoji : '🔒'
-
-    const info = document.createElement('div')
-    info.className = 'achieve-banner-info'
-    const name = document.createElement('strong')
-    name.textContent = a.name
-    const desc = document.createElement('small')
-    desc.textContent = a.description
-    const reward = document.createElement('span')
-    reward.className = 'achieve-banner-reward'
-    reward.textContent = unlocked ? `✓ Açıldı · Ödül: ${formatMoney(a.reward)}` : `Ödül: ${formatMoney(a.reward)}`
-    info.append(name, desc, reward)
-
-    banner.append(emoji, info)
-    return banner
-  }
-
-  private renderAchievements(state: GameState): void {
-    const panel = this.panels.achievements!
-    panel.replaceChildren()
-
-    const pct = Math.round((state.achievements.size / ACHIEVEMENTS.length) * 100)
-    panel.appendChild(this.createTabHero('🏆', 'Başarım Galerisi', 'Hedefleri tamamla, kalıcı ödüller kazan', `${pct}% · ${state.achievements.size}/${ACHIEVEMENTS.length}`))
-
-    const toolbar = document.createElement('div')
-    toolbar.className = 'achieve-toolbar'
-    toolbar.appendChild(this.createFilterPills([
-      { id: 'all', label: 'Tümü' },
-      { id: 'earn', label: 'Kazanç' },
-      { id: 'click', label: 'Tıklama' },
-      { id: 'business', label: 'İşletme' },
-      { id: 'ipo', label: 'IPO' },
-    ], this.achievementCategory, 'achieve-filter'))
-    const viewBtn = document.createElement('button')
-    viewBtn.type = 'button'
-    viewBtn.className = 'achieve-view-btn'
-    viewBtn.dataset.action = 'achieve-view-toggle'
-    viewBtn.textContent = this.achievementViewMode === 'grid' ? '☰ Liste' : '▦ Grid'
-    toolbar.appendChild(viewBtn)
-    panel.appendChild(toolbar)
-
-    const detailWrap = document.createElement('div')
-    detailWrap.className = 'achieve-detail-wrap achieve-sticky-header'
-
-    const selected = this.selectedAchievementId
-      ? ACHIEVEMENTS.find((a) => a.id === this.selectedAchievementId) ?? null
-      : null
-    detailWrap.appendChild(this.buildAchievementBanner(
-      selected,
-      selected ? state.achievements.has(selected.id) : false,
-    ))
-    panel.appendChild(detailWrap)
-
-    const filtered = ACHIEVEMENTS.filter((a) => this.achievementCategory === 'all' || this.achievementCat(a) === this.achievementCategory)
-    const grid = document.createElement('div')
-    grid.className = this.achievementViewMode === 'grid' ? 'achieve-grid' : 'achieve-list'
-    for (const a of filtered) {
-      const done = state.achievements.has(a.id)
-      const cell = document.createElement('button')
-      cell.type = 'button'
-      cell.className = `achieve-cell${done ? ' done' : ''}${this.selectedAchievementId === a.id ? ' selected' : ''}`
-      cell.dataset.action = 'achieve-detail'
-      cell.dataset.id = a.id
-      if (this.achievementViewMode === 'list') {
-        cell.innerHTML = `<span class="achieve-cell-emoji">${done ? a.emoji : '🔒'}</span><span class="achieve-list-text"><strong>${a.name}</strong><small>${a.description}</small></span>`
-      } else {
-        const emoji = document.createElement('span')
-        emoji.className = 'achieve-cell-emoji'
-        emoji.textContent = done ? a.emoji : '🔒'
-        cell.appendChild(emoji)
-      }
-      grid.appendChild(cell)
-    }
-    panel.appendChild(grid)
-  }
-
   private renderIpo(state: GameState): void {
     const panel = this.panels.ipo!
     panel.replaceChildren()
@@ -1171,6 +1194,30 @@ export class ShopPanel {
     if (this.ipoSubTab === 'stock') this.renderIpoStock(state, panel)
     else if (this.ipoSubTab === 'prestige') this.renderIpoPrestige(state, panel)
     else this.renderIpoMerge(state, panel)
+
+    if (state.illegalIncomePerSecond() > 0) {
+      this.renderUndergroundTree(state, panel)
+    }
+  }
+
+  private renderUndergroundTree(state: GameState, panel: HTMLElement): void {
+    panel.appendChild(this.createSectionHeader('Underground Ağacı', 'Gelir · Risk · Gizlilik'))
+    const grid = document.createElement('div')
+    grid.className = 'underground-tree-grid'
+    for (const node of UNDERGROUND_TREE_NODES) {
+      const level = state.undergroundTree[node.id] ?? 0
+      const maxed = level >= node.maxLevel
+      const cost = treeNodeCost(node, level)
+      const card = document.createElement('button')
+      card.type = 'button'
+      card.className = `shop-card underground-tree-node${maxed ? ' research-maxed' : ''}`
+      card.dataset.action = 'buy-underground-node'
+      card.dataset.id = node.id
+      card.disabled = maxed || !state.canAfford(cost)
+      card.innerHTML = `<span class="shop-card-icon">${node.emoji}</span><div class="shop-card-body"><strong>${node.name}</strong><small>${node.description}</small><span class="shop-level-label">${level}/${node.maxLevel}</span></div><span class="shop-card-price">${maxed ? 'MAX' : formatMoney(cost)}</span>`
+      grid.appendChild(card)
+    }
+    panel.appendChild(grid)
   }
 
   private renderIpoStock(state: GameState, panel: HTMLElement): void {
@@ -1257,6 +1304,23 @@ export class ShopPanel {
     hintAd.dataset.action = 'ad-stock-hint'
     hintAd.textContent = state.isStockHintFree() ? '📊 Ücretsiz ipucu' : '📺 Piyasa ipucu (1 saat)'
     panel.append(stockActions, hintAd)
+
+    const financeAds = document.createElement('div')
+    financeAds.className = 'shop-ad-cards'
+    const stockAd = document.createElement('button')
+    stockAd.type = 'button'
+    stockAd.className = 'shop-ad-card'
+    stockAd.dataset.action = 'ad-stock-hint'
+    stockAd.innerHTML = '<span>📺</span><div><strong>Ücretsiz borsa analizi</strong><small>1 saat trend ipucu</small></div>'
+    financeAds.appendChild(stockAd)
+    panel.append(financeAds)
+
+    if (this.highlightStockTicker) {
+      panel.querySelectorAll('.ticker-tab').forEach((el) => {
+        el.classList.toggle('ticker-highlight', (el as HTMLElement).dataset.id === this.highlightStockTicker)
+      })
+      this.highlightStockTicker = null
+    }
   }
 
   private renderIpoPrestige(state: GameState, panel: HTMLElement): void {

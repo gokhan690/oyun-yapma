@@ -1,0 +1,65 @@
+/**
+ * Design tokens — v2.7 görsel sistemi
+ * Tema sınıfları (html.theme-*) mevcut Themes.ts ile uyumludur.
+ */
+:root {
+  /* Renk paleti */
+  --token-bg-deep: #060d18;
+  --token-bg-mid: #0a1628;
+  --token-surface: #122035;
+  --token-surface-elevated: #1a2d4a;
+  --token-accent-gold: #fbbf24;
+  --token-accent-gold-dim: #d97706;
+  --token-accent-green: #34d399;
+  --token-accent-blue: #60a5fa;
+  --token-accent-red: #f87171;
+  --token-text-primary: #f1f5f9;
+  --token-text-muted: #94a3b8;
+  --token-border: #2d4a6f;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+
+  /* Radius */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+
+  /* Shadow */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-glow-gold: 0 0 24px rgba(251, 191, 36, 0.35);
+  --shadow-glow-green: 0 0 20px rgba(52, 211, 153, 0.3);
+
+  /* Tipografi */
+  --font-display: Outfit, Segoe UI, system-ui, sans-serif;
+  --text-hero: clamp(1.4rem, 5vw, 2rem);
+  --text-title: 1.1rem;
+  --text-body: 0.88rem;
+  --text-caption: 0.72rem;
+
+  /* Animasyon */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 280ms;
+}
+
+/* Mevcut CSS değişkenleriyle köprü */
+:root {
+  --bg: var(--token-bg-mid);
+  --surface: var(--token-surface);
+  --surface2: var(--token-surface-elevated);
+  --accent: var(--token-accent-gold);
+  --green: var(--token-accent-green);
+  --blue: var(--token-accent-blue);
+  --text: var(--token-text-primary);
+  --muted: var(--token-text-muted);
+  --border: var(--token-border);
+  --radius: var(--radius-md);
+  --glow: var(--shadow-glow-gold);
+}

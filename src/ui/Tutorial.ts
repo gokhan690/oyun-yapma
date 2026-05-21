@@ -9,11 +9,11 @@ export interface TutorialStep {
 
 const STEPS: TutorialStep[] = [
   { target: '.tap-area', title: 'Kazan', text: 'Buraya tıklayarak para kazan. Hızlı tıkla = combo bonusu!' },
-  { target: '[data-tab="businesses"]', title: 'İşletme Al', text: 'İşletmeler saniyede otomatik gelir sağlar.', tab: 'businesses' },
+  { target: '[data-tab="growth"]', title: 'Mağaza — Büyüme', text: 'İşletme al ve yönetici işe al. 3 hub: Büyüme, Güçlendir, Finans.', tab: 'growth' },
+  { target: '.shop-advisor-strip', title: 'Akıllı Alım', text: 'En iyi sonraki alım önerisi burada — tek tıkla satın al.', tab: 'growth' },
   { target: '.combo-wrap', title: 'Combo', text: '2 saniye içinde art arda tıkla — combo çarpanı artar.' },
-  { target: '[data-tab="missions"]', title: 'Görevler', text: 'Günlük görevleri tamamla, bonus kazan.', tab: 'missions' },
-  { target: '[data-tab="ipo"]', title: 'IPO', text: '25M kazanınca borsaya çık — kalıcı hisse senedi kazan.', tab: 'ipo' },
-  { target: '[data-id="events"]', title: 'Etkinlikler', text: 'Günlük hedef, haftalık modifier ve sezon yolu burada.' },
+  { target: '[data-id="events"]', title: 'Etkinlikler & Görevler', text: 'Günlük hedef, haftalık etkinlik, sezon yolu ve görevler burada.' },
+  { target: '[data-tab="finance"]', title: 'Finans', text: 'Borsa, prestij ağacı ve IPO burada.', tab: 'finance' },
   { target: '.btn-daily', title: 'Günlük Ödül', text: 'Her gün giriş yap, streak bonusu topla!' },
   { target: '.heat-meter-row', title: 'Illegal Radar', text: 'Illegal işletmeler radar biriktirir. Underground menüsünden temizle.' },
 ]
@@ -81,36 +81,33 @@ export class Tutorial {
       const next = document.createElement('button')
       next.type = 'button'
       next.className = 'btn-primary'
-      next.textContent = this.stepIndex === STEPS.length - 1 ? 'Başla!' : 'İleri'
+      next.textContent = this.stepIndex >= STEPS.length - 1 ? 'Bitir' : 'Devam'
       next.addEventListener('click', () => {
         this.stepIndex++
         this.showStep()
       })
       row.append(skip, next)
       card.append(h, p, row)
+      this.overlay.appendChild(card)
 
       if (target) {
         const rect = target.getBoundingClientRect()
-        const spot = document.createElement('div')
-        spot.className = 'tutorial-spotlight'
-        spot.style.top = `${rect.top - 6}px`
-        spot.style.left = `${rect.left - 6}px`
-        spot.style.width = `${rect.width + 12}px`
-        spot.style.height = `${rect.height + 12}px`
-        document.body.appendChild(spot)
-        this.overlay.dataset.spotlight = '1'
-        ;(this.overlay as HTMLElement & { _spot?: HTMLElement })._spot = spot
+        const highlight = document.createElement('div')
+        highlight.className = 'tutorial-highlight'
+        highlight.style.top = `${rect.top - 6}px`
+        highlight.style.left = `${rect.left - 6}px`
+        highlight.style.width = `${rect.width + 12}px`
+        highlight.style.height = `${rect.height + 12}px`
+        this.overlay.appendChild(highlight)
+        card.style.top = `${Math.min(rect.bottom + 12, window.innerHeight - 180)}px`
       }
 
-      this.overlay.appendChild(card)
       document.body.appendChild(this.overlay)
-    }, step.tab ? 200 : 0)
+    }, step.tab ? 400 : 100)
   }
 
   private cleanup(): void {
-    const overlay = this.overlay as (HTMLElement & { _spot?: HTMLElement }) | null
-    overlay?._spot?.remove()
-    overlay?.remove()
+    this.overlay?.remove()
     this.overlay = null
   }
 }

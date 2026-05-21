@@ -46,6 +46,8 @@ export const PRODUCERS: ProducerDef[] = [
   { id: 'bahis', name: 'Gizli Bahis Ağı', emoji: '🎲', description: 'Yüksek gelir, yüksek risk.', tier: 3, unlockAt: 12_000, baseCost: 2_500, baseIncome: 3.2, costMultiplier: 1.25, illegal: true, riskChance: 0.06, riskFinePct: 0.18 },
   { id: 'piramit', name: 'Piramit Şema', emoji: '🔺', description: 'Kısa vadede patlar, uzun vadede yakalanırsın.', tier: 5, unlockAt: 800_000, baseCost: 35_000, baseIncome: 55, costMultiplier: 1.25, illegal: true, riskChance: 0.05, riskFinePct: 0.22 },
   { id: 'offshore', name: 'Offshore Hesap', emoji: '🏝️', description: 'Vergiden kaç, radar altında kal.', tier: 7, unlockAt: 80_000_000, baseCost: 900_000, baseIncome: 520, costMultiplier: 1.25, illegal: true, riskChance: 0.04, riskFinePct: 0.15 },
+  { id: 'data_center', name: 'Veri Merkezi', emoji: '🖥️', description: 'Bulut altyapısı kiraları.', tier: 4, unlockAt: 350_000, baseCost: 18_000, baseIncome: 32, costMultiplier: 1.22 },
+  { id: 'drone', name: 'Drone Teslimat Filosu', emoji: '🚁', description: 'Havadan hızlı lojistik.', tier: 6, unlockAt: 25_000_000, baseCost: 320_000, baseIncome: 140, costMultiplier: 1.22 },
 ]
 
 export const UPGRADES: UpgradeDef[] = [

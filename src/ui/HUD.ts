@@ -427,10 +427,12 @@ export class HUD {
     const headline = this.state.currentMarketHeadline()
     if (headline) {
       this.weeklyBanner.hidden = false
-      this.weeklyBanner.className = 'weekly-banner market-news-banner'
+      this.weeklyBanner.className = 'weekly-banner market-news-banner market-news-clickable'
       this.weeklyBanner.textContent = headline
+      this.weeklyBanner.dataset.action = 'open-finance-news'
       return
     }
+    this.weeklyBanner.dataset.action = ''
     this.renderWeeklyBanner()
   }
 
@@ -447,6 +449,10 @@ export class HUD {
     this.tapArea.addEventListener('click', (e) => {
       this.sound.resume()
       void hapticLight()
+      this.tapArea.classList.remove('tap-ripple')
+      void this.tapArea.offsetWidth
+      this.tapArea.classList.add('tap-ripple')
+      window.setTimeout(() => this.tapArea.classList.remove('tap-ripple'), 450)
       const rect = this.tapArea.getBoundingClientRect()
       this.state.click(e.clientX - rect.left, e.clientY - rect.top)
     })
@@ -485,7 +491,7 @@ export class HUD {
     this.unsub = this.state.subscribe((ev) => {
       if (ev.type === 'money_changed') {
         this.statsBar.render(true)
-        if (this.bottomNav.getActive() === 'shop' && this.shop.getActiveTab() === 'businesses') {
+        if (this.bottomNav.getActive() === 'shop' && this.shop.getActiveTab() === 'growth') {
           this.shop.patchAffordability(this.state)
         } else if (this.bottomNav.getActive() === 'shop') {
           this.refreshShop(false)
@@ -540,7 +546,7 @@ export class HUD {
           this.particles.spawnMoneyToHeader()
         }
         this.refreshShop(true)
-        this.skyline.update(this.state.ownedBusinessTiers())
+        this.skyline.update(this.state.ownedBusinessTiers(), this.state.gameTimeMs)
       }
       if (ev.type === 'prestige') {
         this.sound.playPrestige()
@@ -873,6 +879,50 @@ export class HUD {
           this.refreshShop(true)
         }
         break
+      case 'shop-sub-tab':
+        if (id === 'businesses' || id === 'management') this.shop.setGrowthSub(id)
+        else if (id === 'upgrades' || id === 'research') this.shop.setPowerupSub(id)
+        this.refreshShop(true)
+        break
+      case 'biz-sort':
+        if (id) {
+          this.shop.setBizSortOrder(id as 'profit' | 'cheap' | 'name' | 'unlockable')
+          this.refreshShop(true)
+        }
+        break
+      case 'advisor-buy': {
+        if (!id || !id.includes(':')) break
+        const [kind, recId] = id.split(':') as [string, string]
+        let ok = false
+        if (kind === 'business') ok = this.state.buyProducer(recId, 1)
+        else if (kind === 'upgrade') ok = this.state.buyUpgrade(recId)
+        else if (kind === 'manager') ok = this.state.hireManager(recId)
+        if (ok) {
+          this.state.incrementAdvisorBuy()
+          this.renderAll()
+        }
+        break
+      }
+      case 'ad-shop-boost':
+        await this.handleAdShopBoost()
+        break
+      case 'ad-upgrade-discount':
+        await this.handleAdUpgradeDiscount()
+        break
+      case 'buy-underground-node':
+        if (id) {
+          this.state.buyUndergroundTreeNode(id)
+          this.refreshShop(true)
+        }
+        break
+      case 'open-finance-news': {
+        const ticker = this.state.marketNewsStockTickerId()
+        this.bottomNav.setActive('shop')
+        this.setView('shop')
+        this.shop.goToFinanceStock(ticker ?? undefined)
+        this.refreshShop(true)
+        break
+      }
       case 'ipo-sub-tab':
         if (id) {
           this.shop.setIpoSubTab(id as 'stock' | 'prestige' | 'ipo')
@@ -882,22 +932,6 @@ export class HUD {
       case 'upgrade-filter':
         if (id) {
           this.shop.setUpgradeFilter(id as 'all' | 'click' | 'global' | 'producer')
-          this.refreshShop(true)
-        }
-        break
-      case 'achieve-filter':
-        if (id) {
-          this.shop.setAchievementCategory(id as 'all' | 'earn' | 'click' | 'business' | 'ipo')
-          this.refreshShop(true)
-        }
-        break
-      case 'achieve-view-toggle':
-        this.shop.toggleAchievementView()
-        this.refreshShop(true)
-        break
-      case 'achieve-detail':
-        if (id) {
-          this.shop.selectAchievement(id)
           this.refreshShop(true)
         }
         break
@@ -1169,25 +1203,31 @@ export class HUD {
 
   showOfflinePopup(amount: number): void {
     this.pendingOffline = amount
-    const ad = document.createElement('button')
-    ad.type = 'button'
-    ad.className = 'btn-ad'
-    ad.dataset.action = 'ad-offline'
-    ad.textContent = `📺 Topla — ${formatMoney(amount)}`
+    const hero = document.createElement('div')
+    hero.className = 'offline-popup-hero'
+    hero.innerHTML = `<span class="offline-popup-label">Birikmiş kazanç</span><strong class="offline-popup-amount">${formatMoney(amount)}</strong>`
     const ad2 = document.createElement('button')
     ad2.type = 'button'
-    ad2.className = 'btn-primary'
+    ad2.className = 'btn-primary offline-btn-hero'
     ad2.dataset.action = 'ad-offline-x2'
-    ad2.textContent = `📺 x2 — ${formatMoney(amount * 2)}`
+    ad2.textContent = `📺 x2 Topla — ${formatMoney(amount * 2)}`
+    const ad = document.createElement('button')
+    ad.type = 'button'
+    ad.className = 'btn-ad offline-btn-hero'
+    ad.dataset.action = 'ad-offline'
+    ad.textContent = `📺 Topla — ${formatMoney(amount)}`
     const skip = document.createElement('button')
     skip.type = 'button'
     skip.className = 'btn-secondary'
     skip.dataset.action = 'skip-offline'
     skip.textContent = 'Vazgeç'
+    const body = document.createElement('div')
+    body.className = 'offline-popup-body'
+    body.append(hero, ad2, ad, skip)
     this.modals.show(
-      'Offline Kazanç',
-      `Yokken ${formatMoney(amount)} birikti. Toplamak için reklam izlemen gerek — bedava verilmez.`,
-      [ad2, ad, skip],
+      'Tekrar hoş geldin!',
+      'Yokken biriken kazancını toplamak için reklam izlemen gerek.',
+      [body],
     )
   }
 
@@ -1266,6 +1306,30 @@ export class HUD {
         this.modals.showToast(this.root, `IPO! +${points} hisse`)
       }
     })
+  }
+
+  private async handleAdShopBoost(): Promise<void> {
+    const result = await this.ads.showRewarded('shop_boost_15m')
+    if (!result.success) {
+      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      return
+    }
+    this.state.incrementRewardedAdCount()
+    this.state.activateShopBoost()
+    this.modals.showToast(this.root, '15 dk +50% gelir aktif!')
+    this.renderAll()
+  }
+
+  private async handleAdUpgradeDiscount(): Promise<void> {
+    const result = await this.ads.showRewarded('upgrade_discount')
+    if (!result.success) {
+      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      return
+    }
+    this.state.incrementRewardedAdCount()
+    this.state.activateUpgradeDiscount()
+    this.modals.showToast(this.root, 'Sonraki yükseltme %30 indirimli!')
+    this.refreshShop(true)
   }
 
   private async handleAdDouble(): Promise<void> {

@@ -65,12 +65,25 @@ import {
   pickChildName,
   randomChildTrait,
   spouseOption,
+  spouseProducerBonus,
   traitClickMult,
   traitCostMult,
   traitIllegalMult,
   traitPassiveMult,
+  educationXpPerGameHour,
+  CHILD_EDUCATION_MAX,
   type DynastyState,
 } from './Dynasty'
+import {
+  createUndergroundTreeState,
+  treeNodeDef,
+  treeNodeCost,
+  illegalIncomeBonus,
+  raidFineReduction,
+  raidChanceReduction,
+  heatDecayBonus as ugHeatDecayBonus,
+  heatGainReduction,
+} from './UndergroundTree'
 import {
   type ActiveMarketNews,
   newsDef,
@@ -166,6 +179,10 @@ export interface SerializableState {
   streakMilestonesClaimed: number[]
   dynasty: DynastyState
   activeMarketNews: ActiveMarketNews | null
+  shopBoostUntil: number
+  upgradeDiscountActive: boolean
+  undergroundTree: Record<string, number>
+  advisorBuys: number
 }
 
 export interface ProducerBreakdown {
@@ -299,10 +316,14 @@ export class GameState {
   heatWasCritical = false
   heatSurvived = false
   undergroundLawyerUsed = false
+  advisorBuys = 0
   comebackClaimed = false
   streakMilestonesClaimed: number[] = []
   dynasty = createDynastyState()
   activeMarketNews: ActiveMarketNews | null = null
+  shopBoostUntil = 0
+  upgradeDiscountActive = false
+  undergroundTree = createUndergroundTreeState()
   private lastIllegalRiskCheck = 0
   private lastHeatTick = 0
   private lastSurpriseCheck = 0
@@ -385,6 +406,7 @@ export class GameState {
       this.playTimeMs += dt * 1000
       if (dt > 0 && dt < 2) {
         this.gameTimeMs += realSecondsToGameMs(dt)
+        this.tickChildEducation(realSecondsToGameMs(dt))
       }
       this.updateComboDecay(now)
       this.tickStock(now)
@@ -552,7 +574,7 @@ export class GameState {
     }
 
     const target = this.targetIllegalHeat()
-    const decayMult = 1 + heatDecayBonus(this.prestigeTree)
+    const decayMult = (1 + heatDecayBonus(this.prestigeTree)) * ugHeatDecayBonus(this.undergroundTree)
     if (Math.abs(target - this.illegalHeat) < 0.5) {
       this.illegalHeat = target
     } else if (target > this.illegalHeat) {
@@ -594,6 +616,7 @@ export class GameState {
     let heat = Math.min(100, types * 12 + owned * 4)
     if (this.purchasedUpgrades.has('offshore_laundry')) heat *= 0.8
     if (this.hasCodexLegalComplete()) heat = Math.min(100, heat * 0.9)
+    heat *= heatGainReduction(this.undergroundTree)
     return heat
   }
 
@@ -629,9 +652,10 @@ export class GameState {
       if (!p.illegal || !p.riskChance) continue
       const owned = this.producers[p.id] ?? 0
       if (owned <= 0) continue
-      const chance = Math.min(0.35, p.riskChance * heatMult)
+      const chance = Math.min(0.35, p.riskChance * heatMult * (1 - raidChanceReduction(this.undergroundTree)))
       if (Math.random() > chance) continue
       let finePct = (p.riskFinePct ?? 0.15) * (0.8 + this.illegalHeat / 200)
+      finePct *= 1 - raidFineReduction(this.undergroundTree)
       if (hasRaidInsurance(this.prestigeTree) && this.raidsToday === 0) finePct *= 0.5
       const fine = Math.floor(this.money * finePct)
       if (fine <= 0) continue
@@ -719,6 +743,7 @@ export class GameState {
       if (u?.effect === 'global_mult') mult *= u.value
     }
     if (Date.now() < this.adIncomeBoostUntil) mult *= 2
+    if (Date.now() < this.shopBoostUntil) mult *= 1.5
     if (this.getEventBoostActive()) mult *= 3
     mult *= 1 + globalSynergyBonus(this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
     mult *= 1 + passiveBonus(this.prestigeTree)
@@ -768,6 +793,8 @@ export class GameState {
     mult *= this.weeklyProducerBonus(def.id)
     if (def.illegal) mult *= traitIllegalMult(activeDynastyTrait(this.dynasty))
     mult *= this.marketNewsProducerMult(def.id)
+    mult *= spouseProducerBonus(this.dynasty, def.id, hasNode(this.prestigeTree, 'dynasty_1'))
+    if (def.illegal) mult *= illegalIncomeBonus(this.undergroundTree)
     return def.baseIncome * owned * mult * this.passiveMultiplier()
   }
 
@@ -835,9 +862,21 @@ export class GameState {
       name: pickChildName(this.dynasty.children),
       trait: randomChildTrait(),
       bornGameDay: day,
+      educationXp: 0,
     }
     this.dynasty.children.push(child)
     this.emit({ type: 'dynasty_update', kind: 'child_born', name: child.name })
+  }
+
+  private tickChildEducation(gameMsDelta: number): void {
+    if (this.dynasty.children.length === 0) return
+    const hours = gameMsDelta / (60 * 60_000)
+    const gain = educationXpPerGameHour() * hours
+    if (gain <= 0) return
+    for (const child of this.dynasty.children) {
+      if (child.educationXp >= CHILD_EDUCATION_MAX) continue
+      child.educationXp = Math.min(CHILD_EDUCATION_MAX, child.educationXp + gain)
+    }
   }
 
   marrySpouse(spouseId: string): boolean {
@@ -1089,16 +1128,30 @@ export class GameState {
     if (this.purchasedUpgrades.has(id)) return false
     const def = UPGRADES.find((u) => u.id === id)
     if (!def) return false
-    const cost = Math.floor(def.cost * (1 - upgradeCostDiscount(this.prestigeTree)))
+    const cost = this.upgradeCostFor(def)
     if (!this.canAfford(cost)) return false
     this.money -= cost
     this.purchasedUpgrades.add(id)
+    this.upgradeDiscountActive = false
     this.upgradesBoughtSession++
     this.updateMissionProgress('buy_upgrade', 1)
     this.emit({ type: 'purchase' })
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
     return true
+  }
+
+  upgradeCostFor(def: UpgradeDef): number {
+    let cost = Math.floor(def.cost * (1 - upgradeCostDiscount(this.prestigeTree)))
+    if (this.upgradeDiscountActive) cost = Math.floor(cost * 0.7)
+    return cost
+  }
+
+  managerCostFor(def: ProducerDef): number {
+    const owned = this.producers[def.id] ?? 0
+    let cost = managerCost(def.baseIncome, owned)
+    cost = Math.floor(cost * (1 - managerCostDiscount(this.prestigeTree)))
+    return cost
   }
 
   buyResearch(nodeId: string): boolean {
@@ -1480,6 +1533,51 @@ export class GameState {
     return Math.max(0, this.adIncomeBoostUntil - Date.now())
   }
 
+  activateShopBoost(): void {
+    this.shopBoostUntil = Date.now() + 15 * 60_000
+    this.emit({ type: 'ad_boost', until: this.shopBoostUntil })
+  }
+
+  isShopBoostActive(): boolean {
+    return Date.now() < this.shopBoostUntil
+  }
+
+  shopBoostRemainingMs(): number {
+    return Math.max(0, this.shopBoostUntil - Date.now())
+  }
+
+  activateUpgradeDiscount(): void {
+    this.upgradeDiscountActive = true
+  }
+
+  incrementAdvisorBuy(): void {
+    this.advisorBuys++
+    this.checkAchievements()
+  }
+
+  buyUndergroundTreeNode(nodeId: string): boolean {
+    const node = treeNodeDef(nodeId)
+    if (!node) return false
+    const level = this.undergroundTree[nodeId] ?? 0
+    if (level >= node.maxLevel) return false
+    const cost = treeNodeCost(node, level)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.undergroundTree[nodeId] = level + 1
+    this.emit({ type: 'underground_action', actionId: nodeId })
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  marketNewsStockTickerId(): string | null {
+    const n = this.activeMarketNewsDef()
+    if (!n) return null
+    if (n.id === 'bull' || n.id === 'bear' || n.id === 'crypto') return 'tech'
+    if (n.id === 'logistics') return 'industrial'
+    if (n.id === 'ecom') return 'tech'
+    return null
+  }
+
   claimDailyReward(): number {
     const today = todayKey()
     if (this.dailyLastClaim === today) return 0
@@ -1768,6 +1866,8 @@ export class GameState {
       heatSurvived: this.heatSurvived,
       unlockedThemes: [...this.unlockedThemes],
       undergroundLawyerUsed: this.undergroundLawyerUsed,
+      dynastyMarried: !!this.dynasty.spouseName,
+      advisorBuys: this.advisorBuys,
     }
     const newOnes = checkNewAchievements(ctx)
     for (const a of newOnes) {
@@ -1853,6 +1953,10 @@ export class GameState {
         children: this.dynasty.children.map((c) => ({ ...c })),
       },
       activeMarketNews: this.activeMarketNews ? { ...this.activeMarketNews } : null,
+      shopBoostUntil: this.shopBoostUntil,
+      upgradeDiscountActive: this.upgradeDiscountActive,
+      undergroundTree: { ...this.undergroundTree },
+      advisorBuys: this.advisorBuys,
     }
   }
 
@@ -1943,6 +2047,15 @@ export class GameState {
       ? { ...data.dynasty, children: [...(data.dynasty.children ?? [])] }
       : createDynastyState()
     this.activeMarketNews = data.activeMarketNews ?? null
+    this.shopBoostUntil = data.shopBoostUntil ?? 0
+    this.upgradeDiscountActive = data.upgradeDiscountActive ?? false
+    this.undergroundTree = data.undergroundTree ?? createUndergroundTreeState()
+    this.advisorBuys = data.advisorBuys ?? 0
+    if (this.dynasty.children.length > 0) {
+      for (const c of this.dynasty.children) {
+        if (c.educationXp === undefined) c.educationXp = 0
+      }
+    }
     this.lastSaveTime = data.lastSaveTime
     this.isNight = isGameNight(this.gameTimeMs)
     this.ensureDailyGoal()

@@ -9,6 +9,8 @@ export type RewardedAdType =
   | 'manager_discount'
   | 'season_xp'
   | 'heat_shield'
+  | 'shop_boost_15m'
+  | 'upgrade_discount'
 
 export interface AdRewardResult {
   success: boolean

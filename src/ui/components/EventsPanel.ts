@@ -200,6 +200,51 @@ export class EventsPanel {
     adSeason.textContent = '📺 Sezon XP 2x'
     seasonHero.appendChild(adSeason)
 
-    this.root.append(dailyHero, weeklyHero, seasonHero)
+    const missionsSection = this.renderMissions(state)
+
+    this.root.append(dailyHero, weeklyHero, seasonHero, missionsSection)
+  }
+
+  private renderMissions(state: GameState): HTMLElement {
+    state.ensureMissions()
+    const section = document.createElement('div')
+    section.className = 'events-missions-section'
+    const title = document.createElement('h3')
+    title.textContent = 'Günlük Görevler'
+    section.appendChild(title)
+    const ready = state.missions.filter((m) => m.progress >= m.target && !m.claimed).length
+    const summary = document.createElement('p')
+    summary.className = 'events-missions-summary'
+    summary.textContent = `${ready} hazır · ${state.missions.filter((m) => m.claimed).length}/${state.missions.length} tamam`
+    section.appendChild(summary)
+    const sorted = [...state.missions].sort((a, b) => {
+      const aReady = a.progress >= a.target && !a.claimed ? 1 : 0
+      const bReady = b.progress >= b.target && !b.claimed ? 1 : 0
+      return bReady - aReady
+    })
+    for (const m of sorted) {
+      const pct = (m.progress / m.target) * 100
+      const card = document.createElement('div')
+      card.className = `events-mission-card${m.claimed ? ' claimed' : ''}${m.progress >= m.target && !m.claimed ? ' ready' : ''}`
+      card.innerHTML = `<strong>${m.label}</strong><small>${Math.floor(m.progress)}/${m.target}</small>`
+      const bar = document.createElement('div')
+      bar.className = 'progress-bar events-hero-bar'
+      const fill = document.createElement('div')
+      fill.className = 'progress-fill'
+      fill.style.width = `${pct}%`
+      bar.appendChild(fill)
+      card.appendChild(bar)
+      if (m.progress >= m.target && !m.claimed) {
+        const claim = document.createElement('button')
+        claim.type = 'button'
+        claim.className = 'btn-primary btn-sm'
+        claim.dataset.action = 'claim-mission'
+        claim.dataset.id = m.id
+        claim.textContent = 'Topla'
+        card.appendChild(claim)
+      }
+      section.appendChild(card)
+    }
+    return section
   }
 }

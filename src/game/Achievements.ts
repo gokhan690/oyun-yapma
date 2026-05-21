@@ -32,6 +32,8 @@ export interface AchievementContext {
   heatSurvived: boolean
   unlockedThemes: string[]
   undergroundLawyerUsed: boolean
+  dynastyMarried: boolean
+  advisorBuys: number
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -86,6 +88,10 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'codex_all', name: 'Tam Koleksiyon', description: '17 işletmenin hepsine sahip ol', emoji: '📕', reward: 200_000, check: (c) => PRODUCERS.every((p) => (c.producers[p.id] ?? 0) >= 1) },
   { id: 'theme_3', name: 'Tema Koleksiyoncusu', description: '3 sezon temasını aç', emoji: '🎨', reward: 75_000, check: (c) => c.unlockedThemes.length >= 3 },
   { id: 'underground_lawyer', name: 'Avukatlık', description: 'Avukat tut aksiyonunu kullan', emoji: '⚖️', reward: 10_000, check: (c) => c.undergroundLawyerUsed },
+  { id: 'data_center_1', name: 'Bulut Baronu', description: 'Veri merkezi kur', emoji: '🖥️', reward: 12_000, check: (c) => (c.producers.data_center ?? 0) >= 1 },
+  { id: 'drone_10', name: 'Gökyüzü Lojistiği', description: '10 drone filosu', emoji: '🚁', reward: 45_000, check: (c) => (c.producers.drone ?? 0) >= 10 },
+  { id: 'dynasty_marry', name: 'Hanedan Kurucusu', description: 'Evlilik yap', emoji: '💍', reward: 30_000, check: (c) => c.dynastyMarried },
+  { id: 'shop_advisor', name: 'Stratejist', description: 'Mağaza danışmanından 10 alım yap', emoji: '🎯', reward: 15_000, check: (c) => c.advisorBuys >= 10 },
 ]
 
 export function checkNewAchievements(ctx: AchievementContext): AchievementDef[] {
