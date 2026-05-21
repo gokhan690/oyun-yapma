@@ -8,7 +8,7 @@ function isNative(): boolean {
 export async function scheduleDailyReminder(): Promise<void> {
   if (!isNative()) return
   try {
-    const { LocalNotifications } = await import('@capacitor/local-notifications')
+    const { LocalNotifications } = await import(/* @vite-ignore */ '@capacitor/local-notifications')
     const perm = await LocalNotifications.requestPermissions()
     if (perm.display !== 'granted') return
 
@@ -50,7 +50,7 @@ export async function scheduleDailyReminder(): Promise<void> {
 export async function cancelAllReminders(): Promise<void> {
   if (!isNative()) return
   try {
-    const { LocalNotifications } = await import('@capacitor/local-notifications')
+    const { LocalNotifications } = await import(/* @vite-ignore */ '@capacitor/local-notifications')
     await LocalNotifications.cancel({ notifications: [{ id: 1001 }, { id: 1002 }] })
   } catch {
     // ignore
