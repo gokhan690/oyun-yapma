@@ -51,3 +51,10 @@ export function refreshOwnerSession(): void {
     sessionStorage.setItem(SESSION_TS, String(Date.now()))
   }
 }
+
+/** Sadece dev — login ekranında PIN ipucu göstermek için. */
+export function devOwnerPinHint(): string | null {
+  if (!import.meta.env.DEV) return null
+  const pin = configuredPin()
+  return pin || 'baron2026'
+}
