@@ -1,4 +1,5 @@
 import './ui/styles.css'
+import './ui/responsive.css'
 import { GameState } from './game/GameState'
 import { SaveManager } from './security/SaveManager'
 import { AdManager } from './ads/AdManager'

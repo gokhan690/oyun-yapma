@@ -1,5 +1,5 @@
 import type { GameState } from '../../game/GameState'
-import { PRODUCERS, formatMoney, producerIconPath, type ProducerDef, type UpgradeDef } from '../../game/Economy'
+import { PRODUCERS, UPGRADES, formatMoney, producerIconPath, type ProducerDef, type UpgradeDef } from '../../game/Economy'
 import { RESEARCH_NODES, researchCost } from '../../game/Research'
 import { ACHIEVEMENTS, type AchievementDef } from '../../game/Achievements'
 import { getActiveSynergies } from '../../game/Synergies'
@@ -8,8 +8,12 @@ import { calcPrestigePoints, prestigeMultiplier } from '../../game/Prestige'
 import { managerCost, hasManager } from '../../game/Managers'
 import { profitLoss, sparklinePath, STOCK_DEFS } from '../../game/StockMarket'
 import { PRESTIGE_TREE_NODES, canBuyNode, hasNode } from '../../game/PrestigeTree'
+import { dailyGoalProgress } from '../../game/DailyGoal'
 
 export type BuyMode = 1 | 10 | 'max'
+export type IpoSubTab = 'stock' | 'prestige' | 'ipo'
+export type UpgradeFilter = 'all' | 'click' | 'global' | 'producer'
+export type AchievementCategory = 'all' | 'earn' | 'click' | 'business' | 'ipo'
 
 const TAB_SUBTITLES: Record<string, string> = {
   businesses: 'İşletme satın al ve genişlet',
@@ -31,9 +35,14 @@ export class ShopPanel {
   private tabButtons: HTMLButtonElement[] = []
   private buyModesEl!: HTMLElement
   private shopSubEl!: HTMLElement
+  private shopHubEl!: HTMLElement
   private businessCards = new Map<string, HTMLDivElement>()
   private synergyEl: HTMLElement | null = null
   private selectedAchievementId: string | null = null
+  private ipoSubTab: IpoSubTab = 'stock'
+  private upgradeFilter: UpgradeFilter = 'all'
+  private achievementCategory: AchievementCategory = 'all'
+  private achievementViewMode: 'grid' | 'list' = 'grid'
 
   constructor() {
     this.root = document.createElement('section')
@@ -104,7 +113,9 @@ export class ShopPanel {
 
     const chrome = document.createElement('div')
     chrome.className = 'shop-chrome'
-    chrome.append(header, buyModes, tabsWrap)
+    this.shopHubEl = document.createElement('div')
+    this.shopHubEl.className = 'shop-hub-strip'
+    chrome.append(header, this.shopHubEl, buyModes, tabsWrap)
 
     const body = document.createElement('div')
     body.className = 'shop-body'
@@ -142,6 +153,22 @@ export class ShopPanel {
     this.selectedAchievementId = id
   }
 
+  setIpoSubTab(tab: IpoSubTab): void {
+    this.ipoSubTab = tab
+  }
+
+  setUpgradeFilter(filter: UpgradeFilter): void {
+    this.upgradeFilter = filter
+  }
+
+  setAchievementCategory(cat: AchievementCategory): void {
+    this.achievementCategory = cat
+  }
+
+  toggleAchievementView(): void {
+    this.achievementViewMode = this.achievementViewMode === 'grid' ? 'list' : 'grid'
+  }
+
   hasShopBadge(state: GameState): boolean {
     state.ensureMissions()
     const missionReady = state.missions.some((m) => m.progress >= m.target && !m.claimed)
@@ -175,6 +202,7 @@ export class ShopPanel {
   }
 
   render(state: GameState, onlyActiveTab = false, patch = false): void {
+    this.renderShopHub(state)
     if (patch && this.activeTab === 'businesses') {
       this.renderBusinesses(state, true)
       return
@@ -232,6 +260,91 @@ export class ShopPanel {
 
   private updateShopSubtitle(tab: string): void {
     this.shopSubEl.textContent = TAB_SUBTITLES[tab] ?? 'İşletme & yükseltme'
+  }
+
+  private renderShopHub(state: GameState): void {
+    const ips = state.incomePerSecond()
+    const ownedBiz = PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0).length
+    const nextUnlock = PRODUCERS.find((p) => state.totalEarned < p.unlockAt)
+    const goalPct = Math.floor(dailyGoalProgress(state.dailyGoalEarned))
+    const nextText = nextUnlock ? `${nextUnlock.emoji} ${nextUnlock.name}` : 'Hepsi açık'
+    this.shopHubEl.innerHTML = `
+      <span class="hub-stat"><strong>${formatMoney(ips)}/sn</strong><small>Gelir</small></span>
+      <span class="hub-stat"><strong>${ownedBiz}</strong><small>İşletme</small></span>
+      <span class="hub-stat"><strong>${nextText}</strong><small>Sıradaki</small></span>
+      <span class="hub-stat"><strong>${goalPct}%</strong><small>Günlük hedef</small></span>
+    `
+  }
+
+  private achievementCat(a: AchievementDef): AchievementCategory {
+    const id = a.id
+    if (id.includes('click') || id.includes('combo') || id.includes('tap')) return 'click'
+    if (id.includes('prestige') || id.includes('ipo') || id.includes('stock') || id.includes('season') || id.includes('tree') || id.includes('weekly')) return 'ipo'
+    if (id.includes('business') || id.includes('manager') || id.includes('producer') || PRODUCERS.some((p) => id.includes(p.id))) return 'business'
+    return 'earn'
+  }
+
+  private createFilterPills(
+    filters: { id: string; label: string }[],
+    activeId: string,
+    action: string,
+  ): HTMLElement {
+    const wrap = document.createElement('div')
+    wrap.className = 'shop-filter-pills'
+    for (const f of filters) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `filter-pill${f.id === activeId ? ' active' : ''}`
+      btn.dataset.action = action
+      btn.dataset.id = f.id
+      btn.textContent = f.label
+      wrap.appendChild(btn)
+    }
+    return wrap
+  }
+
+  private createRevenueDistribution(state: GameState): HTMLElement | null {
+    const entries = PRODUCERS
+      .map((p) => ({ p, income: state.producerIncome(p) }))
+      .filter((e) => e.income > 0)
+      .sort((a, b) => b.income - a.income)
+    if (entries.length === 0) return null
+    const total = entries.reduce((s, e) => s + e.income, 0)
+    const top3 = entries.slice(0, 3)
+    const el = document.createElement('div')
+    el.className = 'revenue-distribution'
+    const title = document.createElement('strong')
+    title.textContent = 'Gelir dağılımı'
+    el.appendChild(title)
+    const bar = document.createElement('div')
+    bar.className = 'revenue-bar'
+    const colors = ['var(--accent)', 'var(--green)', 'var(--blue)']
+    top3.forEach((e, i) => {
+      const seg = document.createElement('span')
+      seg.className = 'revenue-seg'
+      seg.style.flex = String(e.income / total)
+      seg.style.background = colors[i] ?? 'var(--muted)'
+      seg.title = `${e.p.name}: ${formatMoney(e.income)}/sn`
+      bar.appendChild(seg)
+    })
+    el.appendChild(bar)
+    const legend = document.createElement('div')
+    legend.className = 'revenue-legend'
+    for (const e of top3) {
+      const item = document.createElement('span')
+      item.textContent = `${e.p.emoji} ${Math.round((e.income / total) * 100)}%`
+      legend.appendChild(item)
+    }
+    el.appendChild(legend)
+    return el
+  }
+
+  private formatEta(seconds: number): string {
+    if (!Number.isFinite(seconds) || seconds <= 0) return '—'
+    if (seconds < 60) return `${Math.ceil(seconds)}sn`
+    if (seconds < 3600) return `${Math.ceil(seconds / 60)}dk`
+    if (seconds < 86400) return `${Math.ceil(seconds / 3600)}sa`
+    return `${Math.ceil(seconds / 86400)}g`
   }
 
   private createSectionHeader(title: string, subtitle?: string): HTMLElement {
@@ -320,13 +433,27 @@ export class ShopPanel {
     if (synergyText) {
       if (!this.synergyEl) {
         this.synergyEl = document.createElement('div')
-        this.synergyEl.className = 'synergy-bar'
+        this.synergyEl.className = 'synergy-bar synergy-card'
         panel.prepend(this.synergyEl)
       }
-      if (this.synergyEl.textContent !== synergyText) this.synergyEl.textContent = synergyText
+      const detail = synergies.map((s) => `${s.def.name} (+${Math.round(s.def.bonus * 100)}%)`).join(' · ')
+      if (this.synergyEl.textContent !== detail) {
+        this.synergyEl.innerHTML = `<strong>⚡ Sinerji aktif</strong><span>${detail}</span>`
+      }
       this.synergyEl.hidden = false
     } else if (this.synergyEl) {
       this.synergyEl.hidden = true
+    }
+
+    if (!patchOnly) {
+      const revDist = this.createRevenueDistribution(state)
+      let revEl = panel.querySelector('.revenue-distribution') as HTMLElement | null
+      if (revDist) {
+        if (revEl) revEl.replaceWith(revDist)
+        else panel.prepend(revDist)
+      } else {
+        revEl?.remove()
+      }
     }
 
     const visibleIds = new Set<string>()
@@ -389,7 +516,10 @@ export class ShopPanel {
           : 100
         const lockText = lockedCard.querySelector('.biz-locked-text')
         if (lockText) {
-          lockText.textContent = `${formatMoney(state.totalEarned)} / ${formatMoney(nextLockedDef.unlockAt)}`
+          const remaining = Math.max(0, nextLockedDef.unlockAt - state.totalEarned)
+          const ips = state.incomePerSecond()
+          const eta = ips > 0 ? remaining / ips : Infinity
+          lockText.textContent = `${formatMoney(state.totalEarned)} / ${formatMoney(nextLockedDef.unlockAt)} · ~${this.formatEta(eta)}`
         }
         let progressBar = lockedCard.querySelector('.unlock-progress') as HTMLElement | null
         if (!progressBar) {
@@ -532,16 +662,27 @@ export class ShopPanel {
     const panel = this.panels.management!
     panel.replaceChildren()
 
-    const hiredCount = PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0 && hasManager(state.managers, p.id)).length
-    const ownedCount = PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0).length
+    const ownedProducers = PRODUCERS
+      .filter((p) => (state.producers[p.id] ?? 0) > 0)
+      .sort((a, b) => state.producerIncome(b) - state.producerIncome(a))
+    const hiredCount = ownedProducers.filter((p) => hasManager(state.managers, p.id)).length
+    const ownedCount = ownedProducers.length
+    const missing = ownedCount - hiredCount
     panel.appendChild(this.createTabHero('👔', 'Yönetim Merkezi', 'Yöneticiler geliri artırır ve offline kazancı yükseltir', `${hiredCount}/${ownedCount} aktif`))
 
-    for (const p of PRODUCERS) {
+    if (missing > 0) {
+      const summary = document.createElement('div')
+      summary.className = 'manager-summary-banner'
+      summary.textContent = `${missing} işletmede yönetici eksik — toplu işe almayı düşün`
+      panel.appendChild(summary)
+    }
+
+    for (const p of ownedProducers) {
       const owned = state.producers[p.id] ?? 0
-      if (owned <= 0) continue
       const hired = hasManager(state.managers, p.id)
       const cost = managerCost(p.baseIncome, owned)
       const autoOn = state.managerAutoBuy[p.id]
+      const income = state.producerIncome(p)
 
       const card = document.createElement('div')
       card.className = `shop-card manager-card${hired ? ' manager-active' : ''}`
@@ -556,7 +697,10 @@ export class ShopPanel {
       name.textContent = p.name
       const desc = document.createElement('small')
       desc.textContent = hired ? 'Yönetici aktif (+25% gelir, offline +50%)' : 'Yönetici işe al — pasif gelir artar'
-      info.append(name, desc)
+      const incomeChip = document.createElement('span')
+      incomeChip.className = 'manager-income-chip'
+      incomeChip.textContent = `${formatMoney(income)}/sn`
+      info.append(name, desc, incomeChip)
 
       const badges = document.createElement('div')
       badges.className = 'manager-badges'
@@ -623,12 +767,31 @@ export class ShopPanel {
   private renderUpgrades(state: GameState): void {
     const panel = this.panels.upgrades!
     panel.replaceChildren()
-    const list = state.availableUpgrades()
-    panel.appendChild(this.createTabHero('⬆️', 'Yükseltmeler', 'Kalıcı güç artışları — stratejik seçimler yap', `${list.length} mevcut`))
+    const allAvailable = state.availableUpgrades()
+    const filterMap: Record<UpgradeFilter, (u: UpgradeDef) => boolean> = {
+      all: () => true,
+      click: (u) => u.effect === 'click_mult',
+      global: (u) => u.effect === 'global_mult',
+      producer: (u) => u.effect === 'producer_mult',
+    }
+    const list = allAvailable.filter(filterMap[this.upgradeFilter])
+    const purchased = UPGRADES.filter((u) => state.purchasedUpgrades.has(u.id))
 
-    if (list.length === 0) {
+    panel.appendChild(this.createTabHero('⬆️', 'Yükseltmeler', 'Kalıcı güç artışları — stratejik seçimler yap', `${list.length} mevcut`))
+    panel.appendChild(this.createFilterPills([
+      { id: 'all', label: 'Tümü' },
+      { id: 'click', label: 'Tıklama' },
+      { id: 'global', label: 'Global' },
+      { id: 'producer', label: 'İşletme' },
+    ], this.upgradeFilter, 'upgrade-filter'))
+
+    if (list.length === 0 && purchased.length === 0) {
       panel.appendChild(this.createEmptyState('⬆️', 'Tüm yükseltmeler alındı!', 'IPO sonrası yeni bonuslar açılabilir'))
       return
+    }
+
+    if (list.length === 0) {
+      panel.appendChild(this.createEmptyState('⬆️', 'Bu kategoride yükseltme yok', 'Başka filtre dene'))
     }
 
     for (const u of list) {
@@ -664,6 +827,21 @@ export class ShopPanel {
       card.append(icon, body, price)
       panel.appendChild(card)
     }
+
+    if (purchased.length > 0) {
+      const details = document.createElement('details')
+      details.className = 'purchased-upgrades-section'
+      const summary = document.createElement('summary')
+      summary.textContent = `Satın alınanlar (${purchased.length})`
+      details.appendChild(summary)
+      for (const u of purchased) {
+        const row = document.createElement('div')
+        row.className = 'purchased-upgrade-row'
+        row.innerHTML = `<span>${this.upgradeEffectIcon(u)} ${u.name}</span><small>${this.upgradeEffectLabel(u)}</small>`
+        details.appendChild(row)
+      }
+      panel.appendChild(details)
+    }
   }
 
   private renderResearch(state: GameState): void {
@@ -673,6 +851,9 @@ export class ShopPanel {
     const maxLevels = RESEARCH_NODES.reduce((s, n) => s + n.maxLevel, 0)
     panel.appendChild(this.createTabHero('🔬', 'Ar-Ge Laboratuvarı', 'Uzun vadeli bonuslar — her seviye kalıcı etki', `${totalLevels}/${maxLevels} seviye`))
 
+    const treeGrid = document.createElement('div')
+    treeGrid.className = 'research-tree-grid'
+
     for (const node of RESEARCH_NODES) {
       const level = state.research[node.id] ?? 0
       const maxed = level >= node.maxLevel
@@ -681,7 +862,7 @@ export class ShopPanel {
 
       const card = document.createElement('button')
       card.type = 'button'
-      card.className = `shop-card shop-card-research${canBuy ? ' affordable' : ''}${maxed ? ' research-maxed' : ''}`
+      card.className = `shop-card shop-card-research research-tree-node${canBuy ? ' affordable' : ''}${maxed ? ' research-maxed' : ''}${node.currency === 'prestige' ? ' research-prestige' : ' research-money'}`
       card.dataset.action = 'buy-research'
       card.dataset.id = node.id
       card.disabled = !canBuy
@@ -713,8 +894,9 @@ export class ShopPanel {
       price.textContent = maxed ? 'MAX' : node.currency === 'money' ? formatMoney(cost) : `${cost} hisse`
 
       card.append(icon, body, price)
-      panel.appendChild(card)
+      treeGrid.appendChild(card)
     }
+    panel.appendChild(treeGrid)
   }
 
   private renderMissions(state: GameState): void {
@@ -726,7 +908,18 @@ export class ShopPanel {
     const ready = state.missions.filter((m) => m.progress >= m.target && !m.claimed).length
     panel.appendChild(this.createTabHero('📋', 'Günlük Görevler', 'Her gün yeni hedefler — ödülleri kaçırma', `${done}/${state.missions.length} tamam${ready > 0 ? ` · ${ready} hazır` : ''}`))
 
-    for (const m of state.missions) {
+    const summary = document.createElement('div')
+    summary.className = 'mission-daily-summary'
+    summary.innerHTML = `<span>🔥 Seri: <strong>${state.dailyStreak} gün</strong></span><span>Hedef: ${ready} hazır ödül</span>`
+    panel.appendChild(summary)
+
+    const sorted = [...state.missions].sort((a, b) => {
+      const aReady = a.progress >= a.target && !a.claimed ? 1 : 0
+      const bReady = b.progress >= b.target && !b.claimed ? 1 : 0
+      return bReady - aReady
+    })
+
+    for (const m of sorted) {
       const pct = (m.progress / m.target) * 100
       const isReady = m.progress >= m.target && !m.claimed
 
@@ -811,8 +1004,25 @@ export class ShopPanel {
     const pct = Math.round((state.achievements.size / ACHIEVEMENTS.length) * 100)
     panel.appendChild(this.createTabHero('🏆', 'Başarım Galerisi', 'Hedefleri tamamla, kalıcı ödüller kazan', `${pct}% · ${state.achievements.size}/${ACHIEVEMENTS.length}`))
 
+    const toolbar = document.createElement('div')
+    toolbar.className = 'achieve-toolbar'
+    toolbar.appendChild(this.createFilterPills([
+      { id: 'all', label: 'Tümü' },
+      { id: 'earn', label: 'Kazanç' },
+      { id: 'click', label: 'Tıklama' },
+      { id: 'business', label: 'İşletme' },
+      { id: 'ipo', label: 'IPO' },
+    ], this.achievementCategory, 'achieve-filter'))
+    const viewBtn = document.createElement('button')
+    viewBtn.type = 'button'
+    viewBtn.className = 'achieve-view-btn'
+    viewBtn.dataset.action = 'achieve-view-toggle'
+    viewBtn.textContent = this.achievementViewMode === 'grid' ? '☰ Liste' : '▦ Grid'
+    toolbar.appendChild(viewBtn)
+    panel.appendChild(toolbar)
+
     const detailWrap = document.createElement('div')
-    detailWrap.className = 'achieve-detail-wrap'
+    detailWrap.className = 'achieve-detail-wrap achieve-sticky-header'
 
     const selected = this.selectedAchievementId
       ? ACHIEVEMENTS.find((a) => a.id === this.selectedAchievementId) ?? null
@@ -823,19 +1033,24 @@ export class ShopPanel {
     ))
     panel.appendChild(detailWrap)
 
+    const filtered = ACHIEVEMENTS.filter((a) => this.achievementCategory === 'all' || this.achievementCat(a) === this.achievementCategory)
     const grid = document.createElement('div')
-    grid.className = 'achieve-grid'
-    for (const a of ACHIEVEMENTS) {
+    grid.className = this.achievementViewMode === 'grid' ? 'achieve-grid' : 'achieve-list'
+    for (const a of filtered) {
       const done = state.achievements.has(a.id)
       const cell = document.createElement('button')
       cell.type = 'button'
       cell.className = `achieve-cell${done ? ' done' : ''}${this.selectedAchievementId === a.id ? ' selected' : ''}`
       cell.dataset.action = 'achieve-detail'
       cell.dataset.id = a.id
-      const emoji = document.createElement('span')
-      emoji.className = 'achieve-cell-emoji'
-      emoji.textContent = done ? a.emoji : '🔒'
-      cell.appendChild(emoji)
+      if (this.achievementViewMode === 'list') {
+        cell.innerHTML = `<span class="achieve-cell-emoji">${done ? a.emoji : '🔒'}</span><span class="achieve-list-text"><strong>${a.name}</strong><small>${a.description}</small></span>`
+      } else {
+        const emoji = document.createElement('span')
+        emoji.className = 'achieve-cell-emoji'
+        emoji.textContent = done ? a.emoji : '🔒'
+        cell.appendChild(emoji)
+      }
       grid.appendChild(cell)
     }
     panel.appendChild(grid)
@@ -847,6 +1062,25 @@ export class ShopPanel {
 
     panel.appendChild(this.createTabHero('📈', 'Borsa & IPO', 'Hisse al/sat, prestij ağacını geliştir, birleşme yap', `${state.prestigePoints} hisse puanı`))
 
+    const subTabs = document.createElement('div')
+    subTabs.className = 'ipo-sub-tabs'
+    for (const [id, label] of [['stock', 'Hisse'], ['prestige', 'Prestij Ağacı'], ['ipo', 'IPO']] as const) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `ipo-sub-tab${this.ipoSubTab === id ? ' active' : ''}`
+      btn.dataset.action = 'ipo-sub-tab'
+      btn.dataset.id = id
+      btn.textContent = label
+      subTabs.appendChild(btn)
+    }
+    panel.appendChild(subTabs)
+
+    if (this.ipoSubTab === 'stock') this.renderIpoStock(state, panel)
+    else if (this.ipoSubTab === 'prestige') this.renderIpoPrestige(state, panel)
+    else this.renderIpoMerge(state, panel)
+  }
+
+  private renderIpoStock(state: GameState, panel: HTMLElement): void {
     const tickerTabs = document.createElement('div')
     tickerTabs.className = 'ticker-tabs'
     for (const def of STOCK_DEFS) {
@@ -930,11 +1164,9 @@ export class ShopPanel {
     hintAd.dataset.action = 'ad-stock-hint'
     hintAd.textContent = state.isStockHintFree() ? '📊 Ücretsiz ipucu' : '📺 Piyasa ipucu (1 saat)'
     panel.append(stockActions, hintAd)
+  }
 
-    const divider = document.createElement('hr')
-    divider.className = 'panel-divider'
-    panel.appendChild(divider)
-
+  private renderIpoPrestige(state: GameState, panel: HTMLElement): void {
     panel.appendChild(this.createSectionHeader('Prestij Ağacı', `${state.prestigePoints} harcanabilir puan`))
 
     const treeGrid = document.createElement('div')
@@ -952,11 +1184,9 @@ export class ShopPanel {
       treeGrid.appendChild(card)
     }
     panel.appendChild(treeGrid)
+  }
 
-    const divider2 = document.createElement('hr')
-    divider2.className = 'panel-divider'
-    panel.appendChild(divider2)
-
+  private renderIpoMerge(state: GameState, panel: HTMLElement): void {
     panel.appendChild(this.createSectionHeader('Şirket Birleşmesi & IPO'))
 
     const ipoCard = document.createElement('div')

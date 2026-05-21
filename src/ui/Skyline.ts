@@ -1,4 +1,6 @@
-const BUILDING_HEIGHTS = [36, 44, 52, 48, 56, 64, 72, 80, 88, 96]
+import { PRODUCERS, producerIconPath } from '../game/Economy'
+
+const BUILDING_HEIGHTS = [36, 44, 52, 48, 56, 64, 72, 80, 88, 96, 104]
 
 function isNightHour(hour: number): boolean {
   return hour < 6 || hour >= 20
@@ -52,13 +54,18 @@ export class Skyline {
 
   update(tierCount: number): void {
     this.buildingsEl.replaceChildren()
-    const count = Math.min(BUILDING_HEIGHTS.length, Math.max(0, tierCount))
+    const count = Math.min(PRODUCERS.length, Math.max(0, tierCount))
     for (let i = 0; i < count; i++) {
+      const p = PRODUCERS[i]!
       const b = document.createElement('div')
       b.className = 'skyline-building svg-building'
       b.style.animationDelay = `${i * 0.12}s`
-      b.style.height = `${BUILDING_HEIGHTS[i]}px`
-      b.innerHTML = `<svg viewBox="0 0 40 80" preserveAspectRatio="none"><rect x="2" y="10" width="36" height="70" rx="2" fill="#1e3a5f"/><rect x="8" y="18" width="6" height="6" class="win"/><rect x="18" y="18" width="6" height="6" class="win"/><rect x="28" y="18" width="6" height="6" class="win"/><rect x="8" y="30" width="6" height="6" class="win"/><rect x="18" y="30" width="6" height="6" class="win"/><rect x="28" y="30" width="6" height="6" class="win"/></svg>`
+      b.style.height = `${BUILDING_HEIGHTS[i] ?? 48}px`
+      const img = document.createElement('img')
+      img.src = producerIconPath(p.id)
+      img.alt = ''
+      img.className = 'skyline-building-icon'
+      b.appendChild(img)
       this.buildingsEl.appendChild(b)
     }
     this.updateDayNight()

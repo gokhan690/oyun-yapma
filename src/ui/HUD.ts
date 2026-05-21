@@ -34,6 +34,11 @@ export class HUD {
   private rankProgressLabel!: HTMLElement
   private unlockProgressFill!: HTMLElement
   private unlockProgressLabel!: HTMLElement
+  private rankRing!: HTMLElement
+  private nextBizPreview!: HTMLElement
+  private sessionClickIncome!: HTMLElement
+  private sessionComboMult!: HTMLElement
+  private sessionPassiveIncome!: HTMLElement
   private weeklyBanner!: HTMLElement
   private goalsChip!: HTMLButtonElement
   private dayNightChip!: HTMLElement
@@ -194,8 +199,15 @@ export class HUD {
 
     const progressStrip = document.createElement('div')
     progressStrip.className = 'player-progress-strip'
+    const progressTop = document.createElement('div')
+    progressTop.className = 'progress-strip-top'
+    this.rankRing = document.createElement('div')
+    this.rankRing.className = 'rank-ring'
     this.rankChip = document.createElement('div')
     this.rankChip.className = 'rank-chip'
+    progressTop.append(this.rankRing, this.rankChip)
+    this.nextBizPreview = document.createElement('div')
+    this.nextBizPreview.className = 'next-biz-preview'
     const rankBars = document.createElement('div')
     rankBars.className = 'progress-strip-bars'
     const rankBlock = document.createElement('div')
@@ -219,23 +231,54 @@ export class HUD {
     unlockBar.appendChild(this.unlockProgressFill)
     unlockBlock.append(this.unlockProgressLabel, unlockBar)
     rankBars.append(rankBlock, unlockBlock)
-    progressStrip.append(this.rankChip, rankBars)
+    progressStrip.append(progressTop, this.nextBizPreview, rankBars)
+
+    const sessionPanel = document.createElement('div')
+    sessionPanel.className = 'session-panel'
+    const sessionGrid = document.createElement('div')
+    sessionGrid.className = 'session-grid'
+    const clickBlock = document.createElement('div')
+    clickBlock.className = 'session-stat'
+    const clickLabel = document.createElement('span')
+    clickLabel.className = 'session-label'
+    clickLabel.textContent = 'Tıklama'
+    this.sessionClickIncome = document.createElement('strong')
+    this.sessionClickIncome.className = 'session-value'
+    clickBlock.append(clickLabel, this.sessionClickIncome)
+    const comboBlock = document.createElement('div')
+    comboBlock.className = 'session-stat'
+    const comboLabel = document.createElement('span')
+    comboLabel.className = 'session-label'
+    comboLabel.textContent = 'Combo'
+    this.sessionComboMult = document.createElement('strong')
+    this.sessionComboMult.className = 'session-value session-combo'
+    comboBlock.append(comboLabel, this.sessionComboMult)
+    const passiveBlock = document.createElement('div')
+    passiveBlock.className = 'session-stat session-stat-wide'
+    const passiveLabel = document.createElement('span')
+    passiveLabel.className = 'session-label'
+    passiveLabel.textContent = 'Pasif gelir'
+    this.sessionPassiveIncome = document.createElement('strong')
+    this.sessionPassiveIncome.className = 'session-value session-passive'
+    passiveBlock.append(passiveLabel, this.sessionPassiveIncome)
+    sessionGrid.append(clickBlock, comboBlock, passiveBlock)
+    sessionPanel.appendChild(sessionGrid)
 
     const adsPanel = document.createElement('div')
     adsPanel.className = 'quick-ads collapsible-boosts'
     const adDouble = document.createElement('button')
     adDouble.type = 'button'
-    adDouble.className = 'btn-ad-sm'
+    adDouble.className = 'quick-ad-card'
     adDouble.dataset.action = 'ad-double'
-    adDouble.textContent = '📺 2x'
+    adDouble.innerHTML = '<span class="quick-ad-icon">📺</span><span class="quick-ad-text"><strong>2x Gelir</strong><small>30 sn reklam izle</small></span>'
     const adChest = document.createElement('button')
     adChest.type = 'button'
-    adChest.className = 'btn-ad-sm'
+    adChest.className = 'quick-ad-card'
     adChest.dataset.action = 'ad-chest'
-    adChest.textContent = '🎁 Sandık'
+    adChest.innerHTML = '<span class="quick-ad-icon">🎁</span><span class="quick-ad-text"><strong>Sandık</strong><small>Rastgele ödül kazan</small></span>'
     adsPanel.append(adDouble, adChest)
 
-    this.earnView.append(progressStrip, tapWrap, adsPanel)
+    this.earnView.append(progressStrip, sessionPanel, tapWrap, adsPanel)
     main.append(this.earnView, this.shop.root, this.eventsPanel.root)
 
     this.adBannerSlot = document.createElement('div')
@@ -553,6 +596,28 @@ export class HUD {
           this.refreshShop(true)
         }
         break
+      case 'ipo-sub-tab':
+        if (id) {
+          this.shop.setIpoSubTab(id as 'stock' | 'prestige' | 'ipo')
+          this.refreshShop(true)
+        }
+        break
+      case 'upgrade-filter':
+        if (id) {
+          this.shop.setUpgradeFilter(id as 'all' | 'click' | 'global' | 'producer')
+          this.refreshShop(true)
+        }
+        break
+      case 'achieve-filter':
+        if (id) {
+          this.shop.setAchievementCategory(id as 'all' | 'earn' | 'click' | 'business' | 'ipo')
+          this.refreshShop(true)
+        }
+        break
+      case 'achieve-view-toggle':
+        this.shop.toggleAchievementView()
+        this.refreshShop(true)
+        break
       case 'achieve-detail':
         if (id) {
           this.shop.selectAchievement(id)
@@ -674,6 +739,7 @@ export class HUD {
     this.comboMultEl.textContent = `${mult}x`
     this.comboMultEl.hidden = combo <= 0
     this.comboFill.style.width = `${Math.min(100, (combo / 30) * 100)}%`
+    this.tapWrap.classList.toggle('combo-glow', combo >= 10)
     if (combo >= 30) {
       this.comboFill.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)'
       this.comboFill.classList.add('combo-pulse')
@@ -708,6 +774,7 @@ export class HUD {
     const rank = currentRank(this.state.totalEarned)
     const prog = rankProgress(this.state.totalEarned)
     this.rankChip.textContent = `${rank.emoji} ${rank.name}`
+    this.rankRing.style.background = `conic-gradient(var(--accent) ${prog.pct}%, rgba(255,255,255,0.08) ${prog.pct}%)`
 
     if (prog.next) {
       this.rankProgressLabel.textContent = `Rütbe → ${prog.next.emoji} ${prog.next.name}`
@@ -724,10 +791,24 @@ export class HUD {
         : 0
       this.unlockProgressLabel.textContent = `İşletme → ${nextBiz.emoji} ${nextBiz.name}`
       this.unlockProgressFill.style.width = `${pct}%`
+      this.nextBizPreview.innerHTML = `<span class="next-biz-emoji">${nextBiz.emoji}</span><span class="next-biz-name">${nextBiz.name}</span><span class="next-biz-pct">${Math.floor(pct)}%</span>`
+      this.nextBizPreview.hidden = false
     } else {
       this.unlockProgressLabel.textContent = 'Tüm işletmeler açık'
       this.unlockProgressFill.style.width = '100%'
+      this.nextBizPreview.hidden = true
     }
+
+    this.renderSessionPanel()
+  }
+
+  private renderSessionPanel(): void {
+    const clickIncome = this.state.clickMultiplier()
+    const comboMult = this.state.comboMultiplier
+    const passive = this.state.incomePerSecond()
+    this.sessionClickIncome.textContent = formatMoney(clickIncome)
+    this.sessionComboMult.textContent = `${comboMult.toFixed(1)}x`
+    this.sessionPassiveIncome.textContent = `${formatMoney(passive)}/sn`
   }
 
   private checkRankUp(): void {

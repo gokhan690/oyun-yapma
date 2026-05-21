@@ -43,16 +43,16 @@ export class ParticleSystem {
   }
 
   spawnCritical(x: number, y: number): void {
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 18; i++) {
       if (this.particles.length >= this.maxParticles) break
       this.particles.push({
         x,
         y,
-        vx: (Math.random() - 0.5) * 8,
-        vy: (Math.random() - 0.5) * 8,
+        vx: (Math.random() - 0.5) * 10,
+        vy: (Math.random() - 0.5) * 10,
         life: 1,
-        color: '#ff6b6b',
-        size: 3 + Math.random() * 5,
+        color: i % 2 === 0 ? '#ff6b6b' : '#ffd54a',
+        size: 4 + Math.random() * 7,
         type: 'burst',
       })
     }
@@ -126,9 +126,12 @@ export class ParticleSystem {
         this.ctx.globalAlpha = p.life
         this.ctx.fillStyle = p.color
         if (p.type === 'coin') {
+          this.ctx.shadowBlur = 10
+          this.ctx.shadowColor = p.color
           this.ctx.beginPath()
           this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
           this.ctx.fill()
+          this.ctx.shadowBlur = 0
         } else {
           this.ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size)
         }

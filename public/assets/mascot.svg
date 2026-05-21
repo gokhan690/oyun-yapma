@@ -1,6 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
-  <circle cx="60" cy="60" r="50" fill="#1e3a5f"/>
-  <circle cx="60" cy="55" r="28" fill="#fbbf24"/>
-  <rect x="35" y="75" width="50" height="30" rx="8" fill="#334155"/>
-  <text x="60" y="95" text-anchor="middle" fill="#fff" font-size="20">$</text>
+  <defs>
+    <linearGradient id="suit" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e3a5f"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fde68a"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="60" cy="108" rx="28" ry="6" fill="#000" opacity="0.25"/>
+  <rect x="38" y="68" width="44" height="38" rx="10" fill="url(#suit)"/>
+  <path d="M38 68 L60 52 L82 68" fill="#334155"/>
+  <circle cx="60" cy="42" r="22" fill="#fcd9b6"/>
+  <path d="M38 36 C42 24 78 24 82 36 C78 28 42 28 38 36Z" fill="#1e293b"/>
+  <circle cx="52" cy="42" r="2.5" fill="#1e293b"/>
+  <circle cx="68" cy="42" r="2.5" fill="#1e293b"/>
+  <path d="M54 50 Q60 54 66 50" stroke="#b45309" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <rect x="52" y="58" width="16" height="8" rx="2" fill="url(#gold)"/>
+  <text x="60" y="65" text-anchor="middle" fill="#78350f" font-size="7" font-weight="800" font-family="system-ui,sans-serif">İİ</text>
+  <path d="M28 78 L38 72 M92 78 L82 72" stroke="#fbbf24" stroke-width="3" stroke-linecap="round"/>
 </svg>

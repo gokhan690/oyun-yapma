@@ -4,6 +4,49 @@ GitHub commit / release notu olarak kopyalayabilirsin.
 
 ---
 
+## [2.2.0] — 2026-05-21
+
+### Özet (commit mesajı)
+```
+feat(ui): v2.2 responsive kabuk, Kazan ve Mağaza genişletme + yeni görseller
+```
+
+### GitHub Release / PR özeti
+
+**Başlık:** v2.2.0 — Responsive kabuk, Kazan yenileme ve Mağaza genişletme
+
+#### Responsive kabuk
+- CSS değişkenleri: `--nav-h`, `--ad-h`, `--app-max-w`, `--app-chrome-bottom`, safe-area
+- `#app` fluid max-width; breakpoint'ler (<360px, ≥520px, landscape)
+- Alt navigasyon SVG ikonlar, aktif pill, 48px dokunma alanı
+- `100dvh` tutarlılığı (events panel)
+
+#### Kazan ekranı
+- Session paneli: tıklama geliri, combo çarpanı, pasif gelir/sn
+- Progress strip v2: rütbe halkası (conic-gradient), sonraki işletme önizlemesi
+- 10+ combo'da tap-wrap kenar pulse animasyonu
+- Skyline tier siluetleri (işletme ikonları)
+- Parçacık glow + kritik burst iyileştirmesi
+- Quick-ads kart stili (2x / sandık açıklamalı)
+- Yeni mascot.svg
+
+#### Mağaza genişletme
+- Shop hub şeridi: gelir/sn, işletme sayısı, sıradaki unlock, günlük hedef %
+- İşletme: gelir dağılımı bar, genişletilmiş sinerji, kilitli kart ETA
+- Yönetim: gelire göre sıralama, eksik yönetici özeti, gelir/sn chip
+- Yükselt: kategori filtreleri + satın alınanlar collapsed bölüm
+- Ar-Ge: 2 kolon ağaç grid, para/prestij renk kodu
+- Görev: günlük özet + seri, hazır ödüller üstte
+- Başarım: kategori filtre, grid/liste toggle, sticky detay banner
+- Borsa: 3 alt-sekme (Hisse / Prestij Ağacı / IPO)
+
+#### Görseller
+- 11 işletme SVG (64×64, tier renkleri) + galaksiyum.svg
+- favicon.svg + icon-512.svg (altın İİ / bina silueti)
+- Nav ikonları: earn, shop, events, profile
+
+---
+
 ## [2.1.1] — 2026-05-21
 
 ### Özet (commit mesajı)
