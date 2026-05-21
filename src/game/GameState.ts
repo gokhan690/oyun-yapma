@@ -8,6 +8,7 @@ import {
   researchPassiveBonus,
   researchOfflineBonusMs,
   researchSynergyMultiplier,
+  researchEfficiencyBonus,
 } from './Research'
 import { pickRandomEvent, nextEventDelayMs, type GameEventDef } from './Events'
 import { checkNewAchievements, type AchievementDef } from './Achievements'
@@ -150,7 +151,7 @@ const CRIT_MULT = 10
 const BASE_CLICK = 1
 const BASE_OFFLINE_CAP_MS = 8 * 60 * 60 * 1000
 const AD_BOOST_DURATION_MS = 5 * 60 * 1000
-const COMBO_WINDOW_MS = 2000
+const COMBO_WINDOW_MS = 1500
 
 export class GameState {
   money = 0
@@ -662,7 +663,8 @@ export class GameState {
 
   producerCostFor(def: ProducerDef, owned: number, count = 1): number {
     const raw = producerCost(def, owned, count)
-    return Math.floor(raw * (1 - producerCostDiscount(this.prestigeTree)))
+    const efficiencyDiscount = researchEfficiencyBonus(this.research)
+    return Math.floor(raw * (1 - producerCostDiscount(this.prestigeTree)) * (1 - efficiencyDiscount))
   }
 
   countMaxAffordable(id: string): number {

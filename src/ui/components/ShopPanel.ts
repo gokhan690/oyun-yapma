@@ -329,6 +329,13 @@ export class ShopPanel {
 
     buyBtn.append(top, bottom)
     card.append(buyBtn)
+
+    // Tier badge (absolute positioned, appended after buyBtn)
+    const tierBadge = document.createElement('div')
+    tierBadge.className = `biz-tier-badge biz-tier-${p.tier}`
+    tierBadge.textContent = `T${p.tier}`
+    card.appendChild(tierBadge)
+
     return card
   }
 
