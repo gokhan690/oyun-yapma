@@ -61,6 +61,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'merkez_1', name: 'Merkez Bankacı', description: 'Merkez bankası aç', emoji: '🏦', reward: 500_000, check: (c) => (c.producers.merkezbankasi ?? 0) >= 1 },
   { id: 'autobuy_3', name: 'Otomasyon Ustası', description: '3 işletmede auto-buy', emoji: '🤖', reward: 15_000, check: (c) => c.managerAutoBuyCount >= 3 },
   { id: 'season_30', name: 'İmparator', description: 'Sezon yolu tamamla', emoji: '👑', reward: 200_000, check: (c) => c.seasonTier >= 30 },
+  { id: 'night_5k', name: 'Gece Kuşu', description: 'Gece modunda 500K kazan', emoji: '🦉', reward: 2_000, check: (c) => c.nightEarnings >= 500_000 },
+  { id: 'mega_biz', name: 'Mega Fabrikatör', description: 'Tek bir işletmeden 50+ adet', emoji: '🏭', reward: 8_000, check: (c) => Object.values(c.producers).some((n) => n >= 50) },
+  { id: 'tree_5', name: 'Prestij Ustası', description: 'Prestij ağacında 5 node', emoji: '🌲', reward: 20_000, check: (c) => c.prestigeTreeCount >= 5 },
+  { id: 'billion_earned', name: 'Milyarder', description: '1 milyar toplam kazan', emoji: '💰', reward: 1_000_000, check: (c) => c.totalEarned >= 1_000_000_000 },
+  { id: 'all_businesses', name: 'İmparatorluk Kurucusu', description: 'Tüm 11 işletmeye sahip ol', emoji: '🌍', reward: 500_000, check: (c) => Object.keys(c.producers).length >= 11 && Object.values(c.producers).every((n) => n >= 1) },
 ]
 
 export function checkNewAchievements(ctx: AchievementContext): AchievementDef[] {

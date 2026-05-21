@@ -6,7 +6,7 @@ export interface ResearchNode {
   baseCost: number
   costScale: number
   currency: 'money' | 'prestige'
-  effect: 'click' | 'passive' | 'offline' | 'synergy'
+  effect: 'click' | 'passive' | 'offline' | 'synergy' | 'efficiency'
   valuePerLevel: number
 }
 
@@ -55,6 +55,17 @@ export const RESEARCH_NODES: ResearchNode[] = [
     effect: 'synergy',
     valuePerLevel: 0.5,
   },
+  {
+    id: 'efficiency',
+    name: 'Verimlilik Ar-Ge',
+    description: 'Üretici maliyet çarpanı -%2 / seviye',
+    maxLevel: 3,
+    baseCost: 2000,
+    costScale: 3.0,
+    currency: 'money' as const,
+    effect: 'efficiency' as const,
+    valuePerLevel: 0.02,
+  },
 ]
 
 export function researchCost(node: ResearchNode, currentLevel: number): number {
@@ -84,4 +95,9 @@ export function researchSynergyMultiplier(levels: Record<string, number>): numbe
   if (lvl <= 0) return 1
   const node = RESEARCH_NODES.find((n) => n.id === 'lobby')
   return 1 + (node?.valuePerLevel ?? 0)
+}
+
+export function researchEfficiencyBonus(levels: Record<string, number>): number {
+  const lvl = levels.efficiency ?? 0
+  return Math.max(0, lvl * 0.02)
 }

@@ -1623,3 +1623,110 @@ html.theme-night .tap-wrap { border-color: rgba(167,139,250,0.45); }
   box-shadow: 0 0 8px rgba(251,191,36,0.2);
 }
 .achieve-cell-emoji { font-size: 1.5rem; }
+
+/* ── Aşama 5 ──────────────────────────────────────────────── */
+
+/* B1 — Sticky shop header */
+.shop-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(180deg, var(--surface) 80%, rgba(18,32,53,0.95) 100%);
+}
+.buy-modes {
+  position: sticky;
+  top: 48px;
+  z-index: 4;
+  background: var(--surface);
+  padding-top: 4px;
+}
+.shop-tabs-pill {
+  position: sticky;
+  top: 84px;
+  z-index: 4;
+  background: var(--surface);
+  padding-bottom: 6px;
+}
+
+/* S2 — Custom scrollbar */
+.tab-panel::-webkit-scrollbar { width: 4px; }
+.tab-panel::-webkit-scrollbar-track { background: transparent; }
+.tab-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+.tab-panel::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* S2 — Tab fade mask */
+.shop-tabs-pill {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, black 10px, black calc(100% - 10px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, black 10px, black calc(100% - 10px), transparent 100%);
+}
+
+/* S1 — Tier badge */
+.biz-tier-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 6px;
+  line-height: 1;
+  letter-spacing: 0.03em;
+}
+.biz-tier-1 { background: rgba(148,163,184,0.2); color: var(--muted); }
+.biz-tier-2 { background: rgba(96,165,250,0.2); color: var(--blue); }
+.biz-tier-3 { background: rgba(52,211,153,0.2); color: var(--green); }
+.biz-tier-4 { background: rgba(251,191,36,0.2); color: var(--accent); }
+.biz-tier-5 { background: rgba(251,191,36,0.25); color: var(--accent); }
+.biz-tier-6 { background: rgba(251,146,60,0.25); color: #fb923c; }
+.biz-tier-7 { background: rgba(248,113,113,0.2); color: var(--accent2); }
+.biz-tier-8 { background: rgba(248,113,113,0.25); color: var(--accent2); }
+.biz-tier-9 { background: rgba(167,139,250,0.3); color: #a78bfa; }
+.biz-tier-10 { background: rgba(167,139,250,0.35); color: #c4b5fd; }
+.biz-tier-11 { background: linear-gradient(90deg, rgba(251,191,36,0.3), rgba(167,139,250,0.3)); color: #fbbf24; }
+
+/* S1 — Milestone dots */
+.biz-milestone-dots {
+  display: flex;
+  gap: 3px;
+  padding: 2px 0 0;
+}
+.biz-milestone-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.biz-milestone-dot.reached {
+  background: var(--accent);
+  box-shadow: 0 0 4px rgba(251,191,36,0.5);
+}
+
+/* S3 — Manager avatar */
+.manager-portrait {
+  border: 2px solid var(--border);
+  box-shadow: 0 0 12px rgba(251,191,36,0.1);
+  transition: border-color 0.2s;
+}
+.manager-card:has(.auto-buy-btn) .manager-portrait {
+  border-color: var(--green);
+  box-shadow: 0 0 12px rgba(52,211,153,0.2);
+}
+
+/* S3 — Research level dots */
+.research-level-dots {
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+}
+.research-level-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.research-level-dot.filled {
+  background: var(--accent);
+}
+
+/* S1 — biz-card position for tier badge */
+.biz-card { position: relative; }
