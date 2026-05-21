@@ -2,7 +2,8 @@ import type { GameState } from '../game/GameState'
 import type { AdManager } from '../ads/AdManager'
 import type { SoundManager } from '../audio/SoundManager'
 import type { SaveManager } from '../security/SaveManager'
-import { formatMoney } from '../game/Economy'
+import { formatMoney, PRODUCERS } from '../game/Economy'
+import { currentRank, rankProgress } from '../game/PlayerRank'
 import { dayBonusExtra, nightBonusExtra } from '../game/PrestigeTree'
 import { calcPrestigePoints, prestigeMultiplier } from '../game/Prestige'
 import { StatsBar } from './components/StatsBar'
@@ -22,10 +23,17 @@ import { hapticLight, hapticHeavy } from '../utils/haptics'
 
 export class HUD {
   private root: HTMLElement
+  private tapWrap!: HTMLElement
   private tapArea!: HTMLButtonElement
   private floatLayer!: HTMLElement
   private comboFill!: HTMLElement
-  private comboLabel!: HTMLElement
+  private comboCountEl!: HTMLElement
+  private comboMultEl!: HTMLElement
+  private rankChip!: HTMLElement
+  private rankProgressFill!: HTMLElement
+  private rankProgressLabel!: HTMLElement
+  private unlockProgressFill!: HTMLElement
+  private unlockProgressLabel!: HTMLElement
   private weeklyBanner!: HTMLElement
   private goalsChip!: HTMLButtonElement
   private dayNightChip!: HTMLElement
@@ -49,6 +57,8 @@ export class HUD {
   private goldenEventExpiresAt = 0
   private lastShopRefresh = 0
   private lastShopPatch = 0
+  private lastRankId = ''
+  private uiSyncTimer: number | null = null
   private state: GameState
   private ads: AdManager
   private sound: SoundManager
@@ -134,6 +144,7 @@ export class HUD {
 
     const tapWrap = document.createElement('div')
     tapWrap.className = 'tap-wrap'
+    this.tapWrap = tapWrap
 
     this.tapArea = document.createElement('button')
     this.tapArea.type = 'button'
@@ -163,17 +174,52 @@ export class HUD {
 
     const comboWrap = document.createElement('div')
     comboWrap.className = 'combo-wrap'
-    this.comboLabel = document.createElement('span')
-    this.comboLabel.className = 'combo-label'
-    this.comboLabel.textContent = 'Combo x1'
+    const comboRow = document.createElement('div')
+    comboRow.className = 'combo-label-row'
+    this.comboCountEl = document.createElement('span')
+    this.comboCountEl.className = 'combo-count'
+    this.comboCountEl.textContent = 'Combo x0'
+    this.comboMultEl = document.createElement('span')
+    this.comboMultEl.className = 'combo-mult'
+    this.comboMultEl.textContent = '1x'
+    comboRow.append(this.comboCountEl, this.comboMultEl)
     const comboTrack = document.createElement('div')
     comboTrack.className = 'combo-track'
     this.comboFill = document.createElement('div')
     this.comboFill.className = 'combo-fill'
     comboTrack.appendChild(this.comboFill)
-    comboWrap.append(this.comboLabel, comboTrack)
+    comboWrap.append(comboRow, comboTrack)
 
     tapWrap.append(this.tapArea, this.floatLayer, comboWrap)
+
+    const progressStrip = document.createElement('div')
+    progressStrip.className = 'player-progress-strip'
+    this.rankChip = document.createElement('div')
+    this.rankChip.className = 'rank-chip'
+    const rankBars = document.createElement('div')
+    rankBars.className = 'progress-strip-bars'
+    const rankBlock = document.createElement('div')
+    rankBlock.className = 'progress-mini'
+    this.rankProgressLabel = document.createElement('span')
+    this.rankProgressLabel.className = 'progress-mini-label'
+    const rankBar = document.createElement('div')
+    rankBar.className = 'progress-bar progress-mini-bar'
+    this.rankProgressFill = document.createElement('div')
+    this.rankProgressFill.className = 'progress-fill'
+    rankBar.appendChild(this.rankProgressFill)
+    rankBlock.append(this.rankProgressLabel, rankBar)
+    const unlockBlock = document.createElement('div')
+    unlockBlock.className = 'progress-mini'
+    this.unlockProgressLabel = document.createElement('span')
+    this.unlockProgressLabel.className = 'progress-mini-label'
+    const unlockBar = document.createElement('div')
+    unlockBar.className = 'progress-bar progress-mini-bar'
+    this.unlockProgressFill = document.createElement('div')
+    this.unlockProgressFill.className = 'progress-fill unlock-fill'
+    unlockBar.appendChild(this.unlockProgressFill)
+    unlockBlock.append(this.unlockProgressLabel, unlockBar)
+    rankBars.append(rankBlock, unlockBlock)
+    progressStrip.append(this.rankChip, rankBars)
 
     const adsPanel = document.createElement('div')
     adsPanel.className = 'quick-ads collapsible-boosts'
@@ -189,7 +235,7 @@ export class HUD {
     adChest.textContent = '🎁 Sandık'
     adsPanel.append(adDouble, adChest)
 
-    this.earnView.append(tapWrap, adsPanel)
+    this.earnView.append(progressStrip, tapWrap, adsPanel)
     main.append(this.earnView, this.shop.root, this.eventsPanel.root)
 
     this.adBannerSlot = document.createElement('div')
@@ -197,9 +243,12 @@ export class HUD {
     this.adBannerSlot.id = 'ad-banner'
 
     this.goalsSheet.mount(this.root)
-    this.root.append(header, main, this.bottomNav.root, this.adBannerSlot, this.settings.layer, this.statsScreen.layer, this.modals.layer)
+    this.root.append(header, main, this.adBannerSlot, this.settings.layer, this.statsScreen.layer, this.modals.layer)
+    document.body.appendChild(this.bottomNav.root)
     this.ads.showBanner(this.adBannerSlot)
     this.renderDayNightChip()
+    this.renderProgressStrip()
+    this.lastRankId = currentRank(this.state.totalEarned).id
   }
 
   private setView(view: NavView): void {
@@ -276,14 +325,9 @@ export class HUD {
         } else if (this.bottomNav.getActive() === 'shop') {
           this.refreshShop(false)
         }
-        this.shop.updateTabBadges(this.state)
-        this.goalsSheet.render(this.state)
-        this.updateNavBadges()
-        this.leaderboard.update({
-          lifetimeEarned: this.state.lifetimeTotalEarned,
-          comboBest: this.state.comboBest,
-          ipoCount: this.state.ipoCount,
-        })
+        this.scheduleUiSync()
+        this.renderProgressStrip()
+        this.checkRankUp()
       }
       if (ev.type === 'passive_income') {
         this.patchShopAffordability()
@@ -296,8 +340,10 @@ export class HUD {
         if (ev.critical) {
           this.particles.spawnCritical(ev.x, ev.y)
           void hapticHeavy()
-          this.root.classList.add('shake')
-          window.setTimeout(() => this.root.classList.remove('shake'), 300)
+          this.tapWrap.classList.remove('shake')
+          void this.tapWrap.offsetWidth
+          this.tapWrap.classList.add('shake')
+          window.setTimeout(() => this.tapWrap.classList.remove('shake'), 300)
         } else {
           this.particles.spawnCoins(ev.x, ev.y)
         }
@@ -624,7 +670,9 @@ export class HUD {
   }
 
   private renderCombo(combo: number, mult: number): void {
-    this.comboLabel.textContent = combo > 0 ? `Combo x${combo} (${mult}x)` : 'Combo x1'
+    this.comboCountEl.textContent = combo > 0 ? `Combo x${combo}` : 'Combo x0'
+    this.comboMultEl.textContent = `${mult}x`
+    this.comboMultEl.hidden = combo <= 0
     this.comboFill.style.width = `${Math.min(100, (combo / 30) * 100)}%`
     if (combo >= 30) {
       this.comboFill.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)'
@@ -638,6 +686,59 @@ export class HUD {
     } else {
       this.comboFill.style.background = ''
       this.comboFill.classList.remove('combo-pulse')
+    }
+  }
+
+  private scheduleUiSync(): void {
+    if (this.uiSyncTimer !== null) return
+    this.uiSyncTimer = window.setTimeout(() => {
+      this.uiSyncTimer = null
+      this.shop.updateTabBadges(this.state)
+      this.goalsSheet.render(this.state)
+      this.updateNavBadges()
+      this.leaderboard.update({
+        lifetimeEarned: this.state.lifetimeTotalEarned,
+        comboBest: this.state.comboBest,
+        ipoCount: this.state.ipoCount,
+      })
+    }, 180)
+  }
+
+  private renderProgressStrip(): void {
+    const rank = currentRank(this.state.totalEarned)
+    const prog = rankProgress(this.state.totalEarned)
+    this.rankChip.textContent = `${rank.emoji} ${rank.name}`
+
+    if (prog.next) {
+      this.rankProgressLabel.textContent = `Rütbe → ${prog.next.emoji} ${prog.next.name}`
+      this.rankProgressFill.style.width = `${prog.pct}%`
+    } else {
+      this.rankProgressLabel.textContent = 'Maksimum rütbe!'
+      this.rankProgressFill.style.width = '100%'
+    }
+
+    const nextBiz = PRODUCERS.find((p) => this.state.totalEarned < p.unlockAt)
+    if (nextBiz) {
+      const pct = nextBiz.unlockAt > 0
+        ? Math.min(100, (this.state.totalEarned / nextBiz.unlockAt) * 100)
+        : 0
+      this.unlockProgressLabel.textContent = `İşletme → ${nextBiz.emoji} ${nextBiz.name}`
+      this.unlockProgressFill.style.width = `${pct}%`
+    } else {
+      this.unlockProgressLabel.textContent = 'Tüm işletmeler açık'
+      this.unlockProgressFill.style.width = '100%'
+    }
+  }
+
+  private checkRankUp(): void {
+    const rank = currentRank(this.state.totalEarned)
+    if (rank.id !== this.lastRankId) {
+      const prev = this.lastRankId
+      this.lastRankId = rank.id
+      if (prev) {
+        this.sound.playAchievement()
+        this.modals.showToast(this.root, `${rank.emoji} Yeni rütbe: ${rank.name}!`)
+      }
     }
   }
 
@@ -868,6 +969,7 @@ export class HUD {
     this.goalsSheet.render(this.state)
     this.eventsPanel.render(this.state)
     this.renderDayNightChip()
+    this.renderProgressStrip()
     this.updateNavBadges()
   }
 
@@ -875,5 +977,7 @@ export class HUD {
     this.unsub?.()
     this.unsub = null
     this.clearGoldenEventTimer()
+    if (this.uiSyncTimer !== null) window.clearTimeout(this.uiSyncTimer)
+    this.bottomNav.root.remove()
   }
 }

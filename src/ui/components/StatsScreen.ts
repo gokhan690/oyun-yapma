@@ -1,5 +1,6 @@
 import type { GameState } from '../../game/GameState'
 import { ACHIEVEMENTS } from '../../game/Achievements'
+import { currentRank } from '../../game/PlayerRank'
 import { PRODUCERS, formatMoney } from '../../game/Economy'
 import type { Leaderboard } from '../../game/Leaderboard'
 
@@ -50,7 +51,9 @@ export class StatsScreen {
 
   private renderStats(): void {
     const lb = this.leaderboard.getData()
+    const rank = currentRank(this.state.lifetimeTotalEarned)
     const rows: [string, string][] = [
+      ['Rütbe', `${rank.emoji} ${rank.name}`],
       ['Toplam kazanç (run)', formatMoney(this.state.totalEarned)],
       ['Yaşam boyu kazanç', formatMoney(this.state.lifetimeTotalEarned)],
       ['Tıklama', this.state.totalClicks.toLocaleString('tr-TR')],

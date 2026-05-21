@@ -12,7 +12,7 @@ const STEPS: TutorialStep[] = [
   { target: '[data-tab="businesses"]', title: 'İşletme Al', text: 'İşletmeler saniyede otomatik gelir sağlar.', tab: 'businesses' },
   { target: '.combo-wrap', title: 'Combo', text: '2 saniye içinde art arda tıkla — combo çarpanı artar.' },
   { target: '[data-tab="missions"]', title: 'Görevler', text: 'Günlük görevleri tamamla, bonus kazan.', tab: 'missions' },
-  { target: '[data-tab="ipo"]', title: 'IPO', text: '500K kazanınca borsaya çık — kalıcı hisse senedi kazan.', tab: 'ipo' },
+  { target: '[data-tab="ipo"]', title: 'IPO', text: '25M kazanınca borsaya çık — kalıcı hisse senedi kazan.', tab: 'ipo' },
 ]
 
 export class Tutorial {

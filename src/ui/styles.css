@@ -45,6 +45,10 @@ body {
 }
 
 #app.shake {
+  animation: none;
+}
+
+.tap-wrap.shake {
   animation: shake 0.3s ease;
 }
 
@@ -143,6 +147,12 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: clamp(0.72rem, 2.8vw, 0.95rem);
+}
+
+.money-stat .stat-value,
+.income-stat .stat-value {
+  min-width: 3.8rem;
+  text-align: right;
 }
 
 .money-stat .stat-value {
@@ -308,14 +318,33 @@ body {
   right: 10px;
   z-index: 4;
   pointer-events: none;
+  height: 36px;
 }
 
-.combo-label {
-  display: block;
+.combo-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 18px;
+  margin-bottom: 4px;
+}
+
+.combo-count {
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--accent);
-  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.combo-mult {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fde68a;
+  font-variant-numeric: tabular-nums;
+  min-width: 2rem;
+  text-align: right;
 }
 
 .combo-track {
@@ -828,17 +857,23 @@ html.theme-night body {
 }
 
 .ad-banner-slot {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(58px + var(--safe-bottom));
+  margin: 0 auto;
+  max-width: 540px;
   flex-shrink: 0;
   width: 100%;
-  height: calc(50px + var(--safe-bottom));
-  padding-bottom: var(--safe-bottom);
+  height: 50px;
   background: #0a1628;
   border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
+  z-index: 35;
   pointer-events: none;
+  contain: layout size style;
 }
 
 .ad-banner-slot > * {
@@ -1206,13 +1241,47 @@ html.theme-night body {
 }
 
 /* v4 — İmparatorluk Çağı */
-.app-root.v4 { padding-bottom: calc(56px + var(--safe-bottom)); }
+.app-root.v4 { padding-bottom: calc(58px + 50px + var(--safe-bottom)); }
 .hud-header.compact .title-row h1 { font-size: 1rem; }
 .goals-chip, .day-night-chip { font-size: 0.68rem; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface2); }
 .goals-chip { cursor: pointer; color: var(--text); border: none; font-family: inherit; }
 .day-night-chip { color: var(--accent); }
-.bottom-nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: var(--surface); border-top: 1px solid var(--border); padding-bottom: var(--safe-bottom); z-index: 40; }
-.nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border: none; background: transparent; color: var(--muted); font-family: inherit; font-size: 0.62rem; cursor: pointer; position: relative; }
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0 auto;
+  max-width: 540px;
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: var(--safe-bottom);
+  min-height: 58px;
+  height: calc(58px + var(--safe-bottom));
+  z-index: 40;
+  contain: layout size style;
+  box-sizing: border-box;
+}
+.nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 4px;
+  min-height: 58px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  touch-action: manipulation;
+}
 .nav-btn.active { color: var(--accent); }
 .nav-icon { font-size: 1.2rem; }
 .nav-badge { position: absolute; top: 6px; right: calc(50% - 18px); width: 8px; height: 8px; background: #ef4444; border-radius: 50%; }
@@ -2376,5 +2445,56 @@ button.shop-card {
 .ticker-tab {
   flex-shrink: 0;
   scroll-snap-align: start;
+}
+
+/* Kazan ekranı — rütbe & ilerleme */
+.player-progress-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 4px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(26, 45, 74, 0.9) 0%, rgba(18, 32, 53, 0.95) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  flex-shrink: 0;
+}
+
+.rank-chip {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--accent);
+  text-align: center;
+  padding: 4px 0;
+}
+
+.progress-strip-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.progress-mini-label {
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress-mini-bar {
+  height: 6px;
+  margin: 0;
+}
+
+.progress-fill.unlock-fill {
+  background: linear-gradient(90deg, var(--blue), var(--green));
 }
 
