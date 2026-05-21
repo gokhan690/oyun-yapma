@@ -3262,7 +3262,23 @@ html.theme-galactic {
   text-align: center;
   letter-spacing: 0.2em;
   margin-bottom: 8px;
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: manipulation;
+  pointer-events: auto;
 }
+.owner-panel-layer input,
+.owner-panel-layer textarea,
+.owner-panel-layer button {
+  pointer-events: auto;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.owner-panel-layer button {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.owner-login-warn { color: #fbbf24 !important; }
 .owner-login-err { color: #f87171; font-size: 0.75rem; margin: 0 0 8px; }
 .owner-login-actions { display: flex; gap: 8px; justify-content: center; }
 .owner-dash-header {

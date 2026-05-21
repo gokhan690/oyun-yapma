@@ -93,32 +93,46 @@ export class OwnerPanel {
     this.body.appendChild(card)
 
     if (!isOwnerPinConfigured()) {
-      input.disabled = true
-      loginBtn.disabled = true
       err.hidden = false
+      err.className = 'owner-login-err owner-login-warn'
       err.textContent = import.meta.env.DEV
-        ? 'Dev: PIN yok — varsayılan baron2026 kullanılır (.env\'e VITE_OWNER_PIN ekleyebilirsin).'
-        : 'Canlı sitede PIN ayarlı değil. Render → Environment → VITE_OWNER_PIN ekleyip yeniden deploy et.'
+        ? 'Dev: .env içinde VITE_OWNER_PIN yoksa varsayılan baron2026 geçerli.'
+        : 'Canlı sitede Render → VITE_OWNER_PIN ayarlanmalı. Yine de PIN girebilirsin.'
     }
 
+    input.addEventListener('click', (e) => e.stopPropagation())
+    input.addEventListener('pointerdown', (e) => e.stopPropagation())
+    input.addEventListener('mousedown', (e) => e.stopPropagation())
+    input.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true })
+
     const tryLogin = (): void => {
-      if (!isOwnerPinConfigured()) return
+      if (!isOwnerPinConfigured()) {
+        err.hidden = false
+        err.className = 'owner-login-err'
+        err.textContent = import.meta.env.DEV
+          ? 'PIN doğrulanamadı. .env → VITE_OWNER_PIN=baron2026 olmalı; dev sunucuyu yeniden başlat.'
+          : 'Sunucuda PIN yapılandırılmamış. Render → VITE_OWNER_PIN ekleyip redeploy et.'
+        return
+      }
       if (verifyOwnerPin(input.value)) {
         startOwnerSession()
         this.renderDashboard()
       } else {
         err.hidden = false
+        err.className = 'owner-login-err'
         err.textContent = 'Yanlış PIN'
         input.value = ''
       }
     }
-    loginBtn.addEventListener('click', tryLogin)
+    loginBtn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      tryLogin()
+    })
     input.addEventListener('keydown', (e) => {
+      e.stopPropagation()
       if (e.key === 'Enter') tryLogin()
     })
-    if (isOwnerPinConfigured()) {
-      window.setTimeout(() => input.focus(), 100)
-    }
+    window.setTimeout(() => input.focus(), 150)
   }
 
   private renderDashboard(): void {

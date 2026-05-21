@@ -24,6 +24,7 @@ import { OwnerPanel } from './components/OwnerPanel'
 import { applyDocumentTheme } from '../utils/themeApply'
 import type { ThemeId } from '../game/Themes'
 import { isOwnerSession } from '../owner/OwnerAuth'
+import { OwnerAccessGate } from '../owner/OwnerAccessGate'
 import { activeTicker } from '../game/StockMarket'
 import { hapticLight, hapticHeavy } from '../utils/haptics'
 
@@ -59,11 +60,10 @@ export class HUD {
   private eventsPanel: EventsPanel
   private undergroundSheet: UndergroundSheet
   private ownerPanel: OwnerPanel
-  private titleRowEl!: HTMLElement
-  private titleTapCount = 0
-  private titleTapTimer: number | null = null
-  private ownerKeyBuffer = ''
-  private ownerKeyTimer: number | null = null
+  private titleEl!: HTMLHeadingElement
+  private ownerAccessGate = new OwnerAccessGate()
+  private profileHoldTimer: number | null = null
+  private suppressProfileNav = false
   private adBannerSlot!: HTMLElement
   private statsBar: StatsBar
   private shop: ShopPanel
@@ -127,7 +127,6 @@ export class HUD {
       window.setTimeout(() => this.tutorial.start(), 600)
     }
     this.bindOwnerAccess()
-    this.tryOpenOwnerFromHash()
   }
 
   openOwnerPanel(): void {
@@ -135,49 +134,39 @@ export class HUD {
     else this.ownerPanel.openLogin()
   }
 
-  private tryOpenOwnerFromHash(): void {
-    const h = window.location.hash.toLowerCase()
-    if (h === '#baron' || h === '#owner') {
-      window.setTimeout(() => this.openOwnerPanel(), 400)
-    }
-  }
-
-  private registerTitleTap(): void {
-    this.titleTapCount++
-    if (this.titleTapTimer !== null) window.clearTimeout(this.titleTapTimer)
-    this.titleTapTimer = window.setTimeout(() => { this.titleTapCount = 0 }, 3000)
-    if (this.titleTapCount >= 7) {
-      this.titleTapCount = 0
-      this.openOwnerPanel()
-    }
-  }
-
   private bindOwnerAccess(): void {
-    this.titleRowEl.addEventListener('click', (e) => {
-      const t = e.target as HTMLElement
-      if (t.closest('button')) return
-      this.registerTitleTap()
+    const startProfileHold = (): void => {
+      if (this.profileHoldTimer !== null) return
+      this.profileHoldTimer = window.setTimeout(() => {
+        this.profileHoldTimer = null
+        this.ownerAccessGate.arm()
+        this.suppressProfileNav = true
+        window.setTimeout(() => { this.suppressProfileNav = false }, 500)
+        void hapticHeavy()
+      }, 3000)
+    }
+    const cancelProfileHold = (): void => {
+      if (this.profileHoldTimer !== null) {
+        window.clearTimeout(this.profileHoldTimer)
+        this.profileHoldTimer = null
+      }
+    }
+    this.profileChip.addEventListener('pointerdown', startProfileHold)
+    this.profileChip.addEventListener('pointerup', cancelProfileHold)
+    this.profileChip.addEventListener('pointerleave', cancelProfileHold)
+    this.profileChip.addEventListener('pointercancel', cancelProfileHold)
+
+    this.titleEl.addEventListener('click', (e) => {
+      e.stopPropagation()
+      if (this.ownerAccessGate.registerTitleTap()) this.openOwnerPanel()
     })
-    window.addEventListener('hashchange', () => this.tryOpenOwnerFromHash())
+
     window.addEventListener('keydown', (e) => {
+      if (this.ownerPanel.isOpen()) return
       const t = e.target as HTMLElement
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
-
-      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'b') {
-        e.preventDefault()
-        e.stopPropagation()
-        this.openOwnerPanel()
-        return
-      }
-
       if (e.key.length === 1 && /[a-z]/i.test(e.key)) {
-        this.ownerKeyBuffer += e.key.toLowerCase()
-        if (this.ownerKeyTimer !== null) window.clearTimeout(this.ownerKeyTimer)
-        this.ownerKeyTimer = window.setTimeout(() => { this.ownerKeyBuffer = '' }, 2500)
-        if (this.ownerKeyBuffer.endsWith('baron')) {
-          this.ownerKeyBuffer = ''
-          this.openOwnerPanel()
-        }
+        if (this.ownerAccessGate.registerKey(e.key)) this.openOwnerPanel()
       }
     })
   }
@@ -193,10 +182,10 @@ export class HUD {
     const header = document.createElement('header')
     header.className = 'hud-header compact'
     const titleRow = document.createElement('div')
-    titleRow.className = 'title-row owner-title-zone'
-    this.titleRowEl = titleRow
+    titleRow.className = 'title-row'
     const title = document.createElement('h1')
     title.textContent = 'İş İmparatorluğu'
+    this.titleEl = title
     const actions = document.createElement('div')
     actions.className = 'header-actions'
 
@@ -450,6 +439,7 @@ export class HUD {
 
     const onActionClick = (e: Event): void => {
       const target = e.target as HTMLElement
+      if (target.closest('.owner-pin-input, .owner-panel-body input, .owner-panel-body textarea')) return
       const el = target.closest('[data-action]') as HTMLElement | null
       if (!el?.dataset.action) return
       if (el instanceof HTMLButtonElement && el.disabled) return
@@ -697,6 +687,7 @@ export class HUD {
         this.goalsSheet.close()
         break
       case 'nav-view':
+        if (id === 'profile' && this.suppressProfileNav) break
         if (id) this.setView(id as NavView)
         break
       case 'open-stats':
