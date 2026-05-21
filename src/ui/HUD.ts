@@ -50,6 +50,7 @@ export class HUD {
   private state: GameState
   private ads: AdManager
   private sound: SoundManager
+  private unsub: (() => void) | null = null
 
   constructor(
     state: GameState,
@@ -263,7 +264,7 @@ export class HUD {
       if (el?.dataset.action === 'close-stats') this.statsScreen.hide()
     })
 
-    this.state.subscribe((ev) => {
+    this.unsub = this.state.subscribe((ev) => {
       if (ev.type === 'money_changed') {
         this.statsBar.render(true)
         if (this.bottomNav.getActive() === 'shop' && this.shop.getActiveTab() === 'businesses') {
@@ -626,6 +627,15 @@ export class HUD {
     window.setTimeout(() => el.remove(), 900)
   }
 
+  showCorruptedSaveNotice(): void {
+    const close = document.createElement('button')
+    close.type = 'button'
+    close.className = 'btn-primary'
+    close.dataset.action = 'close-modal'
+    close.textContent = 'Tamam'
+    this.modals.show('Kayıt Hatası', 'Kayıt dosyası bozulmuş, yeni oyun başlatıldı.', [close])
+  }
+
   showOfflinePopup(amount: number): void {
     this.pendingOffline = amount
     const claim = document.createElement('button')
@@ -829,5 +839,11 @@ export class HUD {
     this.eventsPanel.render(this.state)
     this.renderDayNightChip()
     this.updateNavBadges()
+  }
+
+  destroy(): void {
+    this.unsub?.()
+    this.unsub = null
+    this.clearGoldenEventTimer()
   }
 }

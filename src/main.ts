@@ -16,17 +16,25 @@ function bootstrap(): void {
 
   let ok = false
   let lastSaveTime = Date.now()
+  let saveCorrupted = false
   try {
     const loaded = saveManager.load(state)
     ok = loaded.ok
     lastSaveTime = loaded.lastSaveTime
   } catch (err) {
     console.warn('Kayıt yüklenemedi, yeni oyun başlatılıyor.', err)
+    saveCorrupted = true
     saveManager.clear()
   }
   ads.syncRewardedCount(state.rewardedAdsToday, state.rewardedAdsDay)
 
   const hud = new HUD(state, ads, sound, saveManager, app)
+
+  if (saveCorrupted) {
+    window.setTimeout(() => {
+      hud.showCorruptedSaveNotice()
+    }, 500)
+  }
 
   if (ok) {
     const offlineBefore = state.money

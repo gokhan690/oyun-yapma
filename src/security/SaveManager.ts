@@ -284,10 +284,17 @@ function applyV4Defaults(state: SerializableState): SerializableState {
 
 function validateState(data: SerializableState): boolean {
   if (typeof data.money !== 'number' || data.money < 0 || !Number.isFinite(data.money)) return false
-  if (typeof data.totalEarned !== 'number' || data.totalEarned < 0) return false
-  if (typeof data.prestigePoints !== 'number' || data.prestigePoints < 0) return false
-  if (!data.producers || typeof data.producers !== 'object') return false
+  if (typeof data.totalEarned !== 'number' || data.totalEarned < 0 || !Number.isFinite(data.totalEarned)) return false
+  if (typeof data.prestigePoints !== 'number' || data.prestigePoints < 0 || !Number.isFinite(data.prestigePoints)) return false
+  if (!data.producers || typeof data.producers !== 'object' || Array.isArray(data.producers)) return false
+  for (const v of Object.values(data.producers)) {
+    if (typeof v !== 'number' || v < 0 || !Number.isFinite(v)) return false
+  }
   if (!Array.isArray(data.purchasedUpgrades)) return false
+  if (typeof data.lastSaveTime !== 'number' || !Number.isFinite(data.lastSaveTime)) return false
+  if (!data.research || typeof data.research !== 'object' || Array.isArray(data.research)) return false
+  if (typeof data.lifetimeTotalEarned !== 'number' || !Number.isFinite(data.lifetimeTotalEarned)) return false
+  if (!data.stock || typeof data.stock !== 'object') return false
   return true
 }
 
