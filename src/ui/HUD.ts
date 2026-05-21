@@ -4,6 +4,7 @@ import type { SoundManager } from '../audio/SoundManager'
 import type { SaveManager } from '../security/SaveManager'
 import { formatMoney } from '../game/Economy'
 import { dayBonusExtra, nightBonusExtra } from '../game/PrestigeTree'
+import { calcPrestigePoints, prestigeMultiplier } from '../game/Prestige'
 import { StatsBar } from './components/StatsBar'
 import { ShopPanel } from './components/ShopPanel'
 import { ModalManager } from './components/ModalManager'
@@ -480,6 +481,7 @@ export class HUD {
           } else {
             this.state.buyProducer(id, Number(count ?? 1))
           }
+          this.shop.flashCard(id)
         }
         break
       case 'biz-detail':
@@ -615,6 +617,19 @@ export class HUD {
   private renderCombo(combo: number, mult: number): void {
     this.comboLabel.textContent = combo > 0 ? `Combo x${combo} (${mult}x)` : 'Combo x1'
     this.comboFill.style.width = `${Math.min(100, (combo / 30) * 100)}%`
+    if (combo >= 30) {
+      this.comboFill.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)'
+      this.comboFill.classList.add('combo-pulse')
+    } else if (combo >= 20) {
+      this.comboFill.style.background = 'linear-gradient(90deg, #f97316, #ef4444)'
+      this.comboFill.classList.remove('combo-pulse')
+    } else if (combo >= 10) {
+      this.comboFill.style.background = 'linear-gradient(90deg, #fb923c, #f97316)'
+      this.comboFill.classList.remove('combo-pulse')
+    } else {
+      this.comboFill.style.background = ''
+      this.comboFill.classList.remove('combo-pulse')
+    }
   }
 
   private spawnFloat(amount: number, x: number, y: number, critical: boolean): void {
@@ -715,11 +730,17 @@ export class HUD {
 
   private async handleIpo(): Promise<void> {
     if (!this.state.prestigeEligible()) return
-    const points = this.state.doPrestige()
-    if (points > 0) {
-      await this.ads.showInterstitial()
-      this.modals.showToast(this.root, `IPO! +${points} hisse`)
-    }
+    const pending = calcPrestigePoints(this.state.totalEarned)
+    const newTotal = this.state.prestigePoints + pending
+    const newMult = prestigeMultiplier(newTotal)
+    this.modals.showIpoPreview(pending, newTotal, newMult, async () => {
+      this.modals.close()
+      const points = this.state.doPrestige()
+      if (points > 0) {
+        await this.ads.showInterstitial()
+        this.modals.showToast(this.root, `IPO! +${points} hisse`)
+      }
+    })
   }
 
   private async handleAdDouble(): Promise<void> {

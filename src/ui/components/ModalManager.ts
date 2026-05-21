@@ -47,6 +47,20 @@ export class ModalManager {
     const modal = document.createElement('div')
     modal.className = 'game-modal daily-reward-modal modal-enter'
     modal.innerHTML = `<div class="reward-box">🎁</div><h2>Günlük Ödül</h2><p>${streak}. gün streak!</p><strong class="reward-amount">+${amount}</strong>`
+
+    const dayInCycle = ((streak - 1) % 7) + 1
+    const calendar = document.createElement('div')
+    calendar.className = 'streak-calendar'
+    for (let i = 1; i <= 7; i++) {
+      const day = document.createElement('div')
+      if (i < dayInCycle) day.className = 'streak-day streak-done'
+      else if (i === dayInCycle) day.className = 'streak-day streak-today'
+      else day.className = 'streak-day'
+      day.textContent = i < dayInCycle ? '✓' : i === dayInCycle ? '⭐' : String(i)
+      calendar.appendChild(day)
+    }
+    modal.appendChild(calendar)
+
     const btn = document.createElement('button')
     btn.type = 'button'
     btn.className = 'btn-primary'
@@ -56,6 +70,56 @@ export class ModalManager {
       this.close()
     })
     modal.appendChild(btn)
+    this.layer.append(scrim, modal)
+    this.openLayer()
+  }
+
+  showIpoPreview(
+    pointsToEarn: number,
+    newTotal: number,
+    newMultiplier: number,
+    onConfirm: () => Promise<void>,
+  ): void {
+    this.layer.replaceChildren()
+    const scrim = document.createElement('div')
+    scrim.className = 'modal-scrim'
+    const modal = document.createElement('div')
+    modal.className = 'game-modal ipo-preview-modal modal-enter'
+    const icon = document.createElement('div')
+    icon.className = 'ipo-preview-icon'
+    icon.textContent = '📈'
+    const h2 = document.createElement('h2')
+    h2.textContent = 'IPO Önizleme'
+    const table = document.createElement('div')
+    table.className = 'ipo-preview-table'
+    for (const [label, value] of [
+      ['Kazanılacak hisse', `+${pointsToEarn}`],
+      ['Yeni toplam', `${newTotal} hisse`],
+      ['Yeni çarpan', `x${newMultiplier.toFixed(2)}`],
+    ] as const) {
+      const row = document.createElement('div')
+      row.className = 'ipo-preview-row'
+      const l = document.createElement('span')
+      l.textContent = label
+      const v = document.createElement('strong')
+      v.textContent = value
+      row.append(l, v)
+      table.appendChild(row)
+    }
+    const confirmBtn = document.createElement('button')
+    confirmBtn.type = 'button'
+    confirmBtn.className = 'btn-prestige'
+    confirmBtn.textContent = '🚀 IPO Yap!'
+    confirmBtn.addEventListener('click', () => void onConfirm())
+    const cancelBtn = document.createElement('button')
+    cancelBtn.type = 'button'
+    cancelBtn.className = 'btn-secondary'
+    cancelBtn.dataset.action = 'close-modal'
+    cancelBtn.textContent = 'Vazgeç'
+    const actions = document.createElement('div')
+    actions.className = 'modal-actions'
+    actions.append(confirmBtn, cancelBtn)
+    modal.append(icon, h2, table, actions)
     this.layer.append(scrim, modal)
     this.openLayer()
   }

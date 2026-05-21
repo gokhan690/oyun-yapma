@@ -1491,3 +1491,135 @@ html.theme-night body {
 .lb-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lb-val { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
 .lb-sub { color: var(--muted); font-size: 0.7rem; white-space: nowrap; }
+
+/* ── Aşama 4 ──────────────────────────────────────────────── */
+
+/* V1 — Kart satın alma animasyonu */
+@keyframes bizBought {
+  0%   { transform: scale(1);    box-shadow: 0 0 0   rgba(251,191,36,0); }
+  35%  { transform: scale(1.04); box-shadow: 0 0 18px 4px rgba(251,191,36,0.55); }
+  100% { transform: scale(1);    box-shadow: 0 0 0   rgba(251,191,36,0); }
+}
+.biz-card.just-bought { animation: bizBought 0.45s ease; }
+
+/* V2 — Kilitli işletme overlay */
+.biz-card-locked-preview { position: relative; overflow: hidden; }
+.biz-card-locked-inner {
+  display: flex; gap: 10px; align-items: center;
+  padding: 12px 14px;
+  filter: blur(2px); opacity: 0.5;
+}
+.biz-locked-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 4px; background: rgba(5,10,20,0.6);
+}
+.biz-locked-icon { font-size: 1.4rem; }
+.biz-locked-text { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+
+/* V3 — Combo pulse */
+@keyframes comboPulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+  50%       { box-shadow: 0 0 14px rgba(239,68,68,0.9); }
+}
+.combo-fill.combo-pulse { animation: comboPulse 0.6s ease-in-out infinite; }
+
+/* V5 — IPO milestone ticks */
+.ipo-progress-bar { position: relative; }
+.ipo-milestone-tick {
+  position: absolute; top: -2px; bottom: -2px; width: 2px;
+  background: rgba(255,255,255,0.3); border-radius: 1px;
+  pointer-events: none; transform: translateX(-50%);
+}
+.ipo-progress-fill.ipo-near {
+  background: linear-gradient(90deg, #7c3aed, #a855f7) !important;
+  animation: ipoNearPulse 1s ease-in-out infinite;
+}
+@keyframes ipoNearPulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(168,85,247,0.4); }
+  50%       { box-shadow: 0 0 14px rgba(168,85,247,0.9); }
+}
+
+/* V6 — Gece modu zenginleştirme */
+html.theme-night .hud-header {
+  background: linear-gradient(180deg, rgba(3,5,15,0.98) 0%, transparent 100%);
+}
+html.theme-night .title-row h1 {
+  background: linear-gradient(90deg, #c4b5fd, #93c5fd);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+html.theme-night .float-text { color: #93c5fd; }
+html.theme-night .float-text.critical {
+  color: #c4b5fd; text-shadow: 0 0 8px rgba(196,181,253,0.7);
+}
+html.theme-night .tap-wrap { border-color: rgba(167,139,250,0.45); }
+
+/* F1 — IPO önizleme modal */
+.ipo-preview-modal .ipo-preview-icon { font-size: 2.5rem; margin-bottom: 8px; }
+.ipo-preview-table {
+  text-align: left; margin: 12px 0;
+  border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+}
+.ipo-preview-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; font-size: 0.88rem;
+}
+.ipo-preview-row + .ipo-preview-row { border-top: 1px solid var(--border); }
+.ipo-preview-row strong { color: var(--accent); }
+
+/* F2 — Gelir kaynakları */
+.income-source-row {
+  display: grid; grid-template-columns: 1fr 2fr 48px;
+  align-items: center; gap: 6px; margin-bottom: 6px; font-size: 0.78rem;
+}
+.income-source-label {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600;
+}
+.income-source-track {
+  height: 8px; background: var(--surface2); border-radius: 99px; overflow: hidden;
+}
+.income-source-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #34d399);
+  border-radius: 99px; transition: width 0.4s ease;
+}
+.income-source-pct {
+  text-align: right; color: var(--muted); font-size: 0.7rem; white-space: nowrap;
+}
+
+/* F3 — Günlük seri takvimi */
+.streak-calendar {
+  display: flex; justify-content: center; gap: 6px; margin: 12px 0;
+}
+.streak-day {
+  width: 36px; height: 36px; display: flex;
+  align-items: center; justify-content: center;
+  border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--muted);
+  font-size: 0.75rem; font-weight: 700;
+}
+.streak-day.streak-done {
+  background: rgba(52,211,153,0.15); border-color: var(--green); color: var(--green);
+}
+.streak-day.streak-today {
+  background: rgba(251,191,36,0.15); border-color: var(--accent);
+  color: var(--accent); font-size: 1rem;
+}
+
+/* F4 — Başarım galerisi grid */
+.achieve-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 8px; margin-top: 8px;
+}
+.achieve-cell {
+  aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 12px; opacity: 0.35;
+}
+.achieve-cell.done {
+  opacity: 1; border-color: var(--accent);
+  background: rgba(251,191,36,0.08);
+  box-shadow: 0 0 8px rgba(251,191,36,0.2);
+}
+.achieve-cell-emoji { font-size: 1.5rem; }
