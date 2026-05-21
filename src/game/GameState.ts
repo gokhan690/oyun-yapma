@@ -33,6 +33,8 @@ import {
   hasClaimableTier,
   seasonWeekKey,
   tierProgress,
+  SEASON_MAX_TIER,
+  xpForTier,
   type SeasonState,
 } from './SeasonPass'
 import {
@@ -70,6 +72,7 @@ import {
 } from './Underground'
 import { themeForTier, type ThemeId } from './Themes'
 import { storyBeat } from './StoryBeats'
+import { loadOwnerFlags, type OwnerFlags } from '../owner/FeatureFlags'
 
 export interface SerializableState {
   money: number
@@ -291,6 +294,7 @@ export class GameState {
 
   private listeners = new Set<(event: GameEvent) => void>()
   private tickHandle: number | null = null
+  private ownerFlags: OwnerFlags = {}
 
   constructor() {
     for (const p of PRODUCERS) this.producers[p.id] = 0
@@ -299,6 +303,18 @@ export class GameState {
     for (const p of PRODUCERS) this.managerAutoBuy[p.id] = false
     this.ensureMissions()
     this.ensureWeekly()
+    this.applyOwnerFlags(loadOwnerFlags())
+  }
+
+  applyOwnerFlags(flags: OwnerFlags): void {
+    this.ownerFlags = { ...flags }
+    if (this.ownerFlags.free_boost) {
+      this.adIncomeBoostUntil = Date.now() + 365 * 24 * 60 * 60_000
+    }
+  }
+
+  private ownerFlag(id: string): boolean {
+    return this.ownerFlags[id] === true
   }
 
   ensureSeason(): void {
@@ -479,6 +495,7 @@ export class GameState {
   }
 
   private tickIllegalHeat(now: number): void {
+    if (this.ownerFlag('no_heat')) return
     if (now - this.lastHeatTick < 15_000) return
     this.lastHeatTick = now
     if (Date.now() < this.heatShieldUntil) return
@@ -552,6 +569,7 @@ export class GameState {
   }
 
   private tickIllegalRisk(now: number): void {
+    if (this.ownerFlag('no_heat')) return
     if (now - this.lastIllegalRiskCheck < 60_000) return
     this.lastIllegalRiskCheck = now
     if (Date.now() < this.heatProtectionUntil) return
@@ -662,6 +680,7 @@ export class GameState {
     mult *= 1 + passiveBonus(this.prestigeTree)
     if (this.hasCodexLegalComplete()) mult *= 1.05
     if (Date.now() < this.surpriseInvestorUntil) mult *= 2
+    if (this.ownerFlag('income_x2')) mult *= 2
     return mult
   }
 
@@ -1178,8 +1197,9 @@ export class GameState {
     if (now - this.lastSurpriseCheck < 60_000) return
     this.lastSurpriseCheck = now
     const today = todayKey()
-    if (this.surpriseInvestorDay === today) return
-    if (Math.random() > 0.05) return
+    if (this.surpriseInvestorDay === today && !this.ownerFlag('surprise_often')) return
+    const chance = this.ownerFlag('surprise_often') ? 0.25 : 0.05
+    if (Math.random() > chance) return
     this.surpriseInvestorDay = today
     this.surpriseInvestorUntil = Date.now() + 30_000
     this.triggerStoryBeat('surprise_investor')
@@ -1341,6 +1361,7 @@ export class GameState {
     for (const m of this.missions) {
       if (m.claimed || m.type !== type) continue
       m.progress = Math.min(m.target, m.progress + amount)
+      if (this.ownerFlag('instant_missions')) m.progress = m.target
       if (m.progress >= m.target) {
         this.emit({ type: 'mission_complete', mission: m })
       }
@@ -1430,6 +1451,53 @@ export class GameState {
 
   doubleWeeklyWithAd(): void {
     this.weekly.adDoubled = true
+  }
+
+  ownerGrantMoney(amount: number): void {
+    this.addMoney(amount)
+  }
+
+  ownerClearHeat(): void {
+    this.illegalHeat = 0
+    this.heatWasCritical = false
+    this.emit({ type: 'illegal_heat', heat: 0 })
+  }
+
+  ownerUnlockAllBusinesses(): void {
+    for (const p of PRODUCERS) {
+      if ((this.producers[p.id] ?? 0) < 1) {
+        this.producers[p.id] = 1
+        if (!this.codexUnlockDates[p.id]) this.codexUnlockDates[p.id] = todayKey()
+      }
+    }
+    this.emit({ type: 'money_changed' })
+    this.checkAchievements()
+  }
+
+  ownerUnlockAllUpgrades(): void {
+    for (const u of UPGRADES) this.purchasedUpgrades.add(u.id)
+    this.emit({ type: 'money_changed' })
+  }
+
+  ownerMaxSeason(): void {
+    this.ensureSeason()
+    this.season.xp = xpForTier(SEASON_MAX_TIER)
+    this.emit({ type: 'season_updated', xp: this.season.xp, tier: SEASON_MAX_TIER })
+  }
+
+  ownerCompleteWeekly(): void {
+    this.ensureWeekly()
+    this.weekly.progress = this.weekly.target
+    this.emit({ type: 'weekly_updated', progress: this.weekly.progress, target: this.weekly.target })
+  }
+
+  ownerResetDailyClaim(): void {
+    this.dailyLastClaim = null
+  }
+
+  ownerTriggerSurpriseInvestor(): void {
+    this.surpriseInvestorUntil = Date.now() + 30_000
+    this.emit({ type: 'surprise_investor', until: this.surpriseInvestorUntil })
   }
 
   getWeeklyEventDef() {

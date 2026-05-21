@@ -20,8 +20,10 @@ import { BottomNav, type NavView } from './components/BottomNav'
 import { GoalsSheet } from './components/GoalsSheet'
 import { EventsPanel } from './components/EventsPanel'
 import { UndergroundSheet } from './components/UndergroundSheet'
+import { OwnerPanel } from './components/OwnerPanel'
 import { applyDocumentTheme } from '../utils/themeApply'
 import type { ThemeId } from '../game/Themes'
+import { isOwnerPanelEnabled, isOwnerSession } from '../owner/OwnerAuth'
 import { activeTicker } from '../game/StockMarket'
 import { hapticLight, hapticHeavy } from '../utils/haptics'
 
@@ -56,6 +58,12 @@ export class HUD {
   private goalsSheet: GoalsSheet
   private eventsPanel: EventsPanel
   private undergroundSheet: UndergroundSheet
+  private ownerPanel: OwnerPanel
+  private titleEl!: HTMLHeadingElement
+  private titleTapCount = 0
+  private titleTapTimer: number | null = null
+  private ownerKeyBuffer = ''
+  private ownerKeyTimer: number | null = null
   private adBannerSlot!: HTMLElement
   private statsBar: StatsBar
   private shop: ShopPanel
@@ -98,6 +106,7 @@ export class HUD {
     this.goalsSheet = new GoalsSheet()
     this.eventsPanel = new EventsPanel()
     this.undergroundSheet = new UndergroundSheet()
+    this.ownerPanel = new OwnerPanel(state, saveManager, () => this.renderAll())
     this.leaderboard = new Leaderboard()
     this.settings = new SettingsPanel(state, sound, saveManager, () => {
       this.tutorial.restart()
@@ -117,6 +126,52 @@ export class HUD {
     if (this.tutorial.shouldShow()) {
       window.setTimeout(() => this.tutorial.start(), 600)
     }
+    this.bindOwnerAccess()
+    if (window.location.hash === '#baron' || window.location.hash === '#owner') {
+      window.setTimeout(() => this.openOwnerPanel(), 400)
+    }
+  }
+
+  openOwnerPanel(): void {
+    if (!isOwnerPanelEnabled()) return
+    if (isOwnerSession()) this.ownerPanel.openDashboard()
+    else this.ownerPanel.openLogin()
+  }
+
+  private bindOwnerAccess(): void {
+    if (!isOwnerPanelEnabled()) return
+    this.titleEl.addEventListener('click', () => {
+      this.titleTapCount++
+      if (this.titleTapTimer !== null) window.clearTimeout(this.titleTapTimer)
+      this.titleTapTimer = window.setTimeout(() => { this.titleTapCount = 0 }, 3000)
+      if (this.titleTapCount >= 7) {
+        this.titleTapCount = 0
+        this.openOwnerPanel()
+      }
+    })
+    window.addEventListener('keydown', (e) => {
+      const t = e.target as HTMLElement
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
+
+      // Ctrl+Shift+O = Chrome yer imleri — kullanma. Baron: Ctrl+Alt+B
+      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'b') {
+        e.preventDefault()
+        e.stopPropagation()
+        this.openOwnerPanel()
+        return
+      }
+
+      // Klavyede arka arkaya "baron" yaz (input dışında)
+      if (e.key.length === 1 && /[a-z]/i.test(e.key)) {
+        this.ownerKeyBuffer += e.key.toLowerCase()
+        if (this.ownerKeyTimer !== null) window.clearTimeout(this.ownerKeyTimer)
+        this.ownerKeyTimer = window.setTimeout(() => { this.ownerKeyBuffer = '' }, 2500)
+        if (this.ownerKeyBuffer.endsWith('baron')) {
+          this.ownerKeyBuffer = ''
+          this.openOwnerPanel()
+        }
+      }
+    })
   }
 
   private build(): void {
@@ -133,6 +188,7 @@ export class HUD {
     titleRow.className = 'title-row'
     const title = document.createElement('h1')
     title.textContent = 'İş İmparatorluğu'
+    this.titleEl = title
     const actions = document.createElement('div')
     actions.className = 'header-actions'
 
@@ -329,7 +385,7 @@ export class HUD {
 
     this.goalsSheet.mount(this.root)
     this.undergroundSheet.mount(this.root)
-    this.root.append(header, main, this.adBannerSlot, this.settings.layer, this.statsScreen.layer, this.modals.layer)
+    this.root.append(header, main, this.adBannerSlot, this.settings.layer, this.statsScreen.layer, this.ownerPanel.layer, this.modals.layer)
     document.body.appendChild(this.bottomNav.root)
     this.ads.showBanner(this.adBannerSlot)
     this.renderDayNightChip()
@@ -398,6 +454,7 @@ export class HUD {
 
     this.goalsSheet.scrim.addEventListener('click', onActionClick)
     this.goalsSheet.sheet.addEventListener('click', onActionClick)
+    this.ownerPanel.layer.addEventListener('click', onActionClick)
     this.undergroundSheet.scrim.addEventListener('click', onActionClick)
     this.undergroundSheet.sheet.addEventListener('click', onActionClick)
 
@@ -620,6 +677,9 @@ export class HUD {
   }
 
   private async handleAction(action: string, id?: string, count?: string): Promise<void> {
+    if (action.startsWith('owner-')) {
+      if (this.ownerPanel.handleAction(action)) return
+    }
     switch (action) {
       case 'open-goals':
         this.goalsSheet.toggle()
@@ -1296,6 +1356,7 @@ export class HUD {
 
   renderAll(): void {
     applyDocumentTheme(this.state.activeTheme)
+    this.root.classList.toggle('owner-session-active', isOwnerSession())
     this.statsBar.render()
     this.refreshShop(true)
     this.skyline.update(this.state.ownedBusinessTiers())
