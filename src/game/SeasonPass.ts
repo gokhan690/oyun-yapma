@@ -22,7 +22,7 @@ export function createSeasonState(): SeasonState {
 }
 
 export function xpForTier(tier: number): number {
-  return tier * tier * 80
+  return tier * tier * 120
 }
 
 export function currentTier(xp: number): number {

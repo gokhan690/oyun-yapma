@@ -1,6 +1,6 @@
 import { localDayKey } from './dateUtils'
 
-export const DAILY_GOAL_TARGET = 10_000
+export const DAILY_GOAL_TARGET = 50_000
 
 export function dailyGoalDayKey(): string {
   return localDayKey()

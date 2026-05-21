@@ -30,6 +30,7 @@ export class HUD {
   private goalsChip!: HTMLButtonElement
   private dayNightChip!: HTMLElement
   private earnView!: HTMLElement
+  private gameMain!: HTMLElement
   private bottomNav: BottomNav
   private goalsSheet: GoalsSheet
   private eventsPanel: EventsPanel
@@ -126,6 +127,7 @@ export class HUD {
 
     const main = document.createElement('main')
     main.className = 'game-main'
+    this.gameMain = main
 
     this.earnView = document.createElement('div')
     this.earnView.className = 'earn-view'
@@ -207,6 +209,7 @@ export class HUD {
     this.earnView.hidden = view !== 'earn'
     this.shop.root.hidden = view !== 'shop'
     this.eventsPanel.root.hidden = view !== 'events'
+    this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop')
     if (view === 'shop') this.refreshShop(true)
     if (view === 'events') this.eventsPanel.render(this.state)
     if (view === 'profile') {
@@ -501,6 +504,12 @@ export class HUD {
       case 'shop-tab':
         if (id) {
           this.shop.setTab(id)
+          this.refreshShop(true)
+        }
+        break
+      case 'achieve-detail':
+        if (id) {
+          this.shop.selectAchievement(id)
           this.refreshShop(true)
         }
         break

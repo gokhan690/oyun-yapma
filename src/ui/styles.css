@@ -18,6 +18,8 @@
   --radius: 16px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --glow: 0 0 24px rgba(251, 191, 36, 0.25);
+  --shop-header-h: 44px;
+  --buy-modes-h: 36px;
 }
 
 html,
@@ -54,6 +56,10 @@ body {
 
 .hud-header {
   padding: 14px 14px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(180deg, #0f2744 0%, var(--bg) 85%);
 }
 
 .title-row {
@@ -153,6 +159,11 @@ body {
   padding: 0 14px 10px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.game-main.shop-scroll-lock {
+  overflow: hidden;
 }
 
 .tap-wrap {
@@ -1215,7 +1226,7 @@ html.theme-night body {
 .goal-block { margin-bottom: 14px; }
 .goal-track { height: 8px; background: #0a1628; border-radius: 999px; overflow: hidden; margin-top: 6px; }
 .goal-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); }
-.shop-tabs-pill { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 4px 0 8px; }
+.shop-tabs-pill { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 4px 0 8px; touch-action: pan-x; scroll-behavior: smooth; }
 .shop-tabs-pill .tab-btn { flex-shrink: 0; scroll-snap-align: start; padding: 6px 12px; border-radius: 999px; font-size: 0.72rem; white-space: nowrap; position: relative; }
 .tab-badge { position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; background: #ef4444; border-radius: 50%; }
 .modal-layer.is-open { display: flex; align-items: center; justify-content: center; }
@@ -1328,7 +1339,22 @@ html.theme-night body {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
   padding: 0 10px 10px;
+}
+
+.tab-panel.tab-fade-in {
+  animation: tabFadeIn 0.2s ease;
+}
+
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-panel.tab-fade-in { animation: none; }
 }
 
 .biz-top {
@@ -1627,25 +1653,33 @@ html.theme-night .tap-wrap { border-color: rgba(167,139,250,0.45); }
 /* ── Aşama 5 ──────────────────────────────────────────────── */
 
 /* B1 — Sticky shop header */
+.shop-panel:not(.shop-tab-businesses) {
+  --buy-modes-h: 0px;
+}
+
 .shop-header {
   position: sticky;
   top: 0;
   z-index: 5;
   background: linear-gradient(180deg, var(--surface) 80%, rgba(18,32,53,0.95) 100%);
 }
+
 .buy-modes {
   position: sticky;
-  top: 48px;
+  top: var(--shop-header-h);
   z-index: 4;
   background: var(--surface);
   padding-top: 4px;
 }
+
 .shop-tabs-pill {
   position: sticky;
-  top: 84px;
+  top: calc(var(--shop-header-h) + var(--buy-modes-h));
   z-index: 4;
   background: var(--surface);
   padding-bottom: 6px;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, black 10px, black calc(100% - 10px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, black 10px, black calc(100% - 10px), transparent 100%);
 }
 
 /* S2 — Custom scrollbar */
@@ -1653,12 +1687,8 @@ html.theme-night .tap-wrap { border-color: rgba(167,139,250,0.45); }
 .tab-panel::-webkit-scrollbar-track { background: transparent; }
 .tab-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
 .tab-panel::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-
-/* S2 — Tab fade mask */
-.shop-tabs-pill {
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, black 10px, black calc(100% - 10px), transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0, black 10px, black calc(100% - 10px), transparent 100%);
-}
+.shop-tabs-pill::-webkit-scrollbar { height: 3px; }
+.shop-tabs-pill::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
 
 /* S1 — Tier badge */
 .biz-tier-badge {
@@ -1730,3 +1760,443 @@ html.theme-night .tap-wrap { border-color: rgba(167,139,250,0.45); }
 
 /* S1 — biz-card position for tier badge */
 .biz-card { position: relative; }
+
+/* ── Mağaza v2 — shop-card, başarım, scroll ───────────────── */
+
+.shop-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 2px 10px;
+  border-bottom: 1px solid rgba(45, 74, 111, 0.4);
+  margin-bottom: 10px;
+}
+.shop-section-header strong {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text);
+}
+.shop-section-header small {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.shop-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--surface2) 0%, rgba(26, 45, 74, 0.6) 100%);
+  color: var(--text);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  font-family: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+button.shop-card {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.shop-card.affordable {
+  border-color: rgba(251, 191, 36, 0.5);
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.12);
+}
+
+.shop-card-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 12px;
+}
+
+.shop-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.shop-card-body strong,
+.shop-card-body small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shop-card-body small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.shop-card-price {
+  flex-shrink: 0;
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.shop-card-price.price-prestige {
+  color: var(--blue);
+}
+
+.shop-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.shop-effect-tag {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(96, 165, 250, 0.15);
+  color: var(--blue);
+  width: fit-content;
+}
+
+.shop-level-label {
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.shop-card-research.research-maxed {
+  border-color: var(--accent);
+  opacity: 0.85;
+}
+
+.shop-card-upgrade:disabled,
+.shop-card-research:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.manager-card {
+  flex-wrap: wrap;
+}
+
+.manager-card.manager-active {
+  border-color: rgba(52, 211, 153, 0.4);
+}
+
+.manager-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.manager-status-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.manager-status-badge.active {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--green);
+}
+
+.manager-status-badge.auto {
+  background: rgba(96, 165, 250, 0.15);
+  color: var(--blue);
+}
+
+.manager-bonus-chip {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(251, 191, 36, 0.12);
+  color: var(--accent);
+}
+
+.mission-card {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.mission-card .mission-label {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.mission-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.mission-card.mission-ready {
+  border-color: var(--green);
+  box-shadow: 0 0 16px rgba(52, 211, 153, 0.15);
+  animation: missionPulse 2s ease infinite;
+}
+
+@keyframes missionPulse {
+  0%, 100% { box-shadow: 0 0 16px rgba(52, 211, 153, 0.15); }
+  50% { box-shadow: 0 0 24px rgba(52, 211, 153, 0.3); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mission-card.mission-ready { animation: none; }
+}
+
+.mission-card.mission-claimed {
+  opacity: 0.6;
+}
+
+.mission-done {
+  color: var(--green);
+  font-weight: 700;
+  font-size: 0.78rem;
+  margin-top: 4px;
+}
+
+.unlock-progress {
+  margin: 0 12px 10px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--muted);
+}
+
+.empty-state-icon {
+  display: block;
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  margin: 0 0 4px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.empty-state small {
+  font-size: 0.75rem;
+}
+
+/* Başarım sticky header */
+.achieve-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: linear-gradient(180deg, rgba(18, 32, 53, 0.98) 85%, transparent 100%);
+  padding: 8px 0 10px;
+  margin-bottom: 4px;
+}
+
+.achieve-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.achieve-progress-ring {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.achieve-progress-ring span {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.achieve-progress {
+  text-align: left;
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.achieve-detail-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+}
+
+.achieve-detail-banner.placeholder {
+  opacity: 0.85;
+}
+
+.achieve-detail-banner.done {
+  border-color: var(--accent);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.achieve-detail-banner.locked {
+  opacity: 0.9;
+}
+
+.achieve-banner-emoji {
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.achieve-banner-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.achieve-banner-info strong {
+  font-size: 0.88rem;
+}
+
+.achieve-banner-info small {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.achieve-banner-reward {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+.achieve-detail-banner.done .achieve-banner-reward {
+  color: var(--green);
+}
+
+.achieve-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.achieve-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  opacity: 0.35;
+  cursor: pointer;
+  touch-action: manipulation;
+  padding: 0;
+  font-family: inherit;
+  transition: border-color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+
+.achieve-cell:active {
+  transform: scale(0.95);
+}
+
+.achieve-cell.done {
+  opacity: 1;
+  border-color: var(--accent);
+  background: rgba(251, 191, 36, 0.08);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.2);
+}
+
+.achieve-cell.selected {
+  border-color: var(--green);
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.35);
+  opacity: 1;
+}
+
+.achieve-cell-emoji {
+  font-size: 1.5rem;
+  pointer-events: none;
+}
+
+.stock-card {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.stock-card-title {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.stock-sparkline-lg {
+  width: 100%;
+  height: 48px;
+  margin: 8px 0;
+}
+
+.stock-info {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.ipo-card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.ipo-card p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.ticker-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  touch-action: pan-x;
+  scroll-behavior: smooth;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+.ticker-tab {
+  flex-shrink: 0;
+  scroll-snap-align: start;
+}
+
