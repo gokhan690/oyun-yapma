@@ -25,6 +25,7 @@ import { applyDocumentTheme } from '../utils/themeApply'
 import type { ThemeId } from '../game/Themes'
 import { isOwnerSession } from '../owner/OwnerAuth'
 import { OwnerAccessGate } from '../owner/OwnerAccessGate'
+import { formatGameClock } from '../game/GameClock'
 import { activeTicker } from '../game/StockMarket'
 import { hapticLight, hapticHeavy } from '../utils/haptics'
 
@@ -127,9 +128,6 @@ export class HUD {
       window.setTimeout(() => this.tutorial.start(), 600)
     }
     this.bindOwnerAccess()
-    if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('owner') === '1') {
-      window.setTimeout(() => this.openOwnerPanel(), 500)
-    }
   }
 
   openOwnerPanel(): void {
@@ -138,7 +136,7 @@ export class HUD {
   }
 
   private bindOwnerAccess(): void {
-    const holdMs = import.meta.env.DEV ? 1500 : 3000
+    const holdMs = 3000
     const startProfileHold = (): void => {
       if (this.profileHoldTimer !== null) return
       this.profileHoldTimer = window.setTimeout(() => {
@@ -426,10 +424,11 @@ export class HUD {
   }
 
   private renderDayNightChip(): void {
+    const clock = formatGameClock(this.state.gameTimeMs)
     if (this.state.isNight) {
-      this.dayNightChip.textContent = `🌙 Pasif +${Math.round((0.15 + nightBonusExtra(this.state.prestigeTree)) * 100)}%`
+      this.dayNightChip.textContent = `🌙 ${clock} · Pasif +${Math.round((0.15 + nightBonusExtra(this.state.prestigeTree)) * 100)}%`
     } else {
-      this.dayNightChip.textContent = `☀️ Tıklama +${Math.round((0.1 + dayBonusExtra(this.state.prestigeTree)) * 100)}%`
+      this.dayNightChip.textContent = `☀️ ${clock} · Tık +${Math.round((0.1 + dayBonusExtra(this.state.prestigeTree)) * 100)}%`
     }
   }
 
@@ -554,7 +553,7 @@ export class HUD {
       if (ev.type === 'daily_goal_updated') {
         this.goalsSheet.render(this.state)
       }
-      if (ev.type === 'day_night') {
+      if (ev.type === 'day_night' || ev.type === 'game_time') {
         this.renderDayNightChip()
       }
       if (ev.type === 'season_updated' || ev.type === 'season_claimed') {

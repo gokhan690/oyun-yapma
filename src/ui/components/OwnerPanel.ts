@@ -5,12 +5,12 @@ import { THEMES, type ThemeId } from '../../game/Themes'
 import { OWNER_FLAGS, loadOwnerFlags, saveOwnerFlags, type OwnerFlags } from '../../owner/FeatureFlags'
 import {
   clearOwnerSession,
-  devOwnerPinHint,
+  isOwnerLocked,
   isOwnerPinConfigured,
   isOwnerSession,
+  ownerLockRemainingMs,
   refreshOwnerSession,
-  startOwnerSession,
-  verifyOwnerPin,
+  tryOwnerLogin,
 } from '../../owner/OwnerAuth'
 
 export class OwnerPanel {
@@ -111,17 +111,16 @@ export class OwnerPanel {
     if (!isOwnerPinConfigured()) {
       err.hidden = false
       err.className = 'owner-login-err owner-login-warn'
-      err.textContent = import.meta.env.DEV
-        ? 'Dev: .env içinde VITE_OWNER_PIN yoksa varsayılan baron2026 geçerli.'
-        : 'Canlı sitede Render → VITE_OWNER_PIN ayarlanmalı.'
+      err.textContent = 'Baron konsolu yapılandırılmamış (VITE_OWNER_PIN).'
     }
 
-    const devHint = devOwnerPinHint()
-    if (devHint) {
-      const hint = document.createElement('p')
-      hint.className = 'owner-dev-hint'
-      hint.textContent = `Yerel PIN: ${devHint}`
-      form.appendChild(hint)
+    if (isOwnerLocked()) {
+      input.disabled = true
+      loginBtn.disabled = true
+      const mins = Math.ceil(ownerLockRemainingMs() / 60_000)
+      err.hidden = false
+      err.className = 'owner-login-err'
+      err.textContent = `Çok fazla deneme. ${mins} dk sonra tekrar dene.`
     }
 
     const stopBubble = (e: Event): void => { e.stopPropagation() }
@@ -131,23 +130,22 @@ export class OwnerPanel {
     form.addEventListener('touchstart', stopBubble, { passive: true })
 
     const tryLogin = (): void => {
-      const value = input.value.trim()
+      if (isOwnerLocked()) return
       if (!isOwnerPinConfigured()) {
         err.hidden = false
         err.className = 'owner-login-err'
-        err.textContent = import.meta.env.DEV
-          ? 'PIN doğrulanamadı. Dev sunucuyu durdurup npm run dev ile yeniden başlat.'
-          : 'Sunucuda PIN yapılandırılmamış. Render → VITE_OWNER_PIN ekleyip redeploy et.'
+        err.textContent = 'PIN sunucuda tanımlı değil.'
         return
       }
-      if (verifyOwnerPin(value)) {
-        startOwnerSession()
+      if (tryOwnerLogin(input.value.trim())) {
         this.renderDashboard()
       } else {
         err.hidden = false
         err.className = 'owner-login-err'
-        err.textContent = `Yanlış PIN${import.meta.env.DEV ? ` (beklenen: ${devOwnerPinHint()})` : ''}`
-        input.select()
+        err.textContent = isOwnerLocked()
+          ? `Kilitlendi. ${Math.ceil(ownerLockRemainingMs() / 60_000)} dk bekle.`
+          : 'Yanlış PIN'
+        if (!isOwnerLocked()) input.select()
       }
     }
 

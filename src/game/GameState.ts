@@ -56,7 +56,8 @@ import {
   heatDecayBonus,
   hasRaidInsurance,
 } from './PrestigeTree'
-import { localDayKey, yesterdayLocalKey, isNightHour } from './dateUtils'
+import { localDayKey, yesterdayLocalKey } from './dateUtils'
+import { isGameNight, realSecondsToGameMs } from './GameClock'
 import {
   createWeeklyState,
   getWeeklyDef,
@@ -100,6 +101,7 @@ export interface SerializableState {
   upgradesBoughtSession: number
   eventBoostUntil: number
   playTimeMs: number
+  gameTimeMs: number
   tutorialDone: boolean
   ipoCount: number
   lifetimeTotalEarned: number
@@ -177,6 +179,7 @@ export type GameEvent =
   | { type: 'weekly_updated'; progress: number; target: number }
   | { type: 'daily_goal_updated'; earned: number; target: number }
   | { type: 'day_night'; isNight: boolean }
+  | { type: 'game_time' }
   | { type: 'season_updated'; xp: number; tier: number }
   | { type: 'season_claimed'; tier: number; reward: string }
   | { type: 'prestige_tree'; nodeId: string }
@@ -230,6 +233,7 @@ export class GameState {
   upgradesBoughtSession = 0
   eventBoostUntil = 0
   playTimeMs = 0
+  gameTimeMs = 0
   tutorialDone = false
   ipoCount = 0
   lifetimeTotalEarned = 0
@@ -247,7 +251,7 @@ export class GameState {
   nightEarningsSession = 0
   hapticsEnabled = true
   reducedMotion = false
-  isNight = isNightHour(new Date().getHours())
+  isNight = isGameNight(0)
   playerName = 'Baron'
   birthYear = 0
   forcedUnlocks = new Set<string>()
@@ -291,6 +295,8 @@ export class GameState {
   private lastAutoBuyTick = 0
   private lastDayNightCheck = 0
   private lastMarketEventCheck = 0
+  private passiveAccrued = 0
+  private lastGameClockEmit = 0
 
   private listeners = new Set<(event: GameEvent) => void>()
   private tickHandle: number | null = null
@@ -347,6 +353,9 @@ export class GameState {
       const dt = (now - last) / 1000
       last = now
       this.playTimeMs += dt * 1000
+      if (dt > 0 && dt < 2) {
+        this.gameTimeMs += realSecondsToGameMs(dt)
+      }
       this.updateComboDecay(now)
       this.tickStock(now)
       this.tickDayNight(now)
@@ -357,14 +366,17 @@ export class GameState {
       this.tickNearMiss(now)
       if (dt > 0 && dt < 1) {
         const income = this.incomePerSecond() * dt
-        if (income > 0) {
-          this.money += income
-          if (this.isNight) this.nightEarningsSession += income
-          if (now - lastPassiveEmit > 120) {
-            lastPassiveEmit = now
-            this.emit({ type: 'passive_income' })
-          }
-        }
+        if (income > 0) this.passiveAccrued += income
+      }
+      if (now - lastPassiveEmit > 250 && this.passiveAccrued >= 0.01) {
+        lastPassiveEmit = now
+        const batch = this.passiveAccrued
+        this.passiveAccrued = 0
+        this.addMoney(batch, true)
+      }
+      if (now - this.lastGameClockEmit > 1000) {
+        this.lastGameClockEmit = now
+        this.emit({ type: 'game_time' })
       }
       this.tickHandle = requestAnimationFrame(loop)
     }
@@ -485,9 +497,9 @@ export class GameState {
   }
 
   private tickDayNight(now: number): void {
-    if (now - this.lastDayNightCheck < 30_000) return
+    if (now - this.lastDayNightCheck < 1000) return
     this.lastDayNightCheck = now
-    const night = isNightHour(new Date().getHours())
+    const night = isGameNight(this.gameTimeMs)
     if (night !== this.isNight) {
       this.isNight = night
       this.emit({ type: 'day_night', isNight: night })
@@ -1269,6 +1281,8 @@ export class GameState {
     const elapsed = Math.min(awayMs, this.offlineCapMs())
     if (elapsed < 60_000) return 0
     const elapsedSec = elapsed / 1000
+    this.gameTimeMs += realSecondsToGameMs(elapsedSec)
+    this.isNight = isGameNight(this.gameTimeMs)
     let amount = 0
     for (const p of PRODUCERS) {
       let inc = this.producerIncome(p)
@@ -1618,6 +1632,7 @@ export class GameState {
       upgradesBoughtSession: this.upgradesBoughtSession,
       eventBoostUntil: this.eventBoostUntil,
       playTimeMs: this.playTimeMs,
+      gameTimeMs: this.gameTimeMs,
       tutorialDone: this.tutorialDone,
       ipoCount: this.ipoCount,
       lifetimeTotalEarned: this.lifetimeTotalEarned,
@@ -1695,6 +1710,7 @@ export class GameState {
     this.upgradesBoughtSession = data.upgradesBoughtSession ?? 0
     this.eventBoostUntil = data.eventBoostUntil ?? 0
     this.playTimeMs = data.playTimeMs ?? 0
+    this.gameTimeMs = data.gameTimeMs ?? 0
     this.tutorialDone = data.tutorialDone ?? false
     this.ipoCount = data.ipoCount ?? 0
     this.lifetimeTotalEarned = data.lifetimeTotalEarned ?? data.totalEarned ?? 0
@@ -1747,7 +1763,7 @@ export class GameState {
     this.comebackClaimed = data.comebackClaimed ?? false
     this.streakMilestonesClaimed = data.streakMilestonesClaimed ?? []
     this.lastSaveTime = data.lastSaveTime
-    this.isNight = isNightHour(new Date().getHours())
+    this.isNight = isGameNight(this.gameTimeMs)
     this.ensureDailyGoal()
     this.ensureMissions()
     this.ensureWeekly()

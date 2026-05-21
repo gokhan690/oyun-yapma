@@ -8,6 +8,8 @@ services:
     envVars:
       - key: VITE_OWNER_PIN
         sync: false
+      - key: VITE_OWNER_ACCESS_CODE
+        sync: false
     headers:
       - path: /*
         name: Cache-Control

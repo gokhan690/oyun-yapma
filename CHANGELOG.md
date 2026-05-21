@@ -4,6 +4,17 @@ GitHub commit / release notu olarak kopyalayabilirsin.
 
 ---
 
+## [2.5.0] — 2026-05-21
+
+### Özet
+- **Oyun saati:** Gerçek saatten bağımsız hızlı takvim (1 sn ≈ 2 oyun dk, tam gün ~12 dk)
+- **Gündüz/gece:** Oyun saatine bağlı (20:00–06:00 oyun saati)
+- **Pasif gelir:** Görev, sezon XP ve totalEarned ile senkron
+- **Baron güvenliği:** PIN hash, erişim kodu env'den, 5 yanlış = 15 dk kilit, dev bypass kaldırıldı
+- **Kayıt:** Save v6 (`gameTimeMs`)
+
+---
+
 ## [2.4.0] — 2026-05-21
 
 ### Özet (commit mesajı)

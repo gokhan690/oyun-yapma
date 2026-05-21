@@ -6,13 +6,14 @@ import { dailyGoalDayKey } from '../game/DailyGoal'
 import { PRODUCERS } from '../game/Economy'
 import { RESEARCH_NODES } from '../game/Research'
 
+const SAVE_KEY_V6 = 'is_imparatorlugu_save_v6'
 const SAVE_KEY_V5 = 'is_imparatorlugu_save_v5'
 const SAVE_KEY_V4 = 'is_imparatorlugu_save_v4'
 const SAVE_KEY_V3 = 'is_imparatorlugu_save_v3'
 const SAVE_KEY_V2 = 'is_imparatorlugu_save_v2'
 const SAVE_KEY_V1 = 'para_tuzagi_save_v1'
 const OBFUSCATION_KEY = 'PT2026x'
-const CURRENT_VERSION = 5
+const CURRENT_VERSION = 6
 
 interface SaveEnvelope {
   payload: string
@@ -38,12 +39,18 @@ export class SaveManager {
   save(state: GameState): void {
     const data = state.toJSON()
     data.lastSaveTime = Date.now()
-    this.writeSave(data, CURRENT_VERSION, SAVE_KEY_V5)
+    this.writeSave(data, CURRENT_VERSION, SAVE_KEY_V6)
   }
 
   load(state: GameState): { ok: boolean; lastSaveTime: number } {
-    const v5 = this.tryLoad(state, SAVE_KEY_V5, CURRENT_VERSION)
-    if (v5.ok) return v5
+    const v6 = this.tryLoad(state, SAVE_KEY_V6, CURRENT_VERSION)
+    if (v6.ok) return v6
+
+    const v5 = this.tryLoad(state, SAVE_KEY_V5, 5)
+    if (v5.ok) {
+      this.save(state)
+      return v5
+    }
 
     const v4 = this.tryLoadMigrateV5(state, SAVE_KEY_V4)
     if (v4.ok) {
@@ -73,6 +80,7 @@ export class SaveManager {
   }
 
   clear(): void {
+    localStorage.removeItem(SAVE_KEY_V6)
     localStorage.removeItem(SAVE_KEY_V5)
     localStorage.removeItem(SAVE_KEY_V4)
     localStorage.removeItem(SAVE_KEY_V3)
@@ -301,6 +309,7 @@ function applyV3Defaults(legacy: LegacyState): SerializableState {
     upgradesBoughtSession: legacy.upgradesBoughtSession ?? 0,
     eventBoostUntil: legacy.eventBoostUntil ?? 0,
     playTimeMs: legacy.playTimeMs ?? 0,
+    gameTimeMs: legacy.gameTimeMs ?? 0,
     tutorialDone: legacy.tutorialDone ?? false,
     ipoCount: legacy.ipoCount ?? legacy.lifetimePrestige ?? 0,
     lifetimeTotalEarned: legacy.lifetimeTotalEarned ?? legacy.totalEarned ?? 0,
