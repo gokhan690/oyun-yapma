@@ -31,6 +31,7 @@ export const PRODUCERS: ProducerDef[] = [
   { id: 'tuzaq', name: 'Borsa IPO', emoji: '📈', description: 'Halka arz — zirve noktası.', tier: 8, unlockAt: 500000000, baseCost: 2500000, baseIncome: 4000, costMultiplier: 1.15 },
   { id: 'uydu', name: 'Uydu İnternet Ağı', emoji: '🛰️', description: 'Küresel bağlantı imparatorluğu.', tier: 9, unlockAt: 5_000_000_000, baseCost: 15000000, baseIncome: 15000, costMultiplier: 1.15 },
   { id: 'merkezbankasi', name: 'Küresel Merkez Bankası', emoji: '🏦', description: 'Para basan makine.', tier: 10, unlockAt: 50_000_000_000, baseCost: 100000000, baseIncome: 60000, costMultiplier: 1.15 },
+  { id: 'galaksiyum', name: 'Galaktik Tekno-İmparatorluk', emoji: '🌌', description: 'Evreni avucunun içine aldın.', tier: 11, unlockAt: 500_000_000_000, baseCost: 1_000_000_000, baseIncome: 250000, costMultiplier: 1.15 },
 ]
 
 export const UPGRADES: UpgradeDef[] = [

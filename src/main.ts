@@ -4,6 +4,7 @@ import { SaveManager } from './security/SaveManager'
 import { AdManager } from './ads/AdManager'
 import { SoundManager } from './audio/SoundManager'
 import { HUD } from './ui/HUD'
+import { scheduleDailyReminder } from './notifications/NotificationManager'
 
 function bootstrap(): void {
   const app = document.querySelector<HTMLDivElement>('#app')
@@ -58,6 +59,7 @@ function bootstrap(): void {
   hud.renderAll()
 
   document.addEventListener('click', () => sound.resume(), { once: true })
+  void scheduleDailyReminder()
 }
 
 bootstrap()

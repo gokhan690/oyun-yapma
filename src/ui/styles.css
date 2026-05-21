@@ -1371,3 +1371,123 @@ html.theme-night body {
 }
 .biz-card.affordable { animation: affordablePulse 2s ease infinite; }
 @keyframes affordablePulse { 0%, 100% { box-shadow: 0 0 0 rgba(74,222,128,0); } 50% { box-shadow: 0 0 12px 2px rgba(74,222,128,0.25); } }
+
+/* ── Stats Screen ─────────────────────────────────────────── */
+.stats-section {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+}
+
+.stats-section-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+/* Başarım progress bar */
+.stats-progress-wrap { margin-top: 10px; }
+.stats-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.stats-progress-track {
+  height: 6px;
+  background: var(--surface2);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.stats-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #f59e0b);
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+/* Grafik */
+.stats-sparkline {
+  width: 100%;
+  height: 60px;
+  display: block;
+  overflow: visible;
+}
+.stats-sparkline-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.stats-sparkline-dot {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+.stats-chart-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Skor gönderme */
+.stats-submit-section {}
+.stats-submit-row {
+  display: flex;
+  gap: 8px;
+}
+.stats-name-input {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  outline: none;
+}
+.stats-name-input:focus { border-color: var(--accent); }
+.stats-submit-btn {
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+/* Online leaderboard */
+.stats-loading {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 8px 0;
+}
+.stats-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 8px 0;
+}
+.lb-row {
+  display: grid;
+  grid-template-columns: 36px 1fr auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+.lb-row + .lb-row { border-top: 1px solid var(--border); }
+.lb-row-me { background: rgba(251,191,36,0.08); }
+.lb-rank { font-size: 1rem; text-align: center; }
+.lb-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-val { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+.lb-sub { color: var(--muted); font-size: 0.7rem; white-space: nowrap; }
