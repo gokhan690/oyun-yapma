@@ -5,6 +5,9 @@ services:
     runtime: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
+    envVars:
+      - key: VITE_OWNER_PIN
+        sync: false
     headers:
       - path: /*
         name: Cache-Control

@@ -4,12 +4,17 @@ const SESSION_MAX_MS = 8 * 60 * 60 * 1000
 
 function configuredPin(): string {
   const pin = import.meta.env.VITE_OWNER_PIN as string | undefined
-  if (pin && pin.length >= 4) return pin
+  if (pin && pin.trim().length >= 4) return pin.trim()
   if (import.meta.env.DEV) return 'baron2026'
   return ''
 }
 
+/** Gizli panel her zaman açılabilir; PIN ayrı kontrol edilir. */
 export function isOwnerPanelEnabled(): boolean {
+  return true
+}
+
+export function isOwnerPinConfigured(): boolean {
   return configuredPin().length >= 4
 }
 
@@ -20,7 +25,7 @@ export function verifyOwnerPin(pin: string): boolean {
 }
 
 export function isOwnerSession(): boolean {
-  if (!isOwnerPanelEnabled()) return false
+  if (!isOwnerPinConfigured()) return false
   const ok = sessionStorage.getItem(SESSION_KEY) === '1'
   if (!ok) return false
   const ts = Number(sessionStorage.getItem(SESSION_TS) ?? 0)

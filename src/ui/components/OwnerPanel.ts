@@ -5,6 +5,7 @@ import { THEMES, type ThemeId } from '../../game/Themes'
 import { OWNER_FLAGS, loadOwnerFlags, saveOwnerFlags, type OwnerFlags } from '../../owner/FeatureFlags'
 import {
   clearOwnerSession,
+  isOwnerPinConfigured,
   isOwnerSession,
   refreshOwnerSession,
   startOwnerSession,
@@ -91,7 +92,17 @@ export class OwnerPanel {
     card.append(input, err, row)
     this.body.appendChild(card)
 
+    if (!isOwnerPinConfigured()) {
+      input.disabled = true
+      loginBtn.disabled = true
+      err.hidden = false
+      err.textContent = import.meta.env.DEV
+        ? 'Dev: PIN yok — varsayılan baron2026 kullanılır (.env\'e VITE_OWNER_PIN ekleyebilirsin).'
+        : 'Canlı sitede PIN ayarlı değil. Render → Environment → VITE_OWNER_PIN ekleyip yeniden deploy et.'
+    }
+
     const tryLogin = (): void => {
+      if (!isOwnerPinConfigured()) return
       if (verifyOwnerPin(input.value)) {
         startOwnerSession()
         this.renderDashboard()
@@ -105,7 +116,9 @@ export class OwnerPanel {
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') tryLogin()
     })
-    window.setTimeout(() => input.focus(), 100)
+    if (isOwnerPinConfigured()) {
+      window.setTimeout(() => input.focus(), 100)
+    }
   }
 
   private renderDashboard(): void {

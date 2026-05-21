@@ -23,7 +23,7 @@ import { UndergroundSheet } from './components/UndergroundSheet'
 import { OwnerPanel } from './components/OwnerPanel'
 import { applyDocumentTheme } from '../utils/themeApply'
 import type { ThemeId } from '../game/Themes'
-import { isOwnerPanelEnabled, isOwnerSession } from '../owner/OwnerAuth'
+import { isOwnerSession } from '../owner/OwnerAuth'
 import { activeTicker } from '../game/StockMarket'
 import { hapticLight, hapticHeavy } from '../utils/haptics'
 
@@ -59,7 +59,7 @@ export class HUD {
   private eventsPanel: EventsPanel
   private undergroundSheet: UndergroundSheet
   private ownerPanel: OwnerPanel
-  private titleEl!: HTMLHeadingElement
+  private titleRowEl!: HTMLElement
   private titleTapCount = 0
   private titleTapTimer: number | null = null
   private ownerKeyBuffer = ''
@@ -127,33 +127,42 @@ export class HUD {
       window.setTimeout(() => this.tutorial.start(), 600)
     }
     this.bindOwnerAccess()
-    if (window.location.hash === '#baron' || window.location.hash === '#owner') {
-      window.setTimeout(() => this.openOwnerPanel(), 400)
-    }
+    this.tryOpenOwnerFromHash()
   }
 
   openOwnerPanel(): void {
-    if (!isOwnerPanelEnabled()) return
     if (isOwnerSession()) this.ownerPanel.openDashboard()
     else this.ownerPanel.openLogin()
   }
 
+  private tryOpenOwnerFromHash(): void {
+    const h = window.location.hash.toLowerCase()
+    if (h === '#baron' || h === '#owner') {
+      window.setTimeout(() => this.openOwnerPanel(), 400)
+    }
+  }
+
+  private registerTitleTap(): void {
+    this.titleTapCount++
+    if (this.titleTapTimer !== null) window.clearTimeout(this.titleTapTimer)
+    this.titleTapTimer = window.setTimeout(() => { this.titleTapCount = 0 }, 3000)
+    if (this.titleTapCount >= 7) {
+      this.titleTapCount = 0
+      this.openOwnerPanel()
+    }
+  }
+
   private bindOwnerAccess(): void {
-    if (!isOwnerPanelEnabled()) return
-    this.titleEl.addEventListener('click', () => {
-      this.titleTapCount++
-      if (this.titleTapTimer !== null) window.clearTimeout(this.titleTapTimer)
-      this.titleTapTimer = window.setTimeout(() => { this.titleTapCount = 0 }, 3000)
-      if (this.titleTapCount >= 7) {
-        this.titleTapCount = 0
-        this.openOwnerPanel()
-      }
+    this.titleRowEl.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement
+      if (t.closest('button')) return
+      this.registerTitleTap()
     })
+    window.addEventListener('hashchange', () => this.tryOpenOwnerFromHash())
     window.addEventListener('keydown', (e) => {
       const t = e.target as HTMLElement
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
 
-      // Ctrl+Shift+O = Chrome yer imleri — kullanma. Baron: Ctrl+Alt+B
       if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'b') {
         e.preventDefault()
         e.stopPropagation()
@@ -161,7 +170,6 @@ export class HUD {
         return
       }
 
-      // Klavyede arka arkaya "baron" yaz (input dışında)
       if (e.key.length === 1 && /[a-z]/i.test(e.key)) {
         this.ownerKeyBuffer += e.key.toLowerCase()
         if (this.ownerKeyTimer !== null) window.clearTimeout(this.ownerKeyTimer)
@@ -185,10 +193,10 @@ export class HUD {
     const header = document.createElement('header')
     header.className = 'hud-header compact'
     const titleRow = document.createElement('div')
-    titleRow.className = 'title-row'
+    titleRow.className = 'title-row owner-title-zone'
+    this.titleRowEl = titleRow
     const title = document.createElement('h1')
     title.textContent = 'İş İmparatorluğu'
-    this.titleEl = title
     const actions = document.createElement('div')
     actions.className = 'header-actions'
 
