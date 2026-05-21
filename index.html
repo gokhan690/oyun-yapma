@@ -10,14 +10,30 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://googleads.g.doubleclick.net https://pagead2.googlesyndication.com; frame-src https://googleads.g.doubleclick.net;"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co https://googleads.g.doubleclick.net https://pagead2.googlesyndication.com; frame-src https://googleads.g.doubleclick.net;"
     />
     <meta name="theme-color" content="#0a1628" />
     <meta name="description" content="İş İmparatorluğu — işletme kur, birleş, borsaya çık!" />
     <title>İş İmparatorluğu</title>
+    <style>
+      html, body { margin: 0; min-height: 100%; background: #0a1628; color: #f1f5f9; }
+      #app:empty { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; }
+      #app:empty::after { content: 'Yükleniyor…'; font-family: system-ui, sans-serif; color: #fbbf24; font-weight: 700; }
+      #boot-error { display: none; padding: 24px; font-family: system-ui, sans-serif; color: #fecaca; text-align: center; }
+    </style>
   </head>
   <body>
     <div id="app"></div>
+    <div id="boot-error"></div>
+    <script>
+      window.addEventListener('error', function (e) {
+        var el = document.getElementById('boot-error')
+        if (!el) return
+        el.style.display = 'block'
+        el.textContent = 'Oyun yüklenemedi. Sayfayı Ctrl+F5 ile yenile veya önbelleği temizle.'
+        console.error(e.error || e.message)
+      })
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

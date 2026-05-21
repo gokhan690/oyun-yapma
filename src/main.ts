@@ -11,6 +11,7 @@ function bootstrap(): void {
   const app = document.querySelector<HTMLDivElement>('#app')
   if (!app) return
 
+  try {
   const state = new GameState()
   const saveManager = new SaveManager()
   const ads = new AdManager()
@@ -61,6 +62,14 @@ function bootstrap(): void {
 
   document.addEventListener('click', () => sound.resume(), { once: true })
   void scheduleDailyReminder()
+  } catch (err) {
+    console.error('Bootstrap hatası:', err)
+    const bootErr = document.querySelector<HTMLDivElement>('#boot-error')
+    if (bootErr) {
+      bootErr.style.display = 'block'
+      bootErr.textContent = 'Oyun başlatılamadı. Ctrl+F5 ile yenile veya gizli sekmede dene.'
+    }
+  }
 }
 
 bootstrap()
