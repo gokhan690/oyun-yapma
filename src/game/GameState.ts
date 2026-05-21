@@ -1,4 +1,4 @@
-import { PRODUCERS, UPGRADES, producerCost, isProducerUnlocked, formatMoney, type ProducerDef, type UpgradeDef } from './Economy'
+import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, formatMoney, type ProducerDef, type UpgradeDef } from './Economy'
 import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, prestigeMultiplier } from './Prestige'
 import { globalSynergyBonus, producerSynergyBonus } from './Synergies'
 import {
@@ -668,17 +668,7 @@ export class GameState {
   countMaxAffordable(id: string): number {
     const def = PRODUCERS.find((p) => p.id === id)
     if (!def) return 0
-    const discount = 1 - producerCostDiscount(this.prestigeTree)
-    let count = 0
-    let spent = 0
-    const owned = this.producers[id] ?? 0
-    while (count < 1000) {
-      const next = Math.floor(producerCost(def, owned + count, 1) * discount)
-      if (spent + next > this.money) break
-      spent += next
-      count++
-    }
-    return count
+    return maxAffordable(def, this.producers[id] ?? 0, this.money, 1 - producerCostDiscount(this.prestigeTree))
   }
 
   buyProducer(id: string, count = 1): boolean {
@@ -700,16 +690,7 @@ export class GameState {
   buyMaxProducer(id: string): number {
     const def = PRODUCERS.find((p) => p.id === id)
     if (!def) return 0
-    const discount = 1 - producerCostDiscount(this.prestigeTree)
-    let count = 0
-    let spent = 0
-    const owned = this.producers[id] ?? 0
-    while (count < 1000) {
-      const next = Math.floor(producerCost(def, owned + count, 1) * discount)
-      if (spent + next > this.money) break
-      spent += next
-      count++
-    }
+    const count = maxAffordable(def, this.producers[id] ?? 0, this.money, 1 - producerCostDiscount(this.prestigeTree))
     if (count <= 0) return 0
     return this.buyProducer(id, count) ? count : 0
   }
