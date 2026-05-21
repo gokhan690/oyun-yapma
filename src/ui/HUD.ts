@@ -750,15 +750,18 @@ export class HUD {
           applyDocumentTheme(id as ThemeId)
         }
         break
-      case 'claim-comeback': {
-        const amount = this.state.claimComebackBonus()
-        if (amount > 0) {
-          this.modals.close()
-          this.modals.showToast(this.root, `Comeback bonusu: +${formatMoney(amount)}`)
-          this.renderAll()
-        }
+      case 'claim-comeback':
         break
-      }
+      case 'ad-comeback':
+        await this.handleAdComeback(1)
+        break
+      case 'ad-comeback-x2':
+        await this.handleAdComeback(2)
+        break
+      case 'skip-comeback':
+        this.state.discardComeback()
+        this.modals.close()
+        break
       case 'early-unlock':
         if (id && this.state.earlyUnlockProducer(id)) {
           this.refreshShop(true)
@@ -965,11 +968,16 @@ export class HUD {
       case 'ad-restore-event':
         await this.handleRestoreEvent()
         break
-      case 'claim-offline':
+      case 'skip-offline':
+        this.state.discardPendingOffline()
+        this.pendingOffline = 0
         this.modals.close()
         break
       case 'ad-offline':
-        await this.handleAdOffline()
+        await this.handleAdOffline(1)
+        break
+      case 'ad-offline-x2':
+        await this.handleAdOffline(2)
         break
       case 'refresh':
         this.refreshShop(true)
@@ -1111,17 +1119,26 @@ export class HUD {
 
   showOfflinePopup(amount: number): void {
     this.pendingOffline = amount
-    const claim = document.createElement('button')
-    claim.type = 'button'
-    claim.className = 'btn-primary'
-    claim.dataset.action = 'claim-offline'
-    claim.textContent = 'Topla'
     const ad = document.createElement('button')
     ad.type = 'button'
     ad.className = 'btn-ad'
     ad.dataset.action = 'ad-offline'
-    ad.textContent = '📺 x2'
-    this.modals.show('Offline Kazanç', `Yokken ${formatMoney(amount)} kazandın.`, [claim, ad])
+    ad.textContent = `📺 Topla — ${formatMoney(amount)}`
+    const ad2 = document.createElement('button')
+    ad2.type = 'button'
+    ad2.className = 'btn-primary'
+    ad2.dataset.action = 'ad-offline-x2'
+    ad2.textContent = `📺 x2 — ${formatMoney(amount * 2)}`
+    const skip = document.createElement('button')
+    skip.type = 'button'
+    skip.className = 'btn-secondary'
+    skip.dataset.action = 'skip-offline'
+    skip.textContent = 'Vazgeç'
+    this.modals.show(
+      'Offline Kazanç',
+      `Yokken ${formatMoney(amount)} birikti. Toplamak için reklam izlemen gerek — bedava verilmez.`,
+      [ad2, ad, skip],
+    )
   }
 
   private showGoldenEventModal(
@@ -1173,7 +1190,7 @@ export class HUD {
     const close = document.createElement('button')
     close.type = 'button'
     close.className = 'btn-primary'
-    close.dataset.action = 'claim-offline'
+    close.dataset.action = 'close-modal'
     close.textContent = 'Kapat'
     this.modals.show('Fırsat Kaçtı!', `${event.title} kaçırıldı.`, [ad, close])
   }
@@ -1232,8 +1249,8 @@ export class HUD {
     this.renderAll()
   }
 
-  private async handleAdOffline(): Promise<void> {
-    if (this.pendingOffline <= 0) {
+  private async handleAdOffline(multiplier = 1): Promise<void> {
+    if (this.pendingOffline <= 0 && this.state.pendingOfflineEarnings <= 0) {
       this.modals.close()
       return
     }
@@ -1243,10 +1260,29 @@ export class HUD {
       return
     }
     this.state.incrementRewardedAdCount()
-    this.state.addMoney(this.pendingOffline)
+    const amount = this.state.claimOfflineViaAd(multiplier)
     this.pendingOffline = 0
     this.modals.close()
+    this.modals.showToast(this.root, `Offline: +${formatMoney(amount)}`)
     this.statsBar.render()
+    this.renderAll()
+  }
+
+  private async handleAdComeback(multiplier = 1): Promise<void> {
+    if (!this.state.hasPendingComeback()) {
+      this.modals.close()
+      return
+    }
+    const result = await this.ads.showRewarded('offline_bonus')
+    if (!result.success) {
+      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      return
+    }
+    this.state.incrementRewardedAdCount()
+    const amount = this.state.claimComebackViaAd(multiplier)
+    this.modals.close()
+    this.modals.showToast(this.root, `Geri dönüş: +${formatMoney(amount)}`)
+    this.renderAll()
   }
 
   private async handleRestoreEvent(): Promise<void> {
@@ -1344,15 +1380,26 @@ export class HUD {
 
   showComebackPopup(): void {
     if (!this.state.hasPendingComeback()) return
-    const claim = document.createElement('button')
-    claim.type = 'button'
-    claim.className = 'btn-primary'
-    claim.dataset.action = 'claim-comeback'
-    claim.textContent = 'Topla'
+    const amount = this.state.comebackPending
+    const ad = document.createElement('button')
+    ad.type = 'button'
+    ad.className = 'btn-ad'
+    ad.dataset.action = 'ad-comeback'
+    ad.textContent = `📺 Topla — ${formatMoney(amount)}`
+    const ad2 = document.createElement('button')
+    ad2.type = 'button'
+    ad2.className = 'btn-primary'
+    ad2.dataset.action = 'ad-comeback-x2'
+    ad2.textContent = `📺 x2 — ${formatMoney(amount * 2)}`
+    const skip = document.createElement('button')
+    skip.type = 'button'
+    skip.className = 'btn-secondary'
+    skip.dataset.action = 'skip-comeback'
+    skip.textContent = 'Vazgeç'
     this.modals.show(
       'Seni özledik Baron!',
-      `Geri dönüş bonusun: ${formatMoney(this.state.comebackPending)}`,
-      [claim],
+      `24 saat+ yoktun. ${formatMoney(amount)} geri dönüş bonusu birikti — reklam izleyerek al.`,
+      [ad2, ad, skip],
     )
   }
 

@@ -751,7 +751,7 @@ export class ShopPanel {
     const hiredCount = ownedProducers.filter((p) => hasManager(state.managers, p.id)).length
     const ownedCount = ownedProducers.length
     const missing = ownedCount - hiredCount
-    panel.appendChild(this.createTabHero('👔', 'Yönetim Merkezi', 'Yöneticiler geliri artırır ve offline kazancı yükseltir', `${hiredCount}/${ownedCount} aktif`))
+    panel.appendChild(this.createTabHero('👔', 'Yönetim Merkezi', 'Yöneticiler geliri artırır; yokken biriken kazancı yükseltir (reklamla toplanır)', `${hiredCount}/${ownedCount} aktif`))
 
     if (missing > 0) {
       const summary = document.createElement('div')
@@ -779,7 +779,7 @@ export class ShopPanel {
       const name = document.createElement('strong')
       name.textContent = p.name
       const desc = document.createElement('small')
-      desc.textContent = hired ? 'Yönetici aktif (+25% gelir, offline +50%)' : 'Yönetici işe al — pasif gelir artar'
+      desc.textContent = hired ? 'Yönetici aktif (+25% gelir, yokken +50% birikim)' : 'Yönetici işe al — pasif gelir artar'
       const incomeChip = document.createElement('span')
       incomeChip.className = 'manager-income-chip'
       incomeChip.textContent = `${formatMoney(income)}/sn`

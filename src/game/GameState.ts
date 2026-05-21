@@ -282,6 +282,8 @@ export class GameState {
   private lastHeatTick = 0
   private lastSurpriseCheck = 0
   private nudgeFlags = new Set<string>()
+  /** Yokken biriken — sadece reklamla toplanır */
+  pendingOfflineEarnings = 0
 
   comboCount = 0
   comboMultiplier = 1
@@ -1255,13 +1257,28 @@ export class GameState {
     return amount
   }
 
+  /** Geri dönüş bonusu — yalnızca reklam sonrası */
+  claimComebackViaAd(multiplier = 1): number {
+    if (this.comebackPending <= 0) return 0
+    const amount = Math.floor(this.comebackPending * multiplier)
+    this.comebackPending = 0
+    this.comebackClaimed = true
+    this.comebackClaimedDay = todayKey()
+    this.addMoney(amount)
+    this.awardBadge('comeback')
+    this.emit({ type: 'offline_earnings', amount })
+    return amount
+  }
+
   hasPendingComeback(): boolean {
     return this.comebackPending > 0
   }
 
+  /** Offline kazancı hesapla — otomatik verilmez */
   applyOfflineEarnings(lastSaveTime: number): number {
     const awayMs = Date.now() - lastSaveTime
     this.lastActiveAt = Date.now()
+    this.pendingOfflineEarnings = 0
 
     if (awayMs >= COMEBACK_MIN_AWAY_MS && this.comebackClaimedDay !== todayKey()) {
       const elapsed = Math.min(awayMs, this.offlineCapMs())
@@ -1288,6 +1305,24 @@ export class GameState {
       amount += inc * elapsedSec
     }
     if (amount <= 0) return 0
+    this.pendingOfflineEarnings = Math.floor(amount)
+    return this.pendingOfflineEarnings
+  }
+
+  discardPendingOffline(): void {
+    this.pendingOfflineEarnings = 0
+  }
+
+  discardComeback(): void {
+    this.comebackPending = 0
+    this.comebackClaimedDay = todayKey()
+  }
+
+  /** Reklam izlendikten sonra offline kazancı topla */
+  claimOfflineViaAd(multiplier = 1): number {
+    if (this.pendingOfflineEarnings <= 0) return 0
+    const amount = Math.floor(this.pendingOfflineEarnings * multiplier)
+    this.pendingOfflineEarnings = 0
     this.addMoney(amount)
     this.emit({ type: 'offline_earnings', amount })
     return amount

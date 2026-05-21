@@ -43,11 +43,9 @@ function bootstrap(): void {
   }
 
   if (ok) {
-    const offlineBefore = state.money
-    state.applyOfflineEarnings(lastSaveTime)
-    const offlineAmount = state.money - offlineBefore
-    if (offlineAmount > 0) {
-      hud.showOfflinePopup(offlineAmount)
+    const pendingOffline = state.applyOfflineEarnings(lastSaveTime)
+    if (pendingOffline > 0) {
+      hud.showOfflinePopup(pendingOffline)
     }
     if (state.hasPendingComeback()) {
       window.setTimeout(() => hud.showComebackPopup(), 1200)
