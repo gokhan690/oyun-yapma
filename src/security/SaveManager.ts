@@ -1,0 +1,339 @@
+import type { GameState, SerializableState } from '../game/GameState'
+import { migrateLegacyStock } from '../game/StockMarket'
+import { createWeeklyState } from '../game/WeeklyEvent'
+import { createSeasonState } from '../game/SeasonPass'
+import { dailyGoalDayKey } from '../game/DailyGoal'
+import { PRODUCERS } from '../game/Economy'
+import { RESEARCH_NODES } from '../game/Research'
+
+const SAVE_KEY_V4 = 'is_imparatorlugu_save_v4'
+const SAVE_KEY_V3 = 'is_imparatorlugu_save_v3'
+const SAVE_KEY_V2 = 'is_imparatorlugu_save_v2'
+const SAVE_KEY_V1 = 'para_tuzagi_save_v1'
+const OBFUSCATION_KEY = 'PT2026x'
+const CURRENT_VERSION = 4
+
+interface SaveEnvelope {
+  payload: string
+  checksum: string
+  version: number
+}
+
+type LegacyState = Partial<SerializableState> & {
+  money: number
+  totalEarned: number
+  totalClicks: number
+  producers: Record<string, number>
+  purchasedUpgrades: string[]
+  prestigePoints: number
+  lifetimePrestige: number
+  lastSaveTime: number
+  stock?: SerializableState['stock'] | { price?: number; shares?: number; avgBuyPrice?: number }
+}
+
+export class SaveManager {
+  private autoSaveInterval: number | null = null
+
+  save(state: GameState): void {
+    const data = state.toJSON()
+    data.lastSaveTime = Date.now()
+    this.writeSave(data, CURRENT_VERSION, SAVE_KEY_V4)
+  }
+
+  load(state: GameState): { ok: boolean; lastSaveTime: number } {
+    const v4 = this.tryLoad(state, SAVE_KEY_V4, CURRENT_VERSION)
+    if (v4.ok) return v4
+
+    const v3 = this.tryLoadMigrateV3(state, SAVE_KEY_V3)
+    if (v3.ok) {
+      this.save(state)
+      return v3
+    }
+
+    const v2 = this.tryLoadMigrate(state, SAVE_KEY_V2, 2)
+    if (v2.ok) {
+      this.save(state)
+      return v2
+    }
+
+    const v1 = this.tryLoadLegacyV1(state)
+    if (v1.ok) {
+      this.save(state)
+      return v1
+    }
+
+    return { ok: false, lastSaveTime: Date.now() }
+  }
+
+  clear(): void {
+    localStorage.removeItem(SAVE_KEY_V4)
+    localStorage.removeItem(SAVE_KEY_V3)
+    localStorage.removeItem(SAVE_KEY_V2)
+    localStorage.removeItem(SAVE_KEY_V1)
+  }
+
+  startAutoSave(state: GameState, intervalMs = 15_000): void {
+    this.stopAutoSave()
+    this.autoSaveInterval = window.setInterval(() => this.save(state), intervalMs)
+    window.addEventListener('beforeunload', () => this.save(state))
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.save(state)
+    })
+  }
+
+  stopAutoSave(): void {
+    if (this.autoSaveInterval !== null) {
+      clearInterval(this.autoSaveInterval)
+      this.autoSaveInterval = null
+    }
+  }
+
+  private tryLoad(
+    state: GameState,
+    key: string,
+    expectedVersion: number,
+  ): { ok: boolean; lastSaveTime: number } {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) return { ok: false, lastSaveTime: Date.now() }
+
+      const envelope = JSON.parse(raw) as SaveEnvelope
+      if (!envelope.payload || !envelope.checksum) {
+        return { ok: false, lastSaveTime: Date.now() }
+      }
+
+      const json = deobfuscate(envelope.payload)
+      if (computeChecksum(json) !== envelope.checksum) {
+        return { ok: false, lastSaveTime: Date.now() }
+      }
+
+      const data = JSON.parse(json) as SerializableState
+      if (envelope.version !== expectedVersion || !validateState(data)) {
+        return { ok: false, lastSaveTime: Date.now() }
+      }
+
+      const lastSaveTime = sanitizeTimestamp(data.lastSaveTime)
+      state.loadFrom({ ...data, lastSaveTime })
+      return { ok: true, lastSaveTime }
+    } catch {
+      return { ok: false, lastSaveTime: Date.now() }
+    }
+  }
+
+  private tryLoadMigrateV3(state: GameState, key: string): { ok: boolean; lastSaveTime: number } {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) return { ok: false, lastSaveTime: Date.now() }
+
+      const envelope = JSON.parse(raw) as SaveEnvelope
+      const json = deobfuscate(envelope.payload)
+      if (computeChecksum(json) !== envelope.checksum) {
+        return { ok: false, lastSaveTime: Date.now() }
+      }
+
+      const legacy = JSON.parse(json) as LegacyState
+      const migrated = applyV4Defaults(applyV3Defaults(legacy))
+      migrated.lastSaveTime = sanitizeTimestamp(legacy.lastSaveTime)
+      state.loadFrom(migrated)
+      return { ok: true, lastSaveTime: migrated.lastSaveTime }
+    } catch {
+      return { ok: false, lastSaveTime: Date.now() }
+    }
+  }
+
+  private tryLoadMigrate(
+    state: GameState,
+    key: string,
+    version: number,
+  ): { ok: boolean; lastSaveTime: number } {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) return { ok: false, lastSaveTime: Date.now() }
+
+      const envelope = JSON.parse(raw) as SaveEnvelope
+      const json = deobfuscate(envelope.payload)
+      if (computeChecksum(json) !== envelope.checksum) {
+        return { ok: false, lastSaveTime: Date.now() }
+      }
+
+      const legacy = JSON.parse(json) as LegacyState
+      const migrated = applyV4Defaults(applyV3Defaults(legacy))
+      migrated.lastSaveTime = sanitizeTimestamp(legacy.lastSaveTime)
+      state.loadFrom(migrated)
+      void version
+      return { ok: true, lastSaveTime: migrated.lastSaveTime }
+    } catch {
+      return { ok: false, lastSaveTime: Date.now() }
+    }
+  }
+
+  private tryLoadLegacyV1(state: GameState): { ok: boolean; lastSaveTime: number } {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY_V1)
+      if (!raw) return { ok: false, lastSaveTime: Date.now() }
+
+      const envelope = JSON.parse(raw) as SaveEnvelope
+      const json = deobfuscate(envelope.payload)
+      if (computeChecksum(json) !== envelope.checksum) {
+        return { ok: false, lastSaveTime: Date.now() }
+      }
+
+      const legacy = JSON.parse(json) as LegacyState
+      const migrated = applyV4Defaults(applyV3Defaults(legacy))
+      migrated.lastSaveTime = sanitizeTimestamp(legacy.lastSaveTime)
+      state.loadFrom(migrated)
+      return { ok: true, lastSaveTime: migrated.lastSaveTime }
+    } catch {
+      return { ok: false, lastSaveTime: Date.now() }
+    }
+  }
+
+  private writeSave(data: SerializableState, version: number, key: string): void {
+    const json = JSON.stringify(data)
+    const envelope: SaveEnvelope = {
+      payload: obfuscate(json),
+      checksum: computeChecksum(json),
+      version,
+    }
+    try {
+      localStorage.setItem(key, JSON.stringify(envelope))
+    } catch {
+      // storage full
+    }
+  }
+}
+
+function applyV3Defaults(legacy: LegacyState): SerializableState {
+  const managers: Record<string, boolean> = {}
+  for (const p of PRODUCERS) managers[p.id] = legacy.managers?.[p.id] ?? false
+
+  const research: Record<string, number> = {}
+  for (const r of RESEARCH_NODES) research[r.id] = legacy.research?.[r.id] ?? 0
+
+  const stockLegacy = legacy.stock
+  const stock = stockLegacy && 'tickers' in stockLegacy
+    ? stockLegacy
+    : migrateLegacyStock((stockLegacy ?? {}) as { price?: number; shares?: number; avgBuyPrice?: number })
+
+  return {
+    money: legacy.money,
+    totalEarned: legacy.totalEarned,
+    totalClicks: legacy.totalClicks,
+    producers: legacy.producers ?? {},
+    purchasedUpgrades: legacy.purchasedUpgrades ?? [],
+    prestigePoints: legacy.prestigePoints ?? 0,
+    lifetimePrestige: legacy.lifetimePrestige ?? 0,
+    lastSaveTime: legacy.lastSaveTime ?? Date.now(),
+    dailyLastClaim: legacy.dailyLastClaim ?? null,
+    dailyStreak: legacy.dailyStreak ?? 0,
+    adIncomeBoostUntil: legacy.adIncomeBoostUntil ?? 0,
+    rewardedAdsToday: legacy.rewardedAdsToday ?? 0,
+    rewardedAdsDay: legacy.rewardedAdsDay ?? new Date().toISOString().slice(0, 10),
+    luckyChestReady: legacy.luckyChestReady ?? false,
+    research,
+    achievements: legacy.achievements ?? [],
+    missions: legacy.missions ?? [],
+    missionsDay: legacy.missionsDay ?? '',
+    comboBest: legacy.comboBest ?? 0,
+    eventsSeen: legacy.eventsSeen ?? 0,
+    sessionEarned: legacy.sessionEarned ?? 0,
+    businessesBoughtSession: legacy.businessesBoughtSession ?? 0,
+    upgradesBoughtSession: legacy.upgradesBoughtSession ?? 0,
+    eventBoostUntil: legacy.eventBoostUntil ?? 0,
+    playTimeMs: legacy.playTimeMs ?? 0,
+    tutorialDone: legacy.tutorialDone ?? false,
+    ipoCount: legacy.ipoCount ?? legacy.lifetimePrestige ?? 0,
+    lifetimeTotalEarned: legacy.lifetimeTotalEarned ?? legacy.totalEarned ?? 0,
+    managers,
+    stock,
+    weekly: legacy.weekly ?? createWeeklyState(),
+    milestonesReached: legacy.milestonesReached ?? [],
+    managerDiscountActive: legacy.managerDiscountActive ?? false,
+    dailyGoalEarned: legacy.dailyGoalEarned ?? 0,
+    dailyGoalDay: legacy.dailyGoalDay ?? dailyGoalDayKey(),
+    dailyGoalClaimed: legacy.dailyGoalClaimed ?? false,
+    season: legacy.season ?? createSeasonState(),
+    prestigeTree: legacy.prestigeTree ?? {},
+    managerAutoBuy: legacy.managerAutoBuy ?? {},
+    nightEarningsSession: legacy.nightEarningsSession ?? 0,
+    hapticsEnabled: legacy.hapticsEnabled ?? true,
+    reducedMotion: legacy.reducedMotion ?? false,
+  }
+}
+
+function applyV4Defaults(state: SerializableState): SerializableState {
+  const managerAutoBuy: Record<string, boolean> = {}
+  for (const p of PRODUCERS) managerAutoBuy[p.id] = state.managerAutoBuy?.[p.id] ?? false
+
+  let stock = state.stock
+  if (!stock || !('tickers' in stock)) {
+    stock = migrateLegacyStock((stock ?? {}) as { price?: number; shares?: number; avgBuyPrice?: number })
+  }
+
+  return {
+    ...state,
+    season: state.season ?? createSeasonState(),
+    prestigeTree: state.prestigeTree ?? {},
+    managerAutoBuy,
+    nightEarningsSession: state.nightEarningsSession ?? 0,
+    hapticsEnabled: state.hapticsEnabled ?? true,
+    reducedMotion: state.reducedMotion ?? false,
+    stock,
+  }
+}
+
+function validateState(data: SerializableState): boolean {
+  if (typeof data.money !== 'number' || data.money < 0 || !Number.isFinite(data.money)) return false
+  if (typeof data.totalEarned !== 'number' || data.totalEarned < 0) return false
+  if (typeof data.prestigePoints !== 'number' || data.prestigePoints < 0) return false
+  if (!data.producers || typeof data.producers !== 'object') return false
+  if (!Array.isArray(data.purchasedUpgrades)) return false
+  return true
+}
+
+function sanitizeTimestamp(ts: number): number {
+  const now = Date.now()
+  const maxPast = 30 * 24 * 60 * 60 * 1000
+  if (!Number.isFinite(ts) || ts > now + 60_000) return now
+  if (ts < now - maxPast) return now - maxPast
+  return ts
+}
+
+function obfuscate(text: string): string {
+  const key = OBFUSCATION_KEY
+  const data = new TextEncoder().encode(text)
+  const out = new Uint8Array(data.length)
+  for (let i = 0; i < data.length; i++) {
+    out[i] = data[i]! ^ key.charCodeAt(i % key.length)
+  }
+  let binary = ''
+  for (let i = 0; i < out.length; i++) binary += String.fromCharCode(out[i]!)
+  return btoa(binary)
+}
+
+function deobfuscate(encoded: string): string {
+  const key = OBFUSCATION_KEY
+  const binary = atob(encoded)
+  try {
+    const out = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) {
+      out[i] = binary.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+    }
+    return new TextDecoder().decode(out)
+  } catch {
+    let result = ''
+    for (let i = 0; i < binary.length; i++) {
+      result += String.fromCharCode(binary.charCodeAt(i) ^ key.charCodeAt(i % key.length))
+    }
+    return result
+  }
+}
+
+function computeChecksum(text: string): string {
+  let hash = 2166136261
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0).toString(16)
+}

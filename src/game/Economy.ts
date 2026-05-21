@@ -1,0 +1,91 @@
+export interface ProducerDef {
+  id: string
+  name: string
+  emoji: string
+  description: string
+  tier: number
+  unlockAt: number
+  baseCost: number
+  baseIncome: number
+  costMultiplier: number
+}
+
+export interface UpgradeDef {
+  id: string
+  name: string
+  description: string
+  cost: number
+  effect: 'click_mult' | 'global_mult' | 'producer_mult'
+  value: number
+  producerId?: string
+}
+
+export const PRODUCERS: ProducerDef[] = [
+  { id: 'stajyer', name: 'Limonata Tezgahı', emoji: '🍋', description: 'Küçük ama cesur bir girişim.', tier: 1, unlockAt: 0, baseCost: 15, baseIncome: 0.1, costMultiplier: 1.15 },
+  { id: 'robot', name: 'E-ticaret Sitesi', emoji: '🛒', description: 'Online satışlar başladı.', tier: 2, unlockAt: 200, baseCost: 100, baseIncome: 1, costMultiplier: 1.15 },
+  { id: 'ofis', name: 'Restoran Zinciri', emoji: '🍽️', description: 'Lezzetli büyüme.', tier: 3, unlockAt: 2000, baseCost: 500, baseIncome: 4, costMultiplier: 1.15 },
+  { id: 'fabrika', name: 'Lojistik Merkezi', emoji: '🚚', description: 'Tedarik zinciri güçleniyor.', tier: 4, unlockAt: 20000, baseCost: 3000, baseIncome: 15, costMultiplier: 1.15 },
+  { id: 'holding', name: 'Yazılım Şirketi', emoji: '💻', description: 'Teknoloji imparatorluğu.', tier: 5, unlockAt: 500000, baseCost: 15000, baseIncome: 60, costMultiplier: 1.15 },
+  { id: 'uzay', name: 'Gayrimenkul Portföyü', emoji: '🏙️', description: 'Arsa ve bina yatırımları.', tier: 6, unlockAt: 5000000, baseCost: 100000, baseIncome: 250, costMultiplier: 1.15 },
+  { id: 'ai', name: 'Holding Birleşmesi', emoji: '🤝', description: 'Rakiplerle stratejik birleşme.', tier: 7, unlockAt: 50000000, baseCost: 500000, baseIncome: 1000, costMultiplier: 1.15 },
+  { id: 'tuzaq', name: 'Borsa IPO', emoji: '📈', description: 'Halka arz — zirve noktası.', tier: 8, unlockAt: 500000000, baseCost: 2500000, baseIncome: 4000, costMultiplier: 1.15 },
+  { id: 'uydu', name: 'Uydu İnternet Ağı', emoji: '🛰️', description: 'Küresel bağlantı imparatorluğu.', tier: 9, unlockAt: 5_000_000_000, baseCost: 15000000, baseIncome: 15000, costMultiplier: 1.15 },
+  { id: 'merkezbankasi', name: 'Küresel Merkez Bankası', emoji: '🏦', description: 'Para basan makine.', tier: 10, unlockAt: 50_000_000_000, baseCost: 100000000, baseIncome: 60000, costMultiplier: 1.15 },
+]
+
+export const UPGRADES: UpgradeDef[] = [
+  { id: 'click_x2', name: 'Pazarlama Kampanyası', description: 'Tıklama geliri x2', cost: 50, effect: 'click_mult', value: 2 },
+  { id: 'click_x5', name: 'Viral Reklam', description: 'Tıklama geliri x5', cost: 500, effect: 'click_mult', value: 5 },
+  { id: 'global_x2', name: 'Kurumsal Büyüme', description: 'Tüm gelir x2', cost: 2000, effect: 'global_mult', value: 2 },
+  { id: 'stajyer_x2', name: 'Franchise Sistemi', description: 'Limonata geliri x2', cost: 100, effect: 'producer_mult', value: 2, producerId: 'stajyer' },
+  { id: 'robot_x2', name: 'SEO Optimizasyonu', description: 'E-ticaret geliri x2', cost: 800, effect: 'producer_mult', value: 2, producerId: 'robot' },
+  { id: 'fabrika_x2', name: 'Depo Otomasyonu', description: 'Lojistik geliri x2', cost: 10000, effect: 'producer_mult', value: 2, producerId: 'fabrika' },
+  { id: 'holding_x2', name: 'Bulut Altyapısı', description: 'Yazılım geliri x2', cost: 50000, effect: 'producer_mult', value: 2, producerId: 'holding' },
+  { id: 'ofis_x2', name: 'Franchise Genişlemesi', description: 'Restoran geliri x2', cost: 5000, effect: 'producer_mult', value: 2, producerId: 'ofis' },
+  { id: 'uzay_x2', name: 'Portföy Yönetimi', description: 'Gayrimenkul geliri x2', cost: 200000, effect: 'producer_mult', value: 2, producerId: 'uzay' },
+  { id: 'ai_x2', name: 'Birleşme Sinergisi', description: 'Holding geliri x2', cost: 1000000, effect: 'producer_mult', value: 2, producerId: 'ai' },
+  { id: 'tuzaq_x2', name: 'Halka Arz Boost', description: 'IPO geliri x2', cost: 5000000, effect: 'producer_mult', value: 2, producerId: 'tuzaq' },
+  { id: 'global_x3', name: 'Global Expansion', description: 'Tüm gelir x1.5', cost: 100000, effect: 'global_mult', value: 1.5 },
+]
+
+export function producerCost(def: ProducerDef, owned: number, count = 1): number {
+  let total = 0
+  for (let i = 0; i < count; i++) {
+    total += Math.floor(def.baseCost * Math.pow(def.costMultiplier, owned + i))
+  }
+  return total
+}
+
+export function maxAffordable(def: ProducerDef, owned: number, money: number): number {
+  let count = 0
+  let spent = 0
+  while (true) {
+    const next = Math.floor(def.baseCost * Math.pow(def.costMultiplier, owned + count))
+    if (spent + next > money) break
+    spent += next
+    count++
+    if (count >= 1000) break
+  }
+  return count
+}
+
+export function isProducerUnlocked(def: ProducerDef, totalEarned: number): boolean {
+  return totalEarned >= def.unlockAt
+}
+
+export function producerIconPath(id: string): string {
+  return `/icons/businesses/${id}.svg`
+}
+
+export function formatMoney(value: number): string {
+  const v = Math.max(0, value)
+  if (v < 1000) {
+    if (v < 10) return v.toFixed(2)
+    if (v < 100) return v.toFixed(1)
+    return Math.floor(v).toLocaleString('tr-TR')
+  }
+  if (v < 1_000_000) return `${(v / 1000).toFixed(v < 10_000 ? 2 : 1)}K`
+  if (v < 1_000_000_000) return `${(v / 1_000_000).toFixed(v < 10_000_000 ? 2 : 1)}M`
+  if (v < 1_000_000_000_000) return `${(v / 1_000_000_000).toFixed(2)}B`
+  return `${(v / 1_000_000_000_000).toFixed(2)}T`
+}
