@@ -92,6 +92,18 @@ export class SettingsPanel {
     importBtn.textContent = '⬇️ Miras kodunu yükle'
     body.appendChild(importBtn)
 
+    body.appendChild(this.sectionTitle('Kayıt'))
+    const restoreHint = document.createElement('p')
+    restoreHint.className = 'settings-hint'
+    restoreHint.textContent = 'Ana kayıt açılmazsa otomatik yedekten geri yüklemeyi dene.'
+    body.appendChild(restoreHint)
+    const restoreBtn = document.createElement('button')
+    restoreBtn.type = 'button'
+    restoreBtn.className = 'btn-secondary'
+    restoreBtn.dataset.action = 'restore-save-backup'
+    restoreBtn.textContent = '💾 Yedekten geri yükle'
+    body.appendChild(restoreBtn)
+
     body.appendChild(this.sectionTitle('Görünüm'))
 
     const themeWrap = document.createElement('div')

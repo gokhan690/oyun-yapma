@@ -407,7 +407,10 @@ export class HUD {
     this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'empire')
     if (view === 'shop') this.refreshShop(true)
     if (view === 'events') this.eventsPanel.render(this.state)
-    if (view === 'empire') this.empirePanel.render(this.state)
+    if (view === 'empire') {
+      this.empirePanel.render(this.state)
+      this.refreshShop(true)
+    }
     if (view === 'profile') {
       this.statsScreen.show()
       this.settings.hide()
@@ -946,6 +949,20 @@ export class HUD {
       case 'close-modal':
         this.modals.close()
         break
+      case 'restore-save-backup': {
+        if (this.saveManager.tryRestoreBackup(this.state)) {
+          this.toast('Yedek kayıt yüklendi ✓')
+          this.renderAll()
+          this.saveManager.save(this.state)
+        } else if (this.saveManager.load(this.state).ok) {
+          this.toast('Kayıt geri yüklendi ✓')
+          this.renderAll()
+          this.saveManager.save(this.state)
+        } else {
+          this.toast('Yedek kayıt bulunamadı veya bozuk')
+        }
+        break
+      }
       case 'shop-tab':
         if (id) {
           this.shop.setTab(id)
@@ -1730,11 +1747,21 @@ export class HUD {
     applyDocumentTheme(this.state.activeTheme)
     this.root.classList.toggle('owner-session-active', isOwnerSession())
     this.statsBar.render()
-    this.refreshShop(true)
-    this.skyline.update(this.state.ownedBusinessTiers())
+    this.renderSessionPanel()
+    this.renderHeatMeter()
+    if (this.bottomNav.getActive() === 'shop' || this.bottomNav.getActive() === 'empire') {
+      this.refreshShop(true)
+    } else {
+      this.patchShopAffordability()
+    }
+    this.skyline.update(this.state.ownedBusinessTiers(), this.state.gameTimeMs)
     this.goalsSheet.render(this.state)
-    this.eventsPanel.render(this.state)
-    if (this.bottomNav.getActive() === 'empire') this.empirePanel.render(this.state)
+    if (this.bottomNav.getActive() === 'events') {
+      this.eventsPanel.render(this.state)
+    }
+    if (this.bottomNav.getActive() === 'empire') {
+      this.empirePanel.render(this.state)
+    }
     this.renderMarketNewsBanner()
     this.renderDayNightChip()
     this.renderProgressStrip()

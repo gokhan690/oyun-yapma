@@ -399,6 +399,7 @@ export class GameState {
     for (const r of RESEARCH_NODES) this.research[r.id] = 0
     for (const p of PRODUCERS) this.managers[p.id] = false
     for (const p of PRODUCERS) this.managerAutoBuy[p.id] = false
+    this.ensureMissions()
     this.applyOwnerFlags(loadOwnerFlags())
   }
 

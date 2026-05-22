@@ -12,6 +12,7 @@ export class ModalManager {
   close(): void {
     this.layer.classList.remove('is-open')
     this.layer.replaceChildren()
+    this.layer.hidden = false
     this.goldenModal = null
     this.goldenTimerEl = null
     this.goldenClaimHandler = null
@@ -48,6 +49,7 @@ export class ModalManager {
     this.layer.replaceChildren()
     const scrim = document.createElement('div')
     scrim.className = 'modal-scrim'
+    scrim.dataset.action = 'close-modal'
     const modal = document.createElement('div')
     modal.className = 'game-modal daily-reward-modal modal-enter'
     const lostNote = streakLost ? '<p class="streak-lost-warn">⚠️ Serin sıfırlandı — yeniden başlıyorsun!</p>' : ''
@@ -95,6 +97,7 @@ export class ModalManager {
     this.layer.replaceChildren()
     const scrim = document.createElement('div')
     scrim.className = 'modal-scrim'
+    scrim.dataset.action = 'close-modal'
     const modal = document.createElement('div')
     modal.className = 'game-modal ipo-preview-modal modal-enter'
     const icon = document.createElement('div')
@@ -146,6 +149,7 @@ export class ModalManager {
     this.goldenClaimHandler = onClaim
     const scrim = document.createElement('div')
     scrim.className = 'modal-scrim'
+    scrim.dataset.action = 'close-modal'
     const modal = document.createElement('div')
     modal.className = 'game-modal golden-event-modal modal-enter'
     const icon = document.createElement('div')

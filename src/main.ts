@@ -19,18 +19,12 @@ function bootstrap(): void {
     const ads = new AdManager()
     const sound = new SoundManager()
 
-    let saveLoaded = false
-    let lastSaveTime = Date.now()
-    let loadReason: string | undefined
-
     const loaded = saveManager.load(state)
-    saveLoaded = loaded.ok
-    lastSaveTime = loaded.lastSaveTime
-    loadReason = loaded.reason
+    const saveLoaded = loaded.ok
+    const lastSaveTime = loaded.lastSaveTime
 
     if (!saveLoaded) {
-      console.warn('Kayıt yüklenemedi:', loadReason)
-      saveManager.setSaveEnabled(false)
+      console.warn('Kayıt yüklenemedi:', loaded.reason)
     }
 
     ads.syncRewardedCount(state.rewardedAdsToday, state.rewardedAdsDay)
@@ -38,30 +32,10 @@ function bootstrap(): void {
 
     const hud = new HUD(state, ads, sound, saveManager, app)
 
-    if (!saveLoaded) {
-      if (saveManager.hasBackup() || saveManager.hasAnySaveSlot()) {
-        hud.showSaveRecoveryNotice(() => {
-          if (saveManager.tryRestoreBackup(state)) {
-            saveManager.setSaveEnabled(true)
-            saveManager.save(state)
-            window.location.reload()
-            return
-          }
-          const retry = saveManager.load(state)
-          if (retry.ok) {
-            saveManager.setSaveEnabled(true)
-            saveManager.save(state)
-            window.location.reload()
-          }
-        })
-      } else {
-        hud.showNewGameNotice()
-      }
-    } else if (loaded.source === 'backup') {
-      window.setTimeout(() => hud.toast('Yedek kayıttan geri yüklendi ✓'), 400)
-    }
-
     if (saveLoaded) {
+      if (loaded.source === 'backup') {
+        window.setTimeout(() => hud.toast('Yedek kayıttan geri yüklendi ✓'), 400)
+      }
       const pendingOffline = state.applyOfflineEarnings(lastSaveTime)
       if (pendingOffline > 0) {
         hud.showOfflinePopup(pendingOffline)
@@ -69,10 +43,18 @@ function bootstrap(): void {
       if (state.hasPendingComeback()) {
         window.setTimeout(() => hud.showComebackPopup(), 1200)
       }
+      window.setTimeout(() => hud.showDailyRewardIfAvailable(), 900)
+      saveManager.startAutoSave(state)
+    } else {
+      window.setTimeout(() => {
+        if (saveManager.hasBackup()) {
+          hud.toast('Kayıt açılamadı — Profil → Ayarlar → “Yedekten geri yükle” dene')
+        } else {
+          hud.toast('Yeni oyun başladı')
+        }
+      }, 600)
       saveManager.startAutoSave(state)
     }
-
-    window.setTimeout(() => hud.showDailyRewardIfAvailable(), 900)
 
     state.startTick()
     state.startEventLoop()
