@@ -1,7 +1,7 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
 import { gameDay } from '../../game/GameClock'
-import { SPOUSE_OPTIONS, PLAYER_LIFESPAN, yearsUntilLifespan, type ChildRecord } from '../../game/Dynasty'
+import { SPOUSE_OPTIONS, PLAYER_LIFESPAN, type ChildRecord } from '../../game/Dynasty'
 
 const TRAIT_LABEL: Record<string, string> = {
   merchant: 'Tüccar — pasif +12%',
@@ -27,21 +27,24 @@ export class DynastyPanel {
     this.root.appendChild(title)
 
     const age = this.state.playerAge()
-    const yearsLeft = yearsUntilLifespan(this.state.gameTimeMs, this.state.dynasty)
+    const estYears = this.state.estimatedYearsRemaining()
     const ageBar = document.createElement('div')
     ageBar.className = 'dynasty-age-bar'
     const pct = Math.min(100, (age / PLAYER_LIFESPAN) * 100)
+    const estLabel = estYears < 99 ? `~${estYears} yıl tahmini` : 'Uzun ömür'
     ageBar.innerHTML = `
-      <label><span>${this.state.playerName} · ${age} yaş</span><span>${yearsLeft} yıl kaldı</span></label>
+      <label><span>${this.state.playerName} · ${age} yaş</span><span>${estLabel}</span></label>
       <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${pct}%"></div></div>
     `
     this.root.appendChild(ageBar)
-    if (yearsLeft <= 5) {
+
+    this.renderMortalityRisks()
+
+    if (this.state.hasPendingDeath()) {
+      const death = this.state.dynasty.pendingDeath!
       const warn = document.createElement('p')
       warn.className = 'dynasty-lifespan-warn'
-      warn.textContent = yearsLeft === 0
-        ? 'Ömür doldu — miras devri yap veya çocuk yetiştir.'
-        : `⚠️ ${yearsLeft} yıl içinde bir varis seçmezsen hanedan risk altında.`
+      warn.textContent = `💀 Vefat: ${death.message} — ${this.state.dynasty.children.length > 0 ? 'varis seç!' : 'devam et butonuna bas.'}`
       this.root.appendChild(warn)
     }
 
@@ -111,7 +114,7 @@ export class DynastyPanel {
       const hint = document.createElement('p')
       hint.className = 'dynasty-desc'
       hint.textContent = this.state.needsSuccession()
-        ? '80 yaşına geldin — bir çocuğu seçerek imparatorluğu devral.'
+        ? 'Vefat ettin — bir çocuğu seçerek imparatorluğu devral.'
         : 'Miras devri: seçtiğin çocukla imparatorluğa devam edersin (isim + trait bonusu).'
       this.root.appendChild(hint)
       const btn = document.createElement('button')
@@ -153,5 +156,31 @@ export class DynastyPanel {
     pick.textContent = isHeir ? 'Varis' : 'Devral'
     card.appendChild(pick)
     return card
+  }
+
+  private renderMortalityRisks(): void {
+    const risks = this.state.activeMortalityRisks()
+    if (risks.length === 0) return
+
+    const title = document.createElement('h4')
+    title.className = 'mortality-risks-title'
+    title.textContent = '⚠️ Ölüm Riskleri'
+    this.root.appendChild(title)
+
+    const list = document.createElement('div')
+    list.className = 'mortality-risks'
+    for (const r of risks) {
+      const chip = document.createElement('span')
+      chip.className = `mortality-risk mortality-risk-${r.level}`
+      chip.title = `Günlük risk: ~${r.dailyPct.toFixed(3)}%`
+      chip.textContent = `${r.emoji} ${r.label}`
+      list.appendChild(chip)
+    }
+    this.root.appendChild(list)
+
+    const note = document.createElement('p')
+    note.className = 'dynasty-desc mortality-note'
+    note.textContent = 'Her yaşta vefat edebilirsin — illegal iş, siyaset, stres ve yaş riski artırır. Çocuk yetiştir!'
+    this.root.appendChild(note)
   }
 }

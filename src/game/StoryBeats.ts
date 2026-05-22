@@ -19,6 +19,10 @@ export const STORY_BEATS: StoryBeat[] = [
   { id: 'election_year', text: 'Seçim yılı geldi. Siyasi etkin arttı — lobi gücünü kullan.' },
   { id: 'year_2027', text: '2027\'ye girdin. Ekonomi hızlanıyor, günler saniyeler içinde akıyor.' },
   { id: 'lifespan_warning', text: 'Yaşın ilerliyor. Varis seçmezsen imparatorluk riske girer — Profil → Hanedan.' },
+  { id: 'mortality_midlife', text: '50 yaşına geldin. Stres, siyaset ve illegal işler ölüm riskini artırıyor.' },
+  { id: 'mortality_senior', text: '70 yaş üstü — doğal nedenler riski yükseldi ama hâlâ şansın var.' },
+  { id: 'mortality_high_risk', text: '⚠️ Ölüm riskin çok yüksek! Hanedan sekmesinden riskleri kontrol et.' },
+  { id: 'death_no_heir', text: 'Mirasçı olmadan vefat ettin — imparatorluk güçlü avukatlarla ayakta kaldı.' },
   { id: 'succession', text: 'Miras devri tamamlandı. Yeni nesil imparatorluğu devraldı!' },
 ]
 

@@ -3719,6 +3719,52 @@ html.theme-galactic {
   margin: 0 0 8px;
 }
 
+.mortality-risks-title {
+  font-size: 0.78rem;
+  margin: 4px 0 6px;
+  color: var(--muted);
+}
+.mortality-risks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.mortality-risk {
+  font-size: 0.65rem;
+  padding: 3px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+}
+.mortality-risk-medium {
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+.mortality-risk-high {
+  border-color: #ef4444;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+}
+.mortality-note {
+  font-size: 0.68rem !important;
+  margin-bottom: 10px !important;
+}
+
+.death-modal-body .death-cause-line {
+  font-size: 1rem;
+  margin-bottom: 8px;
+}
+.death-succession-hint,
+.death-no-heir-warn {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 10px;
+}
+.death-no-heir-warn {
+  color: #f87171;
+}
+
 .succession-picker .dynasty-children {
   display: flex;
   flex-direction: column;

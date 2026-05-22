@@ -88,12 +88,21 @@ import {
   traitPassiveMult,
   educationXpPerGameDay,
   playerGameAge,
-  isLifespanReached,
   SUCCESSION_START_AGE,
-  PLAYER_LIFESPAN,
+  PLAYER_START_AGE,
   CHILD_EDUCATION_MAX,
   type DynastyState,
 } from './Dynasty'
+import {
+  rollDailyMortality,
+  totalDailyMortalityRisk,
+  estimatedYearsRemaining,
+  mortalityRiskDisplay,
+  type MortalityContext,
+  type MortalityRiskDisplay,
+  type DeathCauseId,
+} from './Mortality'
+import { FOOTBALL_CLUB_IDS } from './Empire'
 import {
   createUndergroundTreeState,
   treeNodeDef,
@@ -258,7 +267,7 @@ export type GameEvent =
   | { type: 'badge_earned'; badgeId: string }
   | { type: 'market_news'; headline: string; active: boolean }
   | { type: 'dynasty_update'; kind: string; name?: string }
-  | { type: 'lifespan_reached'; age: number; hasHeir: boolean }
+  | { type: 'player_death'; age: number; causeId: DeathCauseId; emoji: string; label: string; message: string; hasHeir: boolean }
 
 const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
@@ -914,7 +923,7 @@ export class GameState {
     if (gameYear(this.gameTimeMs) === 2027 && !this.seenStoryBeats.has('year_2027')) {
       this.triggerStoryBeat('year_2027')
     }
-    this.tickLifespan()
+    this.tickMortality()
     if (!this.dynasty.spouseName || this.dynasty.children.length >= 3) return
     const married = this.dynasty.marriedGameDay ?? day
     if (day - married < 5) return
@@ -966,6 +975,7 @@ export class GameState {
     this.dynasty.playerBornGameDay = gameDay(this.gameTimeMs)
     this.dynasty.playerStartAge = SUCCESSION_START_AGE
     this.dynasty.lifespanNotified = false
+    this.dynasty.pendingDeath = null
     this.triggerStoryBeat('succession')
     this.emit({ type: 'dynasty_update', kind: 'succession', name: child.name })
     this.emit({ type: 'story_beat', beatId: 'succession', text: `${prevName} emekli oldu. ${child.name} (${SUCCESSION_START_AGE} yaş) imparatorluğu devraldı.` })
@@ -976,30 +986,99 @@ export class GameState {
     return playerGameAge(this.gameTimeMs, this.dynasty)
   }
 
+  hasPendingDeath(): boolean {
+    return this.dynasty.pendingDeath !== null
+  }
+
   needsSuccession(): boolean {
-    return isLifespanReached(this.gameTimeMs, this.dynasty)
+    return this.dynasty.pendingDeath !== null && this.dynasty.children.length > 0
   }
 
   canSuccessionNow(): boolean {
     return this.dynasty.children.length > 0
   }
 
-  private tickLifespan(): void {
-    const age = playerGameAge(this.gameTimeMs, this.dynasty)
-    if (age >= PLAYER_LIFESPAN - 5 && !this.seenStoryBeats.has('lifespan_warning')) {
-      this.triggerStoryBeat('lifespan_warning')
+  mortalityContext(): MortalityContext {
+    const ipd = this.incomePerDay()
+    const illegalIpd = this.illegalIncomePerDay()
+    return {
+      age: this.playerAge(),
+      playerName: this.playerName,
+      illegalHeat: this.illegalHeat,
+      politicsLevel: this.empire.politics.level,
+      illegalIncomeShare: ipd > 0 ? illegalIpd / ipd : 0,
+      ownedBusinessCount: this.ownedBusinessTiers(),
+      hasFootballClub: FOOTBALL_CLUB_IDS.some((id) => (this.producers[id] ?? 0) > 0),
+      hasLab: (this.producers.ilac ?? 0) > 0 || (this.producers.nano ?? 0) > 0,
+      hasLuxury: (this.producers.otel ?? 0) > 0 || (this.producers.uzay ?? 0) > 0,
+      trait: activeDynastyTrait(this.dynasty),
+      totalEarned: this.totalEarned,
     }
-    if (!isLifespanReached(this.gameTimeMs, this.dynasty)) return
-    if (this.dynasty.lifespanNotified) return
-    this.dynasty.lifespanNotified = true
+  }
+
+  estimatedYearsRemaining(): number {
+    return estimatedYearsRemaining(this.mortalityContext())
+  }
+
+  activeMortalityRisks(): MortalityRiskDisplay[] {
+    return mortalityRiskDisplay(this.mortalityContext())
+  }
+
+  private tickMortality(): void {
+    if (this.dynasty.pendingDeath) return
+
+    const ctx = this.mortalityContext()
+    const age = ctx.age
+
+    if (age >= 50 && !this.seenStoryBeats.has('mortality_midlife')) {
+      this.triggerStoryBeat('mortality_midlife')
+    }
+    if (age >= 70 && !this.seenStoryBeats.has('mortality_senior')) {
+      this.triggerStoryBeat('mortality_senior')
+    }
+    if (totalDailyMortalityRisk(ctx) >= 0.002 && !this.seenStoryBeats.has('mortality_high_risk')) {
+      this.triggerStoryBeat('mortality_high_risk')
+    }
+
+    const outcome = rollDailyMortality(ctx)
+    if (!outcome) return
+
+    this.dynasty.pendingDeath = {
+      causeId: outcome.causeId,
+      age: outcome.age,
+      message: outcome.message,
+    }
+
     this.emit({
-      type: 'lifespan_reached',
-      age,
+      type: 'player_death',
+      age: outcome.age,
+      causeId: outcome.causeId,
+      emoji: outcome.emoji,
+      label: outcome.label,
+      message: outcome.message,
       hasHeir: this.dynasty.children.length > 0,
     })
+
     if (this.dynasty.children.length === 1) {
       this.successionToChild(this.dynasty.children[0]!.id)
     }
+  }
+
+  resolveDeathWithoutHeir(): boolean {
+    const death = this.dynasty.pendingDeath
+    if (!death) return false
+    const penalty = Math.floor(this.money * 0.15)
+    this.money = Math.max(0, this.money - penalty)
+    this.dynasty.pendingDeath = null
+    this.dynasty.playerBornGameDay = gameDay(this.gameTimeMs)
+    this.dynasty.playerStartAge = Math.max(PLAYER_START_AGE, death.age - 8)
+    this.emit({
+      type: 'story_beat',
+      beatId: 'death_no_heir',
+      text: `Mirasçı yoktu — aile avukatları imparatorluğu kurtardı.${penalty > 0 ? ` ${formatMoney(penalty)} harcandı.` : ''} ${this.dynasty.playerStartAge} yaşında yeniden yönetime geçtin.`,
+    })
+    this.emit({ type: 'money_changed' })
+    return true
   }
 
   dynastyCostMult(): number {
@@ -2234,6 +2313,7 @@ export class GameState {
     if (this.dynasty.playerBornGameDay === undefined) this.dynasty.playerBornGameDay = 1
     if (this.dynasty.playerStartAge === undefined) this.dynasty.playerStartAge = 18
     if (this.dynasty.lifespanNotified === undefined) this.dynasty.lifespanNotified = false
+    if (this.dynasty.pendingDeath === undefined) this.dynasty.pendingDeath = null
     this.lastSaveTime = data.lastSaveTime
     this.isNight = isGameNight(this.gameTimeMs)
     this.ensureDailyGoal()

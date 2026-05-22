@@ -1,4 +1,5 @@
 import { gameDay } from './GameClock'
+import type { PendingDeath } from './Mortality'
 
 export type SpouseTrait = 'merchant' | 'diplomat' | 'innovator' | 'risk_taker'
 export type ChildTrait = SpouseTrait
@@ -24,6 +25,7 @@ export interface ChildRecord {
 }
 
 export const PLAYER_START_AGE = 18
+/** İstatistiksel üst yaş referansı — zorunlu ölüm sınırı değil */
 export const PLAYER_LIFESPAN = 80
 export const SUCCESSION_START_AGE = 25
 
@@ -40,7 +42,10 @@ export interface DynastyState {
   playerBornGameDay: number
   /** Nesil devrinde sıfırlanan başlangıç yaşı */
   playerStartAge: number
+  /** @deprecated — pendingDeath kullan */
   lifespanNotified: boolean
+  /** Vefat sonrası miras devri bekleniyor */
+  pendingDeath: PendingDeath | null
 }
 
 export const SPOUSE_OPTIONS: SpouseOption[] = [
@@ -84,6 +89,7 @@ export function createDynastyState(): DynastyState {
     playerBornGameDay: 1,
     playerStartAge: PLAYER_START_AGE,
     lifespanNotified: false,
+    pendingDeath: null,
   }
 }
 
@@ -102,8 +108,9 @@ export function yearsUntilLifespan(gameTimeMs: number, dynasty: DynastyState): n
   return Math.max(0, PLAYER_LIFESPAN - playerGameAge(gameTimeMs, dynasty))
 }
 
-export function isLifespanReached(gameTimeMs: number, dynasty: DynastyState): boolean {
-  return playerGameAge(gameTimeMs, dynasty) >= PLAYER_LIFESPAN
+/** @deprecated — 80 yaş zorunlu sınır kaldırıldı */
+export function isLifespanReached(_gameTimeMs: number, _dynasty: DynastyState): boolean {
+  return false
 }
 
 export function lifespanProgress(gameTimeMs: number, dynasty: DynastyState): number {

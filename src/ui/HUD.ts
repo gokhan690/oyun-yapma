@@ -4,7 +4,7 @@ import type { SoundManager } from '../audio/SoundManager'
 import type { SaveManager } from '../security/SaveManager'
 import { formatMoney, formatIncomeRate, PRODUCERS } from '../game/Economy'
 import { assetUrl } from '../utils/assetUrl'
-import { PLAYER_LIFESPAN } from '../game/Dynasty'
+import type { DeathCauseId } from '../game/Mortality'
 import { currentRank, rankProgress } from '../game/PlayerRank'
 import { dayBonusExtra, nightBonusExtra } from '../game/PrestigeTree'
 import { calcPrestigePoints, prestigeMultiplier } from '../game/Prestige'
@@ -595,8 +595,8 @@ export class HUD {
         if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
         this.renderProfileChip()
       }
-      if (ev.type === 'lifespan_reached') {
-        this.showLifespanModal(ev.hasHeir)
+      if (ev.type === 'player_death') {
+        this.showDeathModal(ev)
       }
       if (ev.type === 'season_updated' || ev.type === 'season_claimed') {
         this.eventsPanel.render(this.state)
@@ -1123,6 +1123,14 @@ export class HUD {
           this.renderAll()
         }
         break
+      case 'death-continue-no-heir':
+        if (this.state.resolveDeathWithoutHeir()) {
+          this.modals.close()
+          this.renderProfileChip()
+          this.statsScreen.render()
+          this.renderAll()
+        }
+        break
       case 'dynasty-succession-open':
         this.showSuccessionPicker(this.state.needsSuccession())
         break
@@ -1204,10 +1212,10 @@ export class HUD {
   private renderProfileChip(): void {
     const name = this.state.playerName.trim() || 'Baron'
     const age = this.state.playerAge()
-    const left = PLAYER_LIFESPAN - age
-    const ageText = left <= 5 ? `${age} yaş · ${left} yıl kaldı` : `${age} yaş`
+    const estYears = this.state.estimatedYearsRemaining()
+    const ageText = estYears < 99 ? `${age} yaş · ~${estYears} yıl` : `${age} yaş`
     this.profileChip.innerHTML = `<span class="profile-chip-name">${name}</span><span class="profile-chip-age">${ageText}</span>`
-    this.profileChip.title = `Nesil ${this.state.dynasty.generation} · Profil ve istatistikler`
+    this.profileChip.title = `Nesil ${this.state.dynasty.generation} · Tahmini kalan ömür`
   }
 
   private renderHeatMeter(): void {
@@ -1320,27 +1328,53 @@ export class HUD {
     this.eventTimerInterval = window.setInterval(tick, 500)
   }
 
-  private showLifespanModal(hasHeir: boolean): void {
-    if (hasHeir && this.state.dynasty.children.length > 1) {
-      this.showSuccessionPicker(true)
+  private showDeathModal(ev: {
+    age: number
+    causeId: DeathCauseId
+    emoji: string
+    label: string
+    message: string
+    hasHeir: boolean
+  }): void {
+    if (ev.hasHeir && this.state.dynasty.children.length > 1) {
+      const body = document.createElement('div')
+      body.className = 'death-modal-body'
+      body.innerHTML = `
+        <p class="death-cause-line">${ev.emoji} <strong>${ev.label}</strong></p>
+        <p>${ev.message}</p>
+        <p class="death-succession-hint">Bir varis seçerek imparatorluğa devam et.</p>
+      `
+      this.showSuccessionPicker(true, body)
       return
     }
+
     const body = document.createElement('div')
-    body.className = 'lifespan-modal-body'
-    if (hasHeir) {
-      body.innerHTML = `<p><strong>${this.state.playerAge()} yaş</strong> — Tek mirasçın imparatorluğu devraldı. Yeni nesille devam ediyorsun.</p>`
+    body.className = 'death-modal-body'
+    if (ev.hasHeir && this.state.dynasty.children.length === 1) {
+      body.innerHTML = `
+        <p class="death-cause-line">${ev.emoji} <strong>${ev.label}</strong></p>
+        <p>${ev.message}</p>
+        <p><strong>${this.state.playerName}</strong> imparatorluğu devraldı. Yeni nesille devam ediyorsun.</p>
+      `
+    } else if (!ev.hasHeir) {
+      body.innerHTML = `
+        <p class="death-cause-line">${ev.emoji} <strong>${ev.label}</strong></p>
+        <p>${ev.message}</p>
+        <p class="death-no-heir-warn">Mirasçın yoktu. Aile avukatları imparatorluğu kurtaracak — cüzdanının ~%15'i gidecek ve biraz gençleşerek devam edeceksin.</p>
+      `
     } else {
-      body.innerHTML = `<p><strong>${PLAYER_LIFESPAN} yaşına geldin</strong> ama mirasçın yok. Evlenip çocuk yetiştirerek hanedanı sürdürebilirsin; oyun devam eder.</p>`
+      body.innerHTML = `<p class="death-cause-line">${ev.emoji} <strong>${ev.label}</strong></p><p>${ev.message}</p>`
     }
+
     const close = document.createElement('button')
     close.type = 'button'
     close.className = 'btn-primary'
-    close.dataset.action = 'close-modal'
-    close.textContent = 'Tamam'
-    this.modals.showContent('Ömür Doldu', body, [close])
+    close.dataset.action = ev.hasHeir ? 'close-modal' : 'death-continue-no-heir'
+    close.textContent = ev.hasHeir ? 'Tamam' : 'Devam Et'
+    this.modals.showContent(`${ev.age} yaşında vefat`, body, [close])
   }
 
-  private showSuccessionPicker(urgent = false): void {
+  private showSuccessionPicker(urgent = false, deathIntro?: HTMLElement): void {
     const children = this.state.dynasty.children
     if (children.length === 0) {
       this.modals.showToast(this.root, 'Miras devri için önce çocuk yetiştirmelisin.')
@@ -1348,11 +1382,15 @@ export class HUD {
     }
     const body = document.createElement('div')
     body.className = 'succession-picker'
-    const intro = document.createElement('p')
-    intro.textContent = urgent
-      ? `${this.state.playerAge()} yaşındasın — bir varis seçerek imparatorluğu devral.`
-      : 'Hangi çocukla imparatorluğa devam etmek istiyorsun?'
-    body.appendChild(intro)
+    if (deathIntro) {
+      body.appendChild(deathIntro)
+    } else {
+      const intro = document.createElement('p')
+      intro.textContent = urgent
+        ? `${this.state.playerAge()} yaşındasın — bir varis seçerek imparatorluğu devral.`
+        : 'Hangi çocukla imparatorluğa devam etmek istiyorsun?'
+      body.appendChild(intro)
+    }
     const grid = document.createElement('div')
     grid.className = 'dynasty-children'
     for (const c of children) {
