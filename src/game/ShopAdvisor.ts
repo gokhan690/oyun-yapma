@@ -12,25 +12,33 @@ export interface ShopRecommendation {
   label: string
   emoji: string
   cost: number
-  roiSeconds: number
-  ipsGain: number
+  roiDays: number
+  ipdGain: number
   affordable: boolean
   reason: string
 }
 
+/** @deprecated use roiDays */
+export type ShopRecommendationLegacy = ShopRecommendation & { roiSeconds: number; ipsGain: number }
+
 export type BizSortOrder = 'profit' | 'cheap' | 'name' | 'unlockable'
 
-export function producerRoiSeconds(state: GameState, p: ProducerDef, count = 1): number {
+export function producerRoiDays(state: GameState, p: ProducerDef, count = 1): number {
   const owned = state.producers[p.id] ?? 0
   const cost = state.producerCostFor(p, owned, count)
-  const ipsGain = p.baseIncome * count * state.passiveMultiplier()
-  if (ipsGain <= 0) return Infinity
-  return cost / ipsGain
+  const ipdGain = p.baseIncome * count * state.passiveMultiplier()
+  if (ipdGain <= 0) return Infinity
+  return cost / ipdGain
 }
 
-export function upgradeIpsGain(state: GameState, u: UpgradeDef): number {
+/** @deprecated use producerRoiDays */
+export function producerRoiSeconds(state: GameState, p: ProducerDef, count = 1): number {
+  return producerRoiDays(state, p, count)
+}
+
+export function upgradeIpdGain(state: GameState, u: UpgradeDef): number {
   if (u.effect === 'global_mult') {
-    const cur = state.incomePerSecond()
+    const cur = state.incomePerDay()
     return cur * (u.value - 1)
   }
   if (u.effect === 'click_mult') return 0
@@ -44,6 +52,11 @@ export function upgradeIpsGain(state: GameState, u: UpgradeDef): number {
   return 0
 }
 
+/** @deprecated use upgradeIpdGain */
+export function upgradeIpsGain(state: GameState, u: UpgradeDef): number {
+  return upgradeIpdGain(state, u)
+}
+
 export function getBestRecommendation(state: GameState): ShopRecommendation | null {
   const candidates: ShopRecommendation[] = []
 
@@ -51,8 +64,8 @@ export function getBestRecommendation(state: GameState): ShopRecommendation | nu
     const owned = state.producers[p.id] ?? 0
     const count = state.countMaxAffordable(p.id) >= 1 ? 1 : 1
     const cost = state.producerCostFor(p, owned, count)
-    const roi = producerRoiSeconds(state, p, count)
-    const ipsGain = p.baseIncome * count * state.passiveMultiplier()
+    const roi = producerRoiDays(state, p, count)
+    const ipdGain = p.baseIncome * count * state.passiveMultiplier()
     const synergies = getActiveSynergies(state.producers)
     const synBonus = synergies.some((s) => s.def.requires.includes(p.id) || s.def.targetProducer === p.id)
     candidates.push({
@@ -61,8 +74,8 @@ export function getBestRecommendation(state: GameState): ShopRecommendation | nu
       label: p.name,
       emoji: p.emoji,
       cost,
-      roiSeconds: roi,
-      ipsGain,
+      roiDays: roi,
+      ipdGain,
       affordable: state.canAfford(cost),
       reason: synBonus ? 'Sinerji bonusu yakın' : 'En iyi ROI',
     })
@@ -72,16 +85,16 @@ export function getBestRecommendation(state: GameState): ShopRecommendation | nu
     const discount = hasNode(state.prestigeTree, 'upgrade_10') ? 0.1 : 0
     const upgradeDiscount = state.upgradeDiscountActive ? 0.3 : 0
     const cost = Math.floor(u.cost * (1 - discount) * (1 - upgradeDiscount))
-    const ipsGain = upgradeIpsGain(state, u)
-    const roi = ipsGain > 0 ? cost / ipsGain : Infinity
+    const ipdGain = upgradeIpdGain(state, u)
+    const roi = ipdGain > 0 ? cost / ipdGain : Infinity
     candidates.push({
       kind: 'upgrade',
       id: u.id,
       label: u.name,
       emoji: u.effect === 'click_mult' ? '👆' : u.effect === 'global_mult' ? '🌍' : '🏢',
       cost,
-      roiSeconds: roi,
-      ipsGain,
+      roiDays: roi,
+      ipdGain,
       affordable: state.canAfford(cost),
       reason: u.effect === 'click_mult' ? 'Tıklama gücü' : 'Gelir artışı',
     })
@@ -92,25 +105,25 @@ export function getBestRecommendation(state: GameState): ShopRecommendation | nu
       const cost = state.managerDiscountActive
         ? Math.floor(state.managerCostFor(p) * 0.5)
         : state.managerCostFor(p)
-      const ipsGain = state.producerIncome(p) * 0.25
+      const ipdGain = state.producerIncome(p) * 0.25
       candidates.push({
         kind: 'manager',
         id: p.id,
         label: `${p.name} yöneticisi`,
         emoji: '👔',
         cost,
-        roiSeconds: ipsGain > 0 ? cost / ipsGain : Infinity,
-        ipsGain,
+        roiDays: ipdGain > 0 ? cost / ipdGain : Infinity,
+        ipdGain,
         affordable: state.canAfford(cost),
         reason: 'Yönetici +25% gelir',
       })
     }
   }
 
-  const affordable = candidates.filter((c) => c.affordable && Number.isFinite(c.roiSeconds))
-  const pool = affordable.length > 0 ? affordable : candidates.filter((c) => Number.isFinite(c.roiSeconds))
+  const affordable = candidates.filter((c) => c.affordable && Number.isFinite(c.roiDays))
+  const pool = affordable.length > 0 ? affordable : candidates.filter((c) => Number.isFinite(c.roiDays))
   if (pool.length === 0) return null
-  pool.sort((a, b) => a.roiSeconds - b.roiSeconds)
+  pool.sort((a, b) => a.roiDays - b.roiDays)
   return pool[0] ?? null
 }
 
@@ -118,7 +131,7 @@ export function sortProducers(list: ProducerDef[], order: BizSortOrder, state: G
   const copy = [...list]
   switch (order) {
     case 'profit':
-      return copy.sort((a, b) => producerRoiSeconds(state, a) - producerRoiSeconds(state, b))
+      return copy.sort((a, b) => producerRoiDays(state, a) - producerRoiDays(state, b))
     case 'cheap':
       return copy.sort((a, b) => {
         const ca = state.producerCostFor(a, state.producers[a.id] ?? 0, 1)
@@ -137,14 +150,19 @@ export function sortProducers(list: ProducerDef[], order: BizSortOrder, state: G
   }
 }
 
-export function formatRoi(seconds: number): string {
-  if (!Number.isFinite(seconds)) return '—'
-  if (seconds < 60) return `${Math.ceil(seconds)}sn`
-  if (seconds < 3600) return `${Math.ceil(seconds / 60)}dk`
-  if (seconds < 86400) return `${Math.ceil(seconds / 3600)}sa`
-  return `${Math.ceil(seconds / 86400)}g`
+export function formatRoi(days: number): string {
+  if (!Number.isFinite(days)) return '—'
+  if (days < 1) return `${Math.ceil(days * 24)}sa`
+  if (days < 30) return `${Math.ceil(days)}g`
+  if (days < 365) return `${Math.ceil(days / 30)}ay`
+  return `${Math.ceil(days / 365)}y`
+}
+
+/** @deprecated use formatRoi */
+export function formatRoiSeconds(seconds: number): string {
+  return formatRoi(seconds)
 }
 
 export function formatRecommendationSummary(rec: ShopRecommendation): string {
-  return `${rec.emoji} ${rec.label} · ${formatMoney(rec.cost)} · ROI ~${formatRoi(rec.roiSeconds)}`
+  return `${rec.emoji} ${rec.label} · ${formatMoney(rec.cost)} · ROI ~${formatRoi(rec.roiDays)}`
 }

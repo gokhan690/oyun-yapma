@@ -38,7 +38,7 @@ export class StatsBar {
 
     const chips = document.createElement('div')
     chips.className = 'stats-hero-chips'
-    this.incomeChip = this.chip('⚡', '0/sn')
+    this.incomeChip = this.chip('⚡', '0/gün')
     this.prestigeChip = this.chip('📊', 'x1.00')
     this.boostChip = this.chip('🔥', '—')
     chips.append(this.incomeChip, this.prestigeChip, this.boostChip)
@@ -65,7 +65,7 @@ export class StatsBar {
   }
 
   private updateMeta(): void {
-    this.setChip(this.incomeChip, `${formatMoney(this.state.incomePerSecond())}/sn`)
+    this.setChip(this.incomeChip, `${formatMoney(this.state.incomePerDay())}/gün`)
     this.setChip(this.prestigeChip, `x${prestigeMultiplier(this.state.prestigePoints).toFixed(2)}`)
     if (this.state.isShopBoostActive()) {
       const sec = Math.ceil(this.state.shopBoostRemainingMs() / 1000)

@@ -10,6 +10,14 @@
   }
 
   .achieve-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .badges-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .codex-grid {
     grid-template-columns: repeat(5, 1fr);
   }
 }

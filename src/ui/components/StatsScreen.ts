@@ -152,7 +152,7 @@ export class StatsScreen {
   }
 
   private renderIncomeSources(): void {
-    const total = this.state.incomePerSecond()
+    const total = this.state.incomePerDay()
     if (total <= 0) return
 
     const section = document.createElement('div')

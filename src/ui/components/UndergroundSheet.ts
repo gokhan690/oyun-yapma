@@ -77,7 +77,7 @@ export class UndergroundSheet {
       const check = state.canUseUnderground(action.id)
       const cd = state.undergroundCooldownRemaining(action.id)
       let costText = ''
-      if (action.id === 'lawyer') costText = formatMoney(state.incomePerSecond() * 120)
+      if (action.id === 'lawyer') costText = formatMoney(state.incomePerDay() * 0.5)
       else if (action.id === 'bribe') costText = formatMoney(Math.floor(state.money * 0.05))
       else costText = formatMoney(Math.max(1, state.illegalIncomePerSecond() * 0.2 * 60))
 

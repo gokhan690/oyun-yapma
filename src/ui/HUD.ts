@@ -19,6 +19,7 @@ import { Leaderboard } from '../game/Leaderboard'
 import { BottomNav, type NavView } from './components/BottomNav'
 import { GoalsSheet } from './components/GoalsSheet'
 import { EventsPanel } from './components/EventsPanel'
+import { EmpirePanel } from './components/EmpirePanel'
 import { UndergroundSheet } from './components/UndergroundSheet'
 import { OwnerPanel } from './components/OwnerPanel'
 import { applyDocumentTheme } from '../utils/themeApply'
@@ -59,6 +60,7 @@ export class HUD {
   private bottomNav: BottomNav
   private goalsSheet: GoalsSheet
   private eventsPanel: EventsPanel
+  private empirePanel: EmpirePanel
   private undergroundSheet: UndergroundSheet
   private ownerPanel: OwnerPanel
   private titleEl!: HTMLHeadingElement
@@ -106,6 +108,7 @@ export class HUD {
     this.bottomNav = new BottomNav()
     this.goalsSheet = new GoalsSheet()
     this.eventsPanel = new EventsPanel()
+    this.empirePanel = new EmpirePanel()
     this.undergroundSheet = new UndergroundSheet()
     this.ownerPanel = new OwnerPanel(state, saveManager, () => this.renderAll())
     this.leaderboard = new Leaderboard()
@@ -376,7 +379,7 @@ export class HUD {
     adsPanel.append(adDouble, adChest)
 
     this.earnView.append(this.weeklyBanner, progressStrip, sessionPanel, tapWrap, adsPanel)
-    main.append(this.earnView, this.shop.root, this.eventsPanel.root)
+    main.append(this.earnView, this.shop.root, this.eventsPanel.root, this.empirePanel.root)
 
     this.adBannerSlot = document.createElement('div')
     this.adBannerSlot.className = 'ad-banner-slot'
@@ -396,12 +399,14 @@ export class HUD {
     this.goalsSheet.close()
     this.modals.close()
     this.bottomNav.setActive(view)
-    this.earnView.hidden = view === 'shop' || view === 'events'
+    this.earnView.hidden = view === 'shop' || view === 'events' || view === 'empire'
     this.shop.root.hidden = view !== 'shop'
     this.eventsPanel.root.hidden = view !== 'events'
-    this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop')
+    this.empirePanel.root.hidden = view !== 'empire'
+    this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'empire')
     if (view === 'shop') this.refreshShop(true)
     if (view === 'events') this.eventsPanel.render(this.state)
+    if (view === 'empire') this.empirePanel.render(this.state)
     if (view === 'profile') {
       this.statsScreen.show()
       this.settings.hide()
@@ -439,9 +444,9 @@ export class HUD {
   private renderDayNightChip(): void {
     const clock = formatGameClock(this.state.gameTimeMs)
     if (this.state.isNight) {
-      this.dayNightChip.textContent = `🌙 ${clock} · Pasif +${Math.round((0.15 + nightBonusExtra(this.state.prestigeTree)) * 100)}%`
+      this.dayNightChip.textContent = `🌙 ${clock} · Hafta sonu pasif +${Math.round((0.15 + nightBonusExtra(this.state.prestigeTree)) * 100)}%`
     } else {
-      this.dayNightChip.textContent = `☀️ ${clock} · Tık +${Math.round((0.1 + dayBonusExtra(this.state.prestigeTree)) * 100)}%`
+      this.dayNightChip.textContent = `☀️ ${clock} · Hafta içi tık +${Math.round((0.1 + dayBonusExtra(this.state.prestigeTree)) * 100)}%`
     }
   }
 
@@ -753,7 +758,7 @@ export class HUD {
         const nextStreak = this.state.dailyLastClaim && !streakLost
           ? this.state.dailyStreak + 1
           : 1
-        const preview = Math.max(100 * nextStreak, this.state.incomePerSecond() * 60 * nextStreak)
+        const preview = Math.max(100 * nextStreak, this.state.incomePerDay() * nextStreak)
         this.modals.showDailyReward(
           nextStreak,
           formatMoney(preview),
@@ -805,6 +810,55 @@ export class HUD {
           this.refreshShop(true)
         } else if (id) {
           this.modals.showToast(this.root, 'Erken açmak için yeterli para yok')
+        }
+        break
+      case 'empire-section':
+        if (id === 'football' || id === 'politics' || id === 'dark') {
+          this.empirePanel.setSection(id)
+          this.empirePanel.render(this.state)
+        }
+        break
+      case 'empire-stadium':
+        if (id && this.state.upgradeFootballStadium(id)) {
+          this.modals.showToast(this.root, 'Stadyum yükseltildi!')
+          this.empirePanel.render(this.state)
+          this.renderAll()
+        }
+        break
+      case 'empire-league':
+        if (id && this.state.upgradeFootballLeague(id)) {
+          this.modals.showToast(this.root, 'Lig yükseltildi!')
+          this.empirePanel.render(this.state)
+          this.renderAll()
+        }
+        break
+      case 'empire-lobby':
+        if (this.state.empireLobby()) {
+          this.modals.showToast(this.root, 'Lobi faaliyeti başarılı')
+          this.empirePanel.render(this.state)
+          this.renderAll()
+        }
+        break
+      case 'empire-donate':
+        if (this.state.empireDonate(Math.max(5000, this.state.incomePerDay() * 0.1))) {
+          this.modals.showToast(this.root, 'Kampanyaya bağış yapıldı')
+          this.empirePanel.render(this.state)
+          this.renderAll()
+        }
+        break
+      case 'empire-dark-boost':
+        if (this.state.empireBoostDarkProduction()) {
+          this.modals.showToast(this.root, 'Üretim artırıldı')
+          this.empirePanel.render(this.state)
+          this.renderAll()
+        }
+        break
+      case 'empire-dark-radar':
+        if (this.state.empireReduceDarkHeat()) {
+          this.modals.showToast(this.root, 'Radar düşürüldü')
+          this.empirePanel.render(this.state)
+          this.renderHeatMeter()
+          this.renderAll()
         }
         break
       case 'biz-filter':
@@ -882,6 +936,7 @@ export class HUD {
       case 'shop-sub-tab':
         if (id === 'businesses' || id === 'management') this.shop.setGrowthSub(id)
         else if (id === 'upgrades' || id === 'research') this.shop.setPowerupSub(id)
+        else if (id === 'sport' || id === 'politics' || id === 'dark') this.shop.setEmpireSub(id)
         this.refreshShop(true)
         break
       case 'biz-sort':
@@ -1164,10 +1219,10 @@ export class HUD {
   private renderSessionPanel(): void {
     const clickIncome = this.state.clickMultiplier()
     const comboMult = this.state.comboMultiplier
-    const passive = this.state.incomePerSecond()
+    const passive = this.state.incomePerDay()
     this.sessionClickIncome.textContent = formatMoney(clickIncome)
     this.sessionComboMult.textContent = `${comboMult.toFixed(1)}x`
-    this.sessionPassiveIncome.textContent = `${formatMoney(passive)}/sn`
+    this.sessionPassiveIncome.textContent = `${formatMoney(passive)}/gün`
   }
 
   private checkRankUp(): void {
@@ -1264,9 +1319,9 @@ export class HUD {
     if (!detail) return
     const rows = [
       { label: 'Adet', value: String(detail.owned) },
-      { label: 'Birim gelir', value: `${formatMoney(detail.basePerUnit)}/sn` },
+      { label: 'Birim gelir', value: `${formatMoney(detail.basePerUnit)}/gün` },
       ...detail.lines,
-      { label: 'Toplam', value: `${formatMoney(detail.totalPerSec)}/sn` },
+      { label: 'Toplam', value: `${formatMoney(detail.totalPerDay)}/gün` },
     ]
     this.modals.showDetail(`${detail.name} — Gelir Dökümü`, rows, 'Kapat butonuna bas.')
   }
@@ -1355,7 +1410,7 @@ export class HUD {
     this.state.incrementRewardedAdCount()
     let amount = this.state.openLuckyChest()
     if (amount <= 0) {
-      amount = Math.max(500, this.state.incomePerSecond() * 120)
+      amount = Math.max(500, this.state.incomePerDay() * 2)
       this.state.addMoney(amount)
     }
     this.sound.playReward()
@@ -1525,6 +1580,7 @@ export class HUD {
     this.skyline.update(this.state.ownedBusinessTiers())
     this.goalsSheet.render(this.state)
     this.eventsPanel.render(this.state)
+    if (this.bottomNav.getActive() === 'empire') this.empirePanel.render(this.state)
     this.renderMarketNewsBanner()
     this.renderDayNightChip()
     this.renderProgressStrip()

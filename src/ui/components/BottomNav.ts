@@ -1,4 +1,4 @@
-export type NavView = 'earn' | 'shop' | 'events' | 'profile'
+export type NavView = 'earn' | 'shop' | 'events' | 'empire' | 'profile'
 
 import { assetUrl } from '../../utils/assetUrl'
 
@@ -6,6 +6,7 @@ const NAV_ICONS: Record<NavView, string> = {
   earn: assetUrl('icons/nav/earn.svg'),
   shop: assetUrl('icons/nav/shop.svg'),
   events: assetUrl('icons/nav/events.svg'),
+  empire: assetUrl('icons/nav/empire.svg'),
   profile: assetUrl('icons/nav/profile.svg'),
 }
 
@@ -23,6 +24,7 @@ export class BottomNav {
       { id: 'earn', label: 'Kazan' },
       { id: 'shop', label: 'Mağaza' },
       { id: 'events', label: 'Etkinlik' },
+      { id: 'empire', label: 'İmparatorluk' },
       { id: 'profile', label: 'Profil' },
     ]
     for (const d of defs) {

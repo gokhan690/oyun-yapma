@@ -1,14 +1,20 @@
 import { localDayKey } from './dateUtils'
 
 export const DAILY_GOAL_MIN = 100_000
-export const DAILY_GOAL_IPS_SECONDS = 300
+/** Günlük hedef = en az bu kadar oyun günü geliri */
+export const DAILY_GOAL_IPD_DAYS = 3
 
 export function dailyGoalDayKey(): string {
   return localDayKey()
 }
 
-export function scaledDailyGoalTarget(incomePerSecond: number): number {
-  return Math.max(DAILY_GOAL_MIN, Math.floor(incomePerSecond * DAILY_GOAL_IPS_SECONDS))
+export function scaledDailyGoalTarget(incomePerDay: number): number {
+  return Math.max(DAILY_GOAL_MIN, Math.floor(incomePerDay * DAILY_GOAL_IPD_DAYS))
+}
+
+/** @deprecated use incomePerDay */
+export function scaledDailyGoalTargetFromIps(incomePerSecond: number): number {
+  return scaledDailyGoalTarget(incomePerSecond)
 }
 
 export function dailyGoalProgress(earned: number, target: number): number {
@@ -20,5 +26,4 @@ export function dailyGoalComplete(earned: number, target: number): boolean {
   return earned >= target
 }
 
-/** @deprecated use scaledDailyGoalTarget */
 export const DAILY_GOAL_TARGET = DAILY_GOAL_MIN

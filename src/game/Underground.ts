@@ -27,7 +27,7 @@ export const UNDERGROUND_ACTIONS: UndergroundActionDef[] = [
     id: 'launder',
     name: 'Para Aklama',
     emoji: '🧼',
-    description: '5 dk heat −15/sn (illegal gelirin %20)',
+    description: '5 dk heat −15/gün (illegal gelirin %20)',
     cooldownMs: 15 * 60_000,
   },
 ]

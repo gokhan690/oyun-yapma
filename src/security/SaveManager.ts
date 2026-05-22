@@ -4,9 +4,11 @@ import { createWeeklyState } from '../game/WeeklyEvent'
 import { createSeasonState } from '../game/SeasonPass'
 import { dailyGoalDayKey } from '../game/DailyGoal'
 import { createDynastyState } from '../game/Dynasty'
+import { createEmpireState } from '../game/Empire'
 import { PRODUCERS } from '../game/Economy'
 import { RESEARCH_NODES } from '../game/Research'
 
+const SAVE_KEY_V9 = 'is_imparatorlugu_save_v9'
 const SAVE_KEY_V8 = 'is_imparatorlugu_save_v8'
 const SAVE_KEY_V7 = 'is_imparatorlugu_save_v7'
 const SAVE_KEY_V6 = 'is_imparatorlugu_save_v6'
@@ -16,7 +18,7 @@ const SAVE_KEY_V3 = 'is_imparatorlugu_save_v3'
 const SAVE_KEY_V2 = 'is_imparatorlugu_save_v2'
 const SAVE_KEY_V1 = 'para_tuzagi_save_v1'
 const OBFUSCATION_KEY = 'PT2026x'
-const CURRENT_VERSION = 8
+const CURRENT_VERSION = 9
 
 interface SaveEnvelope {
   payload: string
@@ -42,12 +44,18 @@ export class SaveManager {
   save(state: GameState): void {
     const data = state.toJSON()
     data.lastSaveTime = Date.now()
-    this.writeSave(data, CURRENT_VERSION, SAVE_KEY_V8)
+    this.writeSave(data, CURRENT_VERSION, SAVE_KEY_V9)
   }
 
   load(state: GameState): { ok: boolean; lastSaveTime: number } {
-    const v8 = this.tryLoad(state, SAVE_KEY_V8, CURRENT_VERSION)
-    if (v8.ok) return v8
+    const v9 = this.tryLoad(state, SAVE_KEY_V9, CURRENT_VERSION)
+    if (v9.ok) return v9
+
+    const v8 = this.tryLoad(state, SAVE_KEY_V8, 8)
+    if (v8.ok) {
+      this.save(state)
+      return v8
+    }
 
     const v7 = this.tryLoad(state, SAVE_KEY_V7, 7)
     if (v7.ok) return v7
@@ -92,6 +100,7 @@ export class SaveManager {
   }
 
   clear(): void {
+    localStorage.removeItem(SAVE_KEY_V9)
     localStorage.removeItem(SAVE_KEY_V8)
     localStorage.removeItem(SAVE_KEY_V7)
     localStorage.removeItem(SAVE_KEY_V6)
@@ -168,7 +177,7 @@ export class SaveManager {
         return { ok: false, lastSaveTime: Date.now() }
       }
 
-      const data = applyV5Defaults(JSON.parse(json) as SerializableState)
+      const data = applyV9Defaults(applyV5Defaults(JSON.parse(json) as SerializableState))
       if (envelope.version !== expectedVersion || !validateState(data)) {
         return { ok: false, lastSaveTime: Date.now() }
       }
@@ -373,6 +382,16 @@ function applyV3Defaults(legacy: LegacyState): SerializableState {
     upgradeDiscountActive: legacy.upgradeDiscountActive ?? false,
     undergroundTree: legacy.undergroundTree ?? {},
     advisorBuys: legacy.advisorBuys ?? 0,
+    empire: legacy.empire ?? createEmpireState(),
+    gameStartYear: legacy.gameStartYear ?? 2026,
+  }
+}
+
+function applyV9Defaults(state: SerializableState): SerializableState {
+  return {
+    ...state,
+    empire: state.empire ?? createEmpireState(),
+    gameStartYear: state.gameStartYear ?? 2026,
   }
 }
 

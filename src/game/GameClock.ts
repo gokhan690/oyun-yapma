@@ -1,34 +1,55 @@
-/** 1 gerçek saniye = kaç oyun dakikası (2 → tam oyun günü ~12 dk) */
-export const GAME_MINUTES_PER_REAL_SECOND = 2
+export const GAME_START_YEAR = 2026
+/** 1 gerçek saniye = 1 oyun günü */
+export const REAL_SECONDS_PER_GAME_DAY = 1
 
-const MS_PER_GAME_MINUTE = 60_000
-const MS_PER_GAME_HOUR = 60 * MS_PER_GAME_MINUTE
-const MS_PER_GAME_DAY = 24 * MS_PER_GAME_HOUR
+export const MS_PER_GAME_DAY = 1000
+
+const MONTH_NAMES = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
 
 /** Gerçek saniyeyi oyun zamanına çevir */
 export function realSecondsToGameMs(dtSec: number): number {
-  return dtSec * GAME_MINUTES_PER_REAL_SECOND * MS_PER_GAME_MINUTE
-}
-
-export function gameHour(gameTimeMs: number): number {
-  return Math.floor((gameTimeMs % MS_PER_GAME_DAY) / MS_PER_GAME_HOUR)
+  return dtSec * MS_PER_GAME_DAY
 }
 
 export function gameDay(gameTimeMs: number): number {
   return Math.floor(gameTimeMs / MS_PER_GAME_DAY) + 1
 }
 
-export function isGameNight(gameTimeMs: number): boolean {
-  const h = gameHour(gameTimeMs)
-  return h >= 20 || h < 6
+export function gameCalendarDate(gameTimeMs: number): Date {
+  const d = new Date(Date.UTC(GAME_START_YEAR, 0, 1))
+  d.setUTCDate(d.getUTCDate() + gameDay(gameTimeMs) - 1)
+  return d
 }
 
-/** Örn. "Gün 3 · 14:07" */
+export function gameYear(gameTimeMs: number): number {
+  return gameCalendarDate(gameTimeMs).getUTCFullYear()
+}
+
+export function gameMonth(gameTimeMs: number): number {
+  return gameCalendarDate(gameTimeMs).getUTCMonth() + 1
+}
+
+/** Cumartesi veya Pazar */
+export function isGameWeekend(gameTimeMs: number): boolean {
+  const dow = gameCalendarDate(gameTimeMs).getUTCDay()
+  return dow === 0 || dow === 6
+}
+
+/** @deprecated use isGameWeekend — hafta sonu pasif bonusu için */
+export function isGameNight(gameTimeMs: number): boolean {
+  return isGameWeekend(gameTimeMs)
+}
+
+export function gameHour(_gameTimeMs: number): number {
+  return 12
+}
+
+/** Örn. "15 Oca 2026 · Gün 15" */
 export function formatGameClock(gameTimeMs: number): string {
   const day = gameDay(gameTimeMs)
-  const h = gameHour(gameTimeMs)
-  const m = Math.floor((gameTimeMs % MS_PER_GAME_HOUR) / MS_PER_GAME_MINUTE)
-  return `Gün ${day} · ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  const cal = gameCalendarDate(gameTimeMs)
+  const month = MONTH_NAMES[cal.getUTCMonth()] ?? '?'
+  return `${cal.getUTCDate()} ${month} ${cal.getUTCFullYear()} · Gün ${day}`
 }
 
 /** Oyun takviminde hafta (7 oyun günü) */
@@ -41,4 +62,4 @@ export function gameSeasonKey(gameTimeMs: number): string {
   return `gs${Math.floor((gameDay(gameTimeMs) - 1) / 30)}`
 }
 
-export { MS_PER_GAME_DAY, MS_PER_GAME_HOUR }
+export const MS_PER_GAME_HOUR = MS_PER_GAME_DAY / 24

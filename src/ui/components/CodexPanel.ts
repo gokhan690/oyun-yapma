@@ -44,7 +44,7 @@ export class CodexPanel {
       else {
         const date = state.codexUnlockDates[p.id]
         const income = state.producerIncome(p)
-        meta.textContent = `x${owned}${date ? ` · ${date}` : ''} · ${formatMoney(income)}/sn`
+        meta.textContent = `x${owned}${date ? ` · ${date}` : ''} · ${formatMoney(income)}/gün`
       }
       card.append(icon, name, meta)
       grid.appendChild(card)

@@ -58,7 +58,23 @@ import {
   hasNode,
 } from './PrestigeTree'
 import { localDayKey, yesterdayLocalKey } from './dateUtils'
-import { gameDay, gameHour, gameWeekKey, isGameNight, realSecondsToGameMs } from './GameClock'
+import { gameDay, gameWeekKey, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSecondsToGameMs } from './GameClock'
+import {
+  createEmpireState,
+  syncEmpireFromProducers,
+  tickEmpireDaily,
+  empireFootballIncomeMult,
+  empirePoliticsCostDiscount,
+  empirePoliticsHeatReduction,
+  empireDarkProductionMult,
+  boostDarkProduction,
+  reduceDarkHeat,
+  stadiumUpgradeCost,
+  leagueUpgradeCost,
+  lobbyCost,
+  donateCampaign,
+  type EmpireState,
+} from './Empire'
 import {
   createDynastyState,
   activeDynastyTrait,
@@ -183,6 +199,8 @@ export interface SerializableState {
   upgradeDiscountActive: boolean
   undergroundTree: Record<string, number>
   advisorBuys: number
+  empire: EmpireState
+  gameStartYear: number
 }
 
 export interface ProducerBreakdown {
@@ -190,7 +208,7 @@ export interface ProducerBreakdown {
   owned: number
   basePerUnit: number
   lines: { label: string; value: string }[]
-  totalPerSec: number
+  totalPerDay: number
 }
 
 export type GameEvent =
@@ -240,8 +258,9 @@ export type GameEvent =
 const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
 const CRIT_MULT = 10
-const BASE_CLICK = 1
-const BASE_OFFLINE_CAP_MS = 8 * 60 * 60 * 1000
+const BASE_CLICK = 720
+const BASE_OFFLINE_CAP_GAME_DAYS = 365
+const BASE_OFFLINE_CAP_MS = BASE_OFFLINE_CAP_GAME_DAYS * MS_PER_GAME_DAY
 const AD_BOOST_DURATION_MS = 5 * 60 * 1000
 const COMEBACK_MIN_AWAY_MS = 24 * 60 * 60 * 1000
 const STREAK_MILESTONES = [7, 14, 30]
@@ -324,6 +343,8 @@ export class GameState {
   shopBoostUntil = 0
   upgradeDiscountActive = false
   undergroundTree = createUndergroundTreeState()
+  empire = createEmpireState()
+  gameStartYear = 2026
   private lastIllegalRiskCheck = 0
   private lastHeatTick = 0
   private lastSurpriseCheck = 0
@@ -346,7 +367,7 @@ export class GameState {
   private passiveAccrued = 0
   private lastGameClockEmit = 0
   private lastDynastyGameDay = 0
-  private lastMarketNewsGameHour = -1
+  private lastMarketNewsGameDay = 0
 
   private listeners = new Set<(event: GameEvent) => void>()
   private tickHandle: number | null = null
@@ -417,7 +438,7 @@ export class GameState {
       this.tickSurpriseInvestor(now)
       this.tickNearMiss(now)
       if (dt > 0 && dt < 1) {
-        const income = this.incomePerSecond() * dt
+        const income = this.incomePerDay() * dt
         if (income > 0) this.passiveAccrued += income
       }
       if (now - lastPassiveEmit > 250 && this.passiveAccrued >= 0.01) {
@@ -486,7 +507,7 @@ export class GameState {
 
     let reward = 0
     if (event.rewardType === 'instant_cash') {
-      reward = Math.max(500, this.incomePerSecond() * 60 * event.rewardValue)
+      reward = Math.max(500, this.incomePerDay() * event.rewardValue)
       this.addMoney(reward)
     } else {
       this.eventBoostUntil = Date.now() + (event.boostDurationMs ?? 30_000)
@@ -553,10 +574,10 @@ export class GameState {
   private tickDayNight(now: number): void {
     if (now - this.lastDayNightCheck < 1000) return
     this.lastDayNightCheck = now
-    const night = isGameNight(this.gameTimeMs)
-    if (night !== this.isNight) {
-      this.isNight = night
-      this.emit({ type: 'day_night', isNight: night })
+    const weekend = isGameWeekend(this.gameTimeMs)
+    if (weekend !== this.isNight) {
+      this.isNight = weekend
+      this.emit({ type: 'day_night', isNight: weekend })
     }
   }
 
@@ -617,7 +638,9 @@ export class GameState {
     if (this.purchasedUpgrades.has('offshore_laundry')) heat *= 0.8
     if (this.hasCodexLegalComplete()) heat = Math.min(100, heat * 0.9)
     heat *= heatGainReduction(this.undergroundTree)
-    return heat
+    heat *= 1 - empirePoliticsHeatReduction(this.empire.politics)
+    heat += this.empire.darkIndustry.heatBonus
+    return Math.max(0, heat)
   }
 
   illegalRiskLabel(): string {
@@ -627,12 +650,27 @@ export class GameState {
     return 'Kritik'
   }
 
-  illegalIncomePerSecond(): number {
+  illegalIncomePerDay(): number {
     return PRODUCERS.filter((p) => p.illegal).reduce((s, p) => s + this.producerIncome(p), 0)
   }
 
+  legalIncomePerDay(): number {
+    return this.incomePerDay() - this.illegalIncomePerDay()
+  }
+
+  /** @deprecated use incomePerDay */
+  incomePerSecond(): number {
+    return this.incomePerDay()
+  }
+
+  /** @deprecated use illegalIncomePerDay */
+  illegalIncomePerSecond(): number {
+    return this.illegalIncomePerDay()
+  }
+
+  /** @deprecated use legalIncomePerDay */
   legalIncomePerSecond(): number {
-    return this.incomePerSecond() - this.illegalIncomePerSecond()
+    return this.legalIncomePerDay()
   }
 
   private tickIllegalRisk(now: number): void {
@@ -736,6 +774,10 @@ export class GameState {
     return BASE_OFFLINE_CAP_MS + researchOfflineBonusMs(this.research) + offlineBonusMs(this.prestigeTree)
   }
 
+  offlineCapGameDays(): number {
+    return Math.floor(this.offlineCapMs() / MS_PER_GAME_DAY)
+  }
+
   globalMultiplier(): number {
     let mult = prestigeMultiplier(this.prestigePoints) * (1 + prestigeMultBonus(this.prestigeTree))
     for (const id of this.purchasedUpgrades) {
@@ -795,6 +837,13 @@ export class GameState {
     mult *= this.marketNewsProducerMult(def.id)
     mult *= spouseProducerBonus(this.dynasty, def.id, hasNode(this.prestigeTree, 'dynasty_1'))
     if (def.illegal) mult *= illegalIncomeBonus(this.undergroundTree)
+    if (def.category === 'dark') {
+      mult *= empireDarkProductionMult(this.empire.darkIndustry, this.gameTimeMs)
+    }
+    if (def.category === 'sport') {
+      const club = this.empire.football.find((c) => c.clubId === def.id)
+      if (club) mult *= empireFootballIncomeMult(club)
+    }
     return def.baseIncome * owned * mult * this.passiveMultiplier()
   }
 
@@ -837,11 +886,11 @@ export class GameState {
       this.activeMarketNews = null
       this.emit({ type: 'market_news', headline: '', active: false })
     }
-    const h = gameHour(this.gameTimeMs)
-    if (h === this.lastMarketNewsGameHour || this.activeMarketNews) return
-    if (h % 4 !== 0) return
-    this.lastMarketNewsGameHour = h
-    const def = pickMarketNews(gameDay(this.gameTimeMs), h)
+    const day = gameDay(this.gameTimeMs)
+    if (day === this.lastMarketNewsGameDay || this.activeMarketNews) return
+    if (day % 4 !== 0) return
+    this.lastMarketNewsGameDay = day
+    const def = pickMarketNews(day)
     this.activeMarketNews = {
       defId: def.id,
       expiresGameTimeMs: this.gameTimeMs + newsDurationMs(def),
@@ -853,6 +902,13 @@ export class GameState {
     const day = gameDay(this.gameTimeMs)
     if (day === this.lastDynastyGameDay) return
     this.lastDynastyGameDay = day
+    syncEmpireFromProducers(this.empire, this.producers)
+    const { matchBonus, election } = tickEmpireDaily(this.empire, this.producers, this.gameTimeMs, gameYear(this.gameTimeMs))
+    if (matchBonus > 0) this.addMoney(matchBonus)
+    if (election) this.triggerStoryBeat('election_year')
+    if (gameYear(this.gameTimeMs) === 2027 && !this.seenStoryBeats.has('year_2027')) {
+      this.triggerStoryBeat('year_2027')
+    }
     if (!this.dynasty.spouseName || this.dynasty.children.length >= 3) return
     const married = this.dynasty.marriedGameDay ?? day
     if (day - married < 5) return
@@ -870,8 +926,8 @@ export class GameState {
 
   private tickChildEducation(gameMsDelta: number): void {
     if (this.dynasty.children.length === 0) return
-    const hours = gameMsDelta / (60 * 60_000)
-    const gain = educationXpPerGameHour() * hours
+    const days = gameMsDelta / MS_PER_GAME_DAY
+    const gain = educationXpPerGameHour() * 24 * days
     if (gain <= 0) return
     for (const child of this.dynasty.children) {
       if (child.educationXp >= CHILD_EDUCATION_MAX) continue
@@ -905,10 +961,10 @@ export class GameState {
   }
 
   dynastyCostMult(): number {
-    return traitCostMult(activeDynastyTrait(this.dynasty))
+    return traitCostMult(activeDynastyTrait(this.dynasty)) * (1 - empirePoliticsCostDiscount(this.empire.politics))
   }
 
-  incomePerSecond(): number {
+  incomePerDay(): number {
     return PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0)
   }
 
@@ -978,7 +1034,7 @@ export class GameState {
     const target = this.dailyGoalTarget()
     if (this.dailyGoalClaimed || this.dailyGoalEarned < target) return 0
     this.dailyGoalClaimed = true
-    const reward = Math.max(500, this.incomePerSecond() * 60)
+    const reward = Math.max(500, this.incomePerDay())
     this.addMoney(reward)
     return reward
   }
@@ -1000,7 +1056,7 @@ export class GameState {
     const owned = this.producers[id] ?? 0
     const lines: { label: string; value: string }[] = []
     const base = def.baseIncome * owned
-    lines.push({ label: 'Temel gelir', value: `${formatMoney(base)}/sn` })
+    lines.push({ label: 'Temel gelir', value: `${formatMoney(base)}/gün` })
 
     let prodMult = 1
     for (const uid of this.purchasedUpgrades) {
@@ -1025,7 +1081,7 @@ export class GameState {
       owned,
       basePerUnit: def.baseIncome,
       lines,
-      totalPerSec: this.producerIncome(def),
+      totalPerDay: this.producerIncome(def),
     }
   }
 
@@ -1110,6 +1166,7 @@ export class GameState {
     if (this.hasCodexAllComplete()) {
       this.awardBadge('codex_all')
     }
+    syncEmpireFromProducers(this.empire, this.producers)
     this.emit({ type: 'purchase' })
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
@@ -1284,11 +1341,11 @@ export class GameState {
   }
 
   dailyGoalTarget(): number {
-    return scaledDailyGoalTarget(this.incomePerSecond())
+    return scaledDailyGoalTarget(this.incomePerDay())
   }
 
   hasCodexLegalComplete(): boolean {
-    return PRODUCERS.filter((p) => !p.illegal).every((p) => (this.producers[p.id] ?? 0) >= 1)
+    return PRODUCERS.filter((p) => !p.illegal && !p.category).every((p) => (this.producers[p.id] ?? 0) >= 1)
   }
 
   hasCodexAllComplete(): boolean {
@@ -1335,9 +1392,9 @@ export class GameState {
     if (this.undergroundCooldownRemaining(actionId) > 0) {
       return { ok: false, reason: 'Bekleme süresi' }
     }
-    const ips = this.incomePerSecond()
+    const ipd = this.incomePerDay()
     if (actionId === 'lawyer') {
-      const cost = ips * 120
+      const cost = ipd * 0.5
       if (!this.canAfford(cost)) return { ok: false, reason: 'Yetersiz para' }
     }
     if (actionId === 'bribe') {
@@ -1345,8 +1402,8 @@ export class GameState {
       if (cost <= 0 || !this.canAfford(cost)) return { ok: false, reason: 'Yetersiz para' }
     }
     if (actionId === 'launder') {
-      const cost = this.illegalIncomePerSecond() * 0.2 * 60
-      if (this.illegalIncomePerSecond() <= 0) return { ok: false, reason: 'Illegal gelir yok' }
+      const cost = this.illegalIncomePerDay() * 0.2
+      if (this.illegalIncomePerDay() <= 0) return { ok: false, reason: 'Illegal gelir yok' }
       if (!this.canAfford(Math.max(1, cost))) return { ok: false, reason: 'Yetersiz para' }
     }
     return { ok: true }
@@ -1355,7 +1412,7 @@ export class GameState {
   useUndergroundAction(actionId: UndergroundActionId): boolean {
     const check = this.canUseUnderground(actionId)
     if (!check.ok) return false
-    const ips = this.incomePerSecond()
+    const ipd = this.incomePerDay()
     const cooldowns: Record<UndergroundActionId, number> = {
       lawyer: 10 * 60_000,
       bribe: 5 * 60_000,
@@ -1363,7 +1420,7 @@ export class GameState {
     }
 
     if (actionId === 'lawyer') {
-      this.money -= ips * 120
+      this.money -= ipd * 0.5
       this.illegalHeat = Math.max(0, this.illegalHeat - 25)
       this.heatProtectionUntil = Date.now() + LAWYER_PROTECTION_MS
       this.undergroundLawyerUsed = true
@@ -1373,7 +1430,7 @@ export class GameState {
       this.money -= cost
       this.illegalHeat = Math.max(0, this.illegalHeat - 40)
     } else if (actionId === 'launder') {
-      const cost = Math.max(1, this.illegalIncomePerSecond() * 0.2 * 60)
+      const cost = Math.max(1, this.illegalIncomePerDay() * 0.2)
       this.money -= cost
       this.launderingUntil = Date.now() + LAUNDER_DURATION_MS
     }
@@ -1384,6 +1441,67 @@ export class GameState {
     this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
+    return true
+  }
+
+  upgradeFootballStadium(clubId: string): boolean {
+    const club = this.empire.football.find((c) => c.clubId === clubId)
+    if (!club) return false
+    const cost = stadiumUpgradeCost(club.stadiumLevel)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    club.stadiumLevel++
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  upgradeFootballLeague(clubId: string): boolean {
+    const club = this.empire.football.find((c) => c.clubId === clubId)
+    if (!club || club.leagueLevel >= 4) return false
+    const cost = leagueUpgradeCost(club.leagueLevel)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    club.leagueLevel++
+    this.emit({ type: 'money_changed' })
+    if (club.leagueLevel === 3) this.triggerStoryBeat('football_superlig')
+    if (club.leagueLevel === 4) this.triggerStoryBeat('football_europe')
+    return true
+  }
+
+  empireLobby(): boolean {
+    const cost = lobbyCost(this.empire.politics.influence)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    donateCampaign(cost, this.empire.politics)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  empireDonate(amount: number): boolean {
+    if (amount <= 0 || !this.canAfford(amount)) return false
+    this.money -= amount
+    donateCampaign(amount, this.empire.politics)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  empireBoostDarkProduction(): boolean {
+    const cost = Math.max(5000, this.incomePerDay() * 0.25)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    boostDarkProduction(this.empire.darkIndustry, this.gameTimeMs)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  empireReduceDarkHeat(): boolean {
+    const cost = Math.max(3000, this.incomePerDay() * 0.15)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    reduceDarkHeat(this.empire.darkIndustry)
+    this.illegalHeat = Math.max(0, this.illegalHeat - 15)
+    this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
+    this.emit({ type: 'money_changed' })
     return true
   }
 
@@ -1474,12 +1592,12 @@ export class GameState {
 
     if (awayMs >= COMEBACK_MIN_AWAY_MS && this.comebackClaimedDay !== todayKey()) {
       const elapsed = Math.min(awayMs, this.offlineCapMs())
-      const elapsedSec = elapsed / 1000
+      const gameDaysAway = elapsed / MS_PER_GAME_DAY
       let base = 0
       for (const p of PRODUCERS) {
         let inc = this.producerIncome(p)
         if (hasManager(this.managers, p.id)) inc *= 1.5
-        base += inc * elapsedSec
+        base += inc * gameDaysAway
       }
       const mult = awayMs >= 72 * 60 * 60 * 1000 ? 3 : awayMs >= 48 * 60 * 60 * 1000 ? 2 : 1.5
       this.comebackPending = Math.floor(base * mult)
@@ -1488,13 +1606,13 @@ export class GameState {
     }
 
     const elapsed = Math.min(awayMs, this.offlineCapMs())
-    if (elapsed < 60_000) return 0
-    const elapsedSec = elapsed / 1000
+    if (elapsed < MS_PER_GAME_DAY) return 0
+    const gameDaysAway = elapsed / MS_PER_GAME_DAY
     let amount = 0
     for (const p of PRODUCERS) {
       let inc = this.producerIncome(p)
       if (hasManager(this.managers, p.id)) inc *= 1.5
-      amount += inc * elapsedSec
+      amount += inc * gameDaysAway
     }
     if (amount <= 0) return 0
     this.pendingOfflineEarnings = Math.floor(amount)
@@ -1589,7 +1707,7 @@ export class GameState {
       this.dailyStreak = 1
     }
     this.dailyLastClaim = today
-    let amount = Math.max(100 * this.dailyStreak, this.incomePerSecond() * 60 * this.dailyStreak)
+    let amount = Math.max(100 * this.dailyStreak, this.incomePerDay() * this.dailyStreak)
     for (const ms of STREAK_MILESTONES) {
       if (this.dailyStreak >= ms && !this.streakMilestonesClaimed.includes(ms)) {
         this.streakMilestonesClaimed.push(ms)
@@ -1615,7 +1733,7 @@ export class GameState {
   openLuckyChest(): number {
     if (!this.luckyChestReady) return 0
     this.luckyChestReady = false
-    const amount = Math.max(500, this.incomePerSecond() * 120)
+    const amount = Math.max(500, this.incomePerDay() * 2)
     this.addMoney(amount)
     this.emit({ type: 'chest_opened', amount })
     return amount
@@ -1728,7 +1846,7 @@ export class GameState {
     if (this.weekly.claimed || this.weekly.progress < this.weekly.target) return 0
     this.weekly.claimed = true
     if (doubleWithAd) this.weekly.adDoubled = true
-    const reward = Math.max(1000, this.incomePerSecond() * 120) * (doubleWithAd ? 2 : 1)
+    const reward = Math.max(1000, this.incomePerDay() * 2) * (doubleWithAd ? 2 : 1)
     this.addMoney(reward)
     return reward
   }
@@ -1957,6 +2075,12 @@ export class GameState {
       upgradeDiscountActive: this.upgradeDiscountActive,
       undergroundTree: { ...this.undergroundTree },
       advisorBuys: this.advisorBuys,
+      empire: {
+        football: this.empire.football.map((c) => ({ ...c })),
+        politics: { ...this.empire.politics },
+        darkIndustry: { ...this.empire.darkIndustry },
+      },
+      gameStartYear: this.gameStartYear,
     }
   }
 
@@ -2051,6 +2175,15 @@ export class GameState {
     this.upgradeDiscountActive = data.upgradeDiscountActive ?? false
     this.undergroundTree = data.undergroundTree ?? createUndergroundTreeState()
     this.advisorBuys = data.advisorBuys ?? 0
+    this.empire = data.empire
+      ? {
+          football: [...(data.empire.football ?? [])],
+          politics: { ...(data.empire.politics ?? createEmpireState().politics) },
+          darkIndustry: { ...(data.empire.darkIndustry ?? createEmpireState().darkIndustry) },
+        }
+      : createEmpireState()
+    this.gameStartYear = data.gameStartYear ?? 2026
+    syncEmpireFromProducers(this.empire, this.producers)
     if (this.dynasty.children.length > 0) {
       for (const c of this.dynasty.children) {
         if (c.educationXp === undefined) c.educationXp = 0

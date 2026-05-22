@@ -1,5 +1,5 @@
 import type { GameState } from '../../game/GameState'
-import { PRODUCERS, UPGRADES, formatMoney, producerIconPath, earlyUnlockCost, isProducerUnlocked, type ProducerDef, type UpgradeDef } from '../../game/Economy'
+import { PRODUCERS, UPGRADES, formatMoney, producerIconPath, earlyUnlockCost, isProducerUnlocked, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
 import { RESEARCH_NODES, researchCost } from '../../game/Research'
 import { getActiveSynergies } from '../../game/Synergies'
 import { PRESTIGE_THRESHOLD } from '../../game/GameState'
@@ -20,23 +20,26 @@ import {
 import { UNDERGROUND_TREE_NODES, treeNodeCost } from '../../game/UndergroundTree'
 
 export type BuyMode = 1 | 10 | 'max'
-export type ShopHub = 'growth' | 'powerup' | 'finance'
+export type ShopHub = 'growth' | 'powerup' | 'finance' | 'empire'
 export type GrowthSub = 'businesses' | 'management'
 export type PowerupSub = 'upgrades' | 'research'
+export type EmpireSub = 'sport' | 'politics' | 'dark'
 export type IpoSubTab = 'stock' | 'prestige' | 'ipo'
 export type UpgradeFilter = 'all' | 'click' | 'global' | 'producer'
-export type BizTypeFilter = 'all' | 'legal' | 'illegal'
+export type BizTypeFilter = 'all' | 'legal' | 'illegal' | 'sport' | 'politics' | 'dark'
 
 const HUB_SUBTITLES: Record<ShopHub, string> = {
   growth: 'İşletme satın al, yönetici işe al',
   powerup: 'Yükseltme ve Ar-Ge',
   finance: 'Borsa, prestij ve IPO',
+  empire: 'Spor, siyaset ve yeraltı yatırımları',
 }
 
 const HUB_ICONS: Record<ShopHub, string> = {
   growth: assetUrl('icons/nav/shop.svg'),
   powerup: assetUrl('icons/businesses/ai.svg'),
   finance: assetUrl('icons/businesses/tuzaq.svg'),
+  empire: assetUrl('icons/nav/empire.svg'),
 }
 
 const MILESTONES = [1, 10, 25, 50, 100]
@@ -60,7 +63,17 @@ export class ShopPanel {
   private ipoSubTab: IpoSubTab = 'stock'
   private upgradeFilter: UpgradeFilter = 'all'
   private bizTypeFilter: BizTypeFilter = 'all'
+  private empireSub: EmpireSub = 'sport'
+  private empireCards = new Map<string, HTMLDivElement>()
   private bizSortOrder: BizSortOrder = 'profit'
+
+  private matchesBizFilter(p: ProducerDef, filter: BizTypeFilter): boolean {
+    const cat = producerCategory(p)
+    if (filter === 'all') return !p.category
+    if (filter === 'legal') return cat === 'legal'
+    if (filter === 'illegal') return cat === 'illegal'
+    return p.category === filter
+  }
 
   constructor() {
     this.root = document.createElement('section')
@@ -68,10 +81,11 @@ export class ShopPanel {
     this.build()
   }
 
-  private resolveTab(id: string): { hub: ShopHub; growthSub?: GrowthSub; powerupSub?: PowerupSub; ipoSub?: IpoSubTab } {
-    if (id === 'growth' || id === 'powerup' || id === 'finance') return { hub: id }
+  private resolveTab(id: string): { hub: ShopHub; growthSub?: GrowthSub; powerupSub?: PowerupSub; empireSub?: EmpireSub; ipoSub?: IpoSubTab } {
+    if (id === 'growth' || id === 'powerup' || id === 'finance' || id === 'empire') return { hub: id }
     if (id === 'businesses' || id === 'management') return { hub: 'growth', growthSub: id }
     if (id === 'upgrades' || id === 'research') return { hub: 'powerup', powerupSub: id }
+    if (id === 'sport' || id === 'politics' || id === 'dark') return { hub: 'empire', empireSub: id }
     if (id === 'ipo' || id === 'stock' || id === 'prestige') {
       return { hub: 'finance', ipoSub: id === 'stock' || id === 'prestige' ? id : this.ipoSubTab }
     }
@@ -81,6 +95,7 @@ export class ShopPanel {
   private activePanelId(): string {
     if (this.activeHub === 'growth') return this.growthSub
     if (this.activeHub === 'powerup') return this.powerupSub
+    if (this.activeHub === 'empire') return `empire_${this.empireSub}`
     return 'ipo'
   }
 
@@ -121,6 +136,7 @@ export class ShopPanel {
       { id: 'growth', label: 'Büyüme' },
       { id: 'powerup', label: 'Güçlendir' },
       { id: 'finance', label: 'Finans' },
+      { id: 'empire', label: 'İmparatorluk' },
     ]
     for (const t of hubDefs) {
       const btn = document.createElement('button')
@@ -142,9 +158,9 @@ export class ShopPanel {
       tabs.appendChild(btn)
     }
 
-    for (const id of ['businesses', 'management', 'upgrades', 'research', 'ipo']) {
+    for (const id of ['businesses', 'management', 'upgrades', 'research', 'ipo', 'empire_sport', 'empire_politics', 'empire_dark']) {
       const panel = document.createElement('div')
-      panel.className = 'tab-panel'
+      panel.className = 'tab-panel biz-list-grid'
       panel.dataset.panel = id
       panel.hidden = id !== 'businesses'
       this.panels[id] = panel
@@ -176,6 +192,7 @@ export class ShopPanel {
     if (resolved.growthSub) this.growthSub = resolved.growthSub
     if (resolved.powerupSub) this.powerupSub = resolved.powerupSub
     if (resolved.ipoSub) this.ipoSubTab = resolved.ipoSub
+    if (resolved.empireSub) this.empireSub = resolved.empireSub
     const panelId = this.activePanelId()
     this.root.className = `shop-panel shop-hub-${this.activeHub}`
     for (const btn of this.tabButtons) {
@@ -193,6 +210,7 @@ export class ShopPanel {
     }
     this.renderSubTabs()
     const showBuy = (this.activeHub === 'growth' && this.growthSub === 'businesses')
+      || (this.activeHub === 'empire')
       || (this.activeHub === 'powerup' && this.powerupSub === 'upgrades')
     this.buyModesEl.hidden = !showBuy
     this.buyModesEl.classList.toggle('is-hidden', !showBuy)
@@ -244,7 +262,23 @@ export class ShopPanel {
         this.subTabButtons.push(btn)
         this.subTabsEl.appendChild(btn)
       }
+    } else if (this.activeHub === 'empire') {
+      for (const [id, label] of [['sport', 'Spor'], ['politics', 'Siyaset'], ['dark', 'Yeraltı']] as const) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = `shop-sub-tab${this.empireSub === id ? ' active' : ''}`
+        btn.dataset.action = 'shop-sub-tab'
+        btn.dataset.id = id
+        btn.textContent = label
+        this.subTabButtons.push(btn)
+        this.subTabsEl.appendChild(btn)
+      }
     }
+  }
+
+  setEmpireSub(sub: EmpireSub): void {
+    this.empireSub = sub
+    this.setTab(sub)
   }
 
   setIpoSubTab(tab: IpoSubTab): void {
@@ -371,6 +405,11 @@ export class ShopPanel {
       case 'management': this.renderManagement(state); break
       case 'upgrades': this.renderUpgrades(state); break
       case 'research': this.renderResearch(state); break
+      case 'empire_sport':
+      case 'empire_politics':
+      case 'empire_dark':
+        this.renderEmpireCategory(state, tab.replace('empire_', '') as EmpireSub)
+        break
       case 'ipo': this.renderIpo(state); break
     }
   }
@@ -400,22 +439,22 @@ export class ShopPanel {
   }
 
   private renderShopHub(state: GameState): void {
-    const ips = state.incomePerSecond()
-    const legalIps = state.legalIncomePerSecond()
-    const illegalIps = state.illegalIncomePerSecond()
+    const ipd = state.incomePerDay()
+    const legalIpd = state.legalIncomePerDay()
+    const illegalIpd = state.illegalIncomePerDay()
     const ownedBiz = PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0).length
     const nextUnlock = PRODUCERS.find((p) => state.totalEarned < p.unlockAt)
-    const goalPct = Math.floor(dailyGoalProgress(state.dailyGoalEarned, scaledDailyGoalTarget(state.incomePerSecond())))
+    const goalPct = Math.floor(dailyGoalProgress(state.dailyGoalEarned, scaledDailyGoalTarget(state.incomePerDay())))
     const nextText = nextUnlock ? `${nextUnlock.emoji} ${nextUnlock.name}` : 'Hepsi açık'
-    const hasIllegal = illegalIps > 0
+    const hasIllegal = illegalIpd > 0
     const heatPct = Math.round(state.illegalHeat)
     const illegalStat = hasIllegal
-      ? `<span class="hub-stat hub-stat-illegal"><strong>${formatMoney(illegalIps)}/sn</strong><small>🕶️ Illegal</small></span>
+      ? `<span class="hub-stat hub-stat-illegal"><strong>${formatMoney(illegalIpd)}/gün</strong><small>🕶️ Illegal</small></span>
          <span class="hub-stat hub-stat-heat"><strong>${state.illegalRiskLabel()}</strong><small>Radar ${heatPct}%</small></span>`
       : ''
     this.shopHubEl.innerHTML = `
-      <span class="hub-stat"><strong>${formatMoney(ips)}/sn</strong><small>Toplam gelir</small></span>
-      <span class="hub-stat"><strong>${formatMoney(legalIps)}/sn</strong><small>Yasal</small></span>
+      <span class="hub-stat"><strong>${formatMoney(ipd)}/gün</strong><small>Toplam gelir</small></span>
+      <span class="hub-stat"><strong>${formatMoney(legalIpd)}/gün</strong><small>Yasal</small></span>
       ${illegalStat}
       <span class="hub-stat"><strong>${ownedBiz}</strong><small>İşletme</small></span>
       <span class="hub-stat"><strong>${nextText}</strong><small>Sıradaki</small></span>
@@ -463,7 +502,7 @@ export class ShopPanel {
       seg.className = 'revenue-seg'
       seg.style.flex = String(e.income / total)
       seg.style.background = colors[i] ?? 'var(--muted)'
-      seg.title = `${e.p.name}: ${formatMoney(e.income)}/sn`
+      seg.title = `${e.p.name}: ${formatMoney(e.income)}/gün`
       bar.appendChild(seg)
     })
     el.appendChild(bar)
@@ -478,12 +517,12 @@ export class ShopPanel {
     return el
   }
 
-  private formatEta(seconds: number): string {
-    if (!Number.isFinite(seconds) || seconds <= 0) return '—'
-    if (seconds < 60) return `${Math.ceil(seconds)}sn`
-    if (seconds < 3600) return `${Math.ceil(seconds / 60)}dk`
-    if (seconds < 86400) return `${Math.ceil(seconds / 3600)}sa`
-    return `${Math.ceil(seconds / 86400)}g`
+  private formatEta(days: number): string {
+    if (!Number.isFinite(days) || days <= 0) return '—'
+    if (days < 1) return `${Math.ceil(days * 24)}sa`
+    if (days < 30) return `${Math.ceil(days)}g`
+    if (days < 365) return `${Math.ceil(days / 30)}ay`
+    return `${Math.ceil(days / 365)}y`
   }
 
   private createSectionHeader(title: string, subtitle?: string): HTMLElement {
@@ -562,6 +601,64 @@ export class ShopPanel {
     return '🏢'
   }
 
+  private renderEmpireCategory(state: GameState, category: EmpireSub): void {
+    const panel = this.panels[`empire_${category}`]!
+    panel.querySelector('.empire-shop-hero')?.remove()
+    const hero = document.createElement('div')
+    hero.className = 'shop-tab-hero empire-shop-hero'
+    const titles: Record<EmpireSub, { icon: string; title: string; desc: string }> = {
+      sport: { icon: '⚽', title: 'Futbol İmparatorluğu', desc: 'Kulüp satın al, İmparatorluk sekmesinden yönet.' },
+      politics: { icon: '🏛️', title: 'Siyasi Kariyer', desc: 'Meclisten cumhurbaşkanlığına uzanan yol.' },
+      dark: { icon: '🏭', title: 'Siyah Endüstri', desc: 'Yüksek gelir, yüksek radar riski.' },
+    }
+    const t = titles[category]
+    hero.innerHTML = `<span class="shop-tab-hero-icon">${t.icon}</span><div class="shop-tab-hero-text"><strong>${t.title}</strong><small>${t.desc}</small></div>`
+    panel.prepend(hero)
+
+    const visibleIds = new Set<string>()
+    const list = sortProducers(
+      PRODUCERS.filter((p) => p.category === category && isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks)),
+      this.bizSortOrder,
+      state,
+    )
+
+    for (const p of list) {
+      const owned = state.producers[p.id] ?? 0
+      let count = this.buyMode === 'max' ? state.countMaxAffordable(p.id) : this.buyMode
+      if (count < 1) count = 1
+      visibleIds.add(p.id)
+      const key = `${category}:${p.id}`
+      let card = this.empireCards.get(key)
+      if (!card) {
+        card = this.createBusinessCard(p)
+        this.empireCards.set(key, card)
+        panel.appendChild(card)
+      }
+      card.hidden = false
+      card.classList.toggle('biz-card-illegal', !!p.illegal)
+      const buyCount = this.buyMode === 'max' ? Math.max(1, state.countMaxAffordable(p.id)) : count
+      this.updateBusinessCard(card, p, state, owned, buyCount)
+    }
+
+    for (const [key, card] of this.empireCards) {
+      if (!key.startsWith(`${category}:`) || !visibleIds.has(key.split(':')[1]!)) {
+        if (key.startsWith(`${category}:`)) {
+          card.remove()
+          this.empireCards.delete(key)
+        }
+      }
+    }
+
+    const nextLocked = PRODUCERS.find((p) => p.category === category && !isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks))
+    panel.querySelector('.biz-card-locked-preview')?.remove()
+    if (nextLocked) {
+      const lockedCard = document.createElement('div')
+      lockedCard.className = 'biz-card biz-card-locked-preview'
+      lockedCard.innerHTML = `<div class="biz-locked-overlay"><strong>🔒 ${nextLocked.name}</strong><small>${formatMoney(nextLocked.unlockAt)} kazançta açılır</small></div>`
+      panel.appendChild(lockedCard)
+    }
+  }
+
   private renderBusinesses(state: GameState, patchOnly = false): void {
     const panel = this.panels.businesses!
     const synergies = getActiveSynergies(state.producers).filter((s) => s.active)
@@ -629,11 +726,7 @@ export class ShopPanel {
 
     const visibleIds = new Set<string>()
     const unlocked = sortProducers(
-      state.unlockedProducers().filter((p) => {
-        if (this.bizTypeFilter === 'legal') return !p.illegal
-        if (this.bizTypeFilter === 'illegal') return !!p.illegal
-        return true
-      }),
+      state.unlockedProducers().filter((p) => this.matchesBizFilter(p, this.bizTypeFilter)),
       this.bizSortOrder,
       state,
     )
@@ -666,8 +759,7 @@ export class ShopPanel {
     if (!patchOnly) {
       const nextLockedDef = PRODUCERS.find((p) => {
         if (isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks)) return false
-        if (this.bizTypeFilter === 'legal' && p.illegal) return false
-        if (this.bizTypeFilter === 'illegal' && !p.illegal) return false
+        if (!this.matchesBizFilter(p, this.bizTypeFilter)) return false
         return true
       })
       if (nextLockedDef) {
@@ -724,8 +816,8 @@ export class ShopPanel {
         const lockText = lockedCard.querySelector('.biz-locked-text')
         if (lockText) {
           const remaining = Math.max(0, nextLockedDef.unlockAt - state.totalEarned)
-          const ips = state.incomePerSecond()
-          const eta = ips > 0 ? remaining / ips : Infinity
+          const ipd = state.incomePerDay()
+          const eta = ipd > 0 ? remaining / ipd : Infinity
           lockText.textContent = `Toplam kazanç: ${formatMoney(state.totalEarned)} / ${formatMoney(nextLockedDef.unlockAt)} · ~${this.formatEta(eta)}`
         }
         const earlyBtn = lockedCard.querySelector('.btn-early-unlock') as HTMLButtonElement | null
@@ -866,7 +958,7 @@ export class ShopPanel {
     const costText = this.buyMode === 'max' && affordableCount > 1
       ? `${formatMoney(cost)} (x${affordableCount})`
       : formatMoney(cost)
-    const incText = owned > 0 ? `${formatMoney(income)}/sn` : `+${formatMoney(p.baseIncome)}/sn`
+    const incText = owned > 0 ? `${formatMoney(income)}/gün` : `+${formatMoney(p.baseIncome)}/gün`
     const roiSec = producerRoiSeconds(state, p, buyCount)
     const roiText = `ROI ~${formatRoi(roiSec)}`
 
@@ -947,7 +1039,7 @@ export class ShopPanel {
       desc.textContent = hired ? 'Yönetici aktif (+25% gelir, yokken +50% birikim)' : 'Yönetici işe al — pasif gelir artar'
       const incomeChip = document.createElement('span')
       incomeChip.className = 'manager-income-chip'
-      incomeChip.textContent = `${formatMoney(income)}/sn`
+      incomeChip.textContent = `${formatMoney(income)}/gün`
       info.append(name, desc, incomeChip)
 
       const badges = document.createElement('div')
