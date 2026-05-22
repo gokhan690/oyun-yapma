@@ -1,4 +1,4 @@
-export const PRESTIGE_THRESHOLD = 25_000_000
+export const PRESTIGE_THRESHOLD = 35_000_000
 
 export function calcPrestigePoints(totalEarned: number): number {
   if (totalEarned < PRESTIGE_THRESHOLD) return 0

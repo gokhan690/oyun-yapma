@@ -2,7 +2,7 @@ import type { GameState } from '../game/GameState'
 import type { AdManager } from '../ads/AdManager'
 import type { SoundManager } from '../audio/SoundManager'
 import type { SaveManager } from '../security/SaveManager'
-import { formatMoney, formatIncomeRate, PRODUCERS, earlyUnlockCost } from '../game/Economy'
+import { formatMoney, formatIncomeRate, PRODUCERS, earlyUnlockCost, scaledUnlockAt, isProducerUnlocked } from '../game/Economy'
 import { assetUrl } from '../utils/assetUrl'
 import type { DeathCauseId } from '../game/Mortality'
 import { currentRank, rankProgress } from '../game/PlayerRank'
@@ -1199,10 +1199,11 @@ export class HUD {
       this.rankProgressFill.style.width = '100%'
     }
 
-    const nextBiz = PRODUCERS.find((p) => this.state.totalEarned < p.unlockAt)
+    const nextBiz = PRODUCERS.find((p) => !isProducerUnlocked(p, this.state.totalEarned, this.state.forcedUnlocks))
     if (nextBiz) {
-      const pct = nextBiz.unlockAt > 0
-        ? Math.min(100, (this.state.totalEarned / nextBiz.unlockAt) * 100)
+      const unlockAt = scaledUnlockAt(nextBiz)
+      const pct = unlockAt > 0
+        ? Math.min(100, (this.state.totalEarned / unlockAt) * 100)
         : 0
       this.unlockProgressLabel.textContent = `İşletme → ${nextBiz.emoji} ${nextBiz.name}`
       this.unlockProgressFill.style.width = `${pct}%`

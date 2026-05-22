@@ -96,19 +96,28 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'siyah_fabrika_x2', name: 'Gizli Üretim', description: 'Siyah fabrika geliri x2', cost: 120_000, effect: 'producer_mult', value: 2, producerId: 'siyah_fabrika' },
 ]
 
-/** Dengeli ekonomi — gelir ~%15 düşük, maliyet ~%10 yüksek */
-export const ECONOMY_INCOME_SCALE = 0.85
-export const ECONOMY_COST_SCALE = 1.1
-export const EARLY_UNLOCK_COST_SCALE = 1.5
+/** Uzun oyun profili — yavaş ilerleme, daha uzun oturum */
+export const ECONOMY_INCOME_SCALE = 0.72
+export const ECONOMY_COST_SCALE = 1.22
+export const ECONOMY_UNLOCK_SCALE = 1.35
+export const ECONOMY_COST_GROWTH_BONUS = 0.018
+export const ECONOMY_UPGRADE_COST_SCALE = 1.15
+export const EARLY_UNLOCK_COST_SCALE = 1.85
+
+export function scaledUnlockAt(def: ProducerDef): number {
+  if (def.unlockAt <= 0) return 0
+  return Math.floor(def.unlockAt * ECONOMY_UNLOCK_SCALE)
+}
 
 export function scaledBaseIncome(baseIncome: number): number {
   return Math.max(1, Math.floor(baseIncome * ECONOMY_INCOME_SCALE))
 }
 
 export function producerCost(def: ProducerDef, owned: number, count = 1): number {
+  const growth = def.costMultiplier + ECONOMY_COST_GROWTH_BONUS
   let total = 0
   for (let i = 0; i < count; i++) {
-    total += Math.floor(def.baseCost * Math.pow(def.costMultiplier, owned + i))
+    total += Math.floor(def.baseCost * Math.pow(growth, owned + i))
   }
   return Math.ceil(total * ECONOMY_COST_SCALE)
 }
@@ -130,11 +139,12 @@ export function isProducerUnlocked(
   totalEarned: number,
   forcedUnlocks?: ReadonlySet<string>,
 ): boolean {
-  return totalEarned >= def.unlockAt || forcedUnlocks?.has(def.id) === true
+  return totalEarned >= scaledUnlockAt(def) || forcedUnlocks?.has(def.id) === true
 }
 
 export function earlyUnlockCost(def: ProducerDef): number {
-  const raw = Math.max(def.baseCost * 5, Math.floor(def.unlockAt * 0.2))
+  const unlock = scaledUnlockAt(def)
+  const raw = Math.max(def.baseCost * 6, Math.floor(unlock * 0.22))
   return Math.ceil(raw * EARLY_UNLOCK_COST_SCALE)
 }
 

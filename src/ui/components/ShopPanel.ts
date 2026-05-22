@@ -1,5 +1,5 @@
 import type { GameState } from '../../game/GameState'
-import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, producerIconPath, earlyUnlockCost, isProducerUnlocked, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
+import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, producerIconPath, earlyUnlockCost, isProducerUnlocked, scaledUnlockAt, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
 import { RESEARCH_NODES, researchCost } from '../../game/Research'
 import { getActiveSynergies } from '../../game/Synergies'
 import { PRESTIGE_THRESHOLD } from '../../game/GameState'
@@ -443,7 +443,7 @@ export class ShopPanel {
     const legalIpd = state.legalIncomePerDay()
     const illegalIpd = state.illegalIncomePerDay()
     const ownedBiz = PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0).length
-    const nextUnlock = PRODUCERS.find((p) => state.totalEarned < p.unlockAt)
+    const nextUnlock = PRODUCERS.find((p) => !isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks))
     const goalPct = Math.floor(dailyGoalProgress(state.dailyGoalEarned, scaledDailyGoalTarget(state.incomePerDay())))
     const nextText = nextUnlock ? `${nextUnlock.emoji} ${nextUnlock.name}` : 'Hepsi açık'
     const hasIllegal = illegalIpd > 0
@@ -712,7 +712,7 @@ export class ShopPanel {
     if (nextLocked) {
       const lockedCard = document.createElement('div')
       lockedCard.className = 'biz-card biz-card-locked-preview'
-      lockedCard.innerHTML = `<div class="biz-locked-overlay"><strong>🔒 ${nextLocked.name}</strong><small>${formatMoney(nextLocked.unlockAt)} kazançta açılır</small></div>`
+      lockedCard.innerHTML = `<div class="biz-locked-overlay"><strong>🔒 ${nextLocked.name}</strong><small>${formatMoney(scaledUnlockAt(nextLocked))} kazançta açılır</small></div>`
       panel.appendChild(lockedCard)
     }
   }
@@ -879,15 +879,16 @@ export class ShopPanel {
         } else {
           lockedCard.dataset.producerId = nextLockedDef.id
         }
-        const pct = nextLockedDef.unlockAt > 0
-          ? (state.totalEarned / nextLockedDef.unlockAt) * 100
+        const unlockAt = scaledUnlockAt(nextLockedDef)
+        const pct = unlockAt > 0
+          ? (state.totalEarned / unlockAt) * 100
           : 100
         const lockText = lockedCard.querySelector('.biz-locked-text')
         if (lockText) {
-          const remaining = Math.max(0, nextLockedDef.unlockAt - state.totalEarned)
+          const remaining = Math.max(0, unlockAt - state.totalEarned)
           const ipd = state.incomePerDay()
           const eta = ipd > 0 ? remaining / ipd : Infinity
-          lockText.textContent = `${formatMoney(state.totalEarned)} / ${formatMoney(nextLockedDef.unlockAt)} kazanç · ~${this.formatEta(eta)}`
+          lockText.textContent = `${formatMoney(state.totalEarned)} / ${formatMoney(unlockAt)} kazanç · ~${this.formatEta(eta)}`
         }
         const earlyBtn = lockedCard.querySelector('.btn-early-unlock') as HTMLButtonElement | null
         if (earlyBtn) {
@@ -895,7 +896,7 @@ export class ShopPanel {
           const canAfford = state.canAfford(cost)
           earlyBtn.textContent = canAfford ? `Erken aç · ${formatMoney(cost)}` : `Erken aç · ${formatMoney(cost)} (yetersiz)`
           earlyBtn.disabled = !canAfford
-          earlyBtn.title = `Cüzdandan ödenir · Normal açılış: ${formatMoney(nextLockedDef.unlockAt)} toplam kazanç`
+          earlyBtn.title = `Cüzdandan ödenir · Normal açılış: ${formatMoney(unlockAt)} toplam kazanç`
         }
         let progressBar = lockedCard.querySelector('.unlock-progress') as HTMLElement | null
         if (!progressBar) {

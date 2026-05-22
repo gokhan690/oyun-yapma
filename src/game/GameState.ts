@@ -1,4 +1,4 @@
-import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, scaledBaseIncome, type ProducerDef, type UpgradeDef } from './Economy'
+import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, type ProducerDef, type UpgradeDef } from './Economy'
 import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, prestigeMultiplier } from './Prestige'
 import { globalSynergyBonus, producerSynergyBonus } from './Synergies'
 import {
@@ -272,7 +272,7 @@ export type GameEvent =
 const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
 const CRIT_MULT = 10
-const BASE_CLICK = 38
+const BASE_CLICK = 30
 const BASE_OFFLINE_CAP_GAME_DAYS = 365
 const BASE_OFFLINE_CAP_MS = BASE_OFFLINE_CAP_GAME_DAYS * MS_PER_GAME_DAY
 const AD_BOOST_DURATION_MS = 5 * 60 * 1000
@@ -1147,7 +1147,7 @@ export class GameState {
       this.sessionEarned += amount
       this.updateMissionProgress('earn_money', amount)
       this.updateWeeklyProgress(amount)
-      this.addSeasonXp(Math.floor(amount / 3500))
+      this.addSeasonXp(Math.floor(amount / 4500))
       this.emit({ type: 'money_changed' })
       this.checkMilestones(prevLifetime)
       this.checkAchievements()
@@ -1346,7 +1346,7 @@ export class GameState {
   }
 
   upgradeCostFor(def: UpgradeDef): number {
-    let cost = Math.floor(def.cost * (1 - upgradeCostDiscount(this.prestigeTree)))
+    let cost = Math.floor(def.cost * ECONOMY_UPGRADE_COST_SCALE * (1 - upgradeCostDiscount(this.prestigeTree)))
     if (this.upgradeDiscountActive) cost = Math.floor(cost * 0.7)
     return cost
   }
