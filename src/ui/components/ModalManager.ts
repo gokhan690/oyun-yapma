@@ -22,6 +22,12 @@ export class ModalManager {
   }
 
   show(title: string, body: string, actions: HTMLElement[]): void {
+    const p = document.createElement('p')
+    p.textContent = body
+    this.showContent(title, p, actions)
+  }
+
+  showContent(title: string, bodyEl: HTMLElement, actions: HTMLElement[]): void {
     this.layer.replaceChildren()
     const scrim = document.createElement('div')
     scrim.className = 'modal-scrim'
@@ -30,12 +36,10 @@ export class ModalManager {
     modal.className = 'game-modal modal-enter'
     const h2 = document.createElement('h2')
     h2.textContent = title
-    const p = document.createElement('p')
-    p.textContent = body
     const row = document.createElement('div')
     row.className = 'modal-actions'
     row.append(...actions)
-    modal.append(h2, p, row)
+    modal.append(h2, bodyEl, row)
     this.layer.append(scrim, modal)
     this.openLayer()
   }

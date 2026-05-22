@@ -86,7 +86,11 @@ import {
   traitCostMult,
   traitIllegalMult,
   traitPassiveMult,
-  educationXpPerGameHour,
+  educationXpPerGameDay,
+  playerGameAge,
+  isLifespanReached,
+  SUCCESSION_START_AGE,
+  PLAYER_LIFESPAN,
   CHILD_EDUCATION_MAX,
   type DynastyState,
 } from './Dynasty'
@@ -254,11 +258,12 @@ export type GameEvent =
   | { type: 'badge_earned'; badgeId: string }
   | { type: 'market_news'; headline: string; active: boolean }
   | { type: 'dynasty_update'; kind: string; name?: string }
+  | { type: 'lifespan_reached'; age: number; hasHeir: boolean }
 
 const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
 const CRIT_MULT = 10
-const BASE_CLICK = 720
+const BASE_CLICK = 45
 const BASE_OFFLINE_CAP_GAME_DAYS = 365
 const BASE_OFFLINE_CAP_MS = BASE_OFFLINE_CAP_GAME_DAYS * MS_PER_GAME_DAY
 const AD_BOOST_DURATION_MS = 5 * 60 * 1000
@@ -909,6 +914,7 @@ export class GameState {
     if (gameYear(this.gameTimeMs) === 2027 && !this.seenStoryBeats.has('year_2027')) {
       this.triggerStoryBeat('year_2027')
     }
+    this.tickLifespan()
     if (!this.dynasty.spouseName || this.dynasty.children.length >= 3) return
     const married = this.dynasty.marriedGameDay ?? day
     if (day - married < 5) return
@@ -927,7 +933,7 @@ export class GameState {
   private tickChildEducation(gameMsDelta: number): void {
     if (this.dynasty.children.length === 0) return
     const days = gameMsDelta / MS_PER_GAME_DAY
-    const gain = educationXpPerGameHour() * 24 * days
+    const gain = educationXpPerGameDay() * days
     if (gain <= 0) return
     for (const child of this.dynasty.children) {
       if (child.educationXp >= CHILD_EDUCATION_MAX) continue
@@ -952,12 +958,48 @@ export class GameState {
   successionToChild(childId: string): boolean {
     const child = this.dynasty.children.find((c) => c.id === childId)
     if (!child) return false
+    const prevName = this.playerName
     this.playerName = child.name
     this.dynasty.activeHeirId = child.id
     this.dynasty.dynastyBonusId = child.id
     this.dynasty.generation++
+    this.dynasty.playerBornGameDay = gameDay(this.gameTimeMs)
+    this.dynasty.playerStartAge = SUCCESSION_START_AGE
+    this.dynasty.lifespanNotified = false
+    this.triggerStoryBeat('succession')
     this.emit({ type: 'dynasty_update', kind: 'succession', name: child.name })
+    this.emit({ type: 'story_beat', beatId: 'succession', text: `${prevName} emekli oldu. ${child.name} (${SUCCESSION_START_AGE} yaş) imparatorluğu devraldı.` })
     return true
+  }
+
+  playerAge(): number {
+    return playerGameAge(this.gameTimeMs, this.dynasty)
+  }
+
+  needsSuccession(): boolean {
+    return isLifespanReached(this.gameTimeMs, this.dynasty)
+  }
+
+  canSuccessionNow(): boolean {
+    return this.dynasty.children.length > 0
+  }
+
+  private tickLifespan(): void {
+    const age = playerGameAge(this.gameTimeMs, this.dynasty)
+    if (age >= PLAYER_LIFESPAN - 5 && !this.seenStoryBeats.has('lifespan_warning')) {
+      this.triggerStoryBeat('lifespan_warning')
+    }
+    if (!isLifespanReached(this.gameTimeMs, this.dynasty)) return
+    if (this.dynasty.lifespanNotified) return
+    this.dynasty.lifespanNotified = true
+    this.emit({
+      type: 'lifespan_reached',
+      age,
+      hasHeir: this.dynasty.children.length > 0,
+    })
+    if (this.dynasty.children.length === 1) {
+      this.successionToChild(this.dynasty.children[0]!.id)
+    }
   }
 
   dynastyCostMult(): number {
@@ -2189,6 +2231,9 @@ export class GameState {
         if (c.educationXp === undefined) c.educationXp = 0
       }
     }
+    if (this.dynasty.playerBornGameDay === undefined) this.dynasty.playerBornGameDay = 1
+    if (this.dynasty.playerStartAge === undefined) this.dynasty.playerStartAge = 18
+    if (this.dynasty.lifespanNotified === undefined) this.dynasty.lifespanNotified = false
     this.lastSaveTime = data.lastSaveTime
     this.isNight = isGameNight(this.gameTimeMs)
     this.ensureDailyGoal()

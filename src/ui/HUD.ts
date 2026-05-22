@@ -2,8 +2,9 @@ import type { GameState } from '../game/GameState'
 import type { AdManager } from '../ads/AdManager'
 import type { SoundManager } from '../audio/SoundManager'
 import type { SaveManager } from '../security/SaveManager'
-import { formatMoney, PRODUCERS } from '../game/Economy'
-import { assetUrl, playerAge } from '../utils/assetUrl'
+import { formatMoney, formatIncomeRate, PRODUCERS } from '../game/Economy'
+import { assetUrl } from '../utils/assetUrl'
+import { PLAYER_LIFESPAN } from '../game/Dynasty'
 import { currentRank, rankProgress } from '../game/PlayerRank'
 import { dayBonusExtra, nightBonusExtra } from '../game/PrestigeTree'
 import { calcPrestigePoints, prestigeMultiplier } from '../game/Prestige'
@@ -594,6 +595,9 @@ export class HUD {
         if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
         this.renderProfileChip()
       }
+      if (ev.type === 'lifespan_reached') {
+        this.showLifespanModal(ev.hasHeir)
+      }
       if (ev.type === 'season_updated' || ev.type === 'season_claimed') {
         this.eventsPanel.render(this.state)
         this.updateNavBadges()
@@ -1112,6 +1116,7 @@ export class HUD {
         break
       case 'dynasty-succession':
         if (id && this.state.successionToChild(id)) {
+          this.modals.close()
           this.modals.showToast(this.root, `👑 ${this.state.playerName} imparatorluğu devraldı!`)
           this.statsScreen.render()
           this.renderProfileChip()
@@ -1119,7 +1124,7 @@ export class HUD {
         }
         break
       case 'dynasty-succession-open':
-        this.modals.showToast(this.root, 'Bir çocuğun altındaki Devral\'a bas.')
+        this.showSuccessionPicker(this.state.needsSuccession())
         break
       default:
         break
@@ -1198,10 +1203,11 @@ export class HUD {
 
   private renderProfileChip(): void {
     const name = this.state.playerName.trim() || 'Baron'
-    const age = playerAge(this.state.birthYear)
-    const ageText = age !== null ? `${age} yaş` : 'Profil'
+    const age = this.state.playerAge()
+    const left = PLAYER_LIFESPAN - age
+    const ageText = left <= 5 ? `${age} yaş · ${left} yıl kaldı` : `${age} yaş`
     this.profileChip.innerHTML = `<span class="profile-chip-name">${name}</span><span class="profile-chip-age">${ageText}</span>`
-    this.profileChip.title = 'Profil ve istatistikler'
+    this.profileChip.title = `Nesil ${this.state.dynasty.generation} · Profil ve istatistikler`
   }
 
   private renderHeatMeter(): void {
@@ -1222,7 +1228,7 @@ export class HUD {
     const passive = this.state.incomePerDay()
     this.sessionClickIncome.textContent = formatMoney(clickIncome)
     this.sessionComboMult.textContent = `${comboMult.toFixed(1)}x`
-    this.sessionPassiveIncome.textContent = `${formatMoney(passive)}/gün`
+    this.sessionPassiveIncome.textContent = formatIncomeRate(passive)
   }
 
   private checkRankUp(): void {
@@ -1314,14 +1320,67 @@ export class HUD {
     this.eventTimerInterval = window.setInterval(tick, 500)
   }
 
+  private showLifespanModal(hasHeir: boolean): void {
+    if (hasHeir && this.state.dynasty.children.length > 1) {
+      this.showSuccessionPicker(true)
+      return
+    }
+    const body = document.createElement('div')
+    body.className = 'lifespan-modal-body'
+    if (hasHeir) {
+      body.innerHTML = `<p><strong>${this.state.playerAge()} yaş</strong> — Tek mirasçın imparatorluğu devraldı. Yeni nesille devam ediyorsun.</p>`
+    } else {
+      body.innerHTML = `<p><strong>${PLAYER_LIFESPAN} yaşına geldin</strong> ama mirasçın yok. Evlenip çocuk yetiştirerek hanedanı sürdürebilirsin; oyun devam eder.</p>`
+    }
+    const close = document.createElement('button')
+    close.type = 'button'
+    close.className = 'btn-primary'
+    close.dataset.action = 'close-modal'
+    close.textContent = 'Tamam'
+    this.modals.showContent('Ömür Doldu', body, [close])
+  }
+
+  private showSuccessionPicker(urgent = false): void {
+    const children = this.state.dynasty.children
+    if (children.length === 0) {
+      this.modals.showToast(this.root, 'Miras devri için önce çocuk yetiştirmelisin.')
+      return
+    }
+    const body = document.createElement('div')
+    body.className = 'succession-picker'
+    const intro = document.createElement('p')
+    intro.textContent = urgent
+      ? `${this.state.playerAge()} yaşındasın — bir varis seçerek imparatorluğu devral.`
+      : 'Hangi çocukla imparatorluğa devam etmek istiyorsun?'
+    body.appendChild(intro)
+    const grid = document.createElement('div')
+    grid.className = 'dynasty-children'
+    for (const c of children) {
+      const card = document.createElement('button')
+      card.type = 'button'
+      card.className = 'dynasty-child-card succession-pick-card'
+      card.dataset.action = 'dynasty-succession'
+      card.dataset.id = c.id
+      card.innerHTML = `<span class="dynasty-child-emoji">👑</span><div><strong>${c.name}</strong><small>Eğitim ${Math.floor(c.educationXp ?? 0)}%</small></div>`
+      grid.appendChild(card)
+    }
+    body.appendChild(grid)
+    const cancel = document.createElement('button')
+    cancel.type = 'button'
+    cancel.className = 'btn-secondary'
+    cancel.dataset.action = 'close-modal'
+    cancel.textContent = urgent ? 'Sonra seç' : 'İptal'
+    this.modals.showContent(urgent ? '👑 Miras Zorunlu' : '👑 Miras Devri', body, [cancel])
+  }
+
   private showBusinessDetail(id: string): void {
     const detail = this.state.getProducerBreakdown(id)
     if (!detail) return
     const rows = [
       { label: 'Adet', value: String(detail.owned) },
-      { label: 'Birim gelir', value: `${formatMoney(detail.basePerUnit)}/gün` },
+      { label: 'Birim gelir', value: formatIncomeRate(detail.basePerUnit) },
       ...detail.lines,
-      { label: 'Toplam', value: `${formatMoney(detail.totalPerDay)}/gün` },
+      { label: 'Toplam', value: formatIncomeRate(detail.totalPerDay) },
     ]
     this.modals.showDetail(`${detail.name} — Gelir Dökümü`, rows, 'Kapat butonuna bas.')
   }

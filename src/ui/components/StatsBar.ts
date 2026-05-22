@@ -1,5 +1,5 @@
 import type { GameState } from '../../game/GameState'
-import { formatMoney } from '../../game/Economy'
+import { formatMoney, formatIncomeRate } from '../../game/Economy'
 import { prestigeMultiplier } from '../../game/Prestige'
 
 export class StatsBar {
@@ -65,7 +65,7 @@ export class StatsBar {
   }
 
   private updateMeta(): void {
-    this.setChip(this.incomeChip, `${formatMoney(this.state.incomePerDay())}/gün`)
+    this.setChip(this.incomeChip, formatIncomeRate(this.state.incomePerDay()))
     this.setChip(this.prestigeChip, `x${prestigeMultiplier(this.state.prestigePoints).toFixed(2)}`)
     if (this.state.isShopBoostActive()) {
       const sec = Math.ceil(this.state.shopBoostRemainingMs() / 1000)

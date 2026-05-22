@@ -1,7 +1,7 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
 import { gameDay } from '../../game/GameClock'
-import { SPOUSE_OPTIONS, type ChildRecord } from '../../game/Dynasty'
+import { SPOUSE_OPTIONS, PLAYER_LIFESPAN, yearsUntilLifespan, type ChildRecord } from '../../game/Dynasty'
 
 const TRAIT_LABEL: Record<string, string> = {
   merchant: 'Tüccar — pasif +12%',
@@ -25,6 +25,25 @@ export class DynastyPanel {
     const title = document.createElement('h3')
     title.textContent = `👨‍👩‍👧 Hanedan · Nesil ${this.state.dynasty.generation}`
     this.root.appendChild(title)
+
+    const age = this.state.playerAge()
+    const yearsLeft = yearsUntilLifespan(this.state.gameTimeMs, this.state.dynasty)
+    const ageBar = document.createElement('div')
+    ageBar.className = 'dynasty-age-bar'
+    const pct = Math.min(100, (age / PLAYER_LIFESPAN) * 100)
+    ageBar.innerHTML = `
+      <label><span>${this.state.playerName} · ${age} yaş</span><span>${yearsLeft} yıl kaldı</span></label>
+      <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${pct}%"></div></div>
+    `
+    this.root.appendChild(ageBar)
+    if (yearsLeft <= 5) {
+      const warn = document.createElement('p')
+      warn.className = 'dynasty-lifespan-warn'
+      warn.textContent = yearsLeft === 0
+        ? 'Ömür doldu — miras devri yap veya çocuk yetiştir.'
+        : `⚠️ ${yearsLeft} yıl içinde bir varis seçmezsen hanedan risk altında.`
+      this.root.appendChild(warn)
+    }
 
     const d = this.state.dynasty
     if (!d.spouseName) {
@@ -91,13 +110,15 @@ export class DynastyPanel {
     if (d.children.length > 0) {
       const hint = document.createElement('p')
       hint.className = 'dynasty-desc'
-      hint.textContent = 'Miras devri: seçtiğin çocukla imparatorluğa devam edersin (isim + trait bonusu).'
+      hint.textContent = this.state.needsSuccession()
+        ? '80 yaşına geldin — bir çocuğu seçerek imparatorluğu devral.'
+        : 'Miras devri: seçtiğin çocukla imparatorluğa devam edersin (isim + trait bonusu).'
       this.root.appendChild(hint)
       const btn = document.createElement('button')
       btn.type = 'button'
-      btn.className = 'btn-primary dynasty-succession-btn'
+      btn.className = `btn-primary dynasty-succession-btn${this.state.needsSuccession() ? ' btn-urgent' : ''}`
       btn.dataset.action = 'dynasty-succession-open'
-      btn.textContent = '👑 Miras Devri'
+      btn.textContent = this.state.needsSuccession() ? '👑 Varis Seç (Zorunlu)' : '👑 Miras Devri'
       this.root.appendChild(btn)
     }
 

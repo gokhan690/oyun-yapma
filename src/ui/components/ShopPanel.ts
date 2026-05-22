@@ -1,5 +1,5 @@
 import type { GameState } from '../../game/GameState'
-import { PRODUCERS, UPGRADES, formatMoney, producerIconPath, earlyUnlockCost, isProducerUnlocked, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
+import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, producerIconPath, earlyUnlockCost, isProducerUnlocked, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
 import { RESEARCH_NODES, researchCost } from '../../game/Research'
 import { getActiveSynergies } from '../../game/Synergies'
 import { PRESTIGE_THRESHOLD } from '../../game/GameState'
@@ -160,7 +160,7 @@ export class ShopPanel {
 
     for (const id of ['businesses', 'management', 'upgrades', 'research', 'ipo', 'empire_sport', 'empire_politics', 'empire_dark']) {
       const panel = document.createElement('div')
-      panel.className = 'tab-panel biz-list-grid'
+      panel.className = 'tab-panel'
       panel.dataset.panel = id
       panel.hidden = id !== 'businesses'
       this.panels[id] = panel
@@ -449,16 +449,17 @@ export class ShopPanel {
     const hasIllegal = illegalIpd > 0
     const heatPct = Math.round(state.illegalHeat)
     const illegalStat = hasIllegal
-      ? `<span class="hub-stat hub-stat-illegal"><strong>${formatMoney(illegalIpd)}/gün</strong><small>🕶️ Illegal</small></span>
+      ? `<span class="hub-stat hub-stat-illegal"><strong>${formatIncomeRate(illegalIpd)}</strong><small>🕶️ Illegal</small></span>
          <span class="hub-stat hub-stat-heat"><strong>${state.illegalRiskLabel()}</strong><small>Radar ${heatPct}%</small></span>`
       : ''
     this.shopHubEl.innerHTML = `
-      <span class="hub-stat"><strong>${formatMoney(ipd)}/gün</strong><small>Toplam gelir</small></span>
-      <span class="hub-stat"><strong>${formatMoney(legalIpd)}/gün</strong><small>Yasal</small></span>
+      <span class="hub-stat"><strong>${formatIncomeRate(ipd)}</strong><small>Toplam gelir</small></span>
+      <span class="hub-stat"><strong>${formatIncomeRate(legalIpd)}</strong><small>Yasal</small></span>
       ${illegalStat}
       <span class="hub-stat"><strong>${ownedBiz}</strong><small>İşletme</small></span>
       <span class="hub-stat"><strong>${nextText}</strong><small>Sıradaki</small></span>
       <span class="hub-stat"><strong>${goalPct}%</strong><small>Günlük hedef</small></span>
+      <span class="hub-stat hub-stat-note"><small>1 sn ≈ 1 oyun günü — gelir anlık işlenir</small></span>
     `
   }
 
@@ -502,7 +503,7 @@ export class ShopPanel {
       seg.className = 'revenue-seg'
       seg.style.flex = String(e.income / total)
       seg.style.background = colors[i] ?? 'var(--muted)'
-      seg.title = `${e.p.name}: ${formatMoney(e.income)}/gün`
+      seg.title = `${e.p.name}: ${formatIncomeRate(e.income)}`
       bar.appendChild(seg)
     })
     el.appendChild(bar)
@@ -601,6 +602,16 @@ export class ShopPanel {
     return '🏢'
   }
 
+  private getCardsGrid(panel: HTMLElement): HTMLElement {
+    let grid = panel.querySelector('.biz-cards-grid') as HTMLElement | null
+    if (!grid) {
+      grid = document.createElement('div')
+      grid.className = 'biz-cards-grid'
+      panel.appendChild(grid)
+    }
+    return grid
+  }
+
   private renderEmpireCategory(state: GameState, category: EmpireSub): void {
     const panel = this.panels[`empire_${category}`]!
     panel.querySelector('.empire-shop-hero')?.remove()
@@ -615,6 +626,7 @@ export class ShopPanel {
     hero.innerHTML = `<span class="shop-tab-hero-icon">${t.icon}</span><div class="shop-tab-hero-text"><strong>${t.title}</strong><small>${t.desc}</small></div>`
     panel.prepend(hero)
 
+    const grid = this.getCardsGrid(panel)
     const visibleIds = new Set<string>()
     const list = sortProducers(
       PRODUCERS.filter((p) => p.category === category && isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks)),
@@ -632,7 +644,7 @@ export class ShopPanel {
       if (!card) {
         card = this.createBusinessCard(p)
         this.empireCards.set(key, card)
-        panel.appendChild(card)
+        grid.appendChild(card)
       }
       card.hidden = false
       card.classList.toggle('biz-card-illegal', !!p.illegal)
@@ -724,6 +736,7 @@ export class ShopPanel {
       }
     }
 
+    const grid = this.getCardsGrid(panel)
     const visibleIds = new Set<string>()
     const unlocked = sortProducers(
       state.unlockedProducers().filter((p) => this.matchesBizFilter(p, this.bizTypeFilter)),
@@ -741,7 +754,7 @@ export class ShopPanel {
       if (!card) {
         card = this.createBusinessCard(p)
         this.businessCards.set(p.id, card)
-        panel.appendChild(card)
+        grid.appendChild(card)
       }
       card.hidden = false
       card.classList.toggle('biz-card-illegal', !!p.illegal)
@@ -958,7 +971,7 @@ export class ShopPanel {
     const costText = this.buyMode === 'max' && affordableCount > 1
       ? `${formatMoney(cost)} (x${affordableCount})`
       : formatMoney(cost)
-    const incText = owned > 0 ? `${formatMoney(income)}/gün` : `+${formatMoney(p.baseIncome)}/gün`
+    const incText = owned > 0 ? formatIncomeRate(income) : `+${formatIncomeRate(p.baseIncome)}`
     const roiSec = producerRoiSeconds(state, p, buyCount)
     const roiText = `ROI ~${formatRoi(roiSec)}`
 
@@ -1039,7 +1052,7 @@ export class ShopPanel {
       desc.textContent = hired ? 'Yönetici aktif (+25% gelir, yokken +50% birikim)' : 'Yönetici işe al — pasif gelir artar'
       const incomeChip = document.createElement('span')
       incomeChip.className = 'manager-income-chip'
-      incomeChip.textContent = `${formatMoney(income)}/gün`
+      incomeChip.textContent = formatIncomeRate(income)
       info.append(name, desc, incomeChip)
 
       const badges = document.createElement('div')

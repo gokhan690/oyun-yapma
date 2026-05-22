@@ -1,5 +1,5 @@
 import type { GameState } from '../../game/GameState'
-import { formatMoney, PRODUCERS } from '../../game/Economy'
+import { formatMoney, formatIncomeRate, PRODUCERS } from '../../game/Economy'
 import {
   leagueName,
   politicsLevelLabel,
@@ -202,7 +202,7 @@ export class EmpirePanel {
     for (const p of owned) {
       const row = document.createElement('div')
       row.className = 'empire-owned-chip empire-owned-dark'
-      row.textContent = `${p.emoji} ${p.name} ×${state.producers[p.id]} · ${formatMoney(state.producerIncome(p))}/gün`
+      row.textContent = `${p.emoji} ${p.name} ×${state.producers[p.id]} · ${formatIncomeRate(state.producerIncome(p))}`
       this.contentEl.appendChild(row)
     }
 

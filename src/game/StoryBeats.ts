@@ -18,6 +18,8 @@ export const STORY_BEATS: StoryBeat[] = [
   { id: 'football_europe', text: 'Avrupa kupalarına merhaba! İmparatorluk stadyumları dolup taşıyor.' },
   { id: 'election_year', text: 'Seçim yılı geldi. Siyasi etkin arttı — lobi gücünü kullan.' },
   { id: 'year_2027', text: '2027\'ye girdin. Ekonomi hızlanıyor, günler saniyeler içinde akıyor.' },
+  { id: 'lifespan_warning', text: 'Yaşın ilerliyor. Varis seçmezsen imparatorluk riske girer — Profil → Hanedan.' },
+  { id: 'succession', text: 'Miras devri tamamlandı. Yeni nesil imparatorluğu devraldı!' },
 ]
 
 export function storyBeat(id: string): StoryBeat | undefined {

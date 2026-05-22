@@ -1,3 +1,5 @@
+import { gameDay } from './GameClock'
+
 export type SpouseTrait = 'merchant' | 'diplomat' | 'innovator' | 'risk_taker'
 export type ChildTrait = SpouseTrait
 
@@ -21,6 +23,10 @@ export interface ChildRecord {
   educationXp: number
 }
 
+export const PLAYER_START_AGE = 18
+export const PLAYER_LIFESPAN = 80
+export const SUCCESSION_START_AGE = 25
+
 export interface DynastyState {
   spouseId: string | null
   spouseName: string | null
@@ -30,6 +36,11 @@ export interface DynastyState {
   activeHeirId: string | null
   generation: number
   dynastyBonusId: string | null
+  /** Oyun takviminde doğum günü */
+  playerBornGameDay: number
+  /** Nesil devrinde sıfırlanan başlangıç yaşı */
+  playerStartAge: number
+  lifespanNotified: boolean
 }
 
 export const SPOUSE_OPTIONS: SpouseOption[] = [
@@ -70,7 +81,36 @@ export function createDynastyState(): DynastyState {
     activeHeirId: null,
     generation: 1,
     dynastyBonusId: null,
+    playerBornGameDay: 1,
+    playerStartAge: PLAYER_START_AGE,
+    lifespanNotified: false,
   }
+}
+
+export function gameYearsElapsed(gameTimeMs: number, bornGameDay: number): number {
+  const days = gameDay(gameTimeMs) - bornGameDay
+  return Math.max(0, days / 365.25)
+}
+
+export function playerGameAge(gameTimeMs: number, dynasty: DynastyState): number {
+  const born = dynasty.playerBornGameDay ?? 1
+  const start = dynasty.playerStartAge ?? PLAYER_START_AGE
+  return Math.floor(start + gameYearsElapsed(gameTimeMs, born))
+}
+
+export function yearsUntilLifespan(gameTimeMs: number, dynasty: DynastyState): number {
+  return Math.max(0, PLAYER_LIFESPAN - playerGameAge(gameTimeMs, dynasty))
+}
+
+export function isLifespanReached(gameTimeMs: number, dynasty: DynastyState): boolean {
+  return playerGameAge(gameTimeMs, dynasty) >= PLAYER_LIFESPAN
+}
+
+export function lifespanProgress(gameTimeMs: number, dynasty: DynastyState): number {
+  const age = playerGameAge(gameTimeMs, dynasty)
+  const span = PLAYER_LIFESPAN - (dynasty.playerStartAge ?? PLAYER_START_AGE)
+  if (span <= 0) return 100
+  return Math.min(100, ((age - (dynasty.playerStartAge ?? PLAYER_START_AGE)) / span) * 100)
 }
 
 export function spouseOption(id: string): SpouseOption | undefined {
@@ -137,7 +177,12 @@ export function activeDynastyTrait(d: DynastyState): SpouseTrait | ChildTrait | 
   return d.spouseTrait
 }
 
-/** Oyun saatiyle pasif eğitim XP (saat başına) */
+/** Oyun günü başına eğitim XP */
+export function educationXpPerGameDay(): number {
+  return 0.35
+}
+
+/** @deprecated */
 export function educationXpPerGameHour(): number {
-  return 2.5
+  return educationXpPerGameDay() / 24
 }

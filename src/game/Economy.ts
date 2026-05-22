@@ -147,12 +147,18 @@ export function producersByCategory(category: 'legal' | 'illegal' | ProducerCate
 export function formatMoney(value: number): string {
   const v = Math.max(0, value)
   if (v < 1000) {
-    if (v < 10) return v.toFixed(2)
-    if (v < 100) return v.toFixed(1)
+    if (v < 10) return v.toFixed(1)
     return Math.floor(v).toLocaleString('tr-TR')
   }
-  if (v < 1_000_000) return `${(v / 1000).toFixed(v < 10_000 ? 2 : 1)}K`
-  if (v < 1_000_000_000) return `${(v / 1_000_000).toFixed(v < 10_000_000 ? 2 : 1)}M`
-  if (v < 1_000_000_000_000) return `${(v / 1_000_000_000).toFixed(2)}B`
-  return `${(v / 1_000_000_000_000).toFixed(2)}T`
+  if (v < 1_000_000) return `${(v / 1000).toFixed(v < 10_000 ? 1 : 0)}K`
+  if (v < 1_000_000_000) return `${(v / 1_000_000).toFixed(v < 10_000_000 ? 1 : 0)}M`
+  if (v < 1_000_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}B`
+  return `${(v / 1_000_000_000_000).toFixed(1)}T`
+}
+
+/** Günlük gelir gösterimi — 1 sn = 1 oyun günü olduğu için kazanç anlık işlenir */
+export function formatIncomeRate(value: number): string {
+  const v = Math.max(0, value)
+  if (v <= 0) return '0/gün'
+  return `${formatMoney(v)}/gün`
 }
