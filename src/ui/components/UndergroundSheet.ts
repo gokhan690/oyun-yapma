@@ -79,7 +79,7 @@ export class UndergroundSheet {
       let costText = ''
       if (action.id === 'lawyer') costText = formatMoney(state.incomePerDay() * 0.5)
       else if (action.id === 'bribe') costText = formatMoney(Math.floor(state.money * 0.05))
-      else costText = formatMoney(Math.max(1, state.illegalIncomePerSecond() * 0.2 * 60))
+      else costText = formatMoney(Math.max(1, Math.floor(state.illegalIncomePerDay() * 0.2)))
 
       card.innerHTML = `
         <div class="underground-action-top">

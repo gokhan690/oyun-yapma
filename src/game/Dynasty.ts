@@ -68,6 +68,22 @@ export const SPOUSE_OPTIONS: SpouseOption[] = [
     id: 'onur', name: 'Onur', emoji: '🎲', gender: 'male', trait: 'risk_taker', bonusLabel: 'Illegal +20% · Bahis +25%', cost: 90_000,
     producerBonusIds: ['bahis', 'piramit', 'offshore'], producerBonusPct: 0.25,
   },
+  {
+    id: 'selin', name: 'Selin', emoji: '🌹', gender: 'female', trait: 'merchant', bonusLabel: 'Pasif +10% · Otel +16%', cost: 55_000,
+    producerBonusIds: ['otel', 'kafe'], producerBonusPct: 0.16,
+  },
+  {
+    id: 'defne', name: 'Defne', emoji: '🎭', gender: 'female', trait: 'risk_taker', bonusLabel: 'Illegal +15% · Kaçak +22%', cost: 85_000,
+    producerBonusIds: ['kacak_imalat', 'siyah_fabrika'], producerBonusPct: 0.22,
+  },
+  {
+    id: 'burak', name: 'Burak', emoji: '⚡', gender: 'male', trait: 'innovator', bonusLabel: 'Tıklama +12% · Yazılım +18%', cost: 65_000,
+    producerBonusIds: ['holding', 'data_center'], producerBonusPct: 0.18,
+  },
+  {
+    id: 'emre', name: 'Emre', emoji: '🛡️', gender: 'male', trait: 'diplomat', bonusLabel: 'Maliyet −10% · Lojistik +12%', cost: 48_000,
+    producerBonusIds: ['fabrika', 'drone'], producerBonusPct: 0.12,
+  },
 ]
 
 const CHILD_NAMES = [

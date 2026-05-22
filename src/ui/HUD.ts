@@ -120,7 +120,7 @@ export class HUD {
     })
     this.statsScreen = new StatsScreen(state, this.leaderboard)
     this.tutorial = new Tutorial(state)
-    this.tutorial.setTabHandler((tab) => this.shop.setTab(tab))
+    this.tutorial.setTabHandler((tab) => this.shop.setTab(tab, this.state))
     this.build()
     this.skyline = new Skyline(this.tapArea.parentElement!)
     this.particles = new ParticleSystem(this.tapArea.parentElement!)
@@ -534,7 +534,7 @@ export class HUD {
       if (ev.type === 'passive_income') {
         this.patchShopAffordability()
       }
-      if (ev.type === 'stock_tick' && this.shop.getActiveTab() === 'ipo') {
+      if (ev.type === 'stock_tick' && this.shop.getActiveTab() === 'finance' && this.shop.getIpoSubTab() === 'stock') {
         this.shop.render(this.state, true)
       }
       if (ev.type === 'click') {
@@ -976,7 +976,7 @@ export class HUD {
       }
       case 'shop-tab':
         if (id) {
-          this.shop.setTab(id)
+          this.shop.setTab(id, this.state)
           this.refreshShop(true)
         }
         break
@@ -1725,7 +1725,7 @@ export class HUD {
     const nextStreak = this.state.dailyLastClaim && !streakLost
       ? this.state.dailyStreak + 1
       : 1
-    const preview = Math.max(100 * nextStreak, this.state.incomePerSecond() * 60 * nextStreak)
+    const preview = this.state.dailyLoginRewardPreview(nextStreak)
     this.modals.showDailyReward(
       nextStreak,
       formatMoney(preview),

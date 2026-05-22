@@ -95,6 +95,7 @@ export class StatsScreen {
       ['Baron', this.state.playerName || 'Baron'],
       ['Yaş', `${age} · ~${this.state.estimatedYearsRemaining()} yıl`],
       ['Rütbe', `${rank.emoji} ${rank.name}`],
+      ['Cüzdan', formatMoney(this.state.money)],
       ['Toplam kazanç (run)', formatMoney(this.state.totalEarned)],
       ['Yaşam boyu kazanç', formatMoney(this.state.lifetimeTotalEarned)],
       ['Tıklama', this.state.totalClicks.toLocaleString('tr-TR')],

@@ -23,11 +23,15 @@ function formatSeasonLabel(): string {
 
 export class EventsPanel {
   readonly root: HTMLElement
+  private scrollBody!: HTMLElement
 
   constructor() {
     this.root = document.createElement('section')
     this.root.className = 'events-panel tab-panel'
     this.root.hidden = true
+    this.scrollBody = document.createElement('div')
+    this.scrollBody.className = 'events-scroll-body'
+    this.root.appendChild(this.scrollBody)
   }
 
   render(state: GameState): void {
@@ -35,27 +39,27 @@ export class EventsPanel {
     state.ensureWeekly()
     state.ensureDailyGoal()
     state.ensureMissions()
-    this.root.replaceChildren()
+    this.scrollBody.replaceChildren()
 
     const header = document.createElement('div')
     header.className = 'events-panel-header'
     header.innerHTML = '<h2>🎪 Etkinlikler</h2><p>Günlük hedefler, haftalık bonuslar ve sezon ödülleri</p>'
-    this.root.appendChild(header)
+    this.scrollBody.appendChild(header)
 
     const boosts = this.renderActiveBoosts(state)
-    if (boosts) this.root.appendChild(boosts)
+    if (boosts) this.scrollBody.appendChild(boosts)
 
     if (state.isSurpriseInvestorActive()) {
-      this.root.appendChild(this.banner('💎 Sürpriz yatırımcı aktif — tüm gelir x2!', 'surprise-investor-banner'))
+      this.scrollBody.appendChild(this.banner('💎 Sürpriz yatırımcı aktif — tüm gelir iki kat!', 'surprise-investor-banner'))
     }
 
     const headline = state.currentMarketHeadline()
     if (headline) {
-      this.root.appendChild(this.banner(`📰 ${headline}`, 'market-news-banner'))
+      this.scrollBody.appendChild(this.banner(`📰 ${headline}`, 'market-news-banner'))
     }
 
     if (Date.now() < state.stock.marketEventUntil) {
-      this.root.appendChild(this.banner(
+      this.scrollBody.appendChild(this.banner(
         state.stock.marketEventMult < 0 ? '📉 Borsa çöküşü — fiyatlar düşüyor!' : '📈 Borsa rallisi — fiyatlar yükseliyor!',
         'market-event-banner',
       ))
@@ -65,25 +69,25 @@ export class EventsPanel {
     if (heat > 0 || state.illegalIncomePerDay() > 0) {
       const heatWarn = document.createElement('div')
       heatWarn.className = `events-heat-banner${heat >= 55 ? ' heat-alert' : ''}`
-      heatWarn.innerHTML = `
-        <div>
-          <strong>🕶️ Radar: ${state.illegalRiskLabel()}</strong>
-          <small>${Math.round(heat)}% — Underground menüsünden temizleyebilirsin</small>
-        </div>
+      const heatText = document.createElement('div')
+      heatText.className = 'events-heat-text'
+      heatText.innerHTML = `
+        <strong>🕶️ Radar: ${state.illegalRiskLabel()}</strong>
+        <small>${Math.round(heat)}% — Underground menüsünden temizleyebilirsin</small>
       `
       const cleanBtn = document.createElement('button')
       cleanBtn.type = 'button'
       cleanBtn.className = 'btn-secondary btn-sm'
       cleanBtn.dataset.action = 'open-underground'
       cleanBtn.textContent = 'Temizle'
-      heatWarn.appendChild(cleanBtn)
-      this.root.appendChild(heatWarn)
+      heatWarn.append(heatText, cleanBtn)
+      this.scrollBody.appendChild(heatWarn)
     }
 
-    this.root.appendChild(this.renderDaily(state))
-    this.root.appendChild(this.renderWeekly(state))
-    this.root.appendChild(this.renderSeason(state))
-    this.root.appendChild(this.renderMissions(state))
+    this.scrollBody.appendChild(this.renderDaily(state))
+    this.scrollBody.appendChild(this.renderWeekly(state))
+    this.scrollBody.appendChild(this.renderSeason(state))
+    this.scrollBody.appendChild(this.renderMissions(state))
   }
 
   private renderActiveBoosts(state: GameState): HTMLElement | null {
@@ -91,16 +95,16 @@ export class EventsPanel {
     const chips: { emoji: string; label: string; detail: string }[] = []
 
     if (now < state.adIncomeBoostUntil) {
-      chips.push({ emoji: '📺', label: 'Reklam x2', detail: formatRemainingMs(state.adIncomeBoostUntil - now) })
+      chips.push({ emoji: '📺', label: 'Reklam bonusu', detail: formatRemainingMs(state.adIncomeBoostUntil - now) })
     }
     if (state.getEventBoostActive()) {
-      chips.push({ emoji: '📱', label: 'Viral etkinlik x3', detail: formatRemainingMs(state.eventBoostUntil - now) })
+      chips.push({ emoji: '📱', label: 'Viral etkinlik', detail: formatRemainingMs(state.eventBoostUntil - now) })
     }
     if (now < state.shopBoostUntil) {
-      chips.push({ emoji: '🛒', label: 'Mağaza x1.5', detail: formatRemainingMs(state.shopBoostUntil - now) })
+      chips.push({ emoji: '🛒', label: 'Mağaza bonusu', detail: formatRemainingMs(state.shopBoostUntil - now) })
     }
     if (state.isSurpriseInvestorActive()) {
-      chips.push({ emoji: '💎', label: 'Yatırımcı x2', detail: formatRemainingMs(state.surpriseInvestorUntil - now) })
+      chips.push({ emoji: '💎', label: 'Yatırımcı bonusu', detail: formatRemainingMs(state.surpriseInvestorUntil - now) })
     }
     if (state.isNight) {
       chips.push({ emoji: '🌙', label: 'Hafta sonu pasif', detail: 'Oyun takvimi Cmt–Paz' })
@@ -135,21 +139,14 @@ export class EventsPanel {
     const wrap = document.createElement('section')
     wrap.className = 'events-block events-block-daily'
 
-    const dailyHero = document.createElement('div')
-    dailyHero.className = 'events-hero events-hero-daily'
-    dailyHero.innerHTML = `
-      <div class="events-hero-top">
-        <span class="events-hero-icon">🎯</span>
-        <div class="events-hero-text">
-          <strong>Günlük hedef</strong>
-          <small>${formatMoney(state.dailyGoalEarned)} / ${formatMoney(target)} kazanç</small>
-          <small class="events-streak-line">🔥 Giriş serisi: ${state.dailyStreak} gün · Yarın: ${formatMoney(calcDailyLoginReward(state.dailyStreak + 1, state.incomePerDay()))}</small>
-        </div>
-        <span class="events-hero-stat">${goalPct}%</span>
-      </div>
-    `
-    dailyHero.appendChild(this.progressBar(goalPct))
-    wrap.appendChild(dailyHero)
+    wrap.appendChild(this.blockHeader(
+      '🎯',
+      'Günlük hedef',
+      `${formatMoney(state.dailyGoalEarned)} / ${formatMoney(target)} kazanç`,
+      `${goalPct}%`,
+      `🔥 Giriş serisi: ${state.dailyStreak} gün · Yarın: ${formatMoney(calcDailyLoginReward(state.dailyStreak + 1, state.incomePerDay()))}`,
+    ))
+    wrap.appendChild(this.progressBar(goalPct))
 
     const dailyActions = document.createElement('div')
     dailyActions.className = 'events-actions'
@@ -173,23 +170,32 @@ export class EventsPanel {
     const wrap = document.createElement('section')
     wrap.className = 'events-block events-block-weekly'
 
-    const weeklyHero = document.createElement('div')
-    weeklyHero.className = 'events-hero events-hero-weekly'
-    weeklyHero.innerHTML = `
-      <div class="events-hero-top">
-        <span class="events-hero-icon">🗓️</span>
-        <div class="events-hero-text">
-          <strong>${def.name}</strong>
-          <small>${def.description}</small>
-          <small class="events-streak-line">${formatMoney(w.progress)} / ${formatMoney(w.target)} kazanç · ${daysLeft} gün kaldı</small>
-          ${bonusPct > 0 ? `<span class="events-bonus-chip">Bu hafta +${bonusPct}% bonus${w.adDoubled ? ' (reklam x2)' : ''}</span>` : ''}
-          ${def.comboCapMult ? `<span class="events-bonus-chip">Combo cap x${def.comboCapMult}${w.adDoubled ? ' (güçlü)' : ''}</span>` : ''}
-        </div>
-        <span class="events-hero-stat">${Math.floor(wPct)}%</span>
-      </div>
-    `
-    weeklyHero.appendChild(this.progressBar(wPct))
-    wrap.appendChild(weeklyHero)
+    wrap.appendChild(this.blockHeader(
+      '🗓️',
+      def.name,
+      `${formatMoney(w.progress)} / ${formatMoney(w.target)} · ${daysLeft} gün kaldı`,
+      `${Math.floor(wPct)}%`,
+      def.description,
+    ))
+    wrap.appendChild(this.progressBar(wPct))
+
+    if (bonusPct > 0 || def.comboCapMult) {
+      const chips = document.createElement('div')
+      chips.className = 'events-chip-row'
+      if (bonusPct > 0) {
+        const chip = document.createElement('span')
+        chip.className = 'events-bonus-chip'
+        chip.textContent = `Bu hafta +${bonusPct}% bonus${w.adDoubled ? ' (reklam)' : ''}`
+        chips.appendChild(chip)
+      }
+      if (def.comboCapMult) {
+        const chip = document.createElement('span')
+        chip.className = 'events-bonus-chip'
+        chip.textContent = `Combo cap ${def.comboCapMult}${w.adDoubled ? ' (güçlü)' : ''}`
+        chips.appendChild(chip)
+      }
+      wrap.appendChild(chips)
+    }
 
     const weeklyActions = document.createElement('div')
     weeklyActions.className = 'events-actions'
@@ -198,11 +204,11 @@ export class EventsPanel {
     } else if (w.claimed) {
       const done = document.createElement('p')
       done.className = 'events-done-label'
-      done.textContent = `✓ Bu haftanın ödülü alındı${w.adDoubled ? ' · Bonus x2 aktif' : ''}`
+      done.textContent = `✓ Bu haftanın ödülü alındı${w.adDoubled ? ' · Bonus aktif' : ''}`
       weeklyActions.appendChild(done)
     }
     if (!w.adDoubled) {
-      weeklyActions.appendChild(this.actionBtn('ad-weekly', '📺 Haftalık bonusu x2 (reklam)', 'btn-ad'))
+      weeklyActions.appendChild(this.actionBtn('ad-weekly', '📺 Haftalık bonus (reklam)', 'btn-ad'))
     }
     wrap.appendChild(weeklyActions)
     return wrap
@@ -210,38 +216,32 @@ export class EventsPanel {
 
   private renderSeason(state: GameState): HTMLElement {
     const prog = tierProgress(state.season.xp)
+    const tier = currentTier(state.season.xp)
     const wrap = document.createElement('section')
     wrap.className = 'events-block events-block-season'
 
-    const seasonHero = document.createElement('div')
-    seasonHero.className = 'events-hero events-hero-season'
-    seasonHero.innerHTML = `
-      <div class="events-hero-top">
-        <span class="events-hero-icon">👑</span>
-        <div class="events-hero-text">
-          <strong>İmparatorluk Yolu</strong>
-          <small>${formatSeasonLabel()} sezonu · Tier ${prog.tier}/${SEASON_MAX_TIER}</small>
-          <small class="events-streak-line">${prog.current} / ${prog.needed} XP · Para kazanınca XP gelir</small>
-        </div>
-        <span class="events-hero-stat">T${prog.tier}</span>
-      </div>
-    `
-    seasonHero.appendChild(this.progressBar(prog.pct))
+    wrap.appendChild(this.blockHeader(
+      '👑',
+      'İmparatorluk Yolu',
+      `${formatSeasonLabel()} · Tier ${prog.tier}/${SEASON_MAX_TIER}`,
+      `T${prog.tier}`,
+      `${prog.current} / ${prog.needed} XP · Para kazanınca XP gelir`,
+    ))
+    wrap.appendChild(this.progressBar(prog.pct))
 
     const track = document.createElement('div')
     track.className = 'season-track'
-    const tier = currentTier(state.season.xp)
     for (let i = 1; i <= Math.min(SEASON_MAX_TIER, tier + 3); i++) {
       const node = document.createElement('div')
       node.className = 'season-node'
       if (i <= tier) node.classList.add('unlocked')
       if (state.season.claimedTiers.includes(i)) node.classList.add('claimed')
       const rw = rewardForTier(i)
-      node.innerHTML = `<span>${i}</span><small>${rw.label}</small>`
+      node.innerHTML = `<span class="season-node-tier">${i}</span><small>${rw.label}</small>`
       if (i <= tier && !state.season.claimedTiers.includes(i)) {
         const claim = document.createElement('button')
         claim.type = 'button'
-        claim.className = 'season-claim-btn'
+        claim.className = 'season-claim-btn btn-primary btn-sm'
         claim.dataset.action = 'claim-season'
         claim.dataset.id = String(i)
         claim.textContent = 'Topla'
@@ -249,15 +249,12 @@ export class EventsPanel {
       }
       track.appendChild(node)
     }
-    seasonHero.appendChild(track)
+    wrap.appendChild(track)
 
-    const adSeason = document.createElement('button')
-    adSeason.type = 'button'
-    adSeason.className = 'btn-ad'
-    adSeason.dataset.action = 'ad-season-xp'
-    adSeason.textContent = '📺 Sezon XP 2x (reklam)'
-    seasonHero.appendChild(adSeason)
-    wrap.appendChild(seasonHero)
+    const seasonActions = document.createElement('div')
+    seasonActions.className = 'events-actions'
+    seasonActions.appendChild(this.actionBtn('ad-season-xp', '📺 Sezon XP bonusu (reklam)', 'btn-ad'))
+    wrap.appendChild(seasonActions)
     return wrap
   }
 
@@ -267,15 +264,11 @@ export class EventsPanel {
     const title = document.createElement('h3')
     title.textContent = '📋 Günlük Görevler'
     section.appendChild(title)
+    const ready = state.missions.filter((m) => m.progress >= m.target && !m.claimed).length
     const sub = document.createElement('p')
     sub.className = 'events-missions-summary'
-    sub.textContent = 'Her gerçek gün 3 yeni görev · Yarın sıfırlanır'
+    sub.textContent = `${ready} hazır · ${state.missions.filter((m) => m.claimed).length}/${state.missions.length} tamamlandı · Her gün sıfırlanır`
     section.appendChild(sub)
-    const ready = state.missions.filter((m) => m.progress >= m.target && !m.claimed).length
-    const summary = document.createElement('p')
-    summary.className = 'events-missions-summary'
-    summary.textContent = `${ready} hazır · ${state.missions.filter((m) => m.claimed).length}/${state.missions.length} tamamlandı`
-    section.appendChild(summary)
     const sorted = [...state.missions].sort((a, b) => {
       const aReady = a.progress >= a.target && !a.claimed ? 1 : 0
       const bReady = b.progress >= b.target && !b.claimed ? 1 : 0
@@ -288,7 +281,7 @@ export class EventsPanel {
       const reward = m.rewardMoney > 0
         ? formatMoney(m.rewardMoney)
         : m.rewardBoostMinutes > 0
-          ? `${m.rewardBoostMinutes} dk x2 gelir`
+          ? `${m.rewardBoostMinutes} dk gelir bonusu`
           : '—'
       const card = document.createElement('div')
       card.className = `events-mission-card${m.claimed ? ' claimed' : ''}${m.progress >= m.target && !m.claimed ? ' ready' : ''}`
@@ -307,6 +300,21 @@ export class EventsPanel {
     }
     section.appendChild(list)
     return section
+  }
+
+  private blockHeader(icon: string, title: string, subtitle: string, stat: string, hint?: string): HTMLElement {
+    const head = document.createElement('div')
+    head.className = 'events-block-head'
+    head.innerHTML = `
+      <span class="events-hero-icon">${icon}</span>
+      <div class="events-hero-text">
+        <strong>${title}</strong>
+        <small>${subtitle}</small>
+        ${hint ? `<small class="events-streak-line">${hint}</small>` : ''}
+      </div>
+      <span class="events-hero-stat">${stat}</span>
+    `
+    return head
   }
 
   private progressBar(pct: number): HTMLElement {

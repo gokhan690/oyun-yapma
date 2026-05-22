@@ -60,8 +60,8 @@ export class DynastyPanel {
     const p = document.createElement('p')
     p.className = 'dynasty-desc'
     p.textContent = this.state.playerGender === 'female'
-      ? 'İmparatorluğunu büyütmek için evlen — aday erkekler listelenir.'
-      : 'İmparatorluğunu büyütmek için evlen — aday kadınlar listelenir.'
+      ? 'Evlen — 4 erkek aday arasından seç.'
+      : 'Evlen — 4 kadın aday arasından seç.'
     this.root.appendChild(p)
     const grid = document.createElement('div')
     grid.className = 'dynasty-spouse-grid'

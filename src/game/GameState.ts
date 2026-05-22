@@ -481,7 +481,6 @@ export class GameState {
         lastPassiveEmit = now
         const batch = this.passiveAccrued
         this.passiveAccrued = 0
-        this.recordPassiveEarned(batch, now)
         this.addMoney(batch, true)
       }
       if (now - this.lastGameClockEmit > 1000) {
@@ -1140,6 +1139,38 @@ export class GameState {
     return PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0)
   }
 
+  /** Saniye başına pasif gelir — incomePerDay ile aynı (1 sn = 1 oyun günü) */
+  passiveIncomePerSecond(): number {
+    return this.incomePerDay()
+  }
+
+  /** Bir adet daha alınca eklenecek pasif gelir (kart/ROI için) */
+  marginalProducerIncome(def: ProducerDef, count = 1): number {
+    const owned = this.producers[def.id] ?? 0
+    if (owned > 0) {
+      return (this.producerIncome(def) / owned) * count
+    }
+    let mult = 1
+    for (const uid of this.purchasedUpgrades) {
+      const u = UPGRADES.find((x) => x.id === uid)
+      if (u?.effect === 'producer_mult' && u.producerId === def.id) mult *= u.value
+    }
+    mult *= 1 + producerSynergyBonus(def.id, this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
+    mult *= this.weeklyProducerBonus(def.id)
+    if (def.illegal) mult *= traitIllegalMult(activeDynastyTrait(this.dynasty))
+    mult *= this.marketNewsProducerMult(def.id)
+    mult *= spouseProducerBonus(this.dynasty, def.id, hasNode(this.prestigeTree, 'dynasty_1'))
+    if (def.illegal) mult *= illegalIncomeBonus(this.undergroundTree)
+    if (def.category === 'dark') {
+      mult *= empireDarkProductionMult(this.empire.darkIndustry, this.gameTimeMs)
+    }
+    if (def.category === 'sport') {
+      const club = this.empire.football.find((c) => c.clubId === def.id)
+      if (club) mult *= empireFootballIncomeMult(club)
+    }
+    return scaledBaseIncome(def.baseIncome) * count * mult * this.passiveMultiplier()
+  }
+
   /** Ortalama tıklama başına kazanç (combo/krit hariç) */
   clickIncomePerTap(): number {
     return BASE_CLICK * this.clickMultiplier()
@@ -1155,6 +1186,11 @@ export class GameState {
     const spanSec = Math.max(0.5, (now - oldest) / 1000)
     const sum = this.passiveRecent.reduce((s, x) => s + x.amount, 0)
     return sum / spanSec
+  }
+
+  /** Son 3 sn'de cüzdana giren gerçek hız (pasif + tıklama + ödül) */
+  measuredWalletPerSecond(): number {
+    return this.measuredPassivePerSecond()
   }
 
   private recordPassiveEarned(amount: number, at: number): void {
@@ -1188,6 +1224,7 @@ export class GameState {
     if (amount <= 0) return
     const prevLifetime = this.lifetimeTotalEarned
     this.money += amount
+    this.recordPassiveEarned(amount, performance.now())
     this.trackDailyGoal(amount)
     if (this.isNight) this.nightEarningsSession += amount
     if (countTotal) {

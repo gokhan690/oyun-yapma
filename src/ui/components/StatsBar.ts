@@ -30,7 +30,7 @@ export class StatsBar {
     moneyBlock.className = 'stats-hero-money'
     const moneyLabel = document.createElement('span')
     moneyLabel.className = 'stats-hero-label'
-    moneyLabel.textContent = 'Para'
+    moneyLabel.textContent = 'Cüzdan'
     this.moneyEl = document.createElement('span')
     this.moneyEl.className = 'stats-hero-value money-stat-value'
     this.moneyEl.textContent = '0'
@@ -39,8 +39,10 @@ export class StatsBar {
     const chips = document.createElement('div')
     chips.className = 'stats-hero-chips'
     this.incomeChip = this.chip('⚡', '0/sn')
+    this.incomeChip.title = 'Saniye başına pasif gelir (tıklama hariç)'
     this.prestigeChip = this.chip('📊', 'x1.00')
-    this.boostChip = this.chip('🔥', '—')
+    this.boostChip = this.chip('👆', '—')
+    this.boostChip.title = 'Ortalama tıklama kazancı'
     chips.append(this.incomeChip, this.prestigeChip, this.boostChip)
 
     this.heroEl.append(moneyBlock, chips)
@@ -65,18 +67,22 @@ export class StatsBar {
   }
 
   private updateMeta(): void {
-    this.setChip(this.incomeChip, formatIncomeRate(this.state.incomePerDay()))
+    this.setChip(this.incomeChip, formatIncomeRate(this.state.passiveIncomePerSecond()))
     this.setChip(this.prestigeChip, `x${prestigeMultiplier(this.state.prestigePoints).toFixed(2)}`)
     if (this.state.isShopBoostActive()) {
       const sec = Math.ceil(this.state.shopBoostRemainingMs() / 1000)
-      this.setChip(this.boostChip, `+50% ${sec}sn`)
+      this.setChip(this.boostChip, `Mağaza +50% ${sec}sn`)
+      this.boostChip.title = 'Mağaza gelir bonusu aktif'
     } else if (this.state.isAdBoostActive()) {
       const sec = Math.ceil(this.state.adBoostRemainingMs() / 1000)
-      this.setChip(this.boostChip, `2x ${sec}sn`)
+      this.setChip(this.boostChip, `Reklam 2x ${sec}sn`)
+      this.boostChip.title = 'Reklam gelir bonusu aktif'
     } else if (this.state.getEventBoostActive()) {
-      this.setChip(this.boostChip, '3x Viral')
+      this.setChip(this.boostChip, 'Etkinlik 3x')
+      this.boostChip.title = 'Altın etkinlik bonusu'
     } else {
-      this.setChip(this.boostChip, '—')
+      this.setChip(this.boostChip, formatMoney(this.state.clickIncomePerTap()))
+      this.boostChip.title = 'Ortalama tıklama kazancı (combo/krit hariç)'
     }
   }
 
@@ -85,7 +91,7 @@ export class StatsBar {
     const tick = (): void => {
       this.moneyTarget = this.state.money
       const diff = this.moneyTarget - this.displayedMoney
-      if (Math.abs(diff) < 0.05) {
+      if (Math.abs(diff) < 0.05 || (this.moneyTarget > 0 && Math.abs(diff) < this.moneyTarget * 0.002)) {
         this.displayedMoney = this.moneyTarget
       } else if (Math.abs(diff) > 500) {
         this.displayedMoney += diff * 0.12

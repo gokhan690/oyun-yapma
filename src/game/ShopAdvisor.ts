@@ -26,7 +26,7 @@ export type BizSortOrder = 'profit' | 'cheap' | 'name' | 'unlockable'
 export function producerRoiDays(state: GameState, p: ProducerDef, count = 1): number {
   const owned = state.producers[p.id] ?? 0
   const cost = state.producerCostFor(p, owned, count)
-  const ipdGain = p.baseIncome * count * state.passiveMultiplier()
+  const ipdGain = state.marginalProducerIncome(p, count)
   if (ipdGain <= 0) return Infinity
   return cost / ipdGain
 }
@@ -65,7 +65,7 @@ export function getBestRecommendation(state: GameState): ShopRecommendation | nu
     const count = state.countMaxAffordable(p.id) >= 1 ? 1 : 1
     const cost = state.producerCostFor(p, owned, count)
     const roi = producerRoiDays(state, p, count)
-    const ipdGain = p.baseIncome * count * state.passiveMultiplier()
+    const ipdGain = state.marginalProducerIncome(p, count)
     const synergies = getActiveSynergies(state.producers)
     const synBonus = synergies.some((s) => s.def.requires.includes(p.id) || s.def.targetProducer === p.id)
     candidates.push({

@@ -1,5 +1,5 @@
 import type { GameState } from '../../game/GameState'
-import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, formatIncomeRateHint, producerIconPath, earlyUnlockCost, isProducerUnlocked, scaledBaseIncome, scaledUnlockAt, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
+import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, formatIncomeRateHint, producerIconPath, earlyUnlockCost, isProducerUnlocked, scaledUnlockAt, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
 import { RESEARCH_NODES, researchCost } from '../../game/Research'
 import { getActiveSynergies } from '../../game/Synergies'
 import { PRESTIGE_THRESHOLD } from '../../game/GameState'
@@ -119,7 +119,7 @@ export class ShopPanel {
       btn.className = 'buy-mode-btn'
       btn.dataset.action = 'buy-mode'
       btn.dataset.count = mode
-      btn.textContent = mode === 'max' ? 'Max' : `x${mode}`
+      btn.textContent = mode === 'max' ? 'Hepsi' : mode
       if (mode === '1') btn.classList.add('active')
       buyModes.appendChild(btn)
     }
@@ -186,13 +186,16 @@ export class ShopPanel {
     this.root.append(chrome, body)
   }
 
-  setTab(id: string): void {
+  setTab(id: string, state?: GameState): void {
     const resolved = this.resolveTab(id)
     this.activeHub = resolved.hub
     if (resolved.growthSub) this.growthSub = resolved.growthSub
     if (resolved.powerupSub) this.powerupSub = resolved.powerupSub
     if (resolved.ipoSub) this.ipoSubTab = resolved.ipoSub
     if (resolved.empireSub) this.empireSub = resolved.empireSub
+    if (this.activeHub === 'finance' && state?.prestigeEligible()) {
+      this.ipoSubTab = 'ipo'
+    }
     const panelId = this.activePanelId()
     this.root.className = `shop-panel shop-hub-${this.activeHub}`
     for (const btn of this.tabButtons) {
@@ -208,10 +211,9 @@ export class ShopPanel {
         panel.classList.add('tab-fade-in')
       }
     }
-    this.renderSubTabs()
+    this.renderSubTabs(state)
     const showBuy = (this.activeHub === 'growth' && this.growthSub === 'businesses')
       || (this.activeHub === 'empire')
-      || (this.activeHub === 'powerup' && this.powerupSub === 'upgrades')
     this.buyModesEl.hidden = !showBuy
     this.buyModesEl.classList.toggle('is-hidden', !showBuy)
     this.shopSubEl.textContent = HUB_SUBTITLES[this.activeHub]
@@ -237,7 +239,11 @@ export class ShopPanel {
 
   private highlightStockTicker: string | null = null
 
-  private renderSubTabs(): void {
+  getIpoSubTab(): IpoSubTab {
+    return this.ipoSubTab
+  }
+
+  private renderSubTabs(state?: GameState): void {
     this.subTabsEl.replaceChildren()
     this.subTabButtons = []
     if (this.activeHub === 'growth') {
@@ -270,6 +276,23 @@ export class ShopPanel {
         btn.dataset.action = 'shop-sub-tab'
         btn.dataset.id = id
         btn.textContent = label
+        this.subTabButtons.push(btn)
+        this.subTabsEl.appendChild(btn)
+      }
+    } else if (this.activeHub === 'finance') {
+      for (const [id, label] of [['stock', 'Hisse'], ['prestige', 'Prestij'], ['ipo', 'IPO']] as const) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = `shop-sub-tab ipo-nav-tab${this.ipoSubTab === id ? ' active' : ''}`
+        btn.dataset.action = 'ipo-sub-tab'
+        btn.dataset.id = id
+        btn.textContent = label
+        if (id === 'ipo' && state?.prestigeEligible()) {
+          const badge = document.createElement('span')
+          badge.className = 'sub-tab-ready-dot'
+          badge.title = 'IPO hazır'
+          btn.appendChild(badge)
+        }
         this.subTabButtons.push(btn)
         this.subTabsEl.appendChild(btn)
       }
@@ -341,6 +364,7 @@ export class ShopPanel {
   render(state: GameState, onlyActiveTab = false, patch = false): void {
     this.renderShopHub(state)
     this.renderAdvisorStrip(state)
+    this.renderSubTabs(state)
     const panelId = this.activePanelId()
     if (patch && panelId === 'businesses') {
       this.renderBusinesses(state, true)
@@ -348,6 +372,7 @@ export class ShopPanel {
     }
     if (onlyActiveTab) {
       this.renderTab(state, panelId)
+      this.renderSubTabs(state)
       this.updateTabBadges(state)
       return
     }
@@ -440,7 +465,7 @@ export class ShopPanel {
 
   private renderShopHub(state: GameState): void {
     const ipd = state.incomePerDay()
-    const legalIpd = state.legalIncomePerDay()
+    const click = state.clickIncomePerTap()
     const illegalIpd = state.illegalIncomePerDay()
     const ownedBiz = PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0).length
     const nextUnlock = PRODUCERS.find((p) => !isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks))
@@ -449,17 +474,19 @@ export class ShopPanel {
     const hasIllegal = illegalIpd > 0
     const heatPct = Math.round(state.illegalHeat)
     const illegalStat = hasIllegal
-      ? `<span class="hub-stat hub-stat-illegal"><strong>${formatIncomeRate(illegalIpd)}</strong><small>🕶️ Illegal</small></span>
+      ? `<span class="hub-stat hub-stat-illegal"><strong>${formatIncomeRate(illegalIpd)}</strong><small>Illegal pasif</small></span>
          <span class="hub-stat hub-stat-heat"><strong>${state.illegalRiskLabel()}</strong><small>Radar ${heatPct}%</small></span>`
       : ''
     this.shopHubEl.innerHTML = `
+      <span class="hub-stat hub-stat-wallet"><strong>${formatMoney(state.money)}</strong><small>Cüzdan</small></span>
+      <span class="hub-stat"><strong>${formatMoney(state.totalEarned)}</strong><small>Toplam kazanç</small></span>
       <span class="hub-stat"><strong>${formatIncomeRate(ipd)}</strong><small>Pasif / sn</small></span>
-      <span class="hub-stat"><strong>${formatIncomeRate(legalIpd)}</strong><small>Yasal / sn</small></span>
+      <span class="hub-stat"><strong>${formatMoney(click)}</strong><small>Tık / vuruş</small></span>
       ${illegalStat}
       <span class="hub-stat"><strong>${ownedBiz}</strong><small>İşletme</small></span>
-      <span class="hub-stat"><strong>${nextText}</strong><small>Sıradaki</small></span>
+      <span class="hub-stat"><strong>${nextText}</strong><small>Sıradaki kilit</small></span>
       <span class="hub-stat"><strong>${goalPct}%</strong><small>Günlük hedef</small></span>
-      <span class="hub-stat hub-stat-note"><small>1 sn = 1 oyun günü · tıklama ve ödüller ayrıca eklenir</small></span>
+      <span class="hub-stat hub-stat-note"><small>Cüzdan harcanır · Toplam kazanç kilit/rütbe için (düşmez)</small></span>
     `
     this.renderFinanceModifiers(state)
   }
@@ -495,24 +522,18 @@ export class ShopPanel {
     const el = document.createElement('div')
     el.className = 'finance-summary'
     const ipd = state.incomePerDay()
-    const measured = state.measuredPassivePerSecond()
     const click = state.clickIncomePerTap()
     const money = state.money
-    const drift = ipd > 0 ? ((measured - ipd) / ipd) * 100 : 0
-    const driftText = Math.abs(drift) < 3
-      ? '✓ ölçülen ≈ gösterilen'
-      : drift > 0
-        ? `↑ ölçülen +${Math.round(drift)}% (boost/hafta sonu)`
-        : `↓ ölçülen ${Math.round(drift)}%`
+    const total = state.totalEarned
     el.innerHTML = `
-      <div class="finance-summary-row">
+      <div class="finance-summary-row finance-summary-row-4">
         <span><strong>${formatMoney(money)}</strong><small>Cüzdan</small></span>
-        <span><strong>${formatIncomeRate(ipd)}</strong><small>Pasif (teorik)</small></span>
-        <span><strong>${formatIncomeRate(measured)}</strong><small>Pasif (ölçülen, 3 sn)</small></span>
-        <span><strong>${formatMoney(click)}</strong><small>Tıklama / vuruş</small></span>
+        <span><strong>${formatMoney(total)}</strong><small>Toplam kazanç</small></span>
+        <span><strong>${formatIncomeRate(ipd)}</strong><small>Pasif</small></span>
+        <span><strong>${formatMoney(click)}</strong><small>Tıklama</small></span>
       </div>
-      <p class="finance-summary-hint">${formatIncomeRateHint(ipd)} · ${driftText}</p>
-      <p class="finance-summary-hint finance-summary-extra">Cüzdan hızlı artıyorsa: tıklama + pasif birlikte işler. Sadece pasif = ${formatIncomeRate(ipd)}.</p>
+      <p class="finance-summary-hint">Cüzdan = elindeki para (alışveriş buradan). Toplam kazanç = bu run'da kazandığın her şey; işletme kilidi ve rütbe buna bakar, harcamayla düşmez.</p>
+      <p class="finance-summary-hint finance-summary-extra">${formatIncomeRateHint(ipd)} · 1 sn = 1 oyun günü</p>
     `
     return el
   }
@@ -721,8 +742,36 @@ export class ShopPanel {
       const lockedCard = document.createElement('div')
       lockedCard.className = 'biz-card biz-card-locked-preview'
       lockedCard.innerHTML = `<div class="biz-locked-overlay"><strong>🔒 ${nextLocked.name}</strong><small>${formatMoney(scaledUnlockAt(nextLocked))} kazançta açılır</small></div>`
-      panel.appendChild(lockedCard)
+      grid.appendChild(lockedCard)
     }
+
+    if (category === 'dark' && state.illegalIncomePerDay() > 0) {
+      this.renderUndergroundTree(state, panel)
+    }
+  }
+
+  private renderUndergroundTree(state: GameState, panel: HTMLElement): void {
+    panel.querySelector('.underground-tree-section')?.remove()
+    const section = document.createElement('div')
+    section.className = 'underground-tree-section'
+    section.appendChild(this.createSectionHeader('Underground Ağacı', 'Gelir · Risk · Gizlilik'))
+    const grid = document.createElement('div')
+    grid.className = 'underground-tree-grid'
+    for (const node of UNDERGROUND_TREE_NODES) {
+      const level = state.undergroundTree[node.id] ?? 0
+      const maxed = level >= node.maxLevel
+      const cost = treeNodeCost(node, level)
+      const card = document.createElement('button')
+      card.type = 'button'
+      card.className = `shop-card underground-tree-node${maxed ? ' research-maxed' : ''}`
+      card.dataset.action = 'buy-underground-node'
+      card.dataset.id = node.id
+      card.disabled = maxed || !state.canAfford(cost)
+      card.innerHTML = `<span class="shop-card-icon">${node.emoji}</span><div class="shop-card-body"><strong>${node.name}</strong><small>${node.description}</small><span class="shop-level-label">${level}/${node.maxLevel}</span></div><span class="shop-card-price">${maxed ? 'Tamam' : formatMoney(cost)}</span>`
+      grid.appendChild(card)
+    }
+    section.appendChild(grid)
+    panel.appendChild(section)
   }
 
   private renderBusinesses(state: GameState, patchOnly = false): void {
@@ -748,6 +797,14 @@ export class ShopPanel {
     }
 
     if (!patchOnly) {
+      let heroEl = panel.querySelector('.growth-tab-hero') as HTMLElement | null
+      const ownedCount = PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0 && !p.category).length
+      const hero = this.createTabHero('🏢', 'İşletmeler', 'Yasal ve illegal işletmeler — pasif gelir kaynağın', `${ownedCount} aktif`)
+      hero.classList.add('growth-tab-hero')
+      if (heroEl) heroEl.replaceWith(hero)
+      else panel.prepend(hero)
+      heroEl = hero
+
       let filterBar = panel.querySelector('.biz-type-filters') as HTMLElement | null
       if (!filterBar) {
         const wrap = document.createElement('div')
@@ -883,7 +940,7 @@ export class ShopPanel {
           earlyBtn.dataset.id = nextLockedDef.id
           overlay.append(lockIcon, lockText, earlyBtn)
           lockedCard.append(inner, overlay)
-          panel.appendChild(lockedCard)
+          grid.appendChild(lockedCard)
         } else {
           lockedCard.dataset.producerId = nextLockedDef.id
         }
@@ -1034,11 +1091,13 @@ export class ShopPanel {
     const ownedEl = card.querySelector('.biz-owned')
     const costEl = card.querySelector('.biz-cost')
     const incEl = card.querySelector('.biz-income')
-    const ownedText = `x${owned}`
+    const ownedText = owned > 0 ? `${owned} adet` : 'Yeni'
     const costText = this.buyMode === 'max' && affordableCount > 1
-      ? `${formatMoney(cost)} (x${affordableCount})`
+      ? `${formatMoney(cost)} (${affordableCount} adet)`
       : formatMoney(cost)
-    const incText = owned > 0 ? formatIncomeRate(income) : `+${formatIncomeRate(scaledBaseIncome(p.baseIncome))}`
+    const incText = owned > 0
+      ? formatIncomeRate(income)
+      : `+${formatIncomeRate(state.marginalProducerIncome(p, 1))}`
     const roiSec = producerRoiSeconds(state, p, buyCount)
     const roiText = `ROI ~${formatRoi(roiSec)}`
 
@@ -1205,6 +1264,9 @@ export class ShopPanel {
       { id: 'producer', label: 'İşletme' },
     ], this.upgradeFilter, 'upgrade-filter'))
 
+    const upgradeGrid = document.createElement('div')
+    upgradeGrid.className = 'upgrade-cards-grid'
+
     if (list.length === 0 && purchased.length === 0) {
       panel.appendChild(this.createEmptyState('⬆️', 'Tüm yükseltmeler alındı!', 'IPO sonrası yeni bonuslar açılabilir'))
       return
@@ -1237,7 +1299,7 @@ export class ShopPanel {
       desc.textContent = u.description
       const tag = document.createElement('span')
       tag.className = 'shop-effect-tag'
-      tag.textContent = `${this.upgradeEffectLabel(u)} · ${u.description.includes('x') ? u.description.match(/x[\d.]+/)?.[0] ?? '' : ''}`
+      tag.textContent = this.upgradeEffectLabel(u)
       body.append(name, desc, tag)
 
       const price = document.createElement('span')
@@ -1245,8 +1307,9 @@ export class ShopPanel {
       price.textContent = formatMoney(upgradeCost)
 
       card.append(icon, body, price)
-      panel.appendChild(card)
+      upgradeGrid.appendChild(card)
     }
+    panel.appendChild(upgradeGrid)
 
     if (purchased.length > 0) {
       const details = document.createElement('details')
@@ -1336,7 +1399,7 @@ export class ShopPanel {
 
       const price = document.createElement('span')
       price.className = `shop-card-price${node.currency === 'prestige' ? ' price-prestige' : ''}`
-      price.textContent = maxed ? 'MAX' : node.currency === 'money' ? formatMoney(cost) : `${cost} hisse`
+      price.textContent = maxed ? 'Tamam' : node.currency === 'money' ? formatMoney(cost) : `${cost} hisse`
 
       card.append(icon, body, price)
       treeGrid.appendChild(card)
@@ -1348,48 +1411,11 @@ export class ShopPanel {
     const panel = this.panels.ipo!
     panel.replaceChildren()
 
-    panel.appendChild(this.createTabHero('📈', 'Borsa & IPO', 'Hisse al/sat, prestij ağacını geliştir, birleşme yap', `${state.prestigePoints} hisse puanı`))
-
-    const subTabs = document.createElement('div')
-    subTabs.className = 'ipo-sub-tabs'
-    for (const [id, label] of [['stock', 'Hisse'], ['prestige', 'Prestij Ağacı'], ['ipo', 'IPO']] as const) {
-      const btn = document.createElement('button')
-      btn.type = 'button'
-      btn.className = `ipo-sub-tab${this.ipoSubTab === id ? ' active' : ''}`
-      btn.dataset.action = 'ipo-sub-tab'
-      btn.dataset.id = id
-      btn.textContent = label
-      subTabs.appendChild(btn)
-    }
-    panel.appendChild(subTabs)
+    panel.appendChild(this.createTabHero('📈', 'Finans Merkezi', 'Borsa, prestij ağacı ve şirket birleşmesi', `${state.prestigePoints} kalıcı hisse`))
 
     if (this.ipoSubTab === 'stock') this.renderIpoStock(state, panel)
     else if (this.ipoSubTab === 'prestige') this.renderIpoPrestige(state, panel)
     else this.renderIpoMerge(state, panel)
-
-    if (state.illegalIncomePerSecond() > 0) {
-      this.renderUndergroundTree(state, panel)
-    }
-  }
-
-  private renderUndergroundTree(state: GameState, panel: HTMLElement): void {
-    panel.appendChild(this.createSectionHeader('Underground Ağacı', 'Gelir · Risk · Gizlilik'))
-    const grid = document.createElement('div')
-    grid.className = 'underground-tree-grid'
-    for (const node of UNDERGROUND_TREE_NODES) {
-      const level = state.undergroundTree[node.id] ?? 0
-      const maxed = level >= node.maxLevel
-      const cost = treeNodeCost(node, level)
-      const card = document.createElement('button')
-      card.type = 'button'
-      card.className = `shop-card underground-tree-node${maxed ? ' research-maxed' : ''}`
-      card.dataset.action = 'buy-underground-node'
-      card.dataset.id = node.id
-      card.disabled = maxed || !state.canAfford(cost)
-      card.innerHTML = `<span class="shop-card-icon">${node.emoji}</span><div class="shop-card-body"><strong>${node.name}</strong><small>${node.description}</small><span class="shop-level-label">${level}/${node.maxLevel}</span></div><span class="shop-card-price">${maxed ? 'MAX' : formatMoney(cost)}</span>`
-      grid.appendChild(card)
-    }
-    panel.appendChild(grid)
   }
 
   private renderIpoStock(state: GameState, panel: HTMLElement): void {
@@ -1600,7 +1626,7 @@ export class ShopPanel {
     btn.type = 'button'
     btn.className = 'btn-prestige'
     btn.dataset.action = 'ipo'
-    btn.textContent = 'Borsaya Çık (IPO)'
+    btn.textContent = state.prestigeEligible() ? '🚀 Borsaya Çık (IPO)' : `IPO için ${formatMoney(remaining)} kaldı`
     btn.disabled = !state.prestigeEligible()
 
     ipoCard.append(info, bar, btn)

@@ -176,7 +176,7 @@ export function formatMoney(value: number): string {
   return `${(v / 1_000_000_000_000).toFixed(1)}T`
 }
 
-/** Pasif gelir hızı — 1 gerçek sn = 1 oyun günü, bu yüzden /sn gösterilir */
+/** Pasif gelir hızı — 1 gerçek sn = 1 oyun günü */
 export function formatIncomeRate(value: number): string {
   const v = Math.max(0, value)
   if (v <= 0) return '0/sn'
@@ -186,5 +186,5 @@ export function formatIncomeRate(value: number): string {
 /** Açıklamalı gelir satırı (finans paneli) */
 export function formatIncomeRateHint(value: number): string {
   if (value <= 0) return 'Pasif gelir yok'
-  return `${formatIncomeRate(value)} · 1 sn = 1 oyun günü`
+  return `${formatIncomeRate(value)} pasif (tıklama ayrı)`
 }
