@@ -97,8 +97,8 @@ export const UPGRADES: UpgradeDef[] = [
 ]
 
 /** Uzun oyun profili — yavaş ilerleme, daha uzun oturum */
-export const ECONOMY_INCOME_SCALE = 0.72
-export const ECONOMY_COST_SCALE = 1.22
+export const ECONOMY_INCOME_SCALE = 0.58
+export const ECONOMY_COST_SCALE = 1.28
 export const ECONOMY_UNLOCK_SCALE = 1.35
 export const ECONOMY_COST_GROWTH_BONUS = 0.018
 export const ECONOMY_UPGRADE_COST_SCALE = 1.15

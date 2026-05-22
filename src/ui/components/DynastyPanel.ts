@@ -1,7 +1,7 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
 import { gameDay } from '../../game/GameClock'
-import { SPOUSE_OPTIONS, PLAYER_LIFESPAN, type ChildRecord } from '../../game/Dynasty'
+import { spouseOptionsForPlayer, PLAYER_LIFESPAN, type ChildRecord } from '../../game/Dynasty'
 
 const TRAIT_LABEL: Record<string, string> = {
   merchant: 'Tüccar — pasif +12%',
@@ -59,11 +59,13 @@ export class DynastyPanel {
   private renderMarriage(): void {
     const p = document.createElement('p')
     p.className = 'dynasty-desc'
-    p.textContent = 'İmparatorluğunu büyütmek için evlen. Eşinin özelliği bonus verir; çocuklar mirasçı olur.'
+    p.textContent = this.state.playerGender === 'female'
+      ? 'İmparatorluğunu büyütmek için evlen — aday erkekler listelenir.'
+      : 'İmparatorluğunu büyütmek için evlen — aday kadınlar listelenir.'
     this.root.appendChild(p)
     const grid = document.createElement('div')
     grid.className = 'dynasty-spouse-grid'
-    for (const s of SPOUSE_OPTIONS) {
+    for (const s of spouseOptionsForPlayer(this.state.playerGender)) {
       const card = document.createElement('button')
       card.type = 'button'
       card.className = 'dynasty-spouse-card'

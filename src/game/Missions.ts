@@ -21,18 +21,18 @@ export interface MissionProgress {
 }
 
 const POOL: Omit<MissionDef, 'id'>[] = [
-  { type: 'clicks', label: 'kez tıkla', target: 50, rewardMoney: 500 },
-  { type: 'clicks', label: 'kez tıkla', target: 100, rewardMoney: 1500 },
-  { type: 'buy_business', label: 'işletme satın al', target: 3, rewardBoostMinutes: 5 },
-  { type: 'buy_business', label: 'işletme satın al', target: 5, rewardMoney: 2000 },
-  { type: 'buy_upgrade', label: 'yükseltme al', target: 1, rewardMoney: 1000 },
-  { type: 'earn_money', label: '₺ kazan', target: 5000, rewardMoney: 800 },
-  { type: 'earn_money', label: '₺ kazan', target: 25000, rewardMoney: 5000 },
-  { type: 'season_xp', label: 'sezon XP kazan', target: 200, rewardMoney: 3000 },
-  { type: 'autobuy_enable', label: 'işletmede auto-buy aç', target: 1, rewardBoostMinutes: 3 },
-  { type: 'use_underground', label: 'underground aksiyon kullan', target: 1, rewardMoney: 2500 },
-  { type: 'claim_daily', label: 'günlük ödül topla', target: 1, rewardMoney: 1500 },
-  { type: 'season_tier', label: 'sezon tier ödülü topla', target: 1, rewardMoney: 4000 },
+  { type: 'clicks', label: 'kez tıkla', target: 50, rewardMoney: 280 },
+  { type: 'clicks', label: 'kez tıkla', target: 100, rewardMoney: 750 },
+  { type: 'buy_business', label: 'işletme satın al', target: 3, rewardBoostMinutes: 4 },
+  { type: 'buy_business', label: 'işletme satın al', target: 5, rewardMoney: 900 },
+  { type: 'buy_upgrade', label: 'yükseltme al', target: 1, rewardMoney: 550 },
+  { type: 'earn_money', label: '₺ kazan', target: 5000, rewardMoney: 450 },
+  { type: 'earn_money', label: '₺ kazan', target: 25000, rewardMoney: 2200 },
+  { type: 'season_xp', label: 'sezon XP kazan', target: 200, rewardMoney: 1400 },
+  { type: 'autobuy_enable', label: 'işletmede auto-buy aç', target: 1, rewardBoostMinutes: 2 },
+  { type: 'use_underground', label: 'underground aksiyon kullan', target: 1, rewardMoney: 1200 },
+  { type: 'claim_daily', label: 'günlük ödül topla', target: 1, rewardMoney: 700 },
+  { type: 'season_tier', label: 'sezon tier ödülü topla', target: 1, rewardMoney: 1800 },
 ]
 
 export function generateDailyMissions(seed: string): MissionProgress[] {

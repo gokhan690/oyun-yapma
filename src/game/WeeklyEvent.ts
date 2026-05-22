@@ -35,9 +35,9 @@ export interface WeeklyEventState {
   adDoubled: boolean
 }
 
-export const WEEKLY_EARN_MIN = 250_000
-/** ~7–15 dk pasif oynama süresine denk hedef */
-export const WEEKLY_EARN_IPD_MULT = 400
+export const WEEKLY_EARN_MIN = 350_000
+/** ~15–25 dk pasif oynama süresine denk hedef */
+export const WEEKLY_EARN_IPD_MULT = 550
 
 export function scaledWeeklyTarget(incomePerDay: number): number {
   return Math.max(WEEKLY_EARN_MIN, Math.floor(incomePerDay * WEEKLY_EARN_IPD_MULT))

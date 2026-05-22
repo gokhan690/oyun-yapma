@@ -392,6 +392,7 @@ function repairState(state: SerializableState): SerializableState {
 
   if (!Array.isArray(s.purchasedUpgrades)) s.purchasedUpgrades = []
   if (!s.research || typeof s.research !== 'object') s.research = {}
+  s.playerGender = s.playerGender === 'female' ? 'female' : 'male'
   if (!s.stock || typeof s.stock !== 'object') {
     s.stock = migrateLegacyStock({})
   }
@@ -463,6 +464,7 @@ function applyV3Defaults(legacy: LegacyState): SerializableState {
     reducedMotion: legacy.reducedMotion ?? false,
     playerName: legacy.playerName ?? 'Baron',
     birthYear: legacy.birthYear ?? 0,
+    playerGender: 'male',
     forcedUnlocks: legacy.forcedUnlocks ?? [],
     illegalHeat: legacy.illegalHeat ?? 0,
     unlockedThemes: legacy.unlockedThemes ?? ['default'],
@@ -503,6 +505,7 @@ function applyV9Defaults(state: SerializableState): SerializableState {
     ...state,
     empire: state.empire ?? createEmpireState(),
     gameStartYear: state.gameStartYear ?? 2026,
+    playerGender: state.playerGender === 'female' ? 'female' : 'male',
   }
 }
 

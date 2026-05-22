@@ -58,6 +58,11 @@ export class SettingsPanel {
     yearLabel.innerHTML = 'Doğum yılı<input id="profile-birth-year" type="number" min="1920" max="2026" placeholder="1990" />'
     body.appendChild(yearLabel)
 
+    const genderLabel = document.createElement('label')
+    genderLabel.className = 'settings-field'
+    genderLabel.innerHTML = 'Cinsiyet<select id="profile-gender"><option value="male">Erkek</option><option value="female">Kadın</option></select>'
+    body.appendChild(genderLabel)
+
     const saveProfile = document.createElement('button')
     saveProfile.type = 'button'
     saveProfile.className = 'btn-primary'
@@ -255,6 +260,8 @@ export class SettingsPanel {
     const yearInput = this.layer.querySelector<HTMLInputElement>('#profile-birth-year')
     if (nameInput) nameInput.value = this.state.playerName
     if (yearInput && this.state.birthYear) yearInput.value = String(this.state.birthYear)
+    const genderInput = this.layer.querySelector<HTMLSelectElement>('#profile-gender')
+    if (genderInput) genderInput.value = this.state.playerGender
     const daily = this.layer.querySelector<HTMLInputElement>('#notif-daily')
     const passive = this.layer.querySelector<HTMLInputElement>('#notif-passive')
     const goal = this.layer.querySelector<HTMLInputElement>('#notif-goal')

@@ -1,6 +1,6 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
-import { dailyGoalProgress } from '../../game/DailyGoal'
+import { dailyGoalProgress, calcDailyLoginReward } from '../../game/DailyGoal'
 import { currentTier, tierProgress, rewardForTier, SEASON_MAX_TIER } from '../../game/SeasonPass'
 import { getWeeklyDef } from '../../game/WeeklyEvent'
 import { daysUntilWeekReset, calendarMonthKey } from '../../game/dateUtils'
@@ -26,7 +26,7 @@ export class EventsPanel {
 
   constructor() {
     this.root = document.createElement('section')
-    this.root.className = 'events-panel'
+    this.root.className = 'events-panel tab-panel'
     this.root.hidden = true
   }
 
@@ -131,7 +131,7 @@ export class EventsPanel {
   private renderDaily(state: GameState): HTMLElement {
     const target = state.dailyGoalTarget()
     const goalPct = Math.floor(dailyGoalProgress(state.dailyGoalEarned, target))
-    const rewardPreview = formatMoney(Math.max(500, state.incomePerDay()))
+    const rewardPreview = formatMoney(Math.max(200, Math.floor(state.incomePerDay() * 0.22)))
     const wrap = document.createElement('section')
     wrap.className = 'events-block events-block-daily'
 
@@ -143,7 +143,7 @@ export class EventsPanel {
         <div class="events-hero-text">
           <strong>Günlük hedef</strong>
           <small>${formatMoney(state.dailyGoalEarned)} / ${formatMoney(target)} kazanç</small>
-          <small class="events-streak-line">🔥 Giriş serisi: ${state.dailyStreak} gün · Gerçek takvim günü</small>
+          <small class="events-streak-line">🔥 Giriş serisi: ${state.dailyStreak} gün · Yarın: ${formatMoney(calcDailyLoginReward(state.dailyStreak + 1, state.incomePerDay()))}</small>
         </div>
         <span class="events-hero-stat">${goalPct}%</span>
       </div>
@@ -169,7 +169,7 @@ export class EventsPanel {
     const wPct = w.target > 0 ? Math.min(100, (w.progress / w.target) * 100) : 0
     const bonusPct = def.bonus ? Math.round(def.bonus * 100) : 0
     const daysLeft = daysUntilWeekReset()
-    const rewardPreview = formatMoney(Math.max(1000, state.incomePerDay() * 2))
+    const rewardPreview = formatMoney(Math.max(500, Math.floor(state.incomePerDay() * 0.55)))
     const wrap = document.createElement('section')
     wrap.className = 'events-block events-block-weekly'
 

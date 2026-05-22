@@ -93,6 +93,7 @@ import {
   PLAYER_START_AGE,
   CHILD_EDUCATION_MAX,
   type DynastyState,
+  type PlayerGender,
 } from './Dynasty'
 import {
   rollDailyMortality,
@@ -129,7 +130,7 @@ import {
   WEEKLY_EARN_MIN,
   type WeeklyEventState,
 } from './WeeklyEvent'
-import { dailyGoalDayKey, scaledDailyGoalTarget } from './DailyGoal'
+import { dailyGoalDayKey, scaledDailyGoalTarget, calcDailyLoginReward, streakMilestoneBonus } from './DailyGoal'
 import {
   LAWYER_PROTECTION_MS,
   LAUNDER_DURATION_MS,
@@ -186,6 +187,7 @@ export interface SerializableState {
   reducedMotion: boolean
   playerName: string
   birthYear: number
+  playerGender: PlayerGender
   forcedUnlocks: string[]
   illegalHeat: number
   unlockedThemes: string[]
@@ -276,7 +278,7 @@ export type GameEvent =
 const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
 const CRIT_MULT = 10
-const BASE_CLICK = 30
+const BASE_CLICK = 22
 /** Sekme arka plana düşünce tek karede işlenecek max pasif süre (sn) */
 const PASSIVE_TICK_DT_CAP = 30
 const BASE_OFFLINE_CAP_GAME_DAYS = 365
@@ -333,6 +335,7 @@ export class GameState {
   isNight = isGameNight(0)
   playerName = 'Baron'
   birthYear = 0
+  playerGender: PlayerGender = 'male'
   forcedUnlocks = new Set<string>()
   illegalHeat = 0
   unlockedThemes = new Set<string>(['default'])
@@ -1000,6 +1003,8 @@ export class GameState {
     if (this.dynasty.spouseName) return false
     const s = spouseOption(spouseId)
     if (!s || !this.canAfford(s.cost)) return false
+    const allowed = s.gender === (this.playerGender === 'male' ? 'female' : 'male')
+    if (!allowed) return false
     this.money -= s.cost
     this.dynasty.spouseId = s.id
     this.dynasty.spouseName = s.name
@@ -1225,7 +1230,7 @@ export class GameState {
     const target = this.dailyGoalTarget()
     if (this.dailyGoalClaimed || this.dailyGoalEarned < target) return 0
     this.dailyGoalClaimed = true
-    const reward = Math.max(500, this.incomePerDay())
+    const reward = Math.max(200, Math.floor(this.incomePerDay() * 0.22))
     this.addMoney(reward)
     return reward
   }
@@ -1895,11 +1900,11 @@ export class GameState {
       this.dailyStreak = 1
     }
     this.dailyLastClaim = today
-    let amount = Math.max(100 * this.dailyStreak, this.incomePerDay() * this.dailyStreak)
+    let amount = calcDailyLoginReward(this.dailyStreak, this.incomePerDay())
     for (const ms of STREAK_MILESTONES) {
       if (this.dailyStreak >= ms && !this.streakMilestonesClaimed.includes(ms)) {
         this.streakMilestonesClaimed.push(ms)
-        amount += ms * 1000
+        amount += streakMilestoneBonus(ms)
         this.awardBadge(`streak_${ms}`)
         this.triggerStoryBeat(`streak_${ms}`)
       }
@@ -1918,10 +1923,15 @@ export class GameState {
     return this.dailyLastClaim !== todayKey()
   }
 
+  dailyLoginRewardPreview(forStreak?: number): number {
+    const streak = forStreak ?? (this.dailyStreak > 0 ? this.dailyStreak + 1 : 1)
+    return calcDailyLoginReward(streak, this.incomePerDay())
+  }
+
   openLuckyChest(): number {
     if (!this.luckyChestReady) return 0
     this.luckyChestReady = false
-    const amount = Math.max(500, this.incomePerDay() * 2)
+    const amount = Math.max(300, Math.floor(this.incomePerDay() * 1.1))
     this.addMoney(amount)
     this.emit({ type: 'chest_opened', amount })
     return amount
@@ -2034,7 +2044,7 @@ export class GameState {
     if (this.weekly.claimed || this.weekly.progress < this.weekly.target) return 0
     this.weekly.claimed = true
     if (doubleWithAd) this.weekly.adDoubled = true
-    const reward = Math.max(1000, this.incomePerDay() * 2) * (doubleWithAd ? 2 : 1)
+    const reward = Math.max(500, Math.floor(this.incomePerDay() * 0.55)) * (doubleWithAd ? 2 : 1)
     this.addMoney(reward)
     return reward
   }
@@ -2230,6 +2240,7 @@ export class GameState {
       reducedMotion: this.reducedMotion,
       playerName: this.playerName,
       birthYear: this.birthYear,
+      playerGender: this.playerGender,
       forcedUnlocks: [...this.forcedUnlocks],
       illegalHeat: this.illegalHeat,
       unlockedThemes: [...this.unlockedThemes],
@@ -2341,6 +2352,7 @@ export class GameState {
     this.reducedMotion = data.reducedMotion ?? false
     this.playerName = data.playerName ?? 'Baron'
     this.birthYear = data.birthYear ?? 0
+    this.playerGender = data.playerGender === 'female' ? 'female' : 'male'
     this.forcedUnlocks = new Set(data.forcedUnlocks ?? [])
     this.illegalHeat = data.illegalHeat ?? 0
     this.unlockedThemes = new Set(data.unlockedThemes ?? ['default'])

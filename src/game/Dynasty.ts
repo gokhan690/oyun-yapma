@@ -2,12 +2,15 @@ import { gameDay } from './GameClock'
 import type { PendingDeath } from './Mortality'
 
 export type SpouseTrait = 'merchant' | 'diplomat' | 'innovator' | 'risk_taker'
+export type SpouseGender = 'female' | 'male'
+export type PlayerGender = 'female' | 'male'
 export type ChildTrait = SpouseTrait
 
 export interface SpouseOption {
   id: string
   name: string
   emoji: string
+  gender: SpouseGender
   trait: SpouseTrait
   bonusLabel: string
   cost: number
@@ -50,19 +53,19 @@ export interface DynastyState {
 
 export const SPOUSE_OPTIONS: SpouseOption[] = [
   {
-    id: 'aylin', name: 'Aylin', emoji: '💎', trait: 'diplomat', bonusLabel: 'Maliyet −8% · Lojistik +15%', cost: 50_000,
+    id: 'aylin', name: 'Aylin', emoji: '💎', gender: 'female', trait: 'diplomat', bonusLabel: 'Maliyet −8% · Lojistik +15%', cost: 50_000,
     producerBonusIds: ['fabrika', 'mobil_app'], producerBonusPct: 0.15,
   },
   {
-    id: 'kerem', name: 'Kerem', emoji: '📊', trait: 'merchant', bonusLabel: 'Pasif +12% · E-ticaret +18%', cost: 75_000,
+    id: 'kerem', name: 'Kerem', emoji: '📊', gender: 'male', trait: 'merchant', bonusLabel: 'Pasif +12% · E-ticaret +18%', cost: 75_000,
     producerBonusIds: ['robot', 'kafe'], producerBonusPct: 0.18,
   },
   {
-    id: 'zeynep', name: 'Zeynep', emoji: '💡', trait: 'innovator', bonusLabel: 'Tıklama +15% · Yazılım +20%', cost: 60_000,
+    id: 'zeynep', name: 'Zeynep', emoji: '💡', gender: 'female', trait: 'innovator', bonusLabel: 'Tıklama +15% · Yazılım +20%', cost: 60_000,
     producerBonusIds: ['holding', 'ai'], producerBonusPct: 0.2,
   },
   {
-    id: 'onur', name: 'Onur', emoji: '🎲', trait: 'risk_taker', bonusLabel: 'Illegal +20% · Bahis +25%', cost: 90_000,
+    id: 'onur', name: 'Onur', emoji: '🎲', gender: 'male', trait: 'risk_taker', bonusLabel: 'Illegal +20% · Bahis +25%', cost: 90_000,
     producerBonusIds: ['bahis', 'piramit', 'offshore'], producerBonusPct: 0.25,
   },
 ]
@@ -122,6 +125,12 @@ export function lifespanProgress(gameTimeMs: number, dynasty: DynastyState): num
 
 export function spouseOption(id: string): SpouseOption | undefined {
   return SPOUSE_OPTIONS.find((s) => s.id === id)
+}
+
+/** Erkek baron → kadın adaylar, kadın baron → erkek adaylar */
+export function spouseOptionsForPlayer(playerGender: PlayerGender): SpouseOption[] {
+  const want: SpouseGender = playerGender === 'male' ? 'female' : 'male'
+  return SPOUSE_OPTIONS.filter((s) => s.gender === want)
 }
 
 export function traitPassiveMult(trait: SpouseTrait | ChildTrait | null): number {

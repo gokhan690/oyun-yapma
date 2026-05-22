@@ -404,7 +404,7 @@ export class HUD {
     this.shop.root.hidden = view !== 'shop'
     this.eventsPanel.root.hidden = view !== 'events'
     this.empirePanel.root.hidden = view !== 'empire'
-    this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'empire')
+    this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'empire' || view === 'events')
     if (view === 'shop') this.refreshShop(true)
     if (view === 'events') this.eventsPanel.render(this.state)
     if (view === 'empire') {
@@ -477,6 +477,7 @@ export class HUD {
     }
     this.root.addEventListener('click', onActionClick)
     this.bottomNav.root.addEventListener('click', onActionClick)
+    this.eventsPanel.root.addEventListener('click', onActionClick)
     this.modals.layer.addEventListener('click', onActionClick)
 
     this.goalsSheet.scrim.addEventListener('click', onActionClick)
@@ -504,6 +505,9 @@ export class HUD {
           this.shop.patchAffordability(this.state)
         } else if (this.bottomNav.getActive() === 'shop') {
           this.refreshShop(false)
+        }
+        if (this.bottomNav.getActive() === 'events') {
+          this.eventsPanel.render(this.state)
         }
         this.scheduleUiSync()
         this.renderProgressStrip()
@@ -628,6 +632,9 @@ export class HUD {
         this.renderWeeklyBanner()
         if (this.bottomNav.getActive() === 'events') this.eventsPanel.render(this.state)
         this.updateNavBadges()
+      }
+      if (ev.type === 'daily_goal_updated' || ev.type === 'daily_reward' || ev.type === 'season_updated' || ev.type === 'season_claimed') {
+        if (this.bottomNav.getActive() === 'events') this.eventsPanel.render(this.state)
       }
       if (ev.type === 'story_beat') {
         this.modals.showToast(this.root, ev.text)
@@ -772,7 +779,7 @@ export class HUD {
         const nextStreak = this.state.dailyLastClaim && !streakLost
           ? this.state.dailyStreak + 1
           : 1
-        const preview = Math.max(100 * nextStreak, this.state.incomePerDay() * nextStreak)
+        const preview = this.state.dailyLoginRewardPreview(nextStreak)
         this.modals.showDailyReward(
           nextStreak,
           formatMoney(preview),
@@ -887,10 +894,14 @@ export class HUD {
       case 'save-profile': {
         const nameInput = this.root.querySelector<HTMLInputElement>('#profile-name')
         const yearInput = this.root.querySelector<HTMLInputElement>('#profile-birth-year')
+        const genderInput = this.root.querySelector<HTMLSelectElement>('#profile-gender')
         if (nameInput?.value.trim()) this.state.playerName = nameInput.value.trim().slice(0, 24)
         if (yearInput?.value) {
           const y = Number(yearInput.value)
           if (y >= 1920 && y <= new Date().getFullYear()) this.state.birthYear = y
+        }
+        if (genderInput?.value === 'female' || genderInput?.value === 'male') {
+          this.state.playerGender = genderInput.value
         }
         this.modals.showToast(this.root, 'Profil kaydedildi')
         this.statsScreen.render()
@@ -1072,7 +1083,8 @@ export class HUD {
         break
       case 'claim-season':
         if (id) {
-          this.state.claimSeasonTier(Number(id))
+          const ok = this.state.claimSeasonTier(Number(id))
+          if (ok) this.modals.showToast(this.root, 'Sezon ödülü toplandı ✓')
           this.eventsPanel.render(this.state)
           this.updateNavBadges()
         }
@@ -1083,19 +1095,25 @@ export class HUD {
       case 'ad-stock-hint':
         await this.handleAdStockHint()
         break
-      case 'claim-weekly':
-        this.state.claimWeeklyReward()
+      case 'claim-weekly': {
+        const reward = this.state.claimWeeklyReward()
+        if (reward > 0) this.modals.showToast(this.root, `Haftalık ödül: +${formatMoney(reward)}`)
         this.goalsSheet.render(this.state)
         this.eventsPanel.render(this.state)
+        this.renderWeeklyBanner()
         this.updateNavBadges()
         break
+      }
       case 'ad-weekly':
         await this.handleAdWeekly()
         break
       case 'claim-mission':
         if (id) {
-          this.state.claimMission(id)
-          this.renderAll()
+          const reward = this.state.claimMission(id)
+          if (reward > 0) this.modals.showToast(this.root, `Görev: +${formatMoney(reward)}`)
+          this.eventsPanel.render(this.state)
+          this.updateNavBadges()
+          this.refreshShop(true)
         }
         break
       case 'claim-mission-ad': {
@@ -1647,6 +1665,8 @@ export class HUD {
     const reward = this.state.claimWeeklyReward(true)
     this.modals.showToast(this.root, reward > 0 ? `Etkinlik: +${formatMoney(reward)}` : 'Etkinlik bonusu aktif!')
     this.renderWeeklyBanner()
+    this.eventsPanel.render(this.state)
+    this.updateNavBadges()
   }
 
   private async handleAdStockHint(): Promise<void> {
