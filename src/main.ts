@@ -14,60 +14,78 @@ function bootstrap(): void {
   if (!app) return
 
   try {
-  const state = new GameState()
-  const saveManager = new SaveManager()
-  const ads = new AdManager()
-  const sound = new SoundManager()
+    const state = new GameState()
+    const saveManager = new SaveManager()
+    const ads = new AdManager()
+    const sound = new SoundManager()
 
-  let ok = false
-  let lastSaveTime = Date.now()
-  let saveCorrupted = false
-  try {
+    let saveLoaded = false
+    let lastSaveTime = Date.now()
+    let loadReason: string | undefined
+
     const loaded = saveManager.load(state)
-    ok = loaded.ok
+    saveLoaded = loaded.ok
     lastSaveTime = loaded.lastSaveTime
-  } catch (err) {
-    console.warn('Kayıt yüklenemedi, yeni oyun başlatılıyor.', err)
-    saveCorrupted = true
-    saveManager.clear()
-  }
-  ads.syncRewardedCount(state.rewardedAdsToday, state.rewardedAdsDay)
+    loadReason = loaded.reason
 
-  applyDocumentTheme(state.activeTheme)
-
-  const hud = new HUD(state, ads, sound, saveManager, app)
-
-  if (saveCorrupted) {
-    window.setTimeout(() => {
-      hud.showCorruptedSaveNotice()
-    }, 500)
-  }
-
-  if (ok) {
-    const pendingOffline = state.applyOfflineEarnings(lastSaveTime)
-    if (pendingOffline > 0) {
-      hud.showOfflinePopup(pendingOffline)
+    if (!saveLoaded) {
+      console.warn('Kayıt yüklenemedi:', loadReason)
+      saveManager.setSaveEnabled(false)
     }
-    if (state.hasPendingComeback()) {
-      window.setTimeout(() => hud.showComebackPopup(), 1200)
+
+    ads.syncRewardedCount(state.rewardedAdsToday, state.rewardedAdsDay)
+    applyDocumentTheme(state.activeTheme)
+
+    const hud = new HUD(state, ads, sound, saveManager, app)
+
+    if (!saveLoaded) {
+      if (saveManager.hasBackup() || saveManager.hasAnySaveSlot()) {
+        hud.showSaveRecoveryNotice(() => {
+          if (saveManager.tryRestoreBackup(state)) {
+            saveManager.setSaveEnabled(true)
+            saveManager.save(state)
+            window.location.reload()
+            return
+          }
+          const retry = saveManager.load(state)
+          if (retry.ok) {
+            saveManager.setSaveEnabled(true)
+            saveManager.save(state)
+            window.location.reload()
+          }
+        })
+      } else {
+        hud.showNewGameNotice()
+      }
+    } else if (loaded.source === 'backup') {
+      window.setTimeout(() => hud.toast('Yedek kayıttan geri yüklendi ✓'), 400)
     }
-  }
 
-  window.setTimeout(() => hud.showDailyRewardIfAvailable(), 900)
+    if (saveLoaded) {
+      const pendingOffline = state.applyOfflineEarnings(lastSaveTime)
+      if (pendingOffline > 0) {
+        hud.showOfflinePopup(pendingOffline)
+      }
+      if (state.hasPendingComeback()) {
+        window.setTimeout(() => hud.showComebackPopup(), 1200)
+      }
+      saveManager.startAutoSave(state)
+    }
 
-  state.startTick()
-  state.startEventLoop()
-  saveManager.startAutoSave(state)
-  hud.renderAll()
+    window.setTimeout(() => hud.showDailyRewardIfAvailable(), 900)
 
-  document.addEventListener('click', () => sound.resume(), { once: true })
-  void scheduleDailyReminder(state.notificationPrefs)
+    state.startTick()
+    state.startEventLoop()
+    hud.renderAll()
+
+    document.addEventListener('click', () => sound.resume(), { once: true })
+    void scheduleDailyReminder(state.notificationPrefs)
   } catch (err) {
     console.error('Bootstrap hatası:', err)
     const bootErr = document.querySelector<HTMLDivElement>('#boot-error')
     if (bootErr) {
       bootErr.style.display = 'block'
-      bootErr.textContent = 'Oyun başlatılamadı. Ctrl+F5 ile yenile veya gizli sekmede dene.'
+      bootErr.textContent = 'Oyun başlatılamadı. Ctrl+F5 ile yenile. Kaydın silinmedi — tekrar dene veya Ayarlar → Miras kodu dene.'
     }
   }
 }

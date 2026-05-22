@@ -1277,13 +1277,54 @@ export class HUD {
     window.setTimeout(() => el.remove(), 900)
   }
 
+  toast(message: string): void {
+    this.modals.showToast(this.root, message)
+  }
+
   showCorruptedSaveNotice(): void {
     const close = document.createElement('button')
     close.type = 'button'
     close.className = 'btn-primary'
     close.dataset.action = 'close-modal'
     close.textContent = 'Tamam'
-    this.modals.show('Kayıt Hatası', 'Kayıt dosyası bozulmuş, yeni oyun başlatıldı.', [close])
+    this.modals.show('Kayıt Hatası', 'Kayıt dosyası okunamadı. Yedekten geri yüklemeyi dene.', [close])
+  }
+
+  showNewGameNotice(): void {
+    const close = document.createElement('button')
+    close.type = 'button'
+    close.className = 'btn-primary'
+    close.dataset.action = 'close-modal'
+    close.textContent = 'Tamam'
+    this.modals.show(
+      'Yeni oyun',
+      'Kayıt bulunamadı veya okunamadı. Eski kaydın silinmedi — Ayarlar → Miras kodu ile yükleyebilirsin.',
+      [close],
+    )
+  }
+
+  showSaveRecoveryNotice(onRestore: () => void): void {
+    const restore = document.createElement('button')
+    restore.type = 'button'
+    restore.className = 'btn-primary'
+    restore.textContent = 'Yedekten geri yükle'
+    restore.addEventListener('click', () => {
+      this.modals.close()
+      onRestore()
+    })
+    const close = document.createElement('button')
+    close.type = 'button'
+    close.className = 'btn-secondary'
+    close.dataset.action = 'close-modal'
+    close.textContent = 'Yeni oyunla devam'
+    close.addEventListener('click', () => {
+      this.saveManager.setSaveEnabled(true)
+    })
+    this.modals.show(
+      'Kayıt sorunu',
+      'Ana kayıt açılamadı ama yedek veya eski sürüm bulunabilir. Geri yüklemeyi dene — aksi halde yeni oyun başlar (eski dosya silinmez).',
+      [restore, close],
+    )
   }
 
   showOfflinePopup(amount: number): void {

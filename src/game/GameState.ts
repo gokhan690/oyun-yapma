@@ -126,6 +126,7 @@ import {
   getWeeklyDef,
   isLegacyGameWeekKey,
   scaledWeeklyTarget,
+  WEEKLY_EARN_MIN,
   type WeeklyEventState,
 } from './WeeklyEvent'
 import { dailyGoalDayKey, scaledDailyGoalTarget } from './DailyGoal'
@@ -398,8 +399,6 @@ export class GameState {
     for (const r of RESEARCH_NODES) this.research[r.id] = 0
     for (const p of PRODUCERS) this.managers[p.id] = false
     for (const p of PRODUCERS) this.managerAutoBuy[p.id] = false
-    this.ensureMissions()
-    this.ensureWeekly()
     this.applyOwnerFlags(loadOwnerFlags())
   }
 
@@ -416,7 +415,11 @@ export class GameState {
 
   ensureSeason(): void {
     const key = seasonWeekKey()
-    if (this.season.weekKey !== key || isLegacyGameSeasonKey(this.season.weekKey)) {
+    if (isLegacyGameSeasonKey(this.season.weekKey)) {
+      this.season.weekKey = key
+      return
+    }
+    if (this.season.weekKey !== key) {
       this.season = createSeasonState()
     }
   }
@@ -2310,7 +2313,17 @@ export class GameState {
     this.stock = data.stock && 'tickers' in data.stock
       ? structuredClone(data.stock)
       : migrateLegacyStock((data.stock ?? {}) as { price?: number; shares?: number; avgBuyPrice?: number })
-    this.weekly = data.weekly ? { ...data.weekly } : createWeeklyState()
+    const loadedWeekly = data.weekly
+    this.weekly = loadedWeekly
+      ? {
+          weekKey: String(loadedWeekly.weekKey ?? ''),
+          eventId: loadedWeekly.eventId ?? createWeeklyState().eventId,
+          progress: Math.max(0, Number(loadedWeekly.progress) || 0),
+          target: Math.max(WEEKLY_EARN_MIN, Number(loadedWeekly.target) || WEEKLY_EARN_MIN),
+          claimed: !!loadedWeekly.claimed,
+          adDoubled: !!loadedWeekly.adDoubled,
+        }
+      : createWeeklyState()
     this.milestonesReached = data.milestonesReached ?? []
     this.managerDiscountActive = data.managerDiscountActive ?? false
     this.dailyGoalEarned = data.dailyGoalEarned ?? 0

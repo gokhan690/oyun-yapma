@@ -1,7 +1,7 @@
 import type { GameState, SerializableState } from '../game/GameState'
 import { migrateLegacyStock } from '../game/StockMarket'
-import { createWeeklyState } from '../game/WeeklyEvent'
-import { createSeasonState } from '../game/SeasonPass'
+import { createWeeklyState, scaledWeeklyTarget, WEEKLY_EARN_MIN } from '../game/WeeklyEvent'
+import { createSeasonState, isLegacyGameSeasonKey } from '../game/SeasonPass'
 import { dailyGoalDayKey } from '../game/DailyGoal'
 import { createDynastyState } from '../game/Dynasty'
 import { createEmpireState } from '../game/Empire'
@@ -9,6 +9,7 @@ import { PRODUCERS } from '../game/Economy'
 import { RESEARCH_NODES } from '../game/Research'
 
 const SAVE_KEY_V9 = 'is_imparatorlugu_save_v9'
+const SAVE_KEY_V9_BACKUP = 'is_imparatorlugu_save_v9_backup'
 const SAVE_KEY_V8 = 'is_imparatorlugu_save_v8'
 const SAVE_KEY_V7 = 'is_imparatorlugu_save_v7'
 const SAVE_KEY_V6 = 'is_imparatorlugu_save_v6'
@@ -38,69 +39,109 @@ type LegacyState = Partial<SerializableState> & {
   stock?: SerializableState['stock'] | { price?: number; shares?: number; avgBuyPrice?: number }
 }
 
+export type LoadResult = { ok: boolean; lastSaveTime: number; source?: string; reason?: string }
+
 export class SaveManager {
   private autoSaveInterval: number | null = null
+  private saveEnabled = true
 
   save(state: GameState): void {
+    if (!this.saveEnabled) return
     const data = state.toJSON()
     data.lastSaveTime = Date.now()
     this.writeSave(data, CURRENT_VERSION, SAVE_KEY_V9)
   }
 
-  load(state: GameState): { ok: boolean; lastSaveTime: number } {
-    const v9 = this.tryLoad(state, SAVE_KEY_V9, CURRENT_VERSION)
-    if (v9.ok) return v9
+  /** Yükleme başarısızken boş kaydın üzerine yazmayı engelle */
+  setSaveEnabled(enabled: boolean): void {
+    this.saveEnabled = enabled
+  }
 
-    const v8 = this.tryLoad(state, SAVE_KEY_V8, 8)
+  hasBackup(): boolean {
+    return !!localStorage.getItem(SAVE_KEY_V9_BACKUP)
+  }
+
+  hasAnySaveSlot(): boolean {
+    return !!(
+      localStorage.getItem(SAVE_KEY_V9)
+      || localStorage.getItem(SAVE_KEY_V9_BACKUP)
+      || localStorage.getItem(SAVE_KEY_V8)
+      || localStorage.getItem(SAVE_KEY_V7)
+      || localStorage.getItem(SAVE_KEY_V6)
+      || localStorage.getItem(SAVE_KEY_V5)
+    )
+  }
+
+  tryRestoreBackup(state: GameState): boolean {
+    const r = this.tryLoadEnvelope(state, SAVE_KEY_V9_BACKUP, CURRENT_VERSION, false)
+    if (r.ok) {
+      this.save(state)
+      return true
+    }
+    return false
+  }
+
+  load(state: GameState): LoadResult {
+    const v9 = this.tryLoadEnvelope(state, SAVE_KEY_V9, CURRENT_VERSION, true)
+    if (v9.ok) return { ...v9, source: 'v9' }
+
+    const backup = this.tryLoadEnvelope(state, SAVE_KEY_V9_BACKUP, CURRENT_VERSION, false)
+    if (backup.ok) {
+      this.save(state)
+      return { ...backup, source: 'backup' }
+    }
+
+    const v8 = this.tryLoadEnvelope(state, SAVE_KEY_V8, 8, true)
     if (v8.ok) {
       this.save(state)
-      return v8
+      return { ...v8, source: 'v8' }
     }
 
-    const v7 = this.tryLoad(state, SAVE_KEY_V7, 7)
-    if (v7.ok) return v7
+    const v7 = this.tryLoadEnvelope(state, SAVE_KEY_V7, 7, true)
+    if (v7.ok) return { ...v7, source: 'v7' }
 
-    const v6 = this.tryLoad(state, SAVE_KEY_V6, 6)
+    const v6 = this.tryLoadEnvelope(state, SAVE_KEY_V6, 6, true)
     if (v6.ok) {
       this.save(state)
-      return v6
+      return { ...v6, source: 'v6' }
     }
 
-    const v5 = this.tryLoad(state, SAVE_KEY_V5, 5)
+    const v5 = this.tryLoadEnvelope(state, SAVE_KEY_V5, 5, true)
     if (v5.ok) {
       this.save(state)
-      return v5
+      return { ...v5, source: 'v5' }
     }
 
     const v4 = this.tryLoadMigrateV5(state, SAVE_KEY_V4)
     if (v4.ok) {
       this.save(state)
-      return v4
+      return { ...v4, source: 'v4' }
     }
 
     const v3 = this.tryLoadMigrateV3(state, SAVE_KEY_V3)
     if (v3.ok) {
       this.save(state)
-      return v3
+      return { ...v3, source: 'v3' }
     }
 
     const v2 = this.tryLoadMigrate(state, SAVE_KEY_V2, 2)
     if (v2.ok) {
       this.save(state)
-      return v2
+      return { ...v2, source: 'v2' }
     }
 
     const v1 = this.tryLoadLegacyV1(state)
     if (v1.ok) {
       this.save(state)
-      return v1
+      return { ...v1, source: 'v1' }
     }
 
-    return { ok: false, lastSaveTime: Date.now() }
+    return { ok: false, lastSaveTime: Date.now(), reason: 'no_valid_save' }
   }
 
   clear(): void {
     localStorage.removeItem(SAVE_KEY_V9)
+    localStorage.removeItem(SAVE_KEY_V9_BACKUP)
     localStorage.removeItem(SAVE_KEY_V8)
     localStorage.removeItem(SAVE_KEY_V7)
     localStorage.removeItem(SAVE_KEY_V6)
@@ -158,35 +199,40 @@ export class SaveManager {
     }
   }
 
-  private tryLoad(
+  private tryLoadEnvelope(
     state: GameState,
     key: string,
     expectedVersion: number,
-  ): { ok: boolean; lastSaveTime: number } {
+    strictVersion: boolean,
+  ): LoadResult {
     try {
       const raw = localStorage.getItem(key)
       if (!raw) return { ok: false, lastSaveTime: Date.now() }
 
       const envelope = JSON.parse(raw) as SaveEnvelope
       if (!envelope.payload || !envelope.checksum) {
-        return { ok: false, lastSaveTime: Date.now() }
+        return { ok: false, lastSaveTime: Date.now(), reason: 'missing_payload' }
       }
 
       const json = deobfuscate(envelope.payload)
       if (computeChecksum(json) !== envelope.checksum) {
-        return { ok: false, lastSaveTime: Date.now() }
+        return { ok: false, lastSaveTime: Date.now(), reason: 'checksum' }
       }
 
-      const data = applyV9Defaults(applyV5Defaults(JSON.parse(json) as SerializableState))
-      if (envelope.version !== expectedVersion || !validateState(data)) {
-        return { ok: false, lastSaveTime: Date.now() }
+      const data = repairState(applyV9Defaults(applyV5Defaults(JSON.parse(json) as SerializableState)))
+      if (strictVersion && envelope.version !== expectedVersion) {
+        return { ok: false, lastSaveTime: Date.now(), reason: 'version' }
+      }
+      if (!validateState(data)) {
+        return { ok: false, lastSaveTime: Date.now(), reason: 'validate' }
       }
 
       const lastSaveTime = sanitizeTimestamp(data.lastSaveTime)
       state.loadFrom({ ...data, lastSaveTime })
       return { ok: true, lastSaveTime }
-    } catch {
-      return { ok: false, lastSaveTime: Date.now() }
+    } catch (err) {
+      console.warn('Kayıt okuma hatası:', key, err)
+      return { ok: false, lastSaveTime: Date.now(), reason: 'parse' }
     }
   }
 
@@ -287,11 +333,76 @@ export class SaveManager {
       version,
     }
     try {
+      const prev = localStorage.getItem(key)
+      if (prev && key === SAVE_KEY_V9) {
+        localStorage.setItem(SAVE_KEY_V9_BACKUP, prev)
+      }
       localStorage.setItem(key, JSON.stringify(envelope))
     } catch {
       // storage full
     }
   }
+}
+
+function repairState(state: SerializableState): SerializableState {
+  const s = { ...state }
+  s.money = sanitizeNum(s.money, 0)
+  s.totalEarned = sanitizeNum(s.totalEarned, 0)
+  s.totalClicks = sanitizeNum(s.totalClicks, 0)
+  s.prestigePoints = sanitizeNum(s.prestigePoints, 0)
+  s.lifetimePrestige = sanitizeNum(s.lifetimePrestige, 0)
+  s.lifetimeTotalEarned = sanitizeNum(s.lifetimeTotalEarned, s.totalEarned)
+  s.playTimeMs = sanitizeNum(s.playTimeMs, 0)
+  s.gameTimeMs = sanitizeNum(s.gameTimeMs, 0)
+  s.dailyGoalEarned = sanitizeNum(s.dailyGoalEarned, 0)
+  s.lastSaveTime = sanitizeNum(s.lastSaveTime, Date.now())
+
+  const producers: Record<string, number> = {}
+  for (const [id, v] of Object.entries(s.producers ?? {})) {
+    producers[id] = sanitizeNum(v, 0)
+  }
+  s.producers = producers
+
+  if (s.weekly) {
+    const ipdGuess = Math.max(1, s.totalEarned > 0 ? s.totalEarned / 1000 : WEEKLY_EARN_MIN)
+    s.weekly = {
+      ...s.weekly,
+      progress: sanitizeNum(s.weekly.progress, 0),
+      target: Math.max(WEEKLY_EARN_MIN, sanitizeNum(s.weekly.target, scaledWeeklyTarget(ipdGuess))),
+      claimed: !!s.weekly.claimed,
+      adDoubled: !!s.weekly.adDoubled,
+    }
+  } else {
+    s.weekly = createWeeklyState(Math.max(1, s.totalEarned > 0 ? s.totalEarned / 1000 : 0))
+  }
+
+  if (s.season) {
+    s.season = {
+      weekKey: s.season.weekKey ?? createSeasonState().weekKey,
+      xp: sanitizeNum(s.season.xp, 0),
+      claimedTiers: Array.isArray(s.season.claimedTiers) ? s.season.claimedTiers.filter((n) => typeof n === 'number') : [],
+      adXpDoubled: !!s.season.adXpDoubled,
+    }
+    if (isLegacyGameSeasonKey(s.season.weekKey)) {
+      s.season.weekKey = createSeasonState().weekKey
+    }
+  } else {
+    s.season = createSeasonState()
+  }
+
+  if (!Array.isArray(s.purchasedUpgrades)) s.purchasedUpgrades = []
+  if (!s.research || typeof s.research !== 'object') s.research = {}
+  if (!s.stock || typeof s.stock !== 'object') {
+    s.stock = migrateLegacyStock({})
+  }
+
+  return s
+}
+
+function sanitizeNum(v: unknown, fallback: number): number {
+  const n = typeof v === 'number' ? v : Number(v)
+  if (!Number.isFinite(n) || n < 0) return fallback
+  return n
 }
 
 function applyV3Defaults(legacy: LegacyState): SerializableState {
