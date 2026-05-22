@@ -1,4 +1,4 @@
-import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, type ProducerDef, type UpgradeDef } from './Economy'
+import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, type ProducerDef, type UpgradeDef } from './Economy'
 import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, prestigeMultiplier } from './Prestige'
 import { globalSynergyBonus, producerSynergyBonus } from './Synergies'
 import {
@@ -35,6 +35,7 @@ import {
   tierProgress,
   SEASON_MAX_TIER,
   xpForTier,
+  isLegacyGameSeasonKey,
   type SeasonState,
 } from './SeasonPass'
 import {
@@ -57,8 +58,8 @@ import {
   hasRaidInsurance,
   hasNode,
 } from './PrestigeTree'
-import { localDayKey, yesterdayLocalKey } from './dateUtils'
-import { gameDay, gameWeekKey, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSecondsToGameMs } from './GameClock'
+import { localDayKey, yesterdayLocalKey, calendarWeekKey } from './dateUtils'
+import { gameDay, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSecondsToGameMs } from './GameClock'
 import {
   createEmpireState,
   syncEmpireFromProducers,
@@ -123,6 +124,8 @@ import {
 import {
   createWeeklyState,
   getWeeklyDef,
+  isLegacyGameWeekKey,
+  scaledWeeklyTarget,
   type WeeklyEventState,
 } from './WeeklyEvent'
 import { dailyGoalDayKey, scaledDailyGoalTarget } from './DailyGoal'
@@ -273,6 +276,8 @@ const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
 const CRIT_MULT = 10
 const BASE_CLICK = 30
+/** Sekme arka plana düşünce tek karede işlenecek max pasif süre (sn) */
+const PASSIVE_TICK_DT_CAP = 30
 const BASE_OFFLINE_CAP_GAME_DAYS = 365
 const BASE_OFFLINE_CAP_MS = BASE_OFFLINE_CAP_GAME_DAYS * MS_PER_GAME_DAY
 const AD_BOOST_DURATION_MS = 5 * 60 * 1000
@@ -379,6 +384,7 @@ export class GameState {
   private lastDayNightCheck = 0
   private lastMarketEventCheck = 0
   private passiveAccrued = 0
+  private passiveRecent: { at: number; amount: number }[] = []
   private lastGameClockEmit = 0
   private lastDynastyGameDay = 0
   private lastMarketNewsGameDay = 0
@@ -409,16 +415,23 @@ export class GameState {
   }
 
   ensureSeason(): void {
-    const key = seasonWeekKey(this.gameTimeMs)
-    if (this.season.weekKey !== key) {
-      this.season = createSeasonState(this.gameTimeMs)
+    const key = seasonWeekKey()
+    if (this.season.weekKey !== key || isLegacyGameSeasonKey(this.season.weekKey)) {
+      this.season = createSeasonState()
     }
   }
 
   ensureWeekly(): void {
-    const key = gameWeekKey(this.gameTimeMs)
-    if (this.weekly.weekKey !== key) {
-      this.weekly = createWeeklyState(this.gameTimeMs)
+    const key = calendarWeekKey()
+    if (this.weekly.weekKey !== key || isLegacyGameWeekKey(this.weekly.weekKey)) {
+      this.weekly = createWeeklyState(this.incomePerDay())
+      return
+    }
+    if (this.weekly.target <= 100) {
+      const newTarget = scaledWeeklyTarget(this.incomePerDay())
+      const pct = this.weekly.target > 0 ? this.weekly.progress / this.weekly.target : 0
+      this.weekly.target = newTarget
+      this.weekly.progress = Math.floor(newTarget * Math.min(1, pct))
     }
   }
 
@@ -439,9 +452,11 @@ export class GameState {
       const dt = (now - last) / 1000
       last = now
       this.playTimeMs += dt * 1000
-      if (dt > 0 && dt < 2) {
-        this.gameTimeMs += realSecondsToGameMs(dt)
-        this.tickChildEducation(realSecondsToGameMs(dt))
+      const gameDt = dt > 0 && dt < 2 ? dt : 0
+      const passiveDt = dt > 0 ? Math.min(dt, PASSIVE_TICK_DT_CAP) : 0
+      if (gameDt > 0) {
+        this.gameTimeMs += realSecondsToGameMs(gameDt)
+        this.tickChildEducation(realSecondsToGameMs(gameDt))
       }
       this.updateComboDecay(now)
       this.tickStock(now)
@@ -451,14 +466,15 @@ export class GameState {
       this.tickIllegalHeat(now)
       this.tickSurpriseInvestor(now)
       this.tickNearMiss(now)
-      if (dt > 0 && dt < 1) {
-        const income = this.incomePerDay() * dt
+      if (passiveDt > 0) {
+        const income = this.incomePerDay() * passiveDt
         if (income > 0) this.passiveAccrued += income
       }
       if (now - lastPassiveEmit > 250 && this.passiveAccrued >= 0.01) {
         lastPassiveEmit = now
         const batch = this.passiveAccrued
         this.passiveAccrued = 0
+        this.recordPassiveEarned(batch, now)
         this.addMoney(batch, true)
       }
       if (now - this.lastGameClockEmit > 1000) {
@@ -672,7 +688,7 @@ export class GameState {
     return this.incomePerDay() - this.illegalIncomePerDay()
   }
 
-  /** @deprecated use incomePerDay */
+  /** @deprecated use incomePerDay — saniye başına pasif gelir */
   incomePerSecond(): number {
     return this.incomePerDay()
   }
@@ -1115,6 +1131,30 @@ export class GameState {
     return PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0)
   }
 
+  /** Ortalama tıklama başına kazanç (combo/krit hariç) */
+  clickIncomePerTap(): number {
+    return BASE_CLICK * this.clickMultiplier()
+  }
+
+  /** Son penceredeki gerçek pasif hız — teorik ile karşılaştırma için */
+  measuredPassivePerSecond(): number {
+    const now = performance.now()
+    const windowMs = 3000
+    this.passiveRecent = this.passiveRecent.filter((x) => now - x.at < windowMs)
+    if (this.passiveRecent.length === 0) return this.incomePerDay()
+    const oldest = this.passiveRecent[0]!.at
+    const spanSec = Math.max(0.5, (now - oldest) / 1000)
+    const sum = this.passiveRecent.reduce((s, x) => s + x.amount, 0)
+    return sum / spanSec
+  }
+
+  private recordPassiveEarned(amount: number, at: number): void {
+    this.passiveRecent.push({ at, amount })
+    if (this.passiveRecent.length > 40) {
+      this.passiveRecent.splice(0, this.passiveRecent.length - 40)
+    }
+  }
+
   unlockedProducers(): ProducerDef[] {
     return PRODUCERS.filter((p) => isProducerUnlocked(p, this.totalEarned, this.forcedUnlocks))
   }
@@ -1202,8 +1242,9 @@ export class GameState {
     if (!def) return null
     const owned = this.producers[id] ?? 0
     const lines: { label: string; value: string }[] = []
-    const base = def.baseIncome * owned
-    lines.push({ label: 'Temel gelir', value: `${formatMoney(base)}/gün` })
+    const unitBase = scaledBaseIncome(def.baseIncome)
+    const base = unitBase * owned
+    lines.push({ label: 'Temel gelir', value: formatIncomeRate(base) })
 
     let prodMult = 1
     for (const uid of this.purchasedUpgrades) {
@@ -1226,7 +1267,7 @@ export class GameState {
     return {
       name: def.name,
       owned,
-      basePerUnit: def.baseIncome,
+      basePerUnit: unitBase,
       lines,
       totalPerDay: this.producerIncome(def),
     }
@@ -1246,7 +1287,7 @@ export class GameState {
   private updateWeeklyProgress(amount: number): void {
     this.ensureWeekly()
     if (this.weekly.claimed) return
-    this.weekly.progress = Math.min(this.weekly.target, this.weekly.progress + amount / 100)
+    this.weekly.progress = Math.min(this.weekly.target, this.weekly.progress + amount)
     this.emit({ type: 'weekly_updated', progress: this.weekly.progress, target: this.weekly.target })
   }
 
@@ -1742,9 +1783,7 @@ export class GameState {
       const gameDaysAway = elapsed / MS_PER_GAME_DAY
       let base = 0
       for (const p of PRODUCERS) {
-        let inc = this.producerIncome(p)
-        if (hasManager(this.managers, p.id)) inc *= 1.5
-        base += inc * gameDaysAway
+        base += this.producerIncome(p) * gameDaysAway
       }
       const mult = awayMs >= 72 * 60 * 60 * 1000 ? 3 : awayMs >= 48 * 60 * 60 * 1000 ? 2 : 1.5
       this.comebackPending = Math.floor(base * mult)
@@ -1757,9 +1796,7 @@ export class GameState {
     const gameDaysAway = elapsed / MS_PER_GAME_DAY
     let amount = 0
     for (const p of PRODUCERS) {
-      let inc = this.producerIncome(p)
-      if (hasManager(this.managers, p.id)) inc *= 1.5
-      amount += inc * gameDaysAway
+      amount += this.producerIncome(p) * gameDaysAway
     }
     if (amount <= 0) return 0
     this.pendingOfflineEarnings = Math.floor(amount)

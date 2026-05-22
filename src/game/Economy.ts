@@ -8,7 +8,7 @@ export interface ProducerDef {
   tier: number
   unlockAt: number
   baseCost: number
-  /** Günlük gelir (/gün) */
+  /** Birim başına baz gelir (/sn) — ekonomi ölçeği uygulanmış */
   baseIncome: number
   costMultiplier: number
   category?: ProducerCategory
@@ -176,9 +176,15 @@ export function formatMoney(value: number): string {
   return `${(v / 1_000_000_000_000).toFixed(1)}T`
 }
 
-/** Günlük gelir gösterimi — 1 sn = 1 oyun günü olduğu için kazanç anlık işlenir */
+/** Pasif gelir hızı — 1 gerçek sn = 1 oyun günü, bu yüzden /sn gösterilir */
 export function formatIncomeRate(value: number): string {
   const v = Math.max(0, value)
-  if (v <= 0) return '0/gün'
-  return `${formatMoney(v)}/gün`
+  if (v <= 0) return '0/sn'
+  return `${formatMoney(v)}/sn`
+}
+
+/** Açıklamalı gelir satırı (finans paneli) */
+export function formatIncomeRateHint(value: number): string {
+  if (value <= 0) return 'Pasif gelir yok'
+  return `${formatIncomeRate(value)} · 1 sn = 1 oyun günü`
 }

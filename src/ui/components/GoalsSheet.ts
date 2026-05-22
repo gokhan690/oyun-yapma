@@ -2,6 +2,7 @@ import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
 import { dailyGoalProgress } from '../../game/DailyGoal'
 import { PRESTIGE_THRESHOLD } from '../../game/GameState'
+import { daysUntilWeekReset } from '../../game/dateUtils'
 
 export class GoalsSheet {
   readonly scrim: HTMLElement
@@ -76,7 +77,12 @@ export class GoalsSheet {
 
     const def = state.getWeeklyEventDef()
     const w = state.weekly
-    this.content.append(this.block(`🗓️ ${def.name}`, `${Math.floor(w.progress)}/${w.target}`, (w.progress / w.target) * 100))
+    const wPct = w.target > 0 ? (w.progress / w.target) * 100 : 0
+    this.content.append(this.block(
+      `🗓️ ${def.name}`,
+      `${formatMoney(w.progress)} / ${formatMoney(w.target)} · ${daysUntilWeekReset()} gün kaldı`,
+      wPct,
+    ))
 
     if (state.dailyGoalEarned >= target && !state.dailyGoalClaimed) {
       const btn = document.createElement('button')

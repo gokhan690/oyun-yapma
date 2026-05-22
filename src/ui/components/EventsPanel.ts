@@ -3,6 +3,23 @@ import { formatMoney } from '../../game/Economy'
 import { dailyGoalProgress } from '../../game/DailyGoal'
 import { currentTier, tierProgress, rewardForTier, SEASON_MAX_TIER } from '../../game/SeasonPass'
 import { getWeeklyDef } from '../../game/WeeklyEvent'
+import { daysUntilWeekReset, calendarMonthKey } from '../../game/dateUtils'
+
+function formatRemainingMs(ms: number): string {
+  if (ms <= 0) return 'bitti'
+  const sec = Math.ceil(ms / 1000)
+  if (sec < 60) return `${sec} sn`
+  const min = Math.ceil(sec / 60)
+  if (min < 60) return `${min} dk`
+  return `${Math.ceil(min / 60)} sa`
+}
+
+function formatSeasonLabel(): string {
+  const [y, m] = calendarMonthKey().split('-')
+  const names = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+  const month = names[Number(m) - 1] ?? m
+  return `${month} ${y}`
+}
 
 export class EventsPanel {
   readonly root: HTMLElement
@@ -15,12 +32,18 @@ export class EventsPanel {
 
   render(state: GameState): void {
     state.ensureSeason()
+    state.ensureWeekly()
+    state.ensureDailyGoal()
+    state.ensureMissions()
     this.root.replaceChildren()
 
     const header = document.createElement('div')
     header.className = 'events-panel-header'
     header.innerHTML = '<h2>🎪 Etkinlikler</h2><p>Günlük hedefler, haftalık bonuslar ve sezon ödülleri</p>'
     this.root.appendChild(header)
+
+    const boosts = this.renderActiveBoosts(state)
+    if (boosts) this.root.appendChild(boosts)
 
     if (state.isSurpriseInvestorActive()) {
       this.root.appendChild(this.banner('💎 Sürpriz yatırımcı aktif — tüm gelir x2!', 'surprise-investor-banner'))
@@ -63,6 +86,41 @@ export class EventsPanel {
     this.root.appendChild(this.renderMissions(state))
   }
 
+  private renderActiveBoosts(state: GameState): HTMLElement | null {
+    const now = Date.now()
+    const chips: { emoji: string; label: string; detail: string }[] = []
+
+    if (now < state.adIncomeBoostUntil) {
+      chips.push({ emoji: '📺', label: 'Reklam x2', detail: formatRemainingMs(state.adIncomeBoostUntil - now) })
+    }
+    if (state.getEventBoostActive()) {
+      chips.push({ emoji: '📱', label: 'Viral etkinlik x3', detail: formatRemainingMs(state.eventBoostUntil - now) })
+    }
+    if (now < state.shopBoostUntil) {
+      chips.push({ emoji: '🛒', label: 'Mağaza x1.5', detail: formatRemainingMs(state.shopBoostUntil - now) })
+    }
+    if (state.isSurpriseInvestorActive()) {
+      chips.push({ emoji: '💎', label: 'Yatırımcı x2', detail: formatRemainingMs(state.surpriseInvestorUntil - now) })
+    }
+    if (state.isNight) {
+      chips.push({ emoji: '🌙', label: 'Hafta sonu pasif', detail: 'Oyun takvimi Cmt–Paz' })
+    } else {
+      chips.push({ emoji: '☀️', label: 'Hafta içi tık', detail: 'Oyun takvimi Pzt–Cum' })
+    }
+
+    if (chips.length === 0) return null
+
+    const wrap = document.createElement('div')
+    wrap.className = 'events-boosts-row'
+    for (const c of chips) {
+      const chip = document.createElement('div')
+      chip.className = 'events-boost-chip'
+      chip.innerHTML = `<span>${c.emoji}</span><div><strong>${c.label}</strong><small>${c.detail}</small></div>`
+      wrap.appendChild(chip)
+    }
+    return wrap
+  }
+
   private banner(text: string, className: string): HTMLElement {
     const el = document.createElement('div')
     el.className = `events-banner ${className}`
@@ -73,6 +131,7 @@ export class EventsPanel {
   private renderDaily(state: GameState): HTMLElement {
     const target = state.dailyGoalTarget()
     const goalPct = Math.floor(dailyGoalProgress(state.dailyGoalEarned, target))
+    const rewardPreview = formatMoney(Math.max(500, state.incomePerDay()))
     const wrap = document.createElement('section')
     wrap.className = 'events-block events-block-daily'
 
@@ -83,8 +142,8 @@ export class EventsPanel {
         <span class="events-hero-icon">🎯</span>
         <div class="events-hero-text">
           <strong>Günlük hedef</strong>
-          <small>${formatMoney(state.dailyGoalEarned)} / ${formatMoney(target)}</small>
-          <small class="events-streak-line">🔥 Giriş serisi: ${state.dailyStreak} gün</small>
+          <small>${formatMoney(state.dailyGoalEarned)} / ${formatMoney(target)} kazanç</small>
+          <small class="events-streak-line">🔥 Giriş serisi: ${state.dailyStreak} gün · Gerçek takvim günü</small>
         </div>
         <span class="events-hero-stat">${goalPct}%</span>
       </div>
@@ -95,10 +154,10 @@ export class EventsPanel {
     const dailyActions = document.createElement('div')
     dailyActions.className = 'events-actions'
     if (state.dailyGoalEarned >= target && !state.dailyGoalClaimed) {
-      dailyActions.appendChild(this.actionBtn('claim-daily-goal', 'Günlük hedefi topla', 'btn-primary'))
+      dailyActions.appendChild(this.actionBtn('claim-daily-goal', `Topla · ${rewardPreview}`, 'btn-primary'))
     }
     if (state.canClaimDaily()) {
-      dailyActions.appendChild(this.actionBtn('daily', '🎁 Günlük ödül', 'btn-secondary'))
+      dailyActions.appendChild(this.actionBtn('daily', '🎁 Günlük giriş ödülü', 'btn-secondary'))
     }
     wrap.appendChild(dailyActions)
     return wrap
@@ -107,8 +166,10 @@ export class EventsPanel {
   private renderWeekly(state: GameState): HTMLElement {
     const def = getWeeklyDef(state.weekly)
     const w = state.weekly
-    const wPct = Math.min(100, (w.progress / w.target) * 100)
+    const wPct = w.target > 0 ? Math.min(100, (w.progress / w.target) * 100) : 0
     const bonusPct = def.bonus ? Math.round(def.bonus * 100) : 0
+    const daysLeft = daysUntilWeekReset()
+    const rewardPreview = formatMoney(Math.max(1000, state.incomePerDay() * 2))
     const wrap = document.createElement('section')
     wrap.className = 'events-block events-block-weekly'
 
@@ -120,7 +181,9 @@ export class EventsPanel {
         <div class="events-hero-text">
           <strong>${def.name}</strong>
           <small>${def.description}</small>
-          ${bonusPct > 0 ? `<span class="events-bonus-chip">Bu hafta +${bonusPct}% bonus</span>` : ''}
+          <small class="events-streak-line">${formatMoney(w.progress)} / ${formatMoney(w.target)} kazanç · ${daysLeft} gün kaldı</small>
+          ${bonusPct > 0 ? `<span class="events-bonus-chip">Bu hafta +${bonusPct}% bonus${w.adDoubled ? ' (reklam x2)' : ''}</span>` : ''}
+          ${def.comboCapMult ? `<span class="events-bonus-chip">Combo cap x${def.comboCapMult}${w.adDoubled ? ' (güçlü)' : ''}</span>` : ''}
         </div>
         <span class="events-hero-stat">${Math.floor(wPct)}%</span>
       </div>
@@ -131,9 +194,16 @@ export class EventsPanel {
     const weeklyActions = document.createElement('div')
     weeklyActions.className = 'events-actions'
     if (w.progress >= w.target && !w.claimed) {
-      weeklyActions.appendChild(this.actionBtn('claim-weekly', 'Haftalık ödülü topla', 'btn-primary'))
+      weeklyActions.appendChild(this.actionBtn('claim-weekly', `Haftalık ödül · ${rewardPreview}`, 'btn-primary'))
+    } else if (w.claimed) {
+      const done = document.createElement('p')
+      done.className = 'events-done-label'
+      done.textContent = `✓ Bu haftanın ödülü alındı${w.adDoubled ? ' · Bonus x2 aktif' : ''}`
+      weeklyActions.appendChild(done)
     }
-    weeklyActions.appendChild(this.actionBtn('ad-weekly', '📺 Etkinlik 2x (reklam)', 'btn-ad'))
+    if (!w.adDoubled) {
+      weeklyActions.appendChild(this.actionBtn('ad-weekly', '📺 Haftalık bonusu x2 (reklam)', 'btn-ad'))
+    }
     wrap.appendChild(weeklyActions)
     return wrap
   }
@@ -150,7 +220,8 @@ export class EventsPanel {
         <span class="events-hero-icon">👑</span>
         <div class="events-hero-text">
           <strong>İmparatorluk Yolu</strong>
-          <small>Tier ${prog.tier}/${SEASON_MAX_TIER} — ${prog.current}/${prog.needed} XP</small>
+          <small>${formatSeasonLabel()} sezonu · Tier ${prog.tier}/${SEASON_MAX_TIER}</small>
+          <small class="events-streak-line">${prog.current} / ${prog.needed} XP · Para kazanınca XP gelir</small>
         </div>
         <span class="events-hero-stat">T${prog.tier}</span>
       </div>
@@ -191,12 +262,15 @@ export class EventsPanel {
   }
 
   private renderMissions(state: GameState): HTMLElement {
-    state.ensureMissions()
     const section = document.createElement('section')
     section.className = 'events-block events-missions-section'
     const title = document.createElement('h3')
     title.textContent = '📋 Günlük Görevler'
     section.appendChild(title)
+    const sub = document.createElement('p')
+    sub.className = 'events-missions-summary'
+    sub.textContent = 'Her gerçek gün 3 yeni görev · Yarın sıfırlanır'
+    section.appendChild(sub)
     const ready = state.missions.filter((m) => m.progress >= m.target && !m.claimed).length
     const summary = document.createElement('p')
     summary.className = 'events-missions-summary'
@@ -211,12 +285,23 @@ export class EventsPanel {
     list.className = 'events-missions-list'
     for (const m of sorted) {
       const pct = Math.min(100, (m.progress / m.target) * 100)
+      const reward = m.rewardMoney > 0
+        ? formatMoney(m.rewardMoney)
+        : m.rewardBoostMinutes > 0
+          ? `${m.rewardBoostMinutes} dk x2 gelir`
+          : '—'
       const card = document.createElement('div')
       card.className = `events-mission-card${m.claimed ? ' claimed' : ''}${m.progress >= m.target && !m.claimed ? ' ready' : ''}`
-      card.innerHTML = `<div class="events-mission-head"><strong>${m.label}</strong><small>${Math.floor(m.progress)}/${m.target}</small></div>`
+      card.innerHTML = `
+        <div class="events-mission-head">
+          <strong>${m.label}</strong>
+          <small>${Math.floor(m.progress)}/${m.target}</small>
+        </div>
+        <p class="events-mission-reward">Ödül: ${reward}</p>
+      `
       card.appendChild(this.progressBar(pct))
       if (m.progress >= m.target && !m.claimed) {
-        card.appendChild(this.actionBtn('claim-mission', 'Topla', 'btn-primary btn-sm', m.id))
+        card.appendChild(this.actionBtn('claim-mission', `Topla · ${reward}`, 'btn-primary btn-sm', m.id))
       }
       list.appendChild(card)
     }

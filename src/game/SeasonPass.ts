@@ -1,4 +1,4 @@
-import { gameSeasonKey } from './GameClock'
+import { calendarMonthKey } from './dateUtils'
 
 export interface SeasonState {
   weekKey: string
@@ -9,8 +9,13 @@ export interface SeasonState {
 
 export const SEASON_MAX_TIER = 30
 
-export function seasonWeekKey(gameTimeMs = 0): string {
-  return gameSeasonKey(gameTimeMs)
+export function seasonWeekKey(_gameTimeMs = 0): string {
+  return calendarMonthKey()
+}
+
+/** Eski oyun-sezonu anahtarı (gs0, gs1…) */
+export function isLegacyGameSeasonKey(key: string): boolean {
+  return key.startsWith('gs')
 }
 
 export function createSeasonState(gameTimeMs = 0): SeasonState {

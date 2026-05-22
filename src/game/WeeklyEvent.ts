@@ -1,4 +1,4 @@
-import { gameWeekKey } from './GameClock'
+import { calendarWeekKey } from './dateUtils'
 
 export type WeeklyModifierType =
   | 'logistics_boost'
@@ -27,19 +27,25 @@ export const WEEKLY_EVENTS: WeeklyEventDef[] = [
 export interface WeeklyEventState {
   weekKey: string
   eventId: WeeklyModifierType
+  /** Bu hafta kazanılan para (hedefe doğru) */
   progress: number
+  /** Para hedefi — hafta başında gelire göre ölçeklenir */
   target: number
   claimed: boolean
   adDoubled: boolean
 }
 
-/** @deprecated Gerçek hafta — oyun takvimi için gameWeekKey kullan */
+export const WEEKLY_EARN_MIN = 250_000
+/** ~7–15 dk pasif oynama süresine denk hedef */
+export const WEEKLY_EARN_IPD_MULT = 400
+
+export function scaledWeeklyTarget(incomePerDay: number): number {
+  return Math.max(WEEKLY_EARN_MIN, Math.floor(incomePerDay * WEEKLY_EARN_IPD_MULT))
+}
+
+/** @deprecated calendarWeekKey kullan */
 export function weekKey(): string {
-  const d = new Date()
-  const day = d.getUTCDay()
-  const diff = day === 0 ? 6 : day - 1
-  d.setUTCDate(d.getUTCDate() - diff)
-  return d.toISOString().slice(0, 10)
+  return calendarWeekKey()
 }
 
 export function pickWeeklyEvent(seed: string): WeeklyEventDef {
@@ -48,14 +54,14 @@ export function pickWeeklyEvent(seed: string): WeeklyEventDef {
   return WEEKLY_EVENTS[Math.abs(h) % WEEKLY_EVENTS.length]!
 }
 
-export function createWeeklyState(gameTimeMs = 0): WeeklyEventState {
-  const key = gameWeekKey(gameTimeMs)
+export function createWeeklyState(incomePerDay = 0): WeeklyEventState {
+  const key = calendarWeekKey()
   const event = pickWeeklyEvent(key)
   return {
     weekKey: key,
     eventId: event.id,
     progress: 0,
-    target: 100,
+    target: scaledWeeklyTarget(incomePerDay),
     claimed: false,
     adDoubled: false,
   }
@@ -63,4 +69,9 @@ export function createWeeklyState(gameTimeMs = 0): WeeklyEventState {
 
 export function getWeeklyDef(state: WeeklyEventState): WeeklyEventDef {
   return WEEKLY_EVENTS.find((e) => e.id === state.eventId) ?? WEEKLY_EVENTS[0]!
+}
+
+/** Eski oyun-haftası anahtarı (gw0, gw1…) — kayıt migrasyonu */
+export function isLegacyGameWeekKey(key: string): boolean {
+  return key.startsWith('gw')
 }

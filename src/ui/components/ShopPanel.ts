@@ -1,5 +1,5 @@
 import type { GameState } from '../../game/GameState'
-import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, producerIconPath, earlyUnlockCost, isProducerUnlocked, scaledUnlockAt, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
+import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, formatIncomeRateHint, producerIconPath, earlyUnlockCost, isProducerUnlocked, scaledBaseIncome, scaledUnlockAt, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
 import { RESEARCH_NODES, researchCost } from '../../game/Research'
 import { getActiveSynergies } from '../../game/Synergies'
 import { PRESTIGE_THRESHOLD } from '../../game/GameState'
@@ -453,13 +453,13 @@ export class ShopPanel {
          <span class="hub-stat hub-stat-heat"><strong>${state.illegalRiskLabel()}</strong><small>Radar ${heatPct}%</small></span>`
       : ''
     this.shopHubEl.innerHTML = `
-      <span class="hub-stat"><strong>${formatIncomeRate(ipd)}</strong><small>Toplam gelir</small></span>
-      <span class="hub-stat"><strong>${formatIncomeRate(legalIpd)}</strong><small>Yasal</small></span>
+      <span class="hub-stat"><strong>${formatIncomeRate(ipd)}</strong><small>Pasif / sn</small></span>
+      <span class="hub-stat"><strong>${formatIncomeRate(legalIpd)}</strong><small>Yasal / sn</small></span>
       ${illegalStat}
       <span class="hub-stat"><strong>${ownedBiz}</strong><small>İşletme</small></span>
       <span class="hub-stat"><strong>${nextText}</strong><small>Sıradaki</small></span>
       <span class="hub-stat"><strong>${goalPct}%</strong><small>Günlük hedef</small></span>
-      <span class="hub-stat hub-stat-note"><small>1 sn ≈ 1 oyun günü · gelir etkinliklerle değişir</small></span>
+      <span class="hub-stat hub-stat-note"><small>1 sn = 1 oyun günü · tıklama ve ödüller ayrıca eklenir</small></span>
     `
     this.renderFinanceModifiers(state)
   }
@@ -495,16 +495,24 @@ export class ShopPanel {
     const el = document.createElement('div')
     el.className = 'finance-summary'
     const ipd = state.incomePerDay()
+    const measured = state.measuredPassivePerSecond()
+    const click = state.clickIncomePerTap()
     const money = state.money
-    const earned = state.totalEarned
-    const click = state.clickMultiplier()
+    const drift = ipd > 0 ? ((measured - ipd) / ipd) * 100 : 0
+    const driftText = Math.abs(drift) < 3
+      ? '✓ ölçülen ≈ gösterilen'
+      : drift > 0
+        ? `↑ ölçülen +${Math.round(drift)}% (boost/hafta sonu)`
+        : `↓ ölçülen ${Math.round(drift)}%`
     el.innerHTML = `
       <div class="finance-summary-row">
         <span><strong>${formatMoney(money)}</strong><small>Cüzdan</small></span>
-        <span><strong>${formatIncomeRate(ipd)}</strong><small>Pasif gelir</small></span>
-        <span><strong>${formatMoney(click)}</strong><small>Tıklama</small></span>
-        <span><strong>${formatMoney(earned)}</strong><small>Toplam kazanç</small></span>
+        <span><strong>${formatIncomeRate(ipd)}</strong><small>Pasif (teorik)</small></span>
+        <span><strong>${formatIncomeRate(measured)}</strong><small>Pasif (ölçülen, 3 sn)</small></span>
+        <span><strong>${formatMoney(click)}</strong><small>Tıklama / vuruş</small></span>
       </div>
+      <p class="finance-summary-hint">${formatIncomeRateHint(ipd)} · ${driftText}</p>
+      <p class="finance-summary-hint finance-summary-extra">Cüzdan hızlı artıyorsa: tıklama + pasif birlikte işler. Sadece pasif = ${formatIncomeRate(ipd)}.</p>
     `
     return el
   }
@@ -1030,7 +1038,7 @@ export class ShopPanel {
     const costText = this.buyMode === 'max' && affordableCount > 1
       ? `${formatMoney(cost)} (x${affordableCount})`
       : formatMoney(cost)
-    const incText = owned > 0 ? formatIncomeRate(income) : `+${formatIncomeRate(p.baseIncome)}`
+    const incText = owned > 0 ? formatIncomeRate(income) : `+${formatIncomeRate(scaledBaseIncome(p.baseIncome))}`
     const roiSec = producerRoiSeconds(state, p, buyCount)
     const roiText = `ROI ~${formatRoi(roiSec)}`
 

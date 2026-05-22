@@ -3917,6 +3917,18 @@ html.theme-galactic {
 .finance-summary-row strong { font-size: 0.88rem; }
 .finance-summary-row small { font-size: 0.62rem; color: var(--muted); }
 
+.finance-summary-hint {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin: 8px 0 0;
+  line-height: 1.35;
+}
+
+.finance-summary-extra {
+  margin-top: 4px;
+  opacity: 0.85;
+}
+
 .finance-modifiers {
   display: flex;
   flex-wrap: wrap;
@@ -3998,6 +4010,44 @@ html.theme-galactic {
 
 .stock-holding-emoji { font-size: 1.2rem; }
 .stock-hint-btn { width: 100%; margin-top: 8px; }
+
+.events-boosts-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 10px 10px;
+}
+
+.events-boost-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 calc(50% - 4px);
+  min-width: 140px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 0.72rem;
+}
+
+.events-boost-chip span { font-size: 1.1rem; line-height: 1; }
+.events-boost-chip strong { display: block; font-size: 0.75rem; }
+.events-boost-chip small { color: var(--muted); font-size: 0.65rem; }
+
+.events-done-label {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  color: var(--green);
+  font-weight: 600;
+}
+
+.events-mission-reward {
+  margin: 0 0 6px;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
 
 .events-panel-header { padding: 12px 14px 4px; }
 .events-panel-header h2 { font-size: 1rem; margin: 0 0 4px; }

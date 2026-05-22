@@ -335,7 +335,7 @@ export class HUD {
     passiveBlock.className = 'session-stat session-stat-wide'
     const passiveLabel = document.createElement('span')
     passiveLabel.className = 'session-label'
-    passiveLabel.textContent = 'Pasif gelir'
+    passiveLabel.textContent = 'Pasif / sn'
     this.sessionPassiveIncome = document.createElement('strong')
     this.sessionPassiveIncome.className = 'session-value session-passive'
     passiveBlock.append(passiveLabel, this.sessionPassiveIncome)
@@ -583,6 +583,8 @@ export class HUD {
       }
       if (ev.type === 'daily_goal_updated') {
         this.goalsSheet.render(this.state)
+        if (this.bottomNav.getActive() === 'events') this.eventsPanel.render(this.state)
+        this.updateNavBadges()
       }
       if (ev.type === 'day_night' || ev.type === 'game_time') {
         this.renderDayNightChip()
@@ -614,11 +616,14 @@ export class HUD {
       }
       if (ev.type === 'mission_complete') {
         this.modals.showToast(this.root, `Görev: ${ev.mission.label}`)
+        if (this.bottomNav.getActive() === 'events') this.eventsPanel.render(this.state)
+        this.updateNavBadges()
         this.refreshShop(true)
       }
       if (ev.type === 'weekly_updated') {
         this.goalsSheet.render(this.state)
         this.renderWeeklyBanner()
+        if (this.bottomNav.getActive() === 'events') this.eventsPanel.render(this.state)
         this.updateNavBadges()
       }
       if (ev.type === 'story_beat') {
@@ -690,11 +695,11 @@ export class HUD {
   private renderWeeklyBanner(): void {
     const def = this.state.getWeeklyEventDef()
     const w = this.state.weekly
-    const pct = Math.min(100, (w.progress / w.target) * 100)
+    const pct = w.target > 0 ? Math.min(100, (w.progress / w.target) * 100) : 0
     this.weeklyBanner.replaceChildren()
     this.weeklyBanner.hidden = false
     const text = document.createElement('span')
-    text.textContent = `🗓️ ${def.name}: ${Math.floor(w.progress)}/${w.target}`
+    text.textContent = `🗓️ ${def.name}: ${formatMoney(w.progress)} / ${formatMoney(w.target)}`
     const bar = document.createElement('div')
     bar.className = 'weekly-bar'
     const fill = document.createElement('div')
@@ -1242,7 +1247,7 @@ export class HUD {
   }
 
   private renderSessionPanel(): void {
-    const clickIncome = this.state.clickMultiplier()
+    const clickIncome = this.state.clickIncomePerTap()
     const comboMult = this.state.comboMultiplier
     const passive = this.state.incomePerDay()
     this.sessionClickIncome.textContent = formatMoney(clickIncome)
