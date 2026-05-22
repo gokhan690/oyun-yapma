@@ -147,6 +147,35 @@ export function profitLoss(ticker: StockTicker): number {
   return (ticker.price - ticker.avgBuyPrice) * ticker.shares
 }
 
+export function totalProfitLoss(state: StockState): number {
+  return Object.values(state.tickers).reduce((s, t) => s + profitLoss(t), 0)
+}
+
+export function priceChangePct(ticker: StockTicker): number {
+  if (ticker.history.length < 2) return 0
+  const prev = ticker.history[ticker.history.length - 2]!
+  if (prev <= 0) return 0
+  return ((ticker.price - prev) / prev) * 100
+}
+
+export function portfolioSummary(state: StockState): {
+  totalValue: number
+  totalCost: number
+  totalPl: number
+  holdings: number
+} {
+  let totalValue = 0
+  let totalCost = 0
+  let holdings = 0
+  for (const t of Object.values(state.tickers)) {
+    if (t.shares <= 0) continue
+    holdings++
+    totalValue += t.shares * t.price
+    totalCost += t.shares * t.avgBuyPrice
+  }
+  return { totalValue, totalCost, totalPl: totalValue - totalCost, holdings }
+}
+
 export function totalShares(state: StockState): number {
   return Object.values(state.tickers).reduce((s, t) => s + t.shares, 0)
 }

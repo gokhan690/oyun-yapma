@@ -2,7 +2,7 @@ import type { GameState } from '../game/GameState'
 import type { AdManager } from '../ads/AdManager'
 import type { SoundManager } from '../audio/SoundManager'
 import type { SaveManager } from '../security/SaveManager'
-import { formatMoney, formatIncomeRate, PRODUCERS } from '../game/Economy'
+import { formatMoney, formatIncomeRate, PRODUCERS, earlyUnlockCost } from '../game/Economy'
 import { assetUrl } from '../utils/assetUrl'
 import type { DeathCauseId } from '../game/Mortality'
 import { currentRank, rankProgress } from '../game/PlayerRank'
@@ -587,9 +587,11 @@ export class HUD {
       if (ev.type === 'day_night' || ev.type === 'game_time') {
         this.renderDayNightChip()
         this.renderMarketNewsBanner()
+        this.refreshShop(true)
       }
       if (ev.type === 'market_news') {
         this.renderMarketNewsBanner()
+        this.refreshShop(true)
       }
       if (ev.type === 'dynasty_update') {
         if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
@@ -811,9 +813,12 @@ export class HUD {
         break
       case 'early-unlock':
         if (id && this.state.earlyUnlockProducer(id)) {
+          this.modals.showToast(this.root, '🔓 İşletme erken açıldı!')
           this.refreshShop(true)
         } else if (id) {
-          this.modals.showToast(this.root, 'Erken açmak için yeterli para yok')
+          const def = PRODUCERS.find((p) => p.id === id)
+          const cost = def ? earlyUnlockCost(def) : 0
+          this.modals.showToast(this.root, `Yetersiz bakiye — erken aç: ${formatMoney(cost)}`)
         }
         break
       case 'empire-section':
@@ -907,12 +912,17 @@ export class HUD {
       case 'buy-business':
         if (id) {
           const mode = this.shop.getBuyMode()
+          let ok = false
           if (mode === 'max') {
-            this.state.buyMaxProducer(id)
+            ok = this.state.buyMaxProducer(id) > 0
           } else {
-            this.state.buyProducer(id, Number(count ?? 1))
+            ok = this.state.buyProducer(id, Number(count ?? 1))
           }
-          this.shop.flashCard(id)
+          if (ok) {
+            this.shop.flashCard(id)
+          } else {
+            this.modals.showToast(this.root, 'Satın alınamadı — yeterli para yok')
+          }
         }
         break
       case 'biz-detail':

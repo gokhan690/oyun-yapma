@@ -5,7 +5,7 @@ import { getActiveSynergies } from '../../game/Synergies'
 import { PRESTIGE_THRESHOLD } from '../../game/GameState'
 import { calcPrestigePoints, prestigeMultiplier } from '../../game/Prestige'
 import { managerCost, hasManager } from '../../game/Managers'
-import { profitLoss, sparklinePath, STOCK_DEFS } from '../../game/StockMarket'
+import { profitLoss, priceChangePct, portfolioSummary, sparklinePath, STOCK_DEFS } from '../../game/StockMarket'
 import { PRESTIGE_TREE_NODES, canBuyNode, hasNode } from '../../game/PrestigeTree'
 import { dailyGoalProgress, scaledDailyGoalTarget } from '../../game/DailyGoal'
 import { assetUrl } from '../../utils/assetUrl'
@@ -459,8 +459,54 @@ export class ShopPanel {
       <span class="hub-stat"><strong>${ownedBiz}</strong><small>İşletme</small></span>
       <span class="hub-stat"><strong>${nextText}</strong><small>Sıradaki</small></span>
       <span class="hub-stat"><strong>${goalPct}%</strong><small>Günlük hedef</small></span>
-      <span class="hub-stat hub-stat-note"><small>1 sn ≈ 1 oyun günü — gelir anlık işlenir</small></span>
+      <span class="hub-stat hub-stat-note"><small>1 sn ≈ 1 oyun günü · gelir etkinliklerle değişir</small></span>
     `
+    this.renderFinanceModifiers(state)
+  }
+
+  private renderFinanceModifiers(state: GameState): void {
+    let modEl = this.root.querySelector('.finance-modifiers') as HTMLElement | null
+    if (!modEl) {
+      modEl = document.createElement('div')
+      modEl.className = 'finance-modifiers'
+      this.shopHubEl.after(modEl)
+    }
+    const chips = state.incomeModifierChips()
+    if (chips.length === 0) {
+      modEl.hidden = true
+      return
+    }
+    modEl.hidden = false
+    modEl.replaceChildren()
+    const label = document.createElement('span')
+    label.className = 'finance-modifiers-label'
+    label.textContent = 'Aktif etkiler:'
+    modEl.appendChild(label)
+    for (const c of chips) {
+      const chip = document.createElement('span')
+      chip.className = 'finance-mod-chip'
+      chip.title = c.detail
+      chip.textContent = `${c.emoji} ${c.label}`
+      modEl.appendChild(chip)
+    }
+  }
+
+  private createFinanceSummary(state: GameState): HTMLElement {
+    const el = document.createElement('div')
+    el.className = 'finance-summary'
+    const ipd = state.incomePerDay()
+    const money = state.money
+    const earned = state.totalEarned
+    const click = state.clickMultiplier()
+    el.innerHTML = `
+      <div class="finance-summary-row">
+        <span><strong>${formatMoney(money)}</strong><small>Cüzdan</small></span>
+        <span><strong>${formatIncomeRate(ipd)}</strong><small>Pasif gelir</small></span>
+        <span><strong>${formatMoney(click)}</strong><small>Tıklama</small></span>
+        <span><strong>${formatMoney(earned)}</strong><small>Toplam kazanç</small></span>
+      </div>
+    `
+    return el
   }
 
   private createFilterPills(
@@ -730,10 +776,20 @@ export class ShopPanel {
       let revEl = panel.querySelector('.revenue-distribution') as HTMLElement | null
       if (revDist) {
         if (revEl) revEl.replaceWith(revDist)
-        else panel.prepend(revDist)
+        else {
+          const finance = panel.querySelector('.finance-summary')
+          if (finance) finance.after(revDist)
+          else panel.prepend(revDist)
+        }
       } else {
         revEl?.remove()
       }
+
+      let financeEl = panel.querySelector('.finance-summary') as HTMLElement | null
+      const finance = this.createFinanceSummary(state)
+      if (financeEl) financeEl.replaceWith(finance)
+      else panel.prepend(finance)
+      financeEl = finance
     }
 
     const grid = this.getCardsGrid(panel)
@@ -831,13 +887,15 @@ export class ShopPanel {
           const remaining = Math.max(0, nextLockedDef.unlockAt - state.totalEarned)
           const ipd = state.incomePerDay()
           const eta = ipd > 0 ? remaining / ipd : Infinity
-          lockText.textContent = `Toplam kazanç: ${formatMoney(state.totalEarned)} / ${formatMoney(nextLockedDef.unlockAt)} · ~${this.formatEta(eta)}`
+          lockText.textContent = `${formatMoney(state.totalEarned)} / ${formatMoney(nextLockedDef.unlockAt)} kazanç · ~${this.formatEta(eta)}`
         }
         const earlyBtn = lockedCard.querySelector('.btn-early-unlock') as HTMLButtonElement | null
         if (earlyBtn) {
           const cost = earlyUnlockCost(nextLockedDef)
-          earlyBtn.textContent = `Erken aç — ${formatMoney(cost)}`
-          earlyBtn.disabled = !state.canAfford(cost)
+          const canAfford = state.canAfford(cost)
+          earlyBtn.textContent = canAfford ? `Erken aç · ${formatMoney(cost)}` : `Erken aç · ${formatMoney(cost)} (yetersiz)`
+          earlyBtn.disabled = !canAfford
+          earlyBtn.title = `Cüzdandan ödenir · Normal açılış: ${formatMoney(nextLockedDef.unlockAt)} toplam kazanç`
         }
         let progressBar = lockedCard.querySelector('.unlock-progress') as HTMLElement | null
         if (!progressBar) {
@@ -906,7 +964,7 @@ export class ShopPanel {
     left.append(emoji, info)
     const countEl = document.createElement('span')
     countEl.className = 'biz-owned'
-    top.append(left, countEl, infoBtn)
+    top.append(left, countEl)
 
     const milestoneDots = document.createElement('div')
     milestoneDots.className = 'biz-milestone-dots'
@@ -927,7 +985,7 @@ export class ShopPanel {
     bottom.append(costEl, inc)
 
     buyBtn.append(top, milestoneDots, bottom)
-    card.append(buyBtn)
+    card.append(buyBtn, infoBtn)
 
     const tierBadge = document.createElement('div')
     tierBadge.className = `biz-tier-badge biz-tier-${p.tier}`
@@ -1326,6 +1384,18 @@ export class ShopPanel {
   }
 
   private renderIpoStock(state: GameState, panel: HTMLElement): void {
+    const summary = portfolioSummary(state.stock)
+    const portfolioEl = document.createElement('div')
+    portfolioEl.className = 'stock-portfolio-summary'
+    const portfolioPlClass = summary.totalPl >= 0 ? 'pl-positive' : 'pl-negative'
+    portfolioEl.innerHTML = `
+      <div class="stock-portfolio-stat"><strong>${formatMoney(summary.totalValue)}</strong><small>Portföy değeri</small></div>
+      <div class="stock-portfolio-stat"><strong>${summary.holdings}/3</strong><small>Pozisyon</small></div>
+      <div class="stock-portfolio-stat"><strong class="${portfolioPlClass}">${formatMoney(summary.totalPl)}</strong><small>Toplam K/Z</small></div>
+      <div class="stock-portfolio-stat"><strong>${formatMoney(state.money)}</strong><small>Nakit</small></div>
+    `
+    panel.appendChild(portfolioEl)
+
     const tickerTabs = document.createElement('div')
     tickerTabs.className = 'ticker-tabs'
     for (const def of STOCK_DEFS) {
@@ -1343,6 +1413,8 @@ export class ShopPanel {
     const ticker = state.stock.tickers[state.stock.activeTickerId]!
     const pl = profitLoss(ticker)
     const plClass = pl >= 0 ? 'pl-positive' : 'pl-negative'
+    const chg = priceChangePct(ticker)
+    const chgClass = chg >= 0 ? 'pl-positive' : 'pl-negative'
 
     const stockCard = document.createElement('div')
     stockCard.className = 'shop-card stock-card'
@@ -1354,7 +1426,16 @@ export class ShopPanel {
     const priceRow = document.createElement('div')
     priceRow.className = 'stock-price-row'
     const trend = state.stock.trendDirection === 'up' ? '↑' : state.stock.trendDirection === 'down' ? '↓' : '→'
-    priceRow.innerHTML = `<strong>${formatMoney(ticker.price)}</strong> <span class="stock-trend">${trend}</span>`
+    priceRow.innerHTML = `<strong>${formatMoney(ticker.price)}</strong> <span class="stock-trend">${trend}</span> <span class="stock-change ${chgClass}">${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%</span>`
+
+    const detailGrid = document.createElement('div')
+    detailGrid.className = 'stock-detail-grid'
+    detailGrid.innerHTML = `
+      <span><small>Lot</small><strong>${ticker.shares}</strong></span>
+      <span><small>Ort. maliyet</small><strong>${ticker.shares > 0 ? formatMoney(ticker.avgBuyPrice) : '—'}</strong></span>
+      <span><small>Pozisyon değeri</small><strong>${formatMoney(ticker.shares * ticker.price)}</strong></span>
+      <span><small>K/Z</small><strong class="${plClass}">${formatMoney(pl)}</strong></span>
+    `
 
     const spark = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
     spark.setAttribute('class', 'stock-sparkline stock-sparkline-lg')
@@ -1369,10 +1450,36 @@ export class ShopPanel {
 
     const stockInfo = document.createElement('p')
     stockInfo.className = 'stock-info'
-    stockInfo.innerHTML = `${ticker.shares} lot · Değer: ${formatMoney(ticker.shares * ticker.price)} · K/Z: <span class="${plClass}">${formatMoney(pl)}</span>`
+    stockInfo.textContent = `Volatilite: ${Math.round(ticker.volatility * 100)}% · Fiyat her ~30 sn güncellenir`
 
-    stockCard.append(stockTitle, priceRow, spark, stockInfo)
+    stockCard.append(stockTitle, priceRow, detailGrid, spark, stockInfo)
     panel.appendChild(stockCard)
+
+    const holdingsTitle = document.createElement('h4')
+    holdingsTitle.className = 'stock-holdings-title'
+    holdingsTitle.textContent = 'Tüm Hisseler'
+    panel.appendChild(holdingsTitle)
+
+    const holdingsGrid = document.createElement('div')
+    holdingsGrid.className = 'stock-holdings-grid'
+    for (const def of STOCK_DEFS) {
+      const t = state.stock.tickers[def.id]!
+      const tPl = profitLoss(t)
+      const tChg = priceChangePct(t)
+      const card = document.createElement('button')
+      card.type = 'button'
+      card.className = `stock-holding-card${state.stock.activeTickerId === def.id ? ' active' : ''}`
+      card.dataset.action = 'stock-ticker'
+      card.dataset.id = def.id
+      card.innerHTML = `
+        <span class="stock-holding-emoji">${def.emoji}</span>
+        <strong>${formatMoney(t.price)}</strong>
+        <small>${t.shares > 0 ? `${t.shares} lot · ${formatMoney(tPl)}` : 'Pozisyon yok'}</small>
+        <small class="stock-change ${tChg >= 0 ? 'pl-positive' : 'pl-negative'}">${tChg >= 0 ? '+' : ''}${tChg.toFixed(1)}%</small>
+      `
+      holdingsGrid.appendChild(card)
+    }
+    panel.appendChild(holdingsGrid)
 
     if (Date.now() < state.stock.trendHintUntil) {
       const hint = document.createElement('p')
@@ -1403,22 +1510,14 @@ export class ShopPanel {
       btn.textContent = label
       stockActions.appendChild(btn)
     }
+    panel.appendChild(stockActions)
+
     const hintAd = document.createElement('button')
     hintAd.type = 'button'
-    hintAd.className = 'btn-ad'
+    hintAd.className = 'btn-ad stock-hint-btn'
     hintAd.dataset.action = 'ad-stock-hint'
-    hintAd.textContent = state.isStockHintFree() ? '📊 Ücretsiz ipucu' : '📺 Piyasa ipucu (1 saat)'
-    panel.append(stockActions, hintAd)
-
-    const financeAds = document.createElement('div')
-    financeAds.className = 'shop-ad-cards'
-    const stockAd = document.createElement('button')
-    stockAd.type = 'button'
-    stockAd.className = 'shop-ad-card'
-    stockAd.dataset.action = 'ad-stock-hint'
-    stockAd.innerHTML = '<span>📺</span><div><strong>Ücretsiz borsa analizi</strong><small>1 saat trend ipucu</small></div>'
-    financeAds.appendChild(stockAd)
-    panel.append(financeAds)
+    hintAd.textContent = state.isStockHintFree() ? '📊 Ücretsiz piyasa analizi (1 saat)' : '📺 Piyasa analizi — reklam izle'
+    panel.appendChild(hintAd)
 
     if (this.highlightStockTicker) {
       panel.querySelectorAll('.ticker-tab').forEach((el) => {
@@ -1454,10 +1553,25 @@ export class ShopPanel {
     const ipoCard = document.createElement('div')
     ipoCard.className = 'shop-card ipo-card'
     const pending = calcPrestigePoints(state.totalEarned)
+    const currentMult = prestigeMultiplier(state.prestigePoints)
+    const nextMult = prestigeMultiplier(state.prestigePoints + pending)
+    const remaining = Math.max(0, PRESTIGE_THRESHOLD - state.totalEarned)
+
+    const stats = document.createElement('div')
+    stats.className = 'ipo-stats-grid'
+    stats.innerHTML = `
+      <span><small>Mevcut hisse</small><strong>${Math.floor(state.prestigePoints)}</strong></span>
+      <span><small>Kalıcı çarpan</small><strong>x${currentMult.toFixed(2)}</strong></span>
+      <span><small>IPO sayısı</small><strong>${state.ipoCount}</strong></span>
+      <span><small>Sonraki IPO</small><strong>${pending > 0 ? `+${pending} hisse` : formatMoney(remaining) + ' kaldı'}</strong></span>
+    `
+    ipoCard.appendChild(stats)
+
     const info = document.createElement('p')
+    info.className = 'ipo-info-text'
     info.textContent = pending > 0
-      ? `${pending} hisse senedi kazanacaksın. Kalıcı çarpan: x${prestigeMultiplier(state.prestigePoints + pending).toFixed(2)}`
-      : `IPO için en az ${formatMoney(PRESTIGE_THRESHOLD)} toplam kazanç gerekir.`
+      ? `Birleşme sonrası kalıcı çarpan x${currentMult.toFixed(2)} → x${nextMult.toFixed(2)} olur. Run sıfırlanır, hisseler kalır.`
+      : `IPO için ${formatMoney(PRESTIGE_THRESHOLD)} toplam kazanç gerekir. Şu an ${formatMoney(state.totalEarned)} — ${formatMoney(remaining)} kaldı.`
 
     const ipoPct = Math.min(100, (state.totalEarned / PRESTIGE_THRESHOLD) * 100)
     const bar = document.createElement('div')

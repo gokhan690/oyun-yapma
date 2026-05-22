@@ -96,12 +96,21 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'siyah_fabrika_x2', name: 'Gizli Üretim', description: 'Siyah fabrika geliri x2', cost: 120_000, effect: 'producer_mult', value: 2, producerId: 'siyah_fabrika' },
 ]
 
+/** Dengeli ekonomi — gelir ~%15 düşük, maliyet ~%10 yüksek */
+export const ECONOMY_INCOME_SCALE = 0.85
+export const ECONOMY_COST_SCALE = 1.1
+export const EARLY_UNLOCK_COST_SCALE = 1.5
+
+export function scaledBaseIncome(baseIncome: number): number {
+  return Math.max(1, Math.floor(baseIncome * ECONOMY_INCOME_SCALE))
+}
+
 export function producerCost(def: ProducerDef, owned: number, count = 1): number {
   let total = 0
   for (let i = 0; i < count; i++) {
     total += Math.floor(def.baseCost * Math.pow(def.costMultiplier, owned + i))
   }
-  return total
+  return Math.ceil(total * ECONOMY_COST_SCALE)
 }
 
 export function maxAffordable(def: ProducerDef, owned: number, money: number, costMultiplier = 1): number {
@@ -125,7 +134,8 @@ export function isProducerUnlocked(
 }
 
 export function earlyUnlockCost(def: ProducerDef): number {
-  return Math.max(def.baseCost * 5, Math.floor(def.unlockAt * 0.2))
+  const raw = Math.max(def.baseCost * 5, Math.floor(def.unlockAt * 0.2))
+  return Math.ceil(raw * EARLY_UNLOCK_COST_SCALE)
 }
 
 export function producerIconPath(id: string): string {

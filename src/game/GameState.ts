@@ -1,4 +1,4 @@
-import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, type ProducerDef, type UpgradeDef } from './Economy'
+import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, scaledBaseIncome, type ProducerDef, type UpgradeDef } from './Economy'
 import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, prestigeMultiplier } from './Prestige'
 import { globalSynergyBonus, producerSynergyBonus } from './Synergies'
 import {
@@ -272,7 +272,7 @@ export type GameEvent =
 const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
 const CRIT_MULT = 10
-const BASE_CLICK = 45
+const BASE_CLICK = 38
 const BASE_OFFLINE_CAP_GAME_DAYS = 365
 const BASE_OFFLINE_CAP_MS = BASE_OFFLINE_CAP_GAME_DAYS * MS_PER_GAME_DAY
 const AD_BOOST_DURATION_MS = 5 * 60 * 1000
@@ -737,12 +737,12 @@ export class GameState {
 
   dayNightClickBonus(): number {
     if (this.isNight) return 0
-    return 0.1 + dayBonusExtra(this.prestigeTree)
+    return 0.07 + dayBonusExtra(this.prestigeTree)
   }
 
   dayNightPassiveBonus(): number {
     if (!this.isNight) return 0
-    return 0.15 + nightBonusExtra(this.prestigeTree)
+    return 0.1 + nightBonusExtra(this.prestigeTree)
   }
 
   weeklyProducerBonus(producerId: string): number {
@@ -858,7 +858,33 @@ export class GameState {
       const club = this.empire.football.find((c) => c.clubId === def.id)
       if (club) mult *= empireFootballIncomeMult(club)
     }
-    return def.baseIncome * owned * mult * this.passiveMultiplier()
+    return scaledBaseIncome(def.baseIncome) * owned * mult * this.passiveMultiplier()
+  }
+
+  /** Aktif gelir çarpanları — UI'da dalgalanma açıklaması için */
+  incomeModifierChips(): { emoji: string; label: string; detail: string }[] {
+    const chips: { emoji: string; label: string; detail: string }[] = []
+    if (this.isNight) {
+      chips.push({ emoji: '📅', label: 'Hafta sonu', detail: `Pasif +${Math.round(this.dayNightPassiveBonus() * 100)}%` })
+    } else {
+      chips.push({ emoji: '📅', label: 'Hafta içi', detail: `Tıklama +${Math.round(this.dayNightClickBonus() * 100)}%` })
+    }
+    const news = this.activeMarketNewsDef()
+    if (news) {
+      chips.push({ emoji: '📰', label: 'Piyasa haberi', detail: news.headline })
+    }
+    if (Date.now() < this.adIncomeBoostUntil) chips.push({ emoji: '📺', label: 'Reklam boost', detail: 'Gelir x2' })
+    if (Date.now() < this.shopBoostUntil) chips.push({ emoji: '🛒', label: 'Mağaza boost', detail: 'Gelir x1.5' })
+    if (this.getEventBoostActive()) chips.push({ emoji: '✨', label: 'Altın etkinlik', detail: 'Gelir x3' })
+    if (Date.now() < this.surpriseInvestorUntil) chips.push({ emoji: '💎', label: 'Yatırımcı', detail: 'Gelir x2' })
+    const weekly = getWeeklyDef(this.weekly)
+    if (weekly.bonus) {
+      chips.push({ emoji: '🗓️', label: weekly.name, detail: `+${Math.round(weekly.bonus * 100)}% bonus` })
+    }
+    if (this.prestigePoints > 0) {
+      chips.push({ emoji: '📈', label: 'IPO çarpanı', detail: `x${prestigeMultiplier(this.prestigePoints).toFixed(2)}` })
+    }
+    return chips
   }
 
   activeMarketNewsDef(): MarketNewsDef | null {

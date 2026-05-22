@@ -141,9 +141,13 @@ export class StatsScreen {
     for (const a of ACHIEVEMENTS) {
       const done = this.state.achievements.has(a.id)
       const cell = document.createElement('div')
-      cell.className = `achieve-cell${done ? ' done' : ''}`
-      cell.title = `${a.name}: ${a.description}`
-      cell.innerHTML = `<span class="achieve-cell-emoji">${done ? a.emoji : '🔒'}</span><small>${done ? a.name : '???'}</small>`
+      cell.className = `achieve-cell achieve-cell-profile${done ? ' done' : ''}`
+      cell.title = `${a.name}: ${a.description}${done ? ` · Ödül: ${formatMoney(a.reward)}` : ''}`
+      cell.innerHTML = `
+        <span class="achieve-cell-emoji">${done ? a.emoji : '🔒'}</span>
+        <span class="achieve-cell-name">${done ? a.name : 'Gizli'}</span>
+        <small class="achieve-cell-desc">${done ? a.description : '???'}</small>
+      `
       grid.appendChild(cell)
     }
     section.appendChild(grid)
