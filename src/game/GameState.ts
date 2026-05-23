@@ -139,11 +139,11 @@ import {
   createWeeklyState,
   getWeeklyDef,
   isLegacyGameWeekKey,
-  scaledWeeklyTarget,
+  weeklyRewardCash,
   WEEKLY_EARN_MIN,
   type WeeklyEventState,
 } from './WeeklyEvent'
-import { dailyGoalDayKey, scaledDailyGoalTarget, calcDailyLoginReward, streakMilestoneBonus } from './DailyGoal'
+import { dailyGoalDayKey, scaledDailyGoalTarget, calcDailyLoginReward, streakMilestoneBonus, DAILY_GOAL_MIN } from './DailyGoal'
 import {
   LAWYER_PROTECTION_MS,
   LAUNDER_DURATION_MS,
@@ -193,6 +193,8 @@ export interface SerializableState {
   dailyGoalEarned: number
   dailyGoalDay: string
   dailyGoalClaimed: boolean
+  dailyGoalTargetSnapshot: number
+  dailyGoalRewardSnapshot: number
   season: SeasonState
   prestigeTree: Record<string, boolean>
   managerAutoBuy: Record<string, boolean>
@@ -344,6 +346,8 @@ export class GameState {
   dailyGoalEarned = 0
   dailyGoalDay = dailyGoalDayKey()
   dailyGoalClaimed = false
+  dailyGoalTargetSnapshot = DAILY_GOAL_MIN
+  dailyGoalRewardSnapshot = 200
   season = createSeasonState()
   prestigeTree: Record<string, boolean> = {}
   managerAutoBuy: Record<string, boolean> = {}
@@ -452,11 +456,8 @@ export class GameState {
       this.weekly = createWeeklyState(this.incomePerDay())
       return
     }
-    if (this.weekly.target <= 100) {
-      const newTarget = scaledWeeklyTarget(this.incomePerDay())
-      const pct = this.weekly.target > 0 ? this.weekly.progress / this.weekly.target : 0
-      this.weekly.target = newTarget
-      this.weekly.progress = Math.floor(newTarget * Math.min(1, pct))
+    if (this.weekly.rewardCash === undefined || this.weekly.rewardCash <= 0) {
+      this.weekly.rewardCash = weeklyRewardCash(this.incomePerDay())
     }
   }
 
@@ -1325,7 +1326,14 @@ export class GameState {
       this.dailyGoalDay = day
       this.dailyGoalEarned = 0
       this.dailyGoalClaimed = false
+      this.refreshDailyGoalSnapshots()
     }
+  }
+
+  private refreshDailyGoalSnapshots(): void {
+    const ipd = this.incomePerDay()
+    this.dailyGoalTargetSnapshot = scaledDailyGoalTarget(ipd)
+    this.dailyGoalRewardSnapshot = Math.max(200, Math.floor(ipd * 0.22))
   }
 
   private trackDailyGoal(amount: number): void {
@@ -1344,8 +1352,9 @@ export class GameState {
     const target = this.dailyGoalTarget()
     if (this.dailyGoalClaimed || this.dailyGoalEarned < target) return 0
     this.dailyGoalClaimed = true
-    const reward = Math.max(200, Math.floor(this.incomePerDay() * 0.22))
+    const reward = this.dailyGoalRewardPreview()
     this.addMoney(reward)
+    this.emit({ type: 'daily_goal_updated', earned: this.dailyGoalEarned, target })
     return reward
   }
 
@@ -1765,7 +1774,20 @@ export class GameState {
   }
 
   dailyGoalTarget(): number {
-    return scaledDailyGoalTarget(this.incomePerDay())
+    this.ensureDailyGoal()
+    if (this.dailyGoalTargetSnapshot <= 0) this.refreshDailyGoalSnapshots()
+    return this.dailyGoalTargetSnapshot
+  }
+
+  dailyGoalRewardPreview(): number {
+    this.ensureDailyGoal()
+    if (this.dailyGoalRewardSnapshot <= 0) this.refreshDailyGoalSnapshots()
+    return this.dailyGoalRewardSnapshot
+  }
+
+  weeklyRewardPreview(): number {
+    this.ensureWeekly()
+    return this.weekly.rewardCash ?? weeklyRewardCash(this.incomePerDay())
   }
 
   hasCodexLegalComplete(): boolean {
@@ -1942,11 +1964,12 @@ export class GameState {
   }
 
   private tickSurpriseInvestor(now: number): void {
-    if (now - this.lastSurpriseCheck < 60_000) return
+    if (this.playTimeMs < 300_000) return
+    if (now - this.lastSurpriseCheck < 90_000) return
     this.lastSurpriseCheck = now
     const today = todayKey()
     if (this.surpriseInvestorDay === today && !this.ownerFlag('surprise_often')) return
-    const chance = this.ownerFlag('surprise_often') ? 0.25 : 0.05
+    const chance = this.ownerFlag('surprise_often') ? 0.12 : 0.015
     if (Math.random() > chance) return
     this.surpriseInvestorDay = today
     this.surpriseInvestorUntil = Date.now() + 30_000
@@ -2195,21 +2218,23 @@ export class GameState {
     }
   }
 
-  claimMission(missionId: string, doubleWithAd = false): number {
+  claimMission(missionId: string, doubleWithAd = false): { money: number; boostMinutes: number } {
     const m = this.missions.find((x) => x.id === missionId)
-    if (!m || m.claimed || m.progress < m.target) return 0
+    if (!m || m.claimed || m.progress < m.target) return { money: 0, boostMinutes: 0 }
     m.claimed = true
-    let reward = 0
+    let money = 0
+    let boostMinutes = 0
     if (m.rewardMoney > 0) {
-      reward = m.rewardMoney * (doubleWithAd ? 2 : 1)
-      this.addMoney(reward)
+      money = m.rewardMoney * (doubleWithAd ? 2 : 1)
+      this.addMoney(money)
     }
     if (m.rewardBoostMinutes > 0) {
-      this.adIncomeBoostUntil = Date.now() + m.rewardBoostMinutes * 60_000 * (doubleWithAd ? 2 : 1)
+      boostMinutes = m.rewardBoostMinutes * (doubleWithAd ? 2 : 1)
+      this.adIncomeBoostUntil = Date.now() + boostMinutes * 60_000
       this.emit({ type: 'ad_boost', until: this.adIncomeBoostUntil })
     }
     this.addSeasonXp(50)
-    return reward
+    return { money, boostMinutes }
   }
 
   hireManager(producerId: string, withDiscount = false): boolean {
@@ -2271,7 +2296,7 @@ export class GameState {
     if (this.weekly.claimed || this.weekly.progress < this.weekly.target) return 0
     this.weekly.claimed = true
     if (doubleWithAd) this.weekly.adDoubled = true
-    const reward = Math.max(500, Math.floor(this.incomePerDay() * 0.55)) * (doubleWithAd ? 2 : 1)
+    const reward = this.weeklyRewardPreview() * (doubleWithAd ? 2 : 1)
     this.addMoney(reward)
     return reward
   }
@@ -2461,6 +2486,8 @@ export class GameState {
       dailyGoalEarned: this.dailyGoalEarned,
       dailyGoalDay: this.dailyGoalDay,
       dailyGoalClaimed: this.dailyGoalClaimed,
+      dailyGoalTargetSnapshot: this.dailyGoalTargetSnapshot,
+      dailyGoalRewardSnapshot: this.dailyGoalRewardSnapshot,
       season: { ...this.season, claimedTiers: [...this.season.claimedTiers] },
       prestigeTree: { ...this.prestigeTree },
       managerAutoBuy: { ...this.managerAutoBuy },
@@ -2564,6 +2591,9 @@ export class GameState {
           target: Math.max(WEEKLY_EARN_MIN, Number(loadedWeekly.target) || WEEKLY_EARN_MIN),
           claimed: !!loadedWeekly.claimed,
           adDoubled: !!loadedWeekly.adDoubled,
+          rewardCash: Number(loadedWeekly.rewardCash) > 0
+            ? Number(loadedWeekly.rewardCash)
+            : weeklyRewardCash(this.incomePerDay()),
         }
       : createWeeklyState()
     this.milestonesReached = data.milestonesReached ?? []
@@ -2571,6 +2601,9 @@ export class GameState {
     this.dailyGoalEarned = data.dailyGoalEarned ?? 0
     this.dailyGoalDay = data.dailyGoalDay ?? dailyGoalDayKey()
     this.dailyGoalClaimed = data.dailyGoalClaimed ?? false
+    this.dailyGoalTargetSnapshot = data.dailyGoalTargetSnapshot ?? 0
+    this.dailyGoalRewardSnapshot = data.dailyGoalRewardSnapshot ?? 0
+    if (this.dailyGoalTargetSnapshot <= 0) this.refreshDailyGoalSnapshots()
     this.season = data.season ? { ...data.season, claimedTiers: [...(data.season.claimedTiers ?? [])] } : createSeasonState()
     this.prestigeTree = { ...(data.prestigeTree ?? {}) }
     this.managerAutoBuy = { ...(data.managerAutoBuy ?? {}) }

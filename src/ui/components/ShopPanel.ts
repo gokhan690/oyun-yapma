@@ -876,12 +876,12 @@ export class ShopPanel {
       if (!card) {
         card = this.createBusinessCard(p)
         this.businessCards.set(p.id, card)
-        grid.appendChild(card)
       }
       card.hidden = false
       card.classList.toggle('biz-card-illegal', !!p.illegal)
       const buyCount = this.buyMode === 'max' ? Math.max(1, state.countMaxAffordable(p.id)) : count
       this.updateBusinessCard(card, p, state, owned, buyCount)
+      grid.appendChild(card)
     }
 
     for (const [id, card] of this.businessCards) {
@@ -1079,7 +1079,6 @@ export class ShopPanel {
     const affordableCount = this.buyMode === 'max' ? state.countMaxAffordable(p.id) : count
     const buyCount = this.buyMode === 'max' ? Math.max(1, affordableCount) : count
     const cost = state.producerCostFor(p, owned, buyCount)
-    const income = state.producerIncome(p)
     const affordable = affordableCount >= 1 && state.canAfford(cost)
 
     const buyBtn = card.querySelector('.biz-buy-btn') as HTMLButtonElement
@@ -1096,10 +1095,12 @@ export class ShopPanel {
     const costText = this.buyMode === 'max' && affordableCount > 1
       ? `${formatMoney(cost)} (${affordableCount} adet)`
       : formatMoney(cost)
-    const incText = owned > 0
-      ? formatIncomeRate(income)
-      : `+${formatIncomeRate(state.marginalProducerIncome(p, 1))}`
-    const roiSec = producerRoiSeconds(state, p, buyCount)
+    const batchIncome = state.marginalProducerIncome(p, buyCount)
+    const incText = buyCount > 1
+      ? `+${formatIncomeRate(batchIncome)} (${buyCount} ad.)`
+      : `+${formatIncomeRate(batchIncome)}`
+    const effectiveBuy = affordableCount >= 1 ? Math.min(buyCount, affordableCount) : buyCount
+    const roiSec = affordableCount >= 1 ? producerRoiSeconds(state, p, effectiveBuy) : Infinity
     const roiText = `ROI ~${formatRoi(roiSec)}`
 
     if (ownedEl && ownedEl.textContent !== ownedText) ownedEl.textContent = ownedText

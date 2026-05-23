@@ -33,11 +33,13 @@ export interface WeeklyEventState {
   target: number
   claimed: boolean
   adDoubled: boolean
+  /** Hafta başında kilitlenen nakit ödül */
+  rewardCash: number
 }
 
-export const WEEKLY_EARN_MIN = 350_000
+export const WEEKLY_EARN_MIN = 280_000
 /** ~15–25 dk pasif oynama süresine denk hedef */
-export const WEEKLY_EARN_IPD_MULT = 550
+export const WEEKLY_EARN_IPD_MULT = 400
 
 export function scaledWeeklyTarget(incomePerDay: number): number {
   return Math.max(WEEKLY_EARN_MIN, Math.floor(incomePerDay * WEEKLY_EARN_IPD_MULT))
@@ -54,6 +56,10 @@ export function pickWeeklyEvent(seed: string): WeeklyEventDef {
   return WEEKLY_EVENTS[Math.abs(h) % WEEKLY_EVENTS.length]!
 }
 
+export function weeklyRewardCash(incomePerDay: number): number {
+  return Math.max(500, Math.floor(incomePerDay * 0.55))
+}
+
 export function createWeeklyState(incomePerDay = 0): WeeklyEventState {
   const key = calendarWeekKey()
   const event = pickWeeklyEvent(key)
@@ -64,6 +70,7 @@ export function createWeeklyState(incomePerDay = 0): WeeklyEventState {
     target: scaledWeeklyTarget(incomePerDay),
     claimed: false,
     adDoubled: false,
+    rewardCash: weeklyRewardCash(incomePerDay),
   }
 }
 

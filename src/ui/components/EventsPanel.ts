@@ -111,9 +111,48 @@ export class EventsPanel {
       if (headSmall) headSmall.textContent = `${Math.floor(m.progress)}/${m.target}`
       const fill = card.querySelector('.progress-fill') as HTMLElement | null
       if (fill) fill.style.width = `${pct}%`
+      const ready = m.progress >= m.target && !m.claimed
+      const hasClaim = !!card.querySelector('[data-action="claim-mission"]')
+      if (ready !== hasClaim) return false
     }
 
+    if (!this.patchDailyActions(state)) return false
+    if (!this.patchWeeklyActions(state)) return false
+
     return this.patchBoostRow(state)
+  }
+
+  private patchDailyActions(state: GameState): boolean {
+    const dailyBlock = this.scrollBody.querySelector('.events-block-daily')
+    if (!dailyBlock) return true
+    const target = state.dailyGoalTarget()
+    const needClaim = state.dailyGoalEarned >= target && !state.dailyGoalClaimed
+    const actions = dailyBlock.querySelector('.events-actions')
+    if (!actions) return true
+    const claimBtn = actions.querySelector('[data-action="claim-daily-goal"]')
+    if (needClaim && !claimBtn) return false
+    if (!needClaim && claimBtn) claimBtn.remove()
+    if (needClaim && claimBtn) {
+      const preview = formatMoney(state.dailyGoalRewardPreview())
+      claimBtn.textContent = `Topla · ${preview}`
+    }
+    return true
+  }
+
+  private patchWeeklyActions(state: GameState): boolean {
+    const weeklyBlock = this.scrollBody.querySelector('.events-block-weekly')
+    if (!weeklyBlock) return true
+    const w = state.weekly
+    const needClaim = w.progress >= w.target && !w.claimed
+    const actions = weeklyBlock.querySelector('.events-actions')
+    if (!actions) return true
+    const claimBtn = actions.querySelector('[data-action="claim-weekly"]')
+    if (needClaim && !claimBtn) return false
+    if (!needClaim && claimBtn) claimBtn.remove()
+    if (needClaim && claimBtn) {
+      claimBtn.textContent = `Haftalık ödül · ${formatMoney(state.weeklyRewardPreview())}`
+    }
+    return true
   }
 
   private patchBoostRow(state: GameState): boolean {
@@ -170,7 +209,7 @@ export class EventsPanel {
   private renderDaily(state: GameState): HTMLElement {
     const target = state.dailyGoalTarget()
     const goalPct = Math.floor(dailyGoalProgress(state.dailyGoalEarned, target))
-    const rewardPreview = formatMoney(Math.max(200, Math.floor(state.incomePerDay() * 0.22)))
+    const rewardPreview = formatMoney(state.dailyGoalRewardPreview())
     const wrap = document.createElement('section')
     wrap.className = 'events-block events-block-daily'
 
@@ -201,7 +240,7 @@ export class EventsPanel {
     const wPct = w.target > 0 ? Math.min(100, (w.progress / w.target) * 100) : 0
     const bonusPct = def.bonus ? Math.round(def.bonus * 100) : 0
     const daysLeft = daysUntilWeekReset()
-    const rewardPreview = formatMoney(Math.max(500, Math.floor(state.incomePerDay() * 0.55)))
+    const rewardPreview = formatMoney(state.weeklyRewardPreview())
     const wrap = document.createElement('section')
     wrap.className = 'events-block events-block-weekly'
 

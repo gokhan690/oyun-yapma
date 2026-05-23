@@ -402,6 +402,11 @@ function repairState(state: SerializableState): SerializableState {
   if (!s.bank || typeof s.bank !== 'object') {
     s.bank = createBankState()
   }
+  if (typeof s.dailyGoalTargetSnapshot !== 'number') s.dailyGoalTargetSnapshot = 0
+  if (typeof s.dailyGoalRewardSnapshot !== 'number') s.dailyGoalRewardSnapshot = 0
+  if (s.weekly && typeof s.weekly === 'object' && typeof s.weekly.rewardCash !== 'number') {
+    s.weekly.rewardCash = 0
+  }
 
   return s
 }
@@ -463,6 +468,8 @@ function applyV3Defaults(legacy: LegacyState): SerializableState {
     dailyGoalEarned: legacy.dailyGoalEarned ?? 0,
     dailyGoalDay: legacy.dailyGoalDay ?? dailyGoalDayKey(),
     dailyGoalClaimed: legacy.dailyGoalClaimed ?? false,
+    dailyGoalTargetSnapshot: 0,
+    dailyGoalRewardSnapshot: 0,
     season: legacy.season ?? createSeasonState(),
     prestigeTree: legacy.prestigeTree ?? {},
     managerAutoBuy: legacy.managerAutoBuy ?? {},

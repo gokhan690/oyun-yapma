@@ -642,7 +642,7 @@ export class HUD {
         this.refreshShop(true)
       }
       if (ev.type === 'mission_complete') {
-        this.modals.showToast(this.root, `Görev: ${ev.mission.label}`)
+        this.modals.showToast(this.root, `Görev hazır: ${ev.mission.label} — Etkinliklerden topla`)
         if (this.bottomNav.getActive() === 'events') this.eventsPanel.render(this.state)
         this.updateNavBadges()
         this.refreshShop(true)
@@ -663,7 +663,7 @@ export class HUD {
         this.modals.showToast(this.root, ev.message)
       }
       if (ev.type === 'surprise_investor') {
-        this.modals.showToast(this.root, '💎 Sürpriz yatırımcı — 30 sn x2 gelir!')
+        this.modals.showToast(this.root, '💎 Sürpriz yatırımcı olayı — 30 sn x2 gelir!')
         this.statsBar.updateMeta()
         this.eventsPanel.render(this.state)
       }
@@ -975,6 +975,8 @@ export class HUD {
           this.renderDailyGoalBar()
           this.eventsPanel.render(this.state)
           this.updateNavBadges()
+        } else {
+          this.modals.showToast(this.root, 'Henüz toplanamaz — hedefi tamamla veya zaten aldın')
         }
         break
       }
@@ -1017,12 +1019,17 @@ export class HUD {
         if (!id || !id.includes(':')) break
         const [kind, recId] = id.split(':') as [string, string]
         let ok = false
-        if (kind === 'business') ok = this.state.buyProducer(recId, 1)
-        else if (kind === 'upgrade') ok = this.state.buyUpgrade(recId)
+        if (kind === 'business') {
+          const mode = this.shop.getBuyMode()
+          const n = mode === 'max' ? this.state.countMaxAffordable(recId) : mode
+          ok = n >= 1 && this.state.buyProducer(recId, n)
+        } else if (kind === 'upgrade') ok = this.state.buyUpgrade(recId)
         else if (kind === 'manager') ok = this.state.hireManager(recId)
         if (ok) {
           this.state.incrementAdvisorBuy()
           this.renderAll()
+        } else {
+          this.modals.showToast(this.root, 'Satın alınamadı')
         }
         break
       }
@@ -1150,7 +1157,11 @@ export class HUD {
         break
       case 'claim-weekly': {
         const reward = this.state.claimWeeklyReward()
-        if (reward > 0) this.modals.showToast(this.root, `Haftalık ödül: +${formatMoney(reward)}`)
+        if (reward > 0) {
+          this.modals.showToast(this.root, `Haftalık ödül: +${formatMoney(reward)}`)
+        } else {
+          this.modals.showToast(this.root, 'Haftalık ödül henüz hazır değil')
+        }
         this.goalsSheet.render(this.state)
         this.eventsPanel.render(this.state)
         this.renderWeeklyBanner()
@@ -1162,8 +1173,15 @@ export class HUD {
         break
       case 'claim-mission':
         if (id) {
-          const reward = this.state.claimMission(id)
-          if (reward > 0) this.modals.showToast(this.root, `Görev: +${formatMoney(reward)}`)
+          const result = this.state.claimMission(id)
+          if (result.money > 0) {
+            this.modals.showToast(this.root, `Görev: +${formatMoney(result.money)}`)
+          } else if (result.boostMinutes > 0) {
+            this.modals.showToast(this.root, `Görev: ${result.boostMinutes} dk gelir bonusu aktif`)
+            this.statsBar.updateMeta()
+          } else {
+            this.modals.showToast(this.root, 'Görev ödülü alınamadı')
+          }
           this.eventsPanel.render(this.state)
           this.updateNavBadges()
           this.refreshShop(true)
@@ -1177,7 +1195,9 @@ export class HUD {
           return
         }
         this.state.incrementRewardedAdCount()
-        this.state.claimMission(id, true)
+        const claim = this.state.claimMission(id, true)
+        if (claim.money > 0) this.modals.showToast(this.root, `Görev x2: +${formatMoney(claim.money)}`)
+        else if (claim.boostMinutes > 0) this.modals.showToast(this.root, `Görev x2: ${claim.boostMinutes} dk bonus`)
         this.renderAll()
         break
       }

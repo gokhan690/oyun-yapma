@@ -1,8 +1,8 @@
 import { localDayKey } from './dateUtils'
 
-export const DAILY_GOAL_MIN = 180_000
+export const DAILY_GOAL_MIN = 120_000
 /** Günlük hedef = en az bu kadar oyun günü geliri */
-export const DAILY_GOAL_IPD_DAYS = 5
+export const DAILY_GOAL_IPD_DAYS = 4
 
 export function dailyGoalDayKey(): string {
   return localDayKey()
