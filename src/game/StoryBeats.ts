@@ -24,6 +24,16 @@ export const STORY_BEATS: StoryBeat[] = [
   { id: 'mortality_high_risk', text: '⚠️ Ölüm riskin çok yüksek! Hanedan sekmesinden riskleri kontrol et.' },
   { id: 'death_no_heir', text: 'Mirasçı olmadan vefat ettin — imparatorluk güçlü avukatlarla ayakta kaldı.' },
   { id: 'succession', text: 'Miras devri tamamlandı. Yeni nesil imparatorluğu devraldı!' },
+  { id: 'chapter_1_start', text: 'Bölüm 1 başladı: Limonata tezgahından dijital imparatorluğa uzanan yolculuk.' },
+  { id: 'chapter_1_done', text: 'Bölüm 1 tamam! İlk kazancını kanıtladın — rakipler seni fark etmeye başladı.' },
+  { id: 'chapter_2_mid', text: 'Bölüm 2: Büyüme hızlandı. Yatırımcılar kapını çalmaya başlayabilir.' },
+  { id: 'chapter_2_done', text: 'Bölüm 2 bitti. Artık gerçek bir işletme ağı kuruyorsun.' },
+  { id: 'chapter_3_mid', text: 'Bölüm 3: Sezon yolunda yükseliyorsun — imparatorluk sınırları genişliyor.' },
+  { id: 'chapter_3_done', text: 'Bölüm 3 tamam! IPO kapısı artık ufukta görünüyor.' },
+  { id: 'chapter_4_ipo', text: 'Halka arz gerçekleşti! Bölüm 4\'ün doruk noktasına ulaştın.' },
+  { id: 'chapter_4_done', text: 'Kampanya tamamlandı! Efsane baron statüsü — hikâyen burada bitmiyor.' },
+  { id: 'chest_legendary', text: 'Efsane sandık! Nadir bir ödül yakaladın.' },
+  { id: 'premium_season', text: 'Premium sezon yolu açıldı — exclusive ödüller seni bekliyor.' },
 ]
 
 export function storyBeat(id: string): StoryBeat | undefined {

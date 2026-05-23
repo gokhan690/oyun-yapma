@@ -3311,12 +3311,73 @@ html.theme-galactic {
   font-size: 0.62rem;
 }
 .season-dual-track {
-  display: flex;
-  justify-content: space-between;
-  margin: 8px 0 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 10px 0 4px;
+}
+.season-track-col h4 {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.season-track-premium { opacity: 0.45; }
+.season-track-premium.unlocked { opacity: 1; }
+.season-node.locked { filter: grayscale(0.8); opacity: 0.55; }
+.season-premium-cta {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(251,191,36,0.15), rgba(168,85,247,0.12));
+  border: 1px solid rgba(251,191,36,0.25);
+}
+.season-premium-cta p { margin: 0 0 8px; font-size: 0.82rem; }
+.season-premium-active {
+  margin: 8px 0;
+  font-size: 0.78rem;
+  color: #fde68a;
+}
+.btn-premium {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #0a1628;
+  font-weight: 800;
+  border: none;
+}
+.gacha-actions { flex-wrap: wrap; gap: 8px; }
+.events-block-gacha { border-color: rgba(251,191,36,0.2); }
+.campaign-step-card {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(15,23,42,0.55);
+  border: 1px solid rgba(148,163,184,0.15);
+}
+.campaign-step-card p { margin: 4px 0; font-size: 0.82rem; color: var(--muted); }
+.campaign-chapter-list { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.campaign-chapter-pill {
+  width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700;
+  background: rgba(148,163,184,0.12);
+  color: var(--muted);
+}
+.campaign-chapter-pill.active { background: rgba(251,191,36,0.25); color: #fde68a; }
+.campaign-chapter-pill.done { background: rgba(52,211,153,0.2); color: var(--green); }
+.campaign-locked, .campaign-done { font-size: 0.82rem; color: var(--muted); margin: 8px 0 0; }
+.stats-friend-code-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 10px;
+}
+.stats-friend-code-row strong { font-size: 1.1rem; letter-spacing: 0.12em; color: #fde68a; }
+.stats-friends-list { margin-top: 8px; }
+.quick-ad-card.chest-ready {
+  box-shadow: 0 0 0 2px rgba(251,191,36,0.55), 0 0 16px rgba(251,191,36,0.25);
+  animation: pulse 1.2s ease-in-out infinite;
 }
 .season-track-label { font-size: 0.65rem; color: var(--muted); }
-.season-track-premium { opacity: 0.5; }
 .surprise-investor-banner { animation: heatPulse 1s ease-in-out infinite; }
 .streak-card {
   display: flex;

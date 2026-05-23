@@ -3,12 +3,15 @@ import { migrateLegacyStock, migrateStockState, trimStockHistoryInPlace } from '
 import { createBankState } from '../game/FinanceBank'
 import { createWeeklyState, scaledWeeklyTarget, WEEKLY_EARN_MIN } from '../game/WeeklyEvent'
 import { createSeasonState, isLegacyGameSeasonKey } from '../game/SeasonPass'
+import { createCampaignState } from '../game/Campaign'
 import { dailyGoalDayKey } from '../game/DailyGoal'
 import { createDynastyState } from '../game/Dynasty'
 import { createEmpireState } from '../game/Empire'
 import { PRODUCERS } from '../game/Economy'
 import { RESEARCH_NODES } from '../game/Research'
 
+const SAVE_KEY_V10 = 'is_imparatorlugu_save_v10'
+const SAVE_KEY_V10_BACKUP = 'is_imparatorlugu_save_v10_backup'
 const SAVE_KEY_V9 = 'is_imparatorlugu_save_v9'
 const SAVE_KEY_V9_BACKUP = 'is_imparatorlugu_save_v9_backup'
 const SAVE_KEY_V8 = 'is_imparatorlugu_save_v8'
@@ -20,7 +23,7 @@ const SAVE_KEY_V3 = 'is_imparatorlugu_save_v3'
 const SAVE_KEY_V2 = 'is_imparatorlugu_save_v2'
 const SAVE_KEY_V1 = 'para_tuzagi_save_v1'
 const OBFUSCATION_KEY = 'PT2026x'
-const CURRENT_VERSION = 9
+const CURRENT_VERSION = 10
 const MAX_SAVE_BYTES = 4_000_000
 
 interface SaveEnvelope {
@@ -51,7 +54,7 @@ export class SaveManager {
     if (!this.saveEnabled) return
     const data = state.toJSON()
     data.lastSaveTime = Date.now()
-    this.writeSave(data, CURRENT_VERSION, SAVE_KEY_V9)
+    this.writeSave(data, CURRENT_VERSION, SAVE_KEY_V10)
   }
 
   /** Yükleme başarısızken boş kaydın üzerine yazmayı engelle */
@@ -60,12 +63,14 @@ export class SaveManager {
   }
 
   hasBackup(): boolean {
-    return !!localStorage.getItem(SAVE_KEY_V9_BACKUP)
+    return !!localStorage.getItem(SAVE_KEY_V10_BACKUP)
   }
 
   hasAnySaveSlot(): boolean {
     return !!(
-      localStorage.getItem(SAVE_KEY_V9)
+      localStorage.getItem(SAVE_KEY_V10)
+      || localStorage.getItem(SAVE_KEY_V10_BACKUP)
+      || localStorage.getItem(SAVE_KEY_V9)
       || localStorage.getItem(SAVE_KEY_V9_BACKUP)
       || localStorage.getItem(SAVE_KEY_V8)
       || localStorage.getItem(SAVE_KEY_V7)
@@ -75,7 +80,7 @@ export class SaveManager {
   }
 
   tryRestoreBackup(state: GameState): boolean {
-    const r = this.tryLoadEnvelope(state, SAVE_KEY_V9_BACKUP, CURRENT_VERSION, false)
+    const r = this.tryLoadEnvelope(state, SAVE_KEY_V10_BACKUP, CURRENT_VERSION, false)
     if (r.ok) {
       this.save(state)
       return true
@@ -84,13 +89,25 @@ export class SaveManager {
   }
 
   load(state: GameState): LoadResult {
-    const v9 = this.tryLoadEnvelope(state, SAVE_KEY_V9, CURRENT_VERSION, true)
-    if (v9.ok) return { ...v9, source: 'v9' }
+    const v10 = this.tryLoadEnvelope(state, SAVE_KEY_V10, CURRENT_VERSION, true)
+    if (v10.ok) return { ...v10, source: 'v10' }
 
-    const backup = this.tryLoadEnvelope(state, SAVE_KEY_V9_BACKUP, CURRENT_VERSION, false)
-    if (backup.ok) {
+    const v10backup = this.tryLoadEnvelope(state, SAVE_KEY_V10_BACKUP, CURRENT_VERSION, false)
+    if (v10backup.ok) {
       this.save(state)
-      return { ...backup, source: 'backup' }
+      return { ...v10backup, source: 'backup' }
+    }
+
+    const v9 = this.tryLoadEnvelope(state, SAVE_KEY_V9, 9, true)
+    if (v9.ok) {
+      this.save(state)
+      return { ...v9, source: 'v9_migrated' }
+    }
+
+    const v9backup = this.tryLoadEnvelope(state, SAVE_KEY_V9_BACKUP, 9, false)
+    if (v9backup.ok) {
+      this.save(state)
+      return { ...v9backup, source: 'backup' }
     }
 
     const v8 = this.tryLoadEnvelope(state, SAVE_KEY_V8, 8, true)
@@ -142,6 +159,8 @@ export class SaveManager {
   }
 
   clear(): void {
+    localStorage.removeItem(SAVE_KEY_V10)
+    localStorage.removeItem(SAVE_KEY_V10_BACKUP)
     localStorage.removeItem(SAVE_KEY_V9)
     localStorage.removeItem(SAVE_KEY_V9_BACKUP)
     localStorage.removeItem(SAVE_KEY_V8)
@@ -349,8 +368,8 @@ export class SaveManager {
     }
     try {
       const prev = localStorage.getItem(key)
-      if (prev && key === SAVE_KEY_V9) {
-        localStorage.setItem(SAVE_KEY_V9_BACKUP, prev)
+      if (prev && key === SAVE_KEY_V10) {
+        localStorage.setItem(SAVE_KEY_V10_BACKUP, prev)
       }
       localStorage.setItem(key, JSON.stringify(envelope))
     } catch {
@@ -396,6 +415,8 @@ function repairState(state: SerializableState): SerializableState {
       weekKey: s.season.weekKey ?? createSeasonState().weekKey,
       xp: sanitizeNum(s.season.xp, 0),
       claimedTiers: Array.isArray(s.season.claimedTiers) ? s.season.claimedTiers.filter((n) => typeof n === 'number') : [],
+      claimedPremiumTiers: Array.isArray(s.season.claimedPremiumTiers) ? s.season.claimedPremiumTiers.filter((n) => typeof n === 'number') : [],
+      premiumUnlocked: !!s.season.premiumUnlocked,
       adXpDoubled: !!s.season.adXpDoubled,
     }
     if (isLegacyGameSeasonKey(s.season.weekKey)) {
@@ -421,6 +442,29 @@ function repairState(state: SerializableState): SerializableState {
   if (typeof s.dailyGoalRewardSnapshot !== 'number') s.dailyGoalRewardSnapshot = 0
   if (s.weekly && typeof s.weekly === 'object' && typeof s.weekly.rewardCash !== 'number') {
     s.weekly.rewardCash = 0
+  }
+
+  s.chestPityCounter = sanitizeNum(s.chestPityCounter, 0)
+  s.chestTickets = sanitizeNum(s.chestTickets, 0)
+  if (!s.campaign || typeof s.campaign !== 'object') {
+    s.campaign = createCampaignState()
+  } else {
+    s.campaign = {
+      chapterId: sanitizeNum(s.campaign.chapterId, 1),
+      stepIndex: sanitizeNum(s.campaign.stepIndex, 0),
+      stepProgress: sanitizeNum(s.campaign.stepProgress, 0),
+      completedChapters: Array.isArray(s.campaign.completedChapters)
+        ? s.campaign.completedChapters.filter((n) => typeof n === 'number')
+        : [],
+    }
+  }
+  if (s.notificationPrefs && typeof s.notificationPrefs === 'object') {
+    s.notificationPrefs = {
+      dailyReward: s.notificationPrefs.dailyReward !== false,
+      passiveIncome: s.notificationPrefs.passiveIncome !== false,
+      goalNear: s.notificationPrefs.goalNear !== false,
+      webPush: !!s.notificationPrefs.webPush,
+    }
   }
 
   return s
@@ -506,7 +550,7 @@ function applyV3Defaults(legacy: LegacyState): SerializableState {
     lastActiveAt: legacy.lastActiveAt ?? Date.now(),
     comebackClaimedDay: legacy.comebackClaimedDay ?? null,
     comebackPending: legacy.comebackPending ?? 0,
-    notificationPrefs: legacy.notificationPrefs ?? { dailyReward: true, passiveIncome: true, goalNear: true },
+    notificationPrefs: legacy.notificationPrefs ?? { dailyReward: true, passiveIncome: true, goalNear: true, webPush: false },
     surpriseInvestorUntil: legacy.surpriseInvestorUntil ?? 0,
     surpriseInvestorDay: legacy.surpriseInvestorDay ?? '',
     seenStoryBeats: legacy.seenStoryBeats ?? [],
@@ -527,6 +571,9 @@ function applyV3Defaults(legacy: LegacyState): SerializableState {
     empire: legacy.empire ?? createEmpireState(),
     gameStartYear: legacy.gameStartYear ?? 2026,
     pendingBoosts: [],
+    chestPityCounter: legacy.chestPityCounter ?? 0,
+    chestTickets: legacy.chestTickets ?? 0,
+    campaign: legacy.campaign ?? createCampaignState(),
   }
 }
 
@@ -544,6 +591,9 @@ function applyV9Defaults(state: SerializableState): SerializableState {
     empire: state.empire ?? createEmpireState(),
     gameStartYear: state.gameStartYear ?? 2026,
     pendingBoosts: state.pendingBoosts ?? [],
+    chestPityCounter: state.chestPityCounter ?? 0,
+    chestTickets: state.chestTickets ?? 0,
+    campaign: state.campaign ?? createCampaignState(),
   }
 }
 
@@ -561,7 +611,7 @@ function applyV5Defaults(state: SerializableState): SerializableState {
     lastActiveAt: base.lastActiveAt ?? Date.now(),
     comebackClaimedDay: base.comebackClaimedDay ?? null,
     comebackPending: base.comebackPending ?? 0,
-    notificationPrefs: base.notificationPrefs ?? { dailyReward: true, passiveIncome: true, goalNear: true },
+    notificationPrefs: base.notificationPrefs ?? { dailyReward: true, passiveIncome: true, goalNear: true, webPush: false },
     surpriseInvestorUntil: base.surpriseInvestorUntil ?? 0,
     surpriseInvestorDay: base.surpriseInvestorDay ?? '',
     seenStoryBeats: base.seenStoryBeats ?? [],

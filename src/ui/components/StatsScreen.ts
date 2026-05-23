@@ -58,6 +58,7 @@ export class StatsScreen {
     this.content.appendChild(this.codex.root)
     this.renderIncomeSources()
     this.renderHistoryChart()
+    this.renderFriendsSection()
     this.renderSubmitSection()
     void this.renderOnlineLeaderboard()
   }
@@ -265,6 +266,94 @@ export class StatsScreen {
 
     section.append(svg, labels)
     this.content.appendChild(section)
+  }
+
+  private renderFriendsSection(): void {
+    const section = document.createElement('div')
+    section.className = 'stats-section stats-friends-section'
+
+    const title = document.createElement('div')
+    title.className = 'stats-section-title'
+    title.textContent = '👥 Arkadaş Sıralaması'
+
+    const codeRow = document.createElement('div')
+    codeRow.className = 'stats-friend-code-row'
+    codeRow.innerHTML = `
+      <div><small>Senin kodun</small><strong>${this.leaderboard.getFriendCode()}</strong></div>
+      <button type="button" class="btn-secondary btn-sm" data-copy-friend-code>Kopyala</button>
+    `
+    codeRow.querySelector('[data-copy-friend-code]')?.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(this.leaderboard.getFriendCode())
+      } catch {
+        // ignore
+      }
+    })
+
+    const addRow = document.createElement('div')
+    addRow.className = 'stats-submit-row'
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.maxLength = 8
+    input.placeholder = 'Arkadaş kodu'
+    input.className = 'stats-name-input'
+    const addBtn = document.createElement('button')
+    addBtn.type = 'button'
+    addBtn.className = 'btn-primary stats-submit-btn'
+    addBtn.textContent = 'Ekle'
+    addBtn.addEventListener('click', async () => {
+      const code = input.value.trim()
+      if (!code) return
+      const lookup = await this.leaderboard.lookupFriendCode(code)
+      const result = this.leaderboard.addFriendByCode(code)
+      addBtn.textContent = result.ok ? '✓' : '✗'
+      if (result.ok && lookup) {
+        input.value = ''
+        const list = section.querySelector('.stats-friends-list')
+        if (list) list.remove()
+        void this.renderFriendsList(section)
+      }
+      window.setTimeout(() => { addBtn.textContent = 'Ekle' }, 1200)
+    })
+    addRow.append(input, addBtn)
+
+    section.append(title, codeRow, addRow)
+    this.content.appendChild(section)
+    void this.renderFriendsList(section)
+  }
+
+  private async renderFriendsList(section: HTMLElement): Promise<void> {
+    section.querySelector('.stats-friends-list')?.remove()
+    const friends = this.leaderboard.getFriends()
+    const list = document.createElement('div')
+    list.className = 'stats-friends-list'
+
+    if (friends.length === 0) {
+      list.innerHTML = '<p class="stats-empty">Arkadaş kodu ekle — birlikte yarışın!</p>'
+      section.appendChild(list)
+      return
+    }
+
+    const scores = await this.leaderboard.fetchFriendScores()
+    const scoreMap = new Map(scores.map((s) => [s.friend_code?.toUpperCase(), s]))
+
+    for (const code of friends) {
+      const row = document.createElement('div')
+      row.className = 'lb-row'
+      const score = scoreMap.get(code.toUpperCase())
+      row.innerHTML = `
+        <span class="lb-rank">👤</span>
+        <span class="lb-name">${score?.player_name ?? code}</span>
+        <span class="lb-val">${score ? formatMoney(score.lifetime_earned) : '—'}</span>
+        <button type="button" class="icon-btn btn-sm" data-remove-friend="${code}">✕</button>
+      `
+      row.querySelector('[data-remove-friend]')?.addEventListener('click', () => {
+        this.leaderboard.removeFriend(code)
+        void this.renderFriendsList(section)
+      })
+      list.appendChild(row)
+    }
+    section.appendChild(list)
   }
 
   private renderSubmitSection(): void {

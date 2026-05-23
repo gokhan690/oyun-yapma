@@ -28,6 +28,7 @@ import { isOwnerSession } from '../owner/OwnerAuth'
 import { OwnerAccessGate } from '../owner/OwnerAccessGate'
 import { formatGameClock } from '../game/GameClock'
 import { activeTicker } from '../game/StockMarket'
+import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy } from '../utils/haptics'
 
 export class HUD {
@@ -373,7 +374,7 @@ export class HUD {
     adDouble.innerHTML = '<span class="quick-ad-icon">📺</span><span class="quick-ad-text"><strong>2x Gelir</strong><small>30 sn reklam izle</small></span>'
     const adChest = document.createElement('button')
     adChest.type = 'button'
-    adChest.className = 'quick-ad-card'
+    adChest.className = `quick-ad-card${this.state.luckyChestReady ? ' chest-ready' : ''}`
     adChest.dataset.action = 'ad-chest'
     adChest.innerHTML = '<span class="quick-ad-icon">🎁</span><span class="quick-ad-text"><strong>Sandık</strong><small>Rastgele ödül kazan</small></span>'
     adsPanel.append(adDouble, adChest)
@@ -424,6 +425,8 @@ export class HUD {
     const dailyGoalReady = this.state.dailyGoalEarned >= target && !this.state.dailyGoalClaimed
     this.bottomNav.setBadges(
       this.state.hasClaimableSeasonReward()
+        || this.state.hasClaimableCampaignReward()
+        || this.state.luckyChestReady
         || (this.state.weekly.progress >= this.state.weekly.target && !this.state.weekly.claimed)
         || dailyGoalReady
         || this.state.canClaimDaily()
@@ -1152,6 +1155,35 @@ export class HUD {
           this.refreshShop(true)
         }
         break
+      case 'claim-season-premium':
+        if (id) {
+          const ok = this.state.claimSeasonTier(Number(id), 'premium')
+          if (ok) this.modals.showToast(this.root, 'Premium sezon ödülü toplandı ✓')
+          this.eventsPanel.render(this.state)
+          this.updateNavBadges()
+        }
+        break
+      case 'iap-season-premium':
+        await this.handleIAPSeasonPremium()
+        break
+      case 'iap-chest-pack':
+        await this.handleIAPChestPack()
+        break
+      case 'open-free-chest':
+        this.handleOpenFreeChest()
+        break
+      case 'open-paid-chest':
+        this.handleOpenPaidChest()
+        break
+      case 'claim-campaign': {
+        const reward = this.state.claimCampaignStep()
+        if (reward) {
+          this.modals.showToast(this.root, `Kampanya: +${formatMoney(reward.money)}`)
+          this.eventsPanel.render(this.state)
+          this.updateNavBadges()
+        }
+        break
+      }
       case 'claim-season':
         if (id) {
           const ok = this.state.claimSeasonTier(Number(id))
@@ -1689,14 +1721,69 @@ export class HUD {
       return
     }
     this.state.incrementRewardedAdCount()
-    let amount = this.state.openLuckyChest()
-    if (amount <= 0) {
-      amount = Math.max(500, this.state.incomePerDay() * 2)
-      this.state.addMoney(amount)
+    let loot = this.state.openLuckyChest()
+    if (!loot) {
+      const ipd = this.state.incomePerDay()
+      this.state.addMoney(Math.max(80, Math.floor(ipd * 0.85)))
+      this.modals.showToast(this.root, `Sandık: +${formatMoney(Math.max(80, Math.floor(ipd * 0.85)))}`)
+    } else {
+      this.showChestToast(loot)
     }
     this.sound.playReward()
-    this.modals.showToast(this.root, `Sandık: +${formatMoney(amount)}`)
     this.renderAll()
+  }
+
+  private handleOpenFreeChest(): void {
+    const loot = this.state.openLuckyChest()
+    if (!loot) {
+      this.modals.showToast(this.root, 'Sandık hazır değil')
+      return
+    }
+    this.showChestToast(loot)
+    this.sound.playReward()
+    this.renderAll()
+  }
+
+  private handleOpenPaidChest(): void {
+    const loot = this.state.openPaidChest()
+    if (!loot) {
+      this.modals.showToast(this.root, 'Sandık bileti yok')
+      return
+    }
+    this.showChestToast(loot)
+    this.sound.playReward()
+    this.renderAll()
+  }
+
+  private showChestToast(loot: { emoji: string; label: string; money: number; boostMinutes: number; seasonXp: number }): void {
+    const parts = [`${loot.emoji} ${loot.label}`]
+    if (loot.money > 0) parts.push(`+${formatMoney(loot.money)}`)
+    if (loot.boostMinutes > 0) parts.push(`${loot.boostMinutes} dk bonus`)
+    if (loot.seasonXp > 0) parts.push(`${loot.seasonXp} sezon XP`)
+    this.modals.showToast(this.root, parts.join(' · '))
+  }
+
+  private async handleIAPSeasonPremium(): Promise<void> {
+    const res = await iapManager.purchase('season_premium')
+    if (!res.success) {
+      this.modals.showToast(this.root, res.reason ?? 'Satın alma iptal')
+      return
+    }
+    this.state.unlockSeasonPremium()
+    this.modals.showToast(this.root, '⭐ Premium sezon yolu açıldı!')
+    this.eventsPanel.render(this.state)
+    this.updateNavBadges()
+  }
+
+  private async handleIAPChestPack(): Promise<void> {
+    const res = await iapManager.purchase('chest_pack_5')
+    if (!res.success) {
+      this.modals.showToast(this.root, res.reason ?? 'Satın alma iptal')
+      return
+    }
+    this.state.grantChestTickets(5)
+    this.modals.showToast(this.root, '🎫 5 sandık bileti eklendi')
+    this.eventsPanel.render(this.state)
   }
 
   private async handleAdOffline(multiplier = 1): Promise<void> {

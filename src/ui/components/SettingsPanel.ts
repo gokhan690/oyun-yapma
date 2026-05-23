@@ -2,7 +2,7 @@ import type { GameState } from '../../game/GameState'
 import type { SoundManager } from '../../audio/SoundManager'
 import type { SaveManager } from '../../security/SaveManager'
 import { THEMES, type ThemeId } from '../../game/Themes'
-import { rescheduleFromPrefs } from '../../notifications/NotificationManager'
+import { rescheduleFromPrefs, isWebPushSupported, isNativePlatform } from '../../notifications/NotificationManager'
 
 export class SettingsPanel {
   readonly layer: HTMLElement
@@ -137,6 +137,14 @@ export class SettingsPanel {
     })
     body.appendChild(notifGoal)
 
+    if (isWebPushSupported() && !isNativePlatform()) {
+      const notifWeb = this.notifToggle('Web push bildirimleri', 'notif-webpush', () => this.state.notificationPrefs.webPush, (v) => {
+        this.state.notificationPrefs.webPush = v
+        void this.syncNotifications()
+      })
+      body.appendChild(notifWeb)
+    }
+
     body.appendChild(this.sectionTitle('Oyun'))
 
     const soundRow = this.toggleRow('Ses efektleri', this.sound.isEnabled(), () => {
@@ -211,7 +219,9 @@ export class SettingsPanel {
   private notifHint(): HTMLElement {
     const p = document.createElement('p')
     p.className = 'settings-hint'
-    p.textContent = 'Native uygulamada bildirim zamanlarını özelleştir. Web sürümünde in-app hatırlatıcılar kullanılır.'
+    p.textContent = isNativePlatform()
+      ? 'Native uygulamada yerel bildirim zamanlarını özelleştir.'
+      : 'Web sürümünde push izni ile günlük hatırlatıcılar (tarayıcı açıkken veya push aboneliği ile).'
     return p
   }
 
@@ -268,6 +278,8 @@ export class SettingsPanel {
     if (daily) daily.checked = this.state.notificationPrefs.dailyReward
     if (passive) passive.checked = this.state.notificationPrefs.passiveIncome
     if (goal) goal.checked = this.state.notificationPrefs.goalNear
+    const webPush = this.layer.querySelector<HTMLInputElement>('#notif-webpush')
+    if (webPush) webPush.checked = this.state.notificationPrefs.webPush
     this.renderThemePicker()
     this.layer.classList.add('is-open')
   }

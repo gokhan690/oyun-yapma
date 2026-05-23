@@ -5,6 +5,14 @@ import { dailyGoalProgress, calcDailyLoginReward } from '../../game/DailyGoal'
 import { currentTier, tierProgress, rewardForTier, SEASON_MAX_TIER } from '../../game/SeasonPass'
 import { getWeeklyDef } from '../../game/WeeklyEvent'
 import { daysUntilWeekReset, calendarMonthKey } from '../../game/dateUtils'
+import {
+  CAMPAIGN_CHAPTERS,
+  chapterById,
+  currentCampaignStep,
+  campaignProgressPct,
+  isChapterUnlocked,
+} from '../../game/Campaign'
+import { iapManager } from '../../monetization/IAPManager'
 
 function formatRemainingMs(ms: number): string {
   if (ms <= 0) return 'bitti'
@@ -74,6 +82,8 @@ export class EventsPanel {
 
     this.scrollBody.appendChild(this.renderDaily(state))
     this.scrollBody.appendChild(this.renderWeekly(state))
+    this.scrollBody.appendChild(this.renderCampaign(state))
+    this.scrollBody.appendChild(this.renderGacha(state))
     this.scrollBody.appendChild(this.renderSeason(state))
     this.scrollBody.appendChild(this.renderMissions(state))
   }
@@ -374,32 +384,155 @@ export class EventsPanel {
     ))
     wrap.appendChild(this.progressBar(prog.pct))
 
-    const track = document.createElement('div')
-    track.className = 'season-track'
-    for (let i = 1; i <= Math.min(SEASON_MAX_TIER, tier + 3); i++) {
-      const node = document.createElement('div')
-      node.className = 'season-node'
-      if (i <= tier) node.classList.add('unlocked')
-      if (state.season.claimedTiers.includes(i)) node.classList.add('claimed')
-      const rw = rewardForTier(i)
-      node.innerHTML = `<span class="season-node-tier">${i}</span><small>${rw.label}</small>`
-      if (i <= tier && !state.season.claimedTiers.includes(i)) {
-        const claim = document.createElement('button')
-        claim.type = 'button'
-        claim.className = 'season-claim-btn btn-primary btn-sm'
-        claim.dataset.action = 'claim-season'
-        claim.dataset.id = String(i)
-        claim.textContent = 'Topla'
-        node.appendChild(claim)
-      }
-      track.appendChild(node)
+    if (!state.season.premiumUnlocked) {
+      const premiumCta = document.createElement('div')
+      premiumCta.className = 'season-premium-cta'
+      const product = iapManager.getProduct('season_premium')
+      premiumCta.innerHTML = `<p><strong>⭐ Premium Yol</strong> — 2x para, sandık biletleri, özel temalar</p>`
+      const buyBtn = this.actionBtn('iap-season-premium', `${product.priceLabel} · Premium Aç`, 'btn-premium')
+      premiumCta.appendChild(buyBtn)
+      wrap.appendChild(premiumCta)
+    } else {
+      const badge = document.createElement('p')
+      badge.className = 'season-premium-active'
+      badge.textContent = '⭐ Premium yol aktif — sağ kolondan ödülleri topla'
+      wrap.appendChild(badge)
     }
-    wrap.appendChild(track)
+
+    const dual = document.createElement('div')
+    dual.className = 'season-dual-track'
+
+    const freeCol = document.createElement('div')
+    freeCol.className = 'season-track-col'
+    freeCol.innerHTML = '<h4>Ücretsiz</h4>'
+    freeCol.appendChild(this.buildSeasonNodes(state, tier, 'free'))
+    dual.appendChild(freeCol)
+
+    const premCol = document.createElement('div')
+    premCol.className = `season-track-col season-track-premium${state.season.premiumUnlocked ? ' unlocked' : ''}`
+    premCol.innerHTML = '<h4>Premium</h4>'
+    premCol.appendChild(this.buildSeasonNodes(state, tier, 'premium'))
+    dual.appendChild(premCol)
+
+    wrap.appendChild(dual)
 
     const seasonActions = document.createElement('div')
     seasonActions.className = 'events-actions'
     seasonActions.appendChild(this.actionBtn('ad-season-xp', '📺 Sezon XP bonusu (reklam)', 'btn-ad'))
     wrap.appendChild(seasonActions)
+    return wrap
+  }
+
+  private buildSeasonNodes(state: GameState, tier: number, track: 'free' | 'premium'): HTMLElement {
+    const trackEl = document.createElement('div')
+    trackEl.className = 'season-track'
+    const claimed = track === 'premium' ? state.season.claimedPremiumTiers : state.season.claimedTiers
+    const locked = track === 'premium' && !state.season.premiumUnlocked
+    for (let i = 1; i <= Math.min(SEASON_MAX_TIER, tier + 3); i++) {
+      const node = document.createElement('div')
+      node.className = 'season-node'
+      if (i <= tier) node.classList.add('unlocked')
+      if (claimed.includes(i)) node.classList.add('claimed')
+      if (locked) node.classList.add('locked')
+      const rw = rewardForTier(i, track)
+      node.innerHTML = `<span class="season-node-tier">${i}</span><small>${rw.label}</small>`
+      if (i <= tier && !claimed.includes(i) && !locked) {
+        const claim = document.createElement('button')
+        claim.type = 'button'
+        claim.className = 'season-claim-btn btn-primary btn-sm'
+        claim.dataset.action = track === 'premium' ? 'claim-season-premium' : 'claim-season'
+        claim.dataset.id = String(i)
+        claim.textContent = 'Topla'
+        node.appendChild(claim)
+      }
+      trackEl.appendChild(node)
+    }
+    return trackEl
+  }
+
+  private renderGacha(state: GameState): HTMLElement {
+    const wrap = document.createElement('section')
+    wrap.className = 'events-block events-block-gacha'
+    const ready = state.luckyChestReady
+    wrap.appendChild(this.blockHeader(
+      '🎁',
+      'Şans Sandığı',
+      ready ? 'Ücretsiz sandık hazır!' : `Pity: ${state.chestPityCounter}/10 · Bilet: ${state.chestTickets}`,
+      ready ? 'HAZIR' : `${state.chestTickets} bilet`,
+      'Reklam veya bilet ile aç — nadir ödüller',
+    ))
+
+    const actions = document.createElement('div')
+    actions.className = 'events-actions gacha-actions'
+    if (ready) {
+      actions.appendChild(this.actionBtn('open-free-chest', '🎁 Ücretsiz Sandığı Aç', 'btn-primary'))
+    }
+    actions.appendChild(this.actionBtn('ad-chest', '📺 Reklam ile Aç', 'btn-ad'))
+    if (state.chestTickets > 0) {
+      actions.appendChild(this.actionBtn('open-paid-chest', `🎫 Bilet ile Aç (${state.chestTickets})`, 'btn-secondary'))
+    }
+    const pack = iapManager.getProduct('chest_pack_5')
+    actions.appendChild(this.actionBtn('iap-chest-pack', `${pack.priceLabel} · 5 Sandık`, 'btn-premium'))
+    wrap.appendChild(actions)
+    return wrap
+  }
+
+  private renderCampaign(state: GameState): HTMLElement {
+    state.syncCampaignProgress()
+    const wrap = document.createElement('section')
+    wrap.className = 'events-block events-block-campaign'
+    const chapter = chapterById(state.campaign.chapterId)
+    const step = currentCampaignStep(state.campaign)
+    const completed = state.campaign.completedChapters.length
+    wrap.appendChild(this.blockHeader(
+      '📜',
+      'Kampanya',
+      chapter ? chapter.title : 'Tamamlandı',
+      `${completed}/${CAMPAIGN_CHAPTERS.length}`,
+      chapter?.subtitle ?? 'Tüm bölümler bitti — efsane baron!',
+    ))
+
+    if (!chapter || !step) {
+      const done = document.createElement('p')
+      done.className = 'campaign-done'
+      done.textContent = '🏆 Kampanya tamamlandı! Hikâye devam ediyor…'
+      wrap.appendChild(done)
+      return wrap
+    }
+
+    if (!isChapterUnlocked(chapter, state.lifetimeTotalEarned, state.campaign.completedChapters)) {
+      const lock = document.createElement('p')
+      lock.className = 'campaign-locked'
+      lock.textContent = `Kilitli — ${formatMoney(chapter.unlockAtTotalEarned)} yaşam boyu kazanç gerekir`
+      wrap.appendChild(lock)
+      return wrap
+    }
+
+    const pct = campaignProgressPct(state, state.campaign)
+    wrap.appendChild(this.progressBar(pct))
+    const stepEl = document.createElement('div')
+    stepEl.className = 'campaign-step-card'
+    stepEl.innerHTML = `
+      <strong>${step.title}</strong>
+      <p>${step.description}</p>
+      <small>Ödül: ${formatMoney(step.rewardMoney)}${step.rewardBoostMinutes ? ` + ${step.rewardBoostMinutes} dk bonus` : ''}</small>
+    `
+    if (state.hasClaimableCampaignReward()) {
+      stepEl.appendChild(this.actionBtn('claim-campaign', 'Bölüm adımını topla', 'btn-primary btn-sm'))
+    }
+    wrap.appendChild(stepEl)
+
+    const list = document.createElement('div')
+    list.className = 'campaign-chapter-list'
+    for (const ch of CAMPAIGN_CHAPTERS) {
+      const item = document.createElement('span')
+      item.className = 'campaign-chapter-pill'
+      if (state.campaign.completedChapters.includes(ch.id)) item.classList.add('done')
+      else if (ch.id === state.campaign.chapterId) item.classList.add('active')
+      item.textContent = `${ch.id}`
+      list.appendChild(item)
+    }
+    wrap.appendChild(list)
     return wrap
   }
 

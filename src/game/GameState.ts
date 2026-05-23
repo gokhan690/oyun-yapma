@@ -43,14 +43,25 @@ import {
   createSeasonState,
   currentTier,
   rewardForTier,
-  hasClaimableTier,
+  hasClaimableSeasonReward,
   seasonWeekKey,
   tierProgress,
   SEASON_MAX_TIER,
   xpForTier,
   isLegacyGameSeasonKey,
   type SeasonState,
+  type SeasonTrack,
 } from './SeasonPass'
+import { rollChestLoot, shouldResetPity, type ChestLootResult } from './ChestLoot'
+import {
+  createCampaignState,
+  currentCampaignStep,
+  campaignStepSnapshot,
+  hasClaimableCampaignStep,
+  chapterById,
+  isChapterUnlocked,
+  type CampaignState,
+} from './Campaign'
 import {
   PRESTIGE_TREE_NODES,
   canBuyNode,
@@ -217,7 +228,7 @@ export interface SerializableState {
   lastActiveAt: number
   comebackClaimedDay: string | null
   comebackPending: number
-  notificationPrefs: { dailyReward: boolean; passiveIncome: boolean; goalNear: boolean }
+  notificationPrefs: { dailyReward: boolean; passiveIncome: boolean; goalNear: boolean; webPush: boolean }
   surpriseInvestorUntil: number
   surpriseInvestorDay: string
   seenStoryBeats: string[]
@@ -238,6 +249,9 @@ export interface SerializableState {
   empire: EmpireState
   gameStartYear: number
   pendingBoosts: PendingBoostItem[]
+  chestPityCounter: number
+  chestTickets: number
+  campaign: CampaignState
 }
 
 export interface ProducerBreakdown {
@@ -258,7 +272,7 @@ export type GameEvent =
   | { type: 'offline_earnings'; amount: number }
   | { type: 'daily_reward'; amount: number; streak: number }
   | { type: 'ad_boost'; until: number }
-  | { type: 'chest_opened'; amount: number }
+  | { type: 'chest_opened'; amount?: number; loot?: ChestLootResult }
   | { type: 'combo_changed'; combo: number; multiplier: number }
   | { type: 'golden_event'; event: GameEventDef; expiresAt: number }
   | { type: 'event_claimed'; event: GameEventDef; reward: number }
@@ -274,7 +288,9 @@ export type GameEvent =
   | { type: 'day_night'; isNight: boolean }
   | { type: 'game_time' }
   | { type: 'season_updated'; xp: number; tier: number }
-  | { type: 'season_claimed'; tier: number; reward: string }
+  | { type: 'season_claimed'; tier: number; reward: string; track?: SeasonTrack }
+  | { type: 'campaign_step'; chapterId: number; stepId: string; reward: string }
+  | { type: 'premium_season_unlocked' }
   | { type: 'prestige_tree'; nodeId: string }
   | { type: 'market_event'; crash: boolean }
   | { type: 'macro_event'; headline: string; crash?: boolean }
@@ -374,7 +390,10 @@ export class GameState {
   lastActiveAt = Date.now()
   comebackClaimedDay: string | null = null
   comebackPending = 0
-  notificationPrefs = { dailyReward: true, passiveIncome: true, goalNear: true }
+  notificationPrefs = { dailyReward: true, passiveIncome: true, goalNear: true, webPush: false }
+  chestPityCounter = 0
+  chestTickets = 0
+  campaign = createCampaignState()
   surpriseInvestorUntil = 0
   surpriseInvestorDay = ''
   seenStoryBeats = new Set<string>()
@@ -1318,6 +1337,7 @@ export class GameState {
       this.emit({ type: 'money_changed' })
       this.checkMilestones(prevLifetime)
       this.checkAchievements()
+      this.syncCampaignProgress()
     } else {
       this.emit({ type: 'passive_income' })
     }
@@ -1493,6 +1513,7 @@ export class GameState {
     this.emit({ type: 'purchase' })
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
+    this.syncCampaignProgress()
     return true
   }
 
@@ -1518,6 +1539,7 @@ export class GameState {
     this.emit({ type: 'purchase' })
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
+    this.syncCampaignProgress()
     return true
   }
 
@@ -1622,6 +1644,7 @@ export class GameState {
     this.emit({ type: 'prestige', points, startingCash })
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
+    this.syncCampaignProgress()
     return points
   }
 
@@ -1716,32 +1739,116 @@ export class GameState {
     this.emit({ type: 'season_updated', xp: this.season.xp, tier: currentTier(this.season.xp) })
   }
 
-  claimSeasonTier(tier: number): boolean {
+  claimSeasonTier(tier: number, track: SeasonTrack = 'free'): boolean {
     this.ensureSeason()
     if (tier < 1 || tier > currentTier(this.season.xp)) return false
-    if (this.season.claimedTiers.includes(tier)) return false
-    const reward = rewardForTier(tier)
-    this.season.claimedTiers.push(tier)
+    if (track === 'premium') {
+      if (!this.season.premiumUnlocked) return false
+      if (this.season.claimedPremiumTiers.includes(tier)) return false
+    } else if (this.season.claimedTiers.includes(tier)) {
+      return false
+    }
+    const reward = rewardForTier(tier, track)
+    if (track === 'premium') {
+      this.season.claimedPremiumTiers.push(tier)
+    } else {
+      this.season.claimedTiers.push(tier)
+    }
     if (reward.type === 'money') {
-      this.addMoney(reward.value * tier)
+      this.addMoney(reward.value)
     } else if (reward.type === 'boost') {
       this.grantPendingBoost('income_2x', reward.value * 60_000, 'Sezon bonusu', '🎖️')
     } else if (reward.type === 'theme') {
       const themeId = themeForTier(tier)
       if (themeId) this.unlockTheme(themeId)
+    } else if (reward.type === 'chest_ticket') {
+      this.chestTickets += reward.value
     }
     if (tier >= 10) this.awardBadge('season_10')
     if (tier >= 20) this.awardBadge('season_20')
     if (tier >= 30) this.awardBadge('season_30')
     this.updateMissionProgress('season_tier', 1)
-    this.emit({ type: 'season_claimed', tier, reward: reward.label })
+    this.emit({ type: 'season_claimed', tier, reward: reward.label, track })
     this.checkAchievements()
     return true
   }
 
+  unlockSeasonPremium(): void {
+    this.ensureSeason()
+    if (this.season.premiumUnlocked) return
+    this.season.premiumUnlocked = true
+    this.triggerStoryBeat('premium_season')
+    this.emit({ type: 'premium_season_unlocked' })
+  }
+
+  grantChestTickets(count: number): void {
+    this.chestTickets = Math.max(0, this.chestTickets + count)
+  }
+
+  private applyChestLootResult(loot: ChestLootResult): number {
+    if (loot.money > 0) this.addMoney(loot.money)
+    if (loot.boostMinutes > 0) {
+      this.grantPendingBoost('income_2x', loot.boostMinutes * 60_000, `${loot.label} sandık`, loot.emoji)
+    }
+    if (loot.seasonXp > 0) this.addSeasonXp(loot.seasonXp)
+    if (loot.chestTickets > 0) this.chestTickets += loot.chestTickets
+    this.chestPityCounter = shouldResetPity(loot.rarity) ? 0 : this.chestPityCounter + 1
+    if (loot.rarity === 'legendary') this.triggerStoryBeat('chest_legendary')
+    this.emit({ type: 'chest_opened', loot, amount: loot.money })
+    return loot.money
+  }
+
+  openPaidChest(): ChestLootResult | null {
+    if (this.chestTickets <= 0) return null
+    this.chestTickets--
+    const loot = rollChestLoot(this.incomePerDay(), this.chestPityCounter, true)
+    this.applyChestLootResult(loot)
+    return loot
+  }
+
   hasClaimableSeasonReward(): boolean {
     this.ensureSeason()
-    return hasClaimableTier(this.season)
+    return hasClaimableSeasonReward(this.season)
+  }
+
+  syncCampaignProgress(): void {
+    const step = currentCampaignStep(this.campaign)
+    if (!step) return
+    const chapter = chapterById(this.campaign.chapterId)
+    if (!chapter || !isChapterUnlocked(chapter, this.lifetimeTotalEarned, this.campaign.completedChapters)) return
+    this.campaign.stepProgress = Math.max(this.campaign.stepProgress, campaignStepSnapshot(this, step))
+  }
+
+  claimCampaignStep(): { money: number; boostMinutes: number } | null {
+    this.syncCampaignProgress()
+    if (!hasClaimableCampaignStep(this, this.campaign)) return null
+    const step = currentCampaignStep(this.campaign)!
+    const chapter = chapterById(this.campaign.chapterId)!
+    if (step.rewardMoney > 0) this.addMoney(step.rewardMoney)
+    if (step.rewardBoostMinutes > 0) {
+      this.grantPendingBoost('income_2x', step.rewardBoostMinutes * 60_000, 'Kampanya ödülü', '📜')
+    }
+    if (step.storyBeatId) this.triggerStoryBeat(step.storyBeatId)
+    this.emit({ type: 'campaign_step', chapterId: chapter.id, stepId: step.id, reward: step.title })
+
+    this.campaign.stepIndex++
+    this.campaign.stepProgress = 0
+    if (this.campaign.stepIndex >= chapter.steps.length) {
+      if (!this.campaign.completedChapters.includes(chapter.id)) {
+        this.campaign.completedChapters.push(chapter.id)
+      }
+      const next = chapterById(chapter.id + 1)
+      if (next && isChapterUnlocked(next, this.lifetimeTotalEarned, this.campaign.completedChapters)) {
+        this.campaign.chapterId = next.id
+        this.campaign.stepIndex = 0
+      }
+    }
+    return { money: step.rewardMoney, boostMinutes: step.rewardBoostMinutes }
+  }
+
+  hasClaimableCampaignReward(): boolean {
+    this.syncCampaignProgress()
+    return hasClaimableCampaignStep(this, this.campaign)
   }
 
   doubleSeasonXpWithAd(): void {
@@ -2209,6 +2316,7 @@ export class GameState {
       // streak was reset — UI shows warning via peekDailyStreakReset before claim
     }
     this.checkAchievements()
+    this.syncCampaignProgress()
     return amount
   }
 
@@ -2221,13 +2329,12 @@ export class GameState {
     return calcDailyLoginReward(streak, this.incomePerDay())
   }
 
-  openLuckyChest(): number {
-    if (!this.luckyChestReady) return 0
+  openLuckyChest(): ChestLootResult | null {
+    if (!this.luckyChestReady) return null
     this.luckyChestReady = false
-    const amount = Math.max(80, Math.floor(this.incomePerDay() * 0.85))
-    this.addMoney(amount)
-    this.emit({ type: 'chest_opened', amount })
-    return amount
+    const loot = rollChestLoot(this.incomePerDay(), this.chestPityCounter, false)
+    this.applyChestLootResult(loot)
+    return loot
   }
 
   incrementRewardedAdCount(): void {
@@ -2429,6 +2536,9 @@ export class GameState {
     this.dailyGoalDay = dailyGoalDayKey()
     this.dailyGoalClaimed = false
     this.season = createSeasonState()
+    this.chestPityCounter = 0
+    this.chestTickets = 0
+    this.campaign = createCampaignState()
     this.prestigeTree = {}
     this.managerAutoBuy = {}
     for (const p of PRODUCERS) this.managerAutoBuy[p.id] = false
@@ -2531,7 +2641,11 @@ export class GameState {
       dailyGoalClaimed: this.dailyGoalClaimed,
       dailyGoalTargetSnapshot: this.dailyGoalTargetSnapshot,
       dailyGoalRewardSnapshot: this.dailyGoalRewardSnapshot,
-      season: { ...this.season, claimedTiers: [...this.season.claimedTiers] },
+      season: {
+        ...this.season,
+        claimedTiers: [...this.season.claimedTiers],
+        claimedPremiumTiers: [...this.season.claimedPremiumTiers],
+      },
       prestigeTree: { ...this.prestigeTree },
       managerAutoBuy: { ...this.managerAutoBuy },
       nightEarningsSession: this.nightEarningsSession,
@@ -2580,6 +2694,12 @@ export class GameState {
       },
       gameStartYear: this.gameStartYear,
       pendingBoosts: this.pendingBoosts.map((b) => ({ ...b })),
+      chestPityCounter: this.chestPityCounter,
+      chestTickets: this.chestTickets,
+      campaign: {
+        ...this.campaign,
+        completedChapters: [...this.campaign.completedChapters],
+      },
     }
   }
 
@@ -2648,7 +2768,15 @@ export class GameState {
     this.dailyGoalTargetSnapshot = data.dailyGoalTargetSnapshot ?? 0
     this.dailyGoalRewardSnapshot = data.dailyGoalRewardSnapshot ?? 0
     if (this.dailyGoalTargetSnapshot <= 0) this.refreshDailyGoalSnapshots()
-    this.season = data.season ? { ...data.season, claimedTiers: [...(data.season.claimedTiers ?? [])] } : createSeasonState()
+    this.season = data.season
+      ? {
+          ...createSeasonState(),
+          ...data.season,
+          claimedTiers: [...(data.season.claimedTiers ?? [])],
+          claimedPremiumTiers: [...(data.season.claimedPremiumTiers ?? [])],
+          premiumUnlocked: !!data.season.premiumUnlocked,
+        }
+      : createSeasonState()
     this.prestigeTree = { ...(data.prestigeTree ?? {}) }
     this.managerAutoBuy = { ...(data.managerAutoBuy ?? {}) }
     for (const p of PRODUCERS) {
@@ -2672,7 +2800,22 @@ export class GameState {
     this.lastActiveAt = data.lastActiveAt ?? Date.now()
     this.comebackClaimedDay = data.comebackClaimedDay ?? null
     this.comebackPending = data.comebackPending ?? 0
-    this.notificationPrefs = data.notificationPrefs ?? { dailyReward: true, passiveIncome: true, goalNear: true }
+    this.notificationPrefs = {
+      dailyReward: data.notificationPrefs?.dailyReward ?? true,
+      passiveIncome: data.notificationPrefs?.passiveIncome ?? true,
+      goalNear: data.notificationPrefs?.goalNear ?? true,
+      webPush: data.notificationPrefs?.webPush ?? false,
+    }
+    this.chestPityCounter = data.chestPityCounter ?? 0
+    this.chestTickets = data.chestTickets ?? 0
+    this.campaign = data.campaign
+      ? {
+          chapterId: data.campaign.chapterId ?? 1,
+          stepIndex: data.campaign.stepIndex ?? 0,
+          stepProgress: data.campaign.stepProgress ?? 0,
+          completedChapters: [...(data.campaign.completedChapters ?? [])],
+        }
+      : createCampaignState()
     this.surpriseInvestorUntil = data.surpriseInvestorUntil ?? 0
     this.surpriseInvestorDay = data.surpriseInvestorDay ?? ''
     this.seenStoryBeats = new Set(data.seenStoryBeats ?? [])

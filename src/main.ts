@@ -6,7 +6,7 @@ import { SaveManager } from './security/SaveManager'
 import { AdManager } from './ads/AdManager'
 import { SoundManager } from './audio/SoundManager'
 import { HUD } from './ui/HUD'
-import { scheduleDailyReminder } from './notifications/NotificationManager'
+import { scheduleDailyReminder, registerServiceWorker } from './notifications/NotificationManager'
 import { applyDocumentTheme } from './utils/themeApply'
 
 declare global {
@@ -87,6 +87,7 @@ function bootstrap(): void {
 
     document.addEventListener('click', () => sound.resume(), { once: true })
     void scheduleDailyReminder(state.notificationPrefs)
+    void registerServiceWorker()
     window.__II_MARK_BOOTED__?.()
   } catch (err) {
     console.error('Bootstrap hatası:', err)
