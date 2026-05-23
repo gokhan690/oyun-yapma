@@ -526,6 +526,7 @@ function applyV3Defaults(legacy: LegacyState): SerializableState {
     advisorBuys: legacy.advisorBuys ?? 0,
     empire: legacy.empire ?? createEmpireState(),
     gameStartYear: legacy.gameStartYear ?? 2026,
+    pendingBoosts: [],
   }
 }
 
@@ -542,7 +543,7 @@ function applyV9Defaults(state: SerializableState): SerializableState {
     bank: state.bank ? { ...createBankState(), ...state.bank } : createBankState(),
     empire: state.empire ?? createEmpireState(),
     gameStartYear: state.gameStartYear ?? 2026,
-    playerGender: state.playerGender === 'female' ? 'female' : 'male',
+    pendingBoosts: state.pendingBoosts ?? [],
   }
 }
 

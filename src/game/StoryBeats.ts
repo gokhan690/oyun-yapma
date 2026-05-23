@@ -13,7 +13,7 @@ export const STORY_BEATS: StoryBeat[] = [
   { id: 'streak_30', text: '30 günlük efsane seri! İmparatorluk senin imzanı taşıyor.' },
   { id: 'theme_gold', text: 'Altın tema açıldı — imparatorluk artık parlıyor.' },
   { id: 'codex_legal', text: 'Tüm yasal işletmeleri keşfettin! Global gelir +%5.' },
-  { id: 'surprise_investor', text: 'Sürpriz yatırımcı! 30 saniye boyunca gelir x2.' },
+  { id: 'surprise_investor', text: 'Sürpriz yatırımcı! Bonus envanterine eklendi — istediğinde aktifleştir.' },
   { id: 'football_superlig', text: 'Kulübün Süper Lig\'e yükseldi! Taraftarlar coştu.' },
   { id: 'football_europe', text: 'Avrupa kupalarına merhaba! İmparatorluk stadyumları dolup taşıyor.' },
   { id: 'election_year', text: 'Seçim yılı geldi. Siyasi etkin arttı — lobi gücünü kullan.' },

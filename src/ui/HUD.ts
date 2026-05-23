@@ -426,7 +426,8 @@ export class HUD {
       this.state.hasClaimableSeasonReward()
         || (this.state.weekly.progress >= this.state.weekly.target && !this.state.weekly.claimed)
         || dailyGoalReady
-        || this.state.canClaimDaily(),
+        || this.state.canClaimDaily()
+        || this.state.hasPendingBoosts(),
       this.shop.hasShopBadge(this.state),
     )
   }
@@ -588,7 +589,12 @@ export class HUD {
       if (ev.type === 'event_claimed') {
         this.clearGoldenEventTimer()
         this.modals.close()
-        this.modals.showToast(this.root, `${ev.event.title} — +${formatMoney(ev.reward)}`)
+        const msg = ev.event.rewardType === 'income_boost'
+          ? `${ev.event.title} — bonus envantere eklendi`
+          : `${ev.event.title} — +${formatMoney(ev.reward)}`
+        this.modals.showToast(this.root, msg)
+        this.eventsPanel.render(this.state)
+        this.updateNavBadges()
       }
       if (ev.type === 'daily_goal_updated') {
         this.goalsSheet.render(this.state)
@@ -663,9 +669,14 @@ export class HUD {
         this.modals.showToast(this.root, ev.message)
       }
       if (ev.type === 'surprise_investor') {
-        this.modals.showToast(this.root, '💎 Sürpriz yatırımcı olayı — 30 sn x2 gelir!')
-        this.statsBar.updateMeta()
+        this.modals.showToast(this.root, '💎 Yatırımcı teklifi envanterde — Etkinlikler\'den aktifleştir')
         this.eventsPanel.render(this.state)
+        this.updateNavBadges()
+      }
+      if (ev.type === 'pending_boost_added' || ev.type === 'boost_activated') {
+        this.statsBar.updateMeta()
+        if (this.bottomNav.getActive() === 'events') this.eventsPanel.render(this.state)
+        this.updateNavBadges()
       }
       if (ev.type === 'comeback_ready') {
         this.showComebackPopup()
@@ -1177,13 +1188,20 @@ export class HUD {
           if (result.money > 0) {
             this.modals.showToast(this.root, `Görev: +${formatMoney(result.money)}`)
           } else if (result.boostMinutes > 0) {
-            this.modals.showToast(this.root, `Görev: ${result.boostMinutes} dk gelir bonusu aktif`)
-            this.statsBar.updateMeta()
+            this.modals.showToast(this.root, `Görev: ${result.boostMinutes} dk bonus envantere eklendi`)
           } else {
             this.modals.showToast(this.root, 'Görev ödülü alınamadı')
           }
           this.eventsPanel.render(this.state)
           this.updateNavBadges()
+          this.refreshShop(true)
+        }
+        break
+      case 'activate-boost':
+        if (id && this.state.activatePendingBoost(id)) {
+          this.modals.showToast(this.root, 'Bonus aktifleştirildi')
+          this.eventsPanel.render(this.state)
+          this.statsBar.updateMeta()
           this.refreshShop(true)
         }
         break
@@ -1197,7 +1215,7 @@ export class HUD {
         this.state.incrementRewardedAdCount()
         const claim = this.state.claimMission(id, true)
         if (claim.money > 0) this.modals.showToast(this.root, `Görev x2: +${formatMoney(claim.money)}`)
-        else if (claim.boostMinutes > 0) this.modals.showToast(this.root, `Görev x2: ${claim.boostMinutes} dk bonus`)
+        else if (claim.boostMinutes > 0) this.modals.showToast(this.root, `Görev x2: ${claim.boostMinutes} dk bonus envantere eklendi`)
         this.renderAll()
         break
       }

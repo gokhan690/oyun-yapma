@@ -616,6 +616,75 @@ export class ShopPanel {
     return el
   }
 
+  private createFinanceDash(state: GameState): HTMLElement {
+    const bank = state.bank
+    const portfolio = portfolioSummary(state.stock)
+    const plClass = portfolio.totalPl >= 0 ? 'pl-positive' : 'pl-negative'
+    const el = document.createElement('div')
+    el.className = 'finance-dash'
+    el.innerHTML = `
+      <div class="finance-dash-hero">
+        <small>Net değer</small>
+        <strong>${formatMoney(state.financeNetWorth())}</strong>
+        <span class="finance-dash-sub">Nakit + portföy + mevduat + tahvil − borç</span>
+      </div>
+      <div class="finance-dash-grid">
+        <span><small>Nakit</small><strong>${formatMoney(state.money)}</strong></span>
+        <span><small>Portföy</small><strong>${formatMoney(portfolio.totalValue)}</strong></span>
+        <span><small>Mevduat</small><strong>${formatMoney(bank.deposit)}</strong></span>
+        <span><small>Tahvil</small><strong>${formatMoney(bank.bonds)}</strong></span>
+        <span class="${bank.loan > 0 ? 'finance-dash-debt' : ''}"><small>Borç</small><strong>${formatMoney(bank.loan)}</strong></span>
+        <span><small>Portföy K/Z</small><strong class="${plClass}">${formatMoney(portfolio.totalPl)}</strong></span>
+      </div>
+    `
+    return el
+  }
+
+  private createFinanceMacroBar(state: GameState): HTMLElement {
+    const macro = document.createElement('div')
+    macro.className = 'finance-macro-bar'
+    const ratePct = (state.stock.centralBankRate * 100).toFixed(1)
+    const fear = state.stock.marketFear
+    macro.innerHTML = `
+      <div class="finance-macro-stat"><small>Merkez faiz</small><strong>%${ratePct}</strong></div>
+      <div class="finance-macro-stat"><small>Piyasa korkusu</small><strong class="${fear >= 60 ? 'pl-negative' : fear <= 35 ? 'pl-positive' : ''}">${Math.round(fear)} · ${fearLabel(fear)}</strong></div>
+      <div class="finance-macro-stat"><small>Prestij hissesi</small><strong>${Math.floor(state.prestigePoints)}</strong></div>
+    `
+    if (state.stock.macroHeadline) {
+      const headline = document.createElement('p')
+      headline.className = 'finance-macro-headline'
+      headline.textContent = state.stock.macroHeadline
+      macro.appendChild(headline)
+    }
+    return macro
+  }
+
+  private createBankActions(
+    title: string,
+    hint: string,
+    btns: [string, string, string][],
+  ): HTMLElement {
+    const wrap = document.createElement('div')
+    wrap.className = 'finance-action-panel'
+    const head = document.createElement('div')
+    head.className = 'finance-action-head'
+    head.innerHTML = `<strong>${title}</strong><small>${hint}</small>`
+    wrap.appendChild(head)
+    const row = document.createElement('div')
+    row.className = 'finance-action-row'
+    for (const [action, label, count] of btns) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = action === 'bank-loan' ? 'btn-buy-stock btn-sm' : 'btn-secondary btn-sm'
+      btn.dataset.action = action
+      btn.dataset.count = count
+      btn.textContent = label
+      row.appendChild(btn)
+    }
+    wrap.appendChild(row)
+    return wrap
+  }
+
   private createTabHero(icon: string, title: string, subtitle: string, stat?: string): HTMLElement {
     const el = document.createElement('div')
     el.className = 'shop-tab-hero'
@@ -1413,7 +1482,19 @@ export class ShopPanel {
     const panel = this.panels.ipo!
     panel.replaceChildren()
 
-    panel.appendChild(this.createTabHero('📈', 'Finans Merkezi', 'Borsa, prestij ağacı ve şirket birleşmesi', `${state.prestigePoints} kalıcı hisse`))
+    panel.appendChild(this.createFinanceDash(state))
+    panel.appendChild(this.createFinanceMacroBar(state))
+
+    const subHint = document.createElement('p')
+    subHint.className = 'finance-sub-hint'
+    const hints: Record<IpoSubTab, string> = {
+      stock: 'Hisse seç, fiyatı izle, al/sat yap',
+      bank: 'Paranı güvene al veya kredi çek — faiz her dakika işler',
+      prestige: 'Kalıcı prestij puanlarıyla run gücünü artır',
+      ipo: 'Run birleşmesi — portföy nakde çevrilir, kalıcı hisse kazanırsın',
+    }
+    subHint.textContent = hints[this.ipoSubTab]
+    panel.appendChild(subHint)
 
     if (this.ipoSubTab === 'stock') this.renderIpoStock(state, panel)
     else if (this.ipoSubTab === 'bank') this.renderIpoBank(state, panel)
@@ -1423,33 +1504,14 @@ export class ShopPanel {
 
   private renderIpoStock(state: GameState, panel: HTMLElement): void {
     const summary = portfolioSummary(state.stock)
-    const tickerCount = STOCK_DEFS.length
-
-    const macro = document.createElement('div')
-    macro.className = 'finance-macro-bar'
-    const ratePct = (state.stock.centralBankRate * 100).toFixed(1)
-    const fear = state.stock.marketFear
-    macro.innerHTML = `
-      <div class="finance-macro-stat"><small>Merkez faiz</small><strong>%${ratePct}</strong></div>
-      <div class="finance-macro-stat"><small>Korku endeksi</small><strong class="${fear >= 60 ? 'pl-negative' : fear <= 35 ? 'pl-positive' : ''}">${Math.round(fear)} · ${fearLabel(fear)}</strong></div>
-      <div class="finance-macro-stat"><small>Net değer</small><strong>${formatMoney(state.financeNetWorth())}</strong></div>
-    `
-    if (state.stock.macroHeadline) {
-      const headline = document.createElement('p')
-      headline.className = 'finance-macro-headline'
-      headline.textContent = state.stock.macroHeadline
-      macro.appendChild(headline)
-    }
-    panel.appendChild(macro)
 
     const portfolioEl = document.createElement('div')
-    portfolioEl.className = 'stock-portfolio-summary'
+    portfolioEl.className = 'stock-portfolio-summary stock-portfolio-compact'
     const portfolioPlClass = summary.totalPl >= 0 ? 'pl-positive' : 'pl-negative'
     portfolioEl.innerHTML = `
       <div class="stock-portfolio-stat"><strong>${formatMoney(summary.totalValue)}</strong><small>Portföy değeri</small></div>
-      <div class="stock-portfolio-stat"><strong>${summary.holdings}/${tickerCount}</strong><small>Pozisyon</small></div>
+      <div class="stock-portfolio-stat"><strong>${summary.holdings}/${STOCK_DEFS.length}</strong><small>Açık pozisyon</small></div>
       <div class="stock-portfolio-stat"><strong class="${portfolioPlClass}">${formatMoney(summary.totalPl)}</strong><small>Toplam K/Z</small></div>
-      <div class="stock-portfolio-stat"><strong>${formatMoney(state.money)}</strong><small>Nakit</small></div>
     `
     panel.appendChild(portfolioEl)
 
@@ -1515,9 +1577,27 @@ export class ShopPanel {
     stockCard.append(stockTitle, priceRow, detailGrid, spark, stockInfo)
     panel.appendChild(stockCard)
 
+    const stockActions = document.createElement('div')
+    stockActions.className = 'stock-actions finance-trade-bar'
+    for (const [action, label, count] of [
+      ['stock-buy', 'Al 1', '1'],
+      ['stock-buy', 'Al 10', '10'],
+      ['stock-sell', 'Sat 1', '1'],
+      ['stock-sell', 'Sat hepsi', 'max'],
+    ] as const) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = action.includes('buy') ? 'btn-buy-stock' : 'btn-sell-stock'
+      btn.dataset.action = action
+      btn.dataset.count = count
+      btn.textContent = label
+      stockActions.appendChild(btn)
+    }
+    panel.appendChild(stockActions)
+
     const holdingsTitle = document.createElement('h4')
     holdingsTitle.className = 'stock-holdings-title'
-    holdingsTitle.textContent = 'Tüm Hisseler'
+    holdingsTitle.textContent = 'Piyasa özeti'
     panel.appendChild(holdingsTitle)
 
     const holdingsGrid = document.createElement('div')
@@ -1554,24 +1634,6 @@ export class ShopPanel {
       panel.appendChild(ev)
     }
 
-    const stockActions = document.createElement('div')
-    stockActions.className = 'stock-actions'
-    for (const [action, label, count] of [
-      ['stock-buy', 'Al 1', '1'],
-      ['stock-buy', 'Al 10', '10'],
-      ['stock-sell', 'Sat 1', '1'],
-      ['stock-sell', 'Sat hepsi', 'max'],
-    ] as const) {
-      const btn = document.createElement('button')
-      btn.type = 'button'
-      btn.className = action.includes('buy') ? 'btn-buy-stock' : 'btn-sell-stock'
-      btn.dataset.action = action
-      btn.dataset.count = count
-      btn.textContent = label
-      stockActions.appendChild(btn)
-    }
-    panel.appendChild(stockActions)
-
     const hintAd = document.createElement('button')
     hintAd.type = 'button'
     hintAd.className = 'btn-ad stock-hint-btn'
@@ -1594,36 +1656,35 @@ export class ShopPanel {
     const bRate = (bondRate(rate) * 100).toFixed(2)
     const lRate = (loanRate(rate, bank.creditScore) * 100).toFixed(2)
     const maxLoan = state.maxAvailableLoan()
+    const score = Math.round(bank.creditScore)
 
-    panel.appendChild(this.createSectionHeader('Merkez Bankası & Mevduat', `Kredi skoru: ${Math.round(bank.creditScore)}/100`))
-
-    const overview = document.createElement('div')
-    overview.className = 'bank-overview-grid'
-    overview.innerHTML = `
-      <div class="bank-stat"><small>Mevduat faizi</small><strong>%${dRate}/dk</strong></div>
-      <div class="bank-stat"><small>Tahvil getirisi</small><strong>%${bRate}/dk</strong></div>
-      <div class="bank-stat"><small>Kredi faizi</small><strong>%${lRate}/dk</strong></div>
-      <div class="bank-stat"><small>Merkez faiz</small><strong>%${(rate * 100).toFixed(1)}</strong></div>
+    const rateStrip = document.createElement('div')
+    rateStrip.className = 'finance-rate-strip'
+    rateStrip.innerHTML = `
+      <span><small>Mevduat faizi</small><strong>%${dRate}/dk</strong></span>
+      <span><small>Tahvil</small><strong>%${bRate}/dk</strong></span>
+      <span><small>Kredi</small><strong>%${lRate}/dk</strong></span>
+      <span><small>Skor</small><strong>${score}/100</strong></span>
     `
-    panel.appendChild(overview)
+    panel.appendChild(rateStrip)
 
     const accounts = document.createElement('div')
-    accounts.className = 'bank-accounts'
+    accounts.className = 'bank-accounts finance-account-grid'
     accounts.innerHTML = `
       <div class="bank-account-card">
-        <h4>💰 Vadesiz mevduat</h4>
+        <h4>💰 Mevduat</h4>
         <strong>${formatMoney(bank.deposit)}</strong>
         <small>Güvenli · anında çekilir · faiz kazanır</small>
       </div>
       <div class="bank-account-card">
-        <h4>📜 Devlet tahvili</h4>
+        <h4>📜 Tahvil</h4>
         <strong>${formatMoney(bank.bonds)}</strong>
-        <small>Daha yüksek getiri · faiz riski düşük</small>
+        <small>Daha yüksek getiri · düşük risk</small>
       </div>
       <div class="bank-account-card${bank.loan > 0 ? ' bank-debt' : ''}">
-        <h4>🏦 Kredi borcu</h4>
+        <h4>🏦 Kredi</h4>
         <strong>${formatMoney(bank.loan)}</strong>
-        <small>Limit: ${formatMoney(maxLoan)} · gecikme iflas riski</small>
+        <small>Kalan limit: ${formatMoney(maxLoan)}</small>
       </div>
     `
     panel.appendChild(accounts)
@@ -1631,44 +1692,23 @@ export class ShopPanel {
     const warn = document.createElement('p')
     warn.className = 'bank-warn'
     warn.textContent = bank.loan > state.financeNetWorth() * 0.5
-      ? '⚠️ Borç yüksek — faiz ödeyemezsen iflas koruması hisselerini ucuz satar.'
-      : 'Faiz her dakika işler. Korku endeksi yüksekken borsa daha oynak, iflas haberleri gelebilir.'
+      ? '⚠️ Borç yüksek — faiz ödeyemezsen iflas koruması devreye girer.'
+      : 'Faiz her oyun dakikasında işler. Korku endeksi yükselince borsa oynaklaşır.'
     panel.appendChild(warn)
 
-    const actions = (title: string, btns: [string, string, string][]) => {
-      const wrap = document.createElement('div')
-      wrap.className = 'bank-action-group'
-      const h = document.createElement('h4')
-      h.textContent = title
-      wrap.appendChild(h)
-      const row = document.createElement('div')
-      row.className = 'bank-action-row'
-      for (const [action, label, count] of btns) {
-        const btn = document.createElement('button')
-        btn.type = 'button'
-        btn.className = action.includes('loan') && action.includes('take') ? 'btn-buy-stock' : 'btn-secondary btn-sm'
-        btn.dataset.action = action
-        btn.dataset.count = count
-        btn.textContent = label
-        row.appendChild(btn)
-      }
-      wrap.appendChild(row)
-      return wrap
-    }
-
-    panel.appendChild(actions('Mevduat', [
+    panel.appendChild(this.createBankActions('Mevduat işlemleri', 'Nakitten yatır veya çek', [
       ['bank-deposit', 'Yatır 1K', '1000'],
       ['bank-deposit', 'Yatır 10K', '10000'],
       ['bank-deposit', 'Yatır max', 'max'],
       ['bank-withdraw', 'Çek 1K', '1000'],
       ['bank-withdraw', 'Çek max', 'max'],
     ]))
-    panel.appendChild(actions('Tahvil', [
+    panel.appendChild(this.createBankActions('Tahvil işlemleri', 'Uzun vadeli getiri', [
       ['bank-buy-bonds', 'Al 5K', '5000'],
       ['bank-buy-bonds', 'Al max', 'max'],
       ['bank-sell-bonds', 'Sat max', 'max'],
     ]))
-    panel.appendChild(actions('Kredi', [
+    panel.appendChild(this.createBankActions('Kredi işlemleri', 'Limit skora ve net değere bağlı', [
       ['bank-loan', 'Çek 25K', '25000'],
       ['bank-loan', 'Çek max', 'max'],
       ['bank-repay', 'Öde 10K', '10000'],

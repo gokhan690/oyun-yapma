@@ -153,6 +153,7 @@ import {
 import { themeForTier, type ThemeId } from './Themes'
 import { storyBeat } from './StoryBeats'
 import { loadOwnerFlags, type OwnerFlags } from '../owner/FeatureFlags'
+import { createPendingBoost, type PendingBoostItem } from './BoostInventory'
 
 export interface SerializableState {
   money: number
@@ -236,6 +237,7 @@ export interface SerializableState {
   advisorBuys: number
   empire: EmpireState
   gameStartYear: number
+  pendingBoosts: PendingBoostItem[]
 }
 
 export interface ProducerBreakdown {
@@ -287,6 +289,8 @@ export type GameEvent =
   | { type: 'story_beat'; beatId: string; text: string }
   | { type: 'comeback_ready'; amount: number }
   | { type: 'surprise_investor'; until: number }
+  | { type: 'pending_boost_added'; label: string }
+  | { type: 'boost_activated'; label: string }
   | { type: 'near_miss'; kind: string; message: string }
   | { type: 'theme_unlocked'; themeId: ThemeId }
   | { type: 'badge_earned'; badgeId: string }
@@ -390,6 +394,7 @@ export class GameState {
   undergroundTree = createUndergroundTreeState()
   empire = createEmpireState()
   gameStartYear = 2026
+  pendingBoosts: PendingBoostItem[] = []
   private lastIllegalRiskCheck = 0
   private lastHeatTick = 0
   private lastSurpriseCheck = 0
@@ -565,7 +570,7 @@ export class GameState {
       reward = Math.max(500, this.incomePerDay() * event.rewardValue)
       this.addMoney(reward)
     } else {
-      this.eventBoostUntil = Date.now() + (event.boostDurationMs ?? 30_000)
+      this.grantPendingBoost('income_3x', event.boostDurationMs ?? 30_000, 'Viral reklam', '📱')
       reward = event.rewardValue
     }
     this.emit({ type: 'event_claimed', event, reward })
@@ -868,7 +873,6 @@ export class GameState {
     mult *= 1 + globalSynergyBonus(this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
     mult *= 1 + passiveBonus(this.prestigeTree)
     if (this.hasCodexLegalComplete()) mult *= 1.05
-    if (Date.now() < this.surpriseInvestorUntil) mult *= 2
     if (this.ownerFlag('income_x2')) mult *= 2
     mult *= this.marketNewsGlobalMult()
     const trait = activeDynastyTrait(this.dynasty)
@@ -940,7 +944,6 @@ export class GameState {
     if (Date.now() < this.adIncomeBoostUntil) chips.push({ emoji: '📺', label: 'Reklam boost', detail: 'Gelir x2' })
     if (Date.now() < this.shopBoostUntil) chips.push({ emoji: '🛒', label: 'Mağaza boost', detail: 'Gelir x1.5' })
     if (this.getEventBoostActive()) chips.push({ emoji: '✨', label: 'Altın etkinlik', detail: 'Gelir x3' })
-    if (Date.now() < this.surpriseInvestorUntil) chips.push({ emoji: '💎', label: 'Yatırımcı', detail: 'Gelir x2' })
     const weekly = getWeeklyDef(this.weekly)
     if (weekly.bonus) {
       chips.push({ emoji: '🗓️', label: weekly.name, detail: `+${Math.round(weekly.bonus * 100)}% bonus` })
@@ -1722,8 +1725,7 @@ export class GameState {
     if (reward.type === 'money') {
       this.addMoney(reward.value * tier)
     } else if (reward.type === 'boost') {
-      this.adIncomeBoostUntil = Date.now() + reward.value * 60_000
-      this.emit({ type: 'ad_boost', until: this.adIncomeBoostUntil })
+      this.grantPendingBoost('income_2x', reward.value * 60_000, 'Sezon bonusu', '🎖️')
     } else if (reward.type === 'theme') {
       const themeId = themeForTier(tier)
       if (themeId) this.unlockTheme(themeId)
@@ -1960,7 +1962,48 @@ export class GameState {
   }
 
   isSurpriseInvestorActive(): boolean {
-    return Date.now() < this.surpriseInvestorUntil
+    return false
+  }
+
+  addPendingBoost(item: PendingBoostItem): void {
+    this.pendingBoosts.push(item)
+    this.emit({ type: 'pending_boost_added', label: item.label })
+  }
+
+  grantPendingBoost(
+    kind: PendingBoostItem['kind'],
+    durationMs: number,
+    label: string,
+    emoji: string,
+  ): void {
+    this.addPendingBoost(createPendingBoost(kind, durationMs, label, emoji))
+  }
+
+  activatePendingBoost(id: string): boolean {
+    const idx = this.pendingBoosts.findIndex((b) => b.id === id)
+    if (idx < 0) return false
+    const item = this.pendingBoosts[idx]!
+    this.pendingBoosts.splice(idx, 1)
+    const now = Date.now()
+    switch (item.kind) {
+      case 'income_2x':
+        this.adIncomeBoostUntil = Math.max(this.adIncomeBoostUntil, now) + item.durationMs
+        this.emit({ type: 'ad_boost', until: this.adIncomeBoostUntil })
+        break
+      case 'income_3x':
+        this.eventBoostUntil = Math.max(this.eventBoostUntil, now) + item.durationMs
+        break
+      case 'shop_1_5x':
+        this.shopBoostUntil = Math.max(this.shopBoostUntil, now) + item.durationMs
+        this.emit({ type: 'ad_boost', until: this.shopBoostUntil })
+        break
+    }
+    this.emit({ type: 'boost_activated', label: item.label })
+    return true
+  }
+
+  hasPendingBoosts(): boolean {
+    return this.pendingBoosts.length > 0
   }
 
   private tickSurpriseInvestor(now: number): void {
@@ -1972,10 +2015,10 @@ export class GameState {
     const chance = this.ownerFlag('surprise_often') ? 0.12 : 0.015
     if (Math.random() > chance) return
     this.surpriseInvestorDay = today
-    this.surpriseInvestorUntil = Date.now() + 30_000
+    this.grantPendingBoost('income_2x', 30_000, 'Yatırımcı', '💎')
     this.triggerStoryBeat('surprise_investor')
     this.awardBadge('investor')
-    this.emit({ type: 'surprise_investor', until: this.surpriseInvestorUntil })
+    this.emit({ type: 'surprise_investor', until: 0 })
   }
 
   private tickNearMiss(now: number): void {
@@ -2230,8 +2273,7 @@ export class GameState {
     }
     if (m.rewardBoostMinutes > 0) {
       boostMinutes = m.rewardBoostMinutes * (doubleWithAd ? 2 : 1)
-      this.adIncomeBoostUntil = Date.now() + boostMinutes * 60_000
-      this.emit({ type: 'ad_boost', until: this.adIncomeBoostUntil })
+      this.grantPendingBoost('income_2x', boostMinutes * 60_000, 'Görev bonusu', '📋')
     }
     this.addSeasonXp(50)
     return { money, boostMinutes }
@@ -2348,8 +2390,8 @@ export class GameState {
   }
 
   ownerTriggerSurpriseInvestor(): void {
-    this.surpriseInvestorUntil = Date.now() + 30_000
-    this.emit({ type: 'surprise_investor', until: this.surpriseInvestorUntil })
+    this.grantPendingBoost('income_2x', 30_000, 'Yatırımcı', '💎')
+    this.emit({ type: 'surprise_investor', until: 0 })
   }
 
   getWeeklyEventDef() {
@@ -2405,6 +2447,7 @@ export class GameState {
     this.comebackClaimed = false
     this.surpriseInvestorUntil = 0
     this.surpriseInvestorDay = ''
+    this.pendingBoosts = []
     this.seenStoryBeats.clear()
     this.earnedBadges.clear()
     this.streakMilestonesClaimed = []
@@ -2536,6 +2579,7 @@ export class GameState {
         darkIndustry: { ...this.empire.darkIndustry },
       },
       gameStartYear: this.gameStartYear,
+      pendingBoosts: this.pendingBoosts.map((b) => ({ ...b })),
     }
   }
 
@@ -2656,6 +2700,14 @@ export class GameState {
         }
       : createEmpireState()
     this.gameStartYear = data.gameStartYear ?? 2026
+    this.pendingBoosts = Array.isArray(data.pendingBoosts)
+      ? data.pendingBoosts.filter((b) => b && typeof b.id === 'string' && typeof b.durationMs === 'number')
+      : []
+    const legacyInvestorMs = (data.surpriseInvestorUntil ?? 0) - Date.now()
+    if (legacyInvestorMs > 1000) {
+      this.grantPendingBoost('income_2x', legacyInvestorMs, 'Yatırımcı', '💎')
+    }
+    this.surpriseInvestorUntil = 0
     syncEmpireFromProducers(this.empire, this.producers)
     if (this.dynasty.children.length > 0) {
       for (const c of this.dynasty.children) {

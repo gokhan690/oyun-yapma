@@ -1,5 +1,6 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
+import { boostDurationLabel } from '../../game/BoostInventory'
 import { dailyGoalProgress, calcDailyLoginReward } from '../../game/DailyGoal'
 import { currentTier, tierProgress, rewardForTier, SEASON_MAX_TIER } from '../../game/SeasonPass'
 import { getWeeklyDef } from '../../game/WeeklyEvent'
@@ -46,8 +47,11 @@ export class EventsPanel {
     header.innerHTML = '<h2>🎪 Etkinlikler</h2><p>Günlük hedefler, haftalık bonuslar ve sezon ödülleri</p>'
     this.scrollBody.appendChild(header)
 
-    const boosts = this.renderActiveBoosts(state)
+    const boosts = this.renderBoostInventory(state)
     if (boosts) this.scrollBody.appendChild(boosts)
+
+    const active = this.renderActiveBoosts(state)
+    if (active) this.scrollBody.appendChild(active)
 
     const heat = state.illegalHeat
     if (heat > 0 || state.illegalIncomePerDay() > 0) {
@@ -118,6 +122,7 @@ export class EventsPanel {
 
     if (!this.patchDailyActions(state)) return false
     if (!this.patchWeeklyActions(state)) return false
+    if (!this.patchPendingBoosts(state)) return false
 
     return this.patchBoostRow(state)
   }
@@ -157,9 +162,10 @@ export class EventsPanel {
 
   private patchBoostRow(state: GameState): boolean {
     const expected = this.activeBoostSpecs(state)
-    const row = this.scrollBody.querySelector('.events-boosts-row')
+    const section = this.scrollBody.querySelector('.events-active-boosts')
+    const row = section?.querySelector('.events-boosts-row') ?? null
     if (expected.length === 0) {
-      row?.remove()
+      section?.remove()
       return true
     }
     if (!row || row.querySelectorAll('.events-boost-chip').length !== expected.length) return false
@@ -173,36 +179,101 @@ export class EventsPanel {
     return true
   }
 
+  private patchPendingBoosts(state: GameState): boolean {
+    const expected = state.pendingBoosts.length
+    const section = this.scrollBody.querySelector('.events-pending-boosts')
+    if (expected === 0) {
+      section?.remove()
+      return true
+    }
+    if (!section) return false
+    return section.querySelectorAll('.events-pending-card').length === expected
+  }
+
   private activeBoostSpecs(state: GameState): { emoji: string; label: string; detail: string }[] {
     const now = Date.now()
     const chips: { emoji: string; label: string; detail: string }[] = []
     if (now < state.adIncomeBoostUntil) {
-      chips.push({ emoji: '📺', label: 'Reklam bonusu', detail: formatRemainingMs(state.adIncomeBoostUntil - now) })
+      chips.push({ emoji: '📺', label: 'Gelir x2', detail: formatRemainingMs(state.adIncomeBoostUntil - now) })
     }
     if (state.getEventBoostActive()) {
-      chips.push({ emoji: '📱', label: 'Viral etkinlik', detail: formatRemainingMs(state.eventBoostUntil - now) })
+      chips.push({ emoji: '📱', label: 'Gelir x3', detail: formatRemainingMs(state.eventBoostUntil - now) })
     }
     if (now < state.shopBoostUntil) {
-      chips.push({ emoji: '🛒', label: 'Mağaza bonusu', detail: formatRemainingMs(state.shopBoostUntil - now) })
-    }
-    if (state.isSurpriseInvestorActive()) {
-      chips.push({ emoji: '💎', label: 'Yatırımcı bonusu', detail: formatRemainingMs(state.surpriseInvestorUntil - now) })
+      chips.push({ emoji: '🛒', label: 'Mağaza x1.5', detail: formatRemainingMs(state.shopBoostUntil - now) })
     }
     return chips
+  }
+
+  private renderBoostInventory(state: GameState): HTMLElement | null {
+    if (state.pendingBoosts.length === 0) return null
+
+    const wrap = document.createElement('section')
+    wrap.className = 'events-block events-pending-boosts'
+    const head = document.createElement('div')
+    head.className = 'events-block-head'
+    head.innerHTML = `
+      <span class="events-hero-icon">🎁</span>
+      <div class="events-hero-text">
+        <strong>Bonus envanteri</strong>
+        <small>İstediğin zaman aktifleştir — otomatik başlamaz</small>
+      </div>
+      <span class="events-hero-stat">${state.pendingBoosts.length}</span>
+    `
+    wrap.appendChild(head)
+
+    const list = document.createElement('div')
+    list.className = 'events-pending-list'
+    for (const item of state.pendingBoosts) {
+      const card = document.createElement('div')
+      card.className = 'events-pending-card'
+      const kindLabel = item.kind === 'income_3x' ? 'Gelir x3' : item.kind === 'shop_1_5x' ? 'Mağaza x1.5' : 'Gelir x2'
+      card.innerHTML = `
+        <span class="events-pending-emoji">${item.emoji}</span>
+        <div class="events-pending-info">
+          <strong>${item.label}</strong>
+          <small>${kindLabel} · ${boostDurationLabel(item.durationMs)}</small>
+        </div>
+      `
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'btn-primary btn-sm'
+      btn.dataset.action = 'activate-boost'
+      btn.dataset.id = item.id
+      btn.textContent = 'Aktifleştir'
+      card.appendChild(btn)
+      list.appendChild(card)
+    }
+    wrap.appendChild(list)
+    return wrap
   }
 
   private renderActiveBoosts(state: GameState): HTMLElement | null {
     const chips = this.activeBoostSpecs(state)
     if (chips.length === 0) return null
 
-    const wrap = document.createElement('div')
-    wrap.className = 'events-boosts-row'
+    const wrap = document.createElement('section')
+    wrap.className = 'events-block events-active-boosts'
+    const head = document.createElement('div')
+    head.className = 'events-block-head'
+    head.innerHTML = `
+      <span class="events-hero-icon">⚡</span>
+      <div class="events-hero-text">
+        <strong>Aktif etkiler</strong>
+        <small>Şu an çalışan bonuslar</small>
+      </div>
+    `
+    wrap.appendChild(head)
+
+    const row = document.createElement('div')
+    row.className = 'events-boosts-row'
     for (const c of chips) {
       const chip = document.createElement('div')
       chip.className = 'events-boost-chip'
       chip.innerHTML = `<span>${c.emoji}</span><div><strong>${c.label}</strong><small>${c.detail}</small></div>`
-      wrap.appendChild(chip)
+      row.appendChild(chip)
     }
+    wrap.appendChild(row)
     return wrap
   }
 
@@ -355,7 +426,7 @@ export class EventsPanel {
       const reward = m.rewardMoney > 0
         ? formatMoney(m.rewardMoney)
         : m.rewardBoostMinutes > 0
-          ? `${m.rewardBoostMinutes} dk gelir bonusu`
+          ? `${m.rewardBoostMinutes} dk bonus (envanter)`
           : '—'
       const card = document.createElement('div')
       card.className = `events-mission-card${m.claimed ? ' claimed' : ''}${m.progress >= m.target && !m.claimed ? ' ready' : ''}`
