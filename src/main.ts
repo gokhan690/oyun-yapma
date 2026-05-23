@@ -9,6 +9,25 @@ import { HUD } from './ui/HUD'
 import { scheduleDailyReminder } from './notifications/NotificationManager'
 import { applyDocumentTheme } from './utils/themeApply'
 
+declare global {
+  interface Window {
+    __II_MARK_BOOTED__?: () => void
+    __II_SHOW_BOOT_ERROR__?: (message: string, opts?: { resetSave?: boolean }) => void
+  }
+}
+
+function showBootFailure(message: string, resetSave = true): void {
+  if (typeof window.__II_SHOW_BOOT_ERROR__ === 'function') {
+    window.__II_SHOW_BOOT_ERROR__(message, { resetSave })
+    return
+  }
+  const bootErr = document.querySelector<HTMLDivElement>('#boot-error')
+  if (bootErr) {
+    bootErr.style.display = 'block'
+    bootErr.textContent = message
+  }
+}
+
 function bootstrap(): void {
   const app = document.querySelector<HTMLDivElement>('#app')
   if (!app) return
@@ -19,7 +38,13 @@ function bootstrap(): void {
     const ads = new AdManager()
     const sound = new SoundManager()
 
-    const loaded = saveManager.load(state)
+    let loaded
+    try {
+      loaded = saveManager.load(state)
+    } catch (loadErr) {
+      console.error('Kayıt yükleme çökmesi:', loadErr)
+      loaded = { ok: false, lastSaveTime: Date.now(), reason: 'load_crash' }
+    }
     const saveLoaded = loaded.ok
     const lastSaveTime = loaded.lastSaveTime
 
@@ -62,13 +87,13 @@ function bootstrap(): void {
 
     document.addEventListener('click', () => sound.resume(), { once: true })
     void scheduleDailyReminder(state.notificationPrefs)
+    window.__II_MARK_BOOTED__?.()
   } catch (err) {
     console.error('Bootstrap hatası:', err)
-    const bootErr = document.querySelector<HTMLDivElement>('#boot-error')
-    if (bootErr) {
-      bootErr.style.display = 'block'
-      bootErr.textContent = 'Oyun başlatılamadı. Ctrl+F5 ile yenile. Kaydın silinmedi — tekrar dene veya Ayarlar → Miras kodu dene.'
-    }
+    showBootFailure(
+      'Oyun başlatılamadı. Sayfayı yenile; sorun sürerse kaydı sıfırlayıp tekrar dene.',
+      true,
+    )
   }
 }
 

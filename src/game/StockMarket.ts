@@ -30,6 +30,18 @@ export const STOCK_TICK_MS = 30_000
 export const MACRO_TICK_MS = 120_000
 export const HISTORY_LEN = 20
 
+/** Bozuk kayıtlarda dev history dizilerini budar — structuredClone takılmasını önler */
+export function trimStockHistoryInPlace(raw: unknown): void {
+  if (!raw || typeof raw !== 'object' || !('tickers' in raw)) return
+  const tickers = (raw as StockState).tickers
+  if (!tickers || typeof tickers !== 'object') return
+  for (const t of Object.values(tickers)) {
+    if (t && Array.isArray(t.history) && t.history.length > HISTORY_LEN) {
+      t.history = t.history.slice(-HISTORY_LEN)
+    }
+  }
+}
+
 export const STOCK_DEFS = [
   { id: 'tech', name: 'Teknoloji', emoji: '💻', basePrice: 100, volatility: 0.1, sector: 'tech' as const },
   { id: 'energy', name: 'Enerji', emoji: '⚡', basePrice: 80, volatility: 0.14, sector: 'energy' as const },

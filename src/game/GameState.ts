@@ -2579,7 +2579,7 @@ export class GameState {
       if (this.managers[p.id] === undefined) this.managers[p.id] = false
     }
     this.stock = data.stock && 'tickers' in data.stock
-      ? migrateStockState(structuredClone(data.stock))
+      ? migrateStockState(data.stock)
       : migrateLegacyStock((data.stock ?? {}) as { price?: number; shares?: number; avgBuyPrice?: number })
     this.bank = data.bank ? { ...createBankState(), ...data.bank } : createBankState()
     const loadedWeekly = data.weekly

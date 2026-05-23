@@ -19,21 +19,13 @@
       html, body { margin: 0; min-height: 100%; background: #0a1628; color: #f1f5f9; }
       #app:empty { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; }
       #app:empty::after { content: 'Yükleniyor…'; font-family: system-ui, sans-serif; color: #fbbf24; font-weight: 700; }
-      #boot-error { display: none; padding: 24px; font-family: system-ui, sans-serif; color: #fecaca; text-align: center; }
+      #boot-error { display: none; padding: 24px; max-width: 420px; margin: 0 auto; font-family: system-ui, sans-serif; color: #fecaca; text-align: center; line-height: 1.5; }
     </style>
   </head>
   <body>
     <div id="app"></div>
     <div id="boot-error"></div>
-    <script>
-      window.addEventListener('error', function (e) {
-        var el = document.getElementById('boot-error')
-        if (!el) return
-        el.style.display = 'block'
-        el.textContent = 'Oyun yüklenemedi. Sayfayı Ctrl+F5 ile yenile veya önbelleği temizle.'
-        console.error(e.error || e.message)
-      })
-    </script>
+    <script src="./boot.js"></script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

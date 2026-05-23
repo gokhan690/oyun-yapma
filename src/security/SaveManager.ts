@@ -1,5 +1,5 @@
 import type { GameState, SerializableState } from '../game/GameState'
-import { migrateLegacyStock, migrateStockState } from '../game/StockMarket'
+import { migrateLegacyStock, migrateStockState, trimStockHistoryInPlace } from '../game/StockMarket'
 import { createBankState } from '../game/FinanceBank'
 import { createWeeklyState, scaledWeeklyTarget, WEEKLY_EARN_MIN } from '../game/WeeklyEvent'
 import { createSeasonState, isLegacyGameSeasonKey } from '../game/SeasonPass'
@@ -21,6 +21,7 @@ const SAVE_KEY_V2 = 'is_imparatorlugu_save_v2'
 const SAVE_KEY_V1 = 'para_tuzagi_save_v1'
 const OBFUSCATION_KEY = 'PT2026x'
 const CURRENT_VERSION = 9
+const MAX_SAVE_BYTES = 4_000_000
 
 interface SaveEnvelope {
   payload: string
@@ -209,6 +210,9 @@ export class SaveManager {
     try {
       const raw = localStorage.getItem(key)
       if (!raw) return { ok: false, lastSaveTime: Date.now() }
+      if (raw.length > MAX_SAVE_BYTES) {
+        return { ok: false, lastSaveTime: Date.now(), reason: 'too_large' }
+      }
 
       const envelope = JSON.parse(raw) as SaveEnvelope
       if (!envelope.payload || !envelope.checksum) {
@@ -216,11 +220,16 @@ export class SaveManager {
       }
 
       const json = deobfuscate(envelope.payload)
+      if (json.length > MAX_SAVE_BYTES) {
+        return { ok: false, lastSaveTime: Date.now(), reason: 'too_large' }
+      }
       if (computeChecksum(json) !== envelope.checksum) {
         return { ok: false, lastSaveTime: Date.now(), reason: 'checksum' }
       }
 
-      const data = repairState(applyV9Defaults(applyV5Defaults(JSON.parse(json) as SerializableState)))
+      const parsed = JSON.parse(json) as SerializableState
+      trimStockHistoryInPlace(parsed.stock)
+      const data = repairState(applyV9Defaults(applyV5Defaults(parsed)))
       if (strictVersion && envelope.version !== expectedVersion) {
         return { ok: false, lastSaveTime: Date.now(), reason: 'version' }
       }
@@ -229,7 +238,12 @@ export class SaveManager {
       }
 
       const lastSaveTime = sanitizeTimestamp(data.lastSaveTime)
-      state.loadFrom({ ...data, lastSaveTime })
+      try {
+        state.loadFrom({ ...data, lastSaveTime })
+      } catch (loadErr) {
+        console.warn('Kayıt uygulama hatası:', key, loadErr)
+        return { ok: false, lastSaveTime: Date.now(), reason: 'load_apply' }
+      }
       return { ok: true, lastSaveTime }
     } catch (err) {
       console.warn('Kayıt okuma hatası:', key, err)
@@ -397,6 +411,7 @@ function repairState(state: SerializableState): SerializableState {
   if (!s.stock || typeof s.stock !== 'object') {
     s.stock = migrateLegacyStock({})
   } else if ('tickers' in s.stock) {
+    trimStockHistoryInPlace(s.stock)
     s.stock = migrateStockState(s.stock)
   }
   if (!s.bank || typeof s.bank !== 'object') {
