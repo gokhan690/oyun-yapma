@@ -196,35 +196,44 @@ export const UPGRADES: UpgradeDef[] = [
 ]
 
 /** BitLife uyumlu ekonomi — baseIncome = günlük maaş ($), 1 sn = 1 oyun günü */
-export const ECONOMY_INCOME_SCALE = 1.0
 /** Tüm işletme maliyetlerine uygulanan global çarpan */
-export const ECONOMY_COST_SCALE = 3.8
-/** baseCost katmanı — erken oyun bile ciddi yatırım ister */
-export const ECONOMY_BASE_COST_MULT = 2.4
+export const ECONOMY_COST_SCALE = 4.5
+/** baseCost katmanı */
+export const ECONOMY_BASE_COST_MULT = 2.5
 export const ECONOMY_UNLOCK_SCALE = 1.0
 export const ECONOMY_COST_GROWTH_BONUS = 0.022
-export const ECONOMY_TIER_COST_BONUS = 0.06
+export const ECONOMY_TIER_COST_BONUS = 0.075
+/** Gelir maliyetle aynı ölçekte — ROI korunur */
+export const ECONOMY_INCOME_SCALE = ECONOMY_COST_SCALE
+export const ECONOMY_BASE_INCOME_MULT = ECONOMY_BASE_COST_MULT
 export const ECONOMY_UPGRADE_COST_SCALE = 1.35
 export const EARLY_UNLOCK_COST_SCALE = 1.65
+
+/** Maliyet ve gelir için ortak tier / mega / kilit eğrisi */
+export function producerEconomyMult(def: ProducerDef): number {
+  const tierMult = 1 + Math.max(0, def.tier - 1) * ECONOMY_TIER_COST_BONUS
+  const megaMult = def.tier >= 12 ? 1.35 : def.tier >= 8 ? 1.12 : 1
+  const unlockSpread = def.unlockAt > 0 ? 1 + Math.log10(Math.max(10, def.unlockAt)) * 0.012 : 1
+  return ECONOMY_COST_SCALE * ECONOMY_BASE_COST_MULT * tierMult * megaMult * unlockSpread
+}
 
 export function scaledUnlockAt(def: ProducerDef): number {
   if (def.unlockAt <= 0) return 0
   return Math.floor(def.unlockAt * ECONOMY_UNLOCK_SCALE)
 }
 
-export function scaledBaseIncome(baseIncome: number): number {
-  return Math.max(1, Math.floor(baseIncome * ECONOMY_INCOME_SCALE))
+export function scaledBaseIncome(baseIncome: number, def?: ProducerDef): number {
+  const mult = def ? producerEconomyMult(def) : ECONOMY_INCOME_SCALE * ECONOMY_BASE_INCOME_MULT
+  return Math.max(1, Math.floor(baseIncome * mult))
 }
 
 export function producerCost(def: ProducerDef, owned: number, count = 1): number {
   const growth = def.costMultiplier + ECONOMY_COST_GROWTH_BONUS
   let total = 0
   for (let i = 0; i < count; i++) {
-    total += Math.floor(def.baseCost * ECONOMY_BASE_COST_MULT * Math.pow(growth, owned + i))
+    total += Math.floor(def.baseCost * Math.pow(growth, owned + i))
   }
-  const tierMult = 1 + Math.max(0, def.tier - 1) * ECONOMY_TIER_COST_BONUS
-  const megaMult = def.tier >= 12 ? 1.35 : def.tier >= 8 ? 1.12 : 1
-  return Math.ceil(total * ECONOMY_COST_SCALE * tierMult * megaMult)
+  return Math.ceil(total * producerEconomyMult(def))
 }
 
 export function maxAffordable(def: ProducerDef, owned: number, money: number, costMultiplier = 1): number {
@@ -250,7 +259,7 @@ export function isProducerUnlocked(
 export function earlyUnlockCost(def: ProducerDef): number {
   const unlock = scaledUnlockAt(def)
   const raw = Math.max(def.baseCost * 6, Math.floor(unlock * 0.22))
-  return Math.ceil(raw * EARLY_UNLOCK_COST_SCALE)
+  return Math.ceil(raw * EARLY_UNLOCK_COST_SCALE * producerEconomyMult(def) / (ECONOMY_COST_SCALE * ECONOMY_BASE_COST_MULT))
 }
 
 export function producerIconPath(id: string): string {

@@ -193,14 +193,6 @@ export class ShopPanel {
 
   setViewContext(ctx: 'shop' | 'market', state?: GameState): void {
     this.viewContext = ctx
-    this.root.classList.toggle('shop-context-market', ctx === 'market')
-    this.root.classList.toggle('shop-context-business', ctx === 'shop')
-    this.titleEl.textContent = ctx === 'market' ? '📈 Borsa & Finans' : '🏢 İşletmeler'
-    this.shopSubEl.textContent = ctx === 'market' ? 'Hisse, banka ve run birleşmesi' : HUB_SUBTITLES[this.activeHub === 'finance' ? 'growth' : this.activeHub]
-    this.buyModesEl.classList.toggle('is-hidden', ctx === 'market')
-    this.advisorEl.classList.toggle('is-hidden', ctx === 'market')
-    const hubTabs = this.root.querySelector('.shop-hub-tabs') as HTMLElement | null
-    if (hubTabs) hubTabs.hidden = ctx === 'market'
     if (ctx === 'market') {
       this.activeHub = 'finance'
       this.ipoSubTab = 'stock'
@@ -208,11 +200,31 @@ export class ShopPanel {
       this.activeHub = 'growth'
       this.growthSub = 'businesses'
     }
+    this.applyViewChrome(state)
     const panelId = this.activePanelId()
     for (const [pid, panel] of Object.entries(this.panels)) {
       panel.hidden = pid !== panelId
     }
-    this.root.className = `shop-panel shop-hub-${this.activeHub} shop-context-${ctx}`
+  }
+
+  private applyViewChrome(state?: GameState): void {
+    const isMarket = this.viewContext === 'market'
+    this.root.classList.toggle('shop-context-market', isMarket)
+    this.root.classList.toggle('shop-context-business', !isMarket)
+    this.root.className = `shop-panel shop-hub-${this.activeHub} shop-context-${this.viewContext}`
+    this.titleEl.textContent = isMarket ? '📈 Borsa & Finans' : '🏢 İşletmeler'
+    this.shopSubEl.textContent = isMarket
+      ? 'Hisse al/sat · banka · prestij · run birleşmesi'
+      : HUB_SUBTITLES[this.activeHub === 'finance' ? 'growth' : this.activeHub]
+    this.buyModesEl.classList.toggle('is-hidden', isMarket)
+    this.advisorEl.classList.toggle('is-hidden', isMarket)
+    const hubTabs = this.root.querySelector('.shop-hub-tabs') as HTMLElement | null
+    const tabsWrap = this.root.querySelector('.shop-tabs-wrap') as HTMLElement | null
+    if (hubTabs) hubTabs.hidden = isMarket
+    if (tabsWrap) tabsWrap.hidden = isMarket
+    this.shopHubEl.hidden = isMarket
+    const modEl = this.root.querySelector('.finance-modifiers') as HTMLElement | null
+    if (modEl) modEl.hidden = isMarket || this.viewContext === 'shop'
     if (state) {
       this.renderSubTabs(state)
       this.updateTabBadges(state)
@@ -231,9 +243,10 @@ export class ShopPanel {
     if (resolved.ipoSub) this.ipoSubTab = resolved.ipoSub
     if (resolved.empireSub) this.empireSub = resolved.empireSub
     const panelId = this.activePanelId()
-    this.root.className = `shop-panel shop-hub-${this.activeHub}`
+    this.root.className = `shop-panel shop-hub-${this.activeHub} shop-context-${this.viewContext}`
     for (const btn of this.tabButtons) {
       btn.classList.toggle('active', btn.dataset.tab === this.activeHub)
+      btn.hidden = this.viewContext === 'market'
     }
     for (const [pid, panel] of Object.entries(this.panels)) {
       const show = pid === panelId
@@ -251,6 +264,7 @@ export class ShopPanel {
     this.buyModesEl.hidden = !showBuy
     this.buyModesEl.classList.toggle('is-hidden', !showBuy)
     this.shopSubEl.textContent = HUB_SUBTITLES[this.activeHub]
+    this.applyViewChrome(state)
     const activeBtn = this.tabButtons.find((b) => b.dataset.tab === this.activeHub)
     activeBtn?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
   }
@@ -356,8 +370,11 @@ export class ShopPanel {
     }
     for (const btn of this.tabButtons) {
       btn.classList.toggle('active', btn.dataset.tab === 'empire')
+      btn.hidden = this.viewContext === 'market'
     }
+    this.buyModesEl.hidden = false
     this.buyModesEl.classList.remove('is-hidden')
+    this.applyViewChrome()
   }
 
   setIpoSubTab(tab: IpoSubTab): void {
@@ -420,8 +437,11 @@ export class ShopPanel {
   }
 
   render(state: GameState, onlyActiveTab = false, patch = false): void {
-    this.renderShopHub(state)
-    this.renderAdvisorStrip(state)
+    this.applyViewChrome(state)
+    if (this.viewContext === 'shop') {
+      this.renderShopHub(state)
+      this.renderAdvisorStrip(state)
+    }
     this.renderSubTabs(state)
     const panelId = this.activePanelId()
     if (patch && panelId === 'businesses') {
@@ -530,6 +550,8 @@ export class ShopPanel {
   }
 
   private renderShopHub(state: GameState): void {
+    if (this.viewContext === 'market') return
+    this.shopHubEl.hidden = true
     const ipd = state.incomePerDay()
     const click = state.clickIncomePerTap()
     const illegalIpd = state.illegalIncomePerDay()
@@ -612,9 +634,9 @@ export class ShopPanel {
     const total = entries.reduce((s, e) => s + e.income, 0)
     const top3 = entries.slice(0, 3)
     const el = document.createElement('div')
-    el.className = 'revenue-distribution'
+    el.className = 'revenue-distribution revenue-distribution-compact'
     const title = document.createElement('strong')
-    title.textContent = 'Gelir dağılımı'
+    title.textContent = 'Gelir'
     el.appendChild(title)
     const bar = document.createElement('div')
     bar.className = 'revenue-bar'
@@ -865,7 +887,7 @@ export class ShopPanel {
             <div class="biz-locked-info">
               <strong>🔒 ${p.name}</strong>
               <small>${formatMoney(scaledUnlockAt(p))} kazançta açılır</small>
-              <small class="biz-locked-tier">Tier ${p.tier} · +${formatIncomeRate(scaledBaseIncome(p.baseIncome))}</small>
+              <small class="biz-locked-tier">Tier ${p.tier} · +${formatIncomeRate(scaledBaseIncome(p.baseIncome, p))}</small>
             </div>
             <button type="button" class="btn-secondary btn-sm" data-action="early-unlock" data-id="${p.id}" ${canEarly ? '' : 'disabled'}>
               Erken aç · ${formatMoney(earlyCost)}
@@ -1814,7 +1836,20 @@ export class ShopPanel {
   }
 
   private renderIpoMerge(state: GameState, panel: HTMLElement): void {
-    panel.appendChild(this.createSectionHeader('Şirket Birleşmesi & IPO'))
+    const explain = document.createElement('div')
+    explain.className = 'ipo-explain-box'
+    explain.innerHTML = `
+      <strong>Run Birleşmesi (IPO) nedir?</strong>
+      <p>Oyunu silmez — imparatorluğunu <em>kalıcı güçlendirerek</em> yeni tura başlatırsın.</p>
+      <ul>
+        <li><strong>10M+ toplam kazanç</strong> yapınca birleşme açılır</li>
+        <li>Borsa & banka varlıkların nakde çevrilir, run sıfırlanır</li>
+        <li><strong>Kalıcı prestij hissesi</strong> kazanırsın → tüm gelirlerin kalıcı çarpanı artar</li>
+        <li>Prestij ağacı, hanedan, sezon ve imparatorluk yönetimi <strong>korunur</strong></li>
+      </ul>
+    `
+    panel.appendChild(explain)
+    panel.appendChild(this.createSectionHeader('Şirket Birleşmesi'))
 
     const preview = state.ipoPreview()
     const ipoCard = document.createElement('div')

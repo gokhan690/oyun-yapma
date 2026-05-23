@@ -950,7 +950,7 @@ export class GameState {
       const club = this.empire.football.find((c) => c.clubId === def.id)
       if (club) mult *= empireFootballIncomeMult(club)
     }
-    return scaledBaseIncome(def.baseIncome) * owned * mult * this.passiveMultiplier()
+    return scaledBaseIncome(def.baseIncome, def) * owned * mult * this.passiveMultiplier()
   }
 
   /** Aktif gelir çarpanları — UI'da dalgalanma açıklaması için */
@@ -1237,7 +1237,7 @@ export class GameState {
       const club = this.empire.football.find((c) => c.clubId === def.id)
       if (club) mult *= empireFootballIncomeMult(club)
     }
-    return scaledBaseIncome(def.baseIncome) * count * mult * this.passiveMultiplier()
+    return scaledBaseIncome(def.baseIncome, def) * count * mult * this.passiveMultiplier()
   }
 
   /** Ortalama tıklama başına kazanç (combo/krit hariç) */
@@ -1402,7 +1402,7 @@ export class GameState {
     if (!def) return null
     const owned = this.producers[id] ?? 0
     const lines: { label: string; value: string }[] = []
-    const unitBase = scaledBaseIncome(def.baseIncome)
+    const unitBase = scaledBaseIncome(def.baseIncome, def)
     const base = unitBase * owned
     lines.push({ label: 'Temel gelir', value: formatIncomeRate(base) })
 

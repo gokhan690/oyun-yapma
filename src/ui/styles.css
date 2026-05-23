@@ -4627,8 +4627,40 @@ html.theme-galactic {
 /* —— İşletme / Borsa ayrımı —— */
 .shop-context-business .shop-hub-tabs { margin-bottom: 4px; }
 .shop-context-market .shop-hub-strip,
+.shop-context-market .shop-tabs-wrap,
 .shop-context-market .buy-modes.is-hidden { display: none !important; }
 .shop-context-market .shop-advisor-strip.is-hidden { display: none !important; }
+.shop-context-business .shop-hub-strip,
+.shop-context-business .finance-modifiers { display: none !important; }
+.shop-context-business .shop-advisor-strip { margin-bottom: 4px; }
+.shop-context-business .buy-modes {
+  padding: 4px 14px 6px;
+  gap: 6px;
+}
+.shop-context-business .buy-mode-btn {
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  min-height: 32px;
+}
+.shop-context-business .biz-filter-row {
+  padding: 0 14px 6px;
+  gap: 6px;
+}
+.shop-context-business .filter-pill {
+  padding: 4px 10px;
+  font-size: 0.68rem;
+}
+.shop-context-business .revenue-distribution-compact {
+  margin: 0 14px 8px;
+  padding: 6px 10px;
+  font-size: 0.68rem;
+}
+.shop-context-business .revenue-distribution-compact strong { font-size: 0.68rem; }
+.shop-context-business .revenue-legend { font-size: 0.62rem; gap: 6px; }
+.shop-context-business .growth-tab-hero { display: none; }
+.shop-context-business .shop-sub-tabs { padding: 0 10px 6px; }
+.shop-context-business .shop-header { padding: 10px 14px 2px; }
+.shop-context-business .shop-title { font-size: 1.05rem; }
 .shop-context-market .shop-body .tab-panel { padding: 10px 12px 20px; }
 .shop-context-business .shop-body .tab-panel[data-panel="businesses"] {
   padding: 10px 14px 24px;
@@ -4643,17 +4675,21 @@ html.theme-galactic {
   }
 }
 .shop-context-business .biz-cards-grid .biz-card {
-  min-height: 228px;
+  min-height: 268px;
 }
 .shop-context-business .biz-icon-wrap {
-  width: 72px;
-  height: 72px;
+  width: 80px;
+  height: 80px;
 }
-.shop-context-business .biz-emoji-display { font-size: 2.5rem; }
+.shop-context-business .biz-emoji-display { font-size: 2.8rem; }
 .shop-context-business .biz-buy-btn {
-  min-height: 200px;
-  padding: 20px;
+  min-height: 240px;
+  padding: 22px 20px;
 }
+.shop-context-business .biz-left strong { font-size: 1.08rem; }
+.shop-context-business .biz-bottom { font-size: 0.95rem; }
+.shop-context-business .biz-cost { font-size: 1rem !important; }
+.shop-context-business .biz-income { font-size: 0.92rem; font-weight: 700; color: var(--green); }
 
 /* Kilitli imparatorluk kartları */
 .biz-locked-inner {
@@ -4828,3 +4864,18 @@ html.theme-galactic {
   background: rgba(251, 191, 36, 0.12);
   border: 1px solid rgba(251, 191, 36, 0.35);
 }
+
+.ipo-explain-box {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.12), rgba(26, 45, 74, 0.9));
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+.ipo-explain-box strong { display: block; font-size: 0.92rem; margin-bottom: 6px; }
+.ipo-explain-box p { margin: 0 0 8px; color: var(--muted); }
+.ipo-explain-box ul { margin: 0; padding-left: 18px; }
+.ipo-explain-box li { margin-bottom: 4px; }
+.ipo-explain-box em { color: var(--accent); font-style: normal; font-weight: 600; }
