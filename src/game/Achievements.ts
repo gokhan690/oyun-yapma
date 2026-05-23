@@ -97,6 +97,11 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'drone_10', name: 'Gökyüzü Lojistiği', description: '10 drone filosu', emoji: '🚁', reward: 45_000, check: (c) => (c.producers.drone ?? 0) >= 10 },
   { id: 'dynasty_marry', name: 'Hanedan Kurucusu', description: 'Evlilik yap', emoji: '💍', reward: 30_000, check: (c) => c.dynastyMarried },
   { id: 'shop_advisor', name: 'Stratejist', description: 'Mağaza danışmanından 10 alım yap', emoji: '🎯', reward: 15_000, check: (c) => c.advisorBuys >= 10 },
+  { id: 'luxury_1', name: 'Lüks Yaşam', description: 'İlk lüks işletmeyi aç', emoji: '💎', reward: 50_000, check: (c) => (c.producers.yacht_filo ?? 0) >= 1 || (c.producers.formula1 ?? 0) >= 1 || (c.producers.casino_legal ?? 0) >= 1 },
+  { id: 'hedge_1', name: 'Wall Street', description: 'Hedge fon kur', emoji: '📊', reward: 120_000, check: (c) => (c.producers.hedge_fund ?? 0) >= 1 },
+  { id: 'mars_1', name: 'Mars Valisi', description: 'Mars kolonisi kur', emoji: '🔴', reward: 5_000_000, check: (c) => (c.producers.mars ?? 0) >= 1 },
+  { id: 'multiverse_1', name: 'Evrenler Arası Baron', description: 'Çoklu evren ticaret ağını aç', emoji: '♾️', reward: 25_000_000, check: (c) => (c.producers.multiverse ?? 0) >= 1 },
+  { id: 'biz_50', name: 'Çeşitlilik Ustası', description: '50 farklı işletme türüne sahip ol', emoji: '🗂️', reward: 500_000, check: (c) => Object.values(c.producers).filter((n) => n >= 1).length >= 50 },
 ]
 
 export function checkNewAchievements(ctx: AchievementContext): AchievementDef[] {

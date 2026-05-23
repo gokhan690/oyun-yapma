@@ -11,6 +11,7 @@ export type RewardedAdType =
   | 'heat_shield'
   | 'shop_boost_15m'
   | 'upgrade_discount'
+  | 'golden_event'
 
 export interface AdRewardResult {
   success: boolean

@@ -179,6 +179,7 @@ export class ModalManager {
     title: string,
     desc: string,
     onClaim: () => void,
+    claimLabel = 'Reklam izle & kabul et',
   ): void {
     this.layer.replaceChildren()
     this.goldenClaimHandler = onClaim
@@ -200,7 +201,7 @@ export class ModalManager {
     const btn = document.createElement('button')
     btn.type = 'button'
     btn.className = 'btn-primary golden-claim-btn'
-    btn.textContent = 'Kabul Et!'
+    btn.textContent = claimLabel
     btn.addEventListener('click', () => {
       if (this.goldenClaimHandler) this.goldenClaimHandler()
     })

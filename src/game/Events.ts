@@ -1,3 +1,5 @@
+import type { BoostKind } from './BoostInventory'
+
 export type EventKind = 'investor' | 'tax_refund' | 'viral_ad'
 
 export interface GameEventDef {
@@ -6,39 +8,49 @@ export interface GameEventDef {
   description: string
   emoji: string
   durationMs: number
-  rewardType: 'instant_cash' | 'income_boost'
+  rewardType: 'income_boost'
   rewardValue: number
-  boostDurationMs?: number
+  boostKind: BoostKind
+  boostDurationMs: number
+  pendingLabel: string
 }
 
 export const EVENT_DEFS: GameEventDef[] = [
   {
     id: 'investor',
     title: 'Yatırımcı Teklifi',
-    description: 'Hızlıca kabul et — büyük yatırım!',
+    description: 'Reklam izle — bonus envanterine gelir x2 eklenir (2 dk).',
     emoji: '💼',
     durationMs: 10_000,
-    rewardType: 'instant_cash',
-    rewardValue: 3,
+    rewardType: 'income_boost',
+    rewardValue: 0,
+    boostKind: 'income_2x',
+    boostDurationMs: 120_000,
+    pendingLabel: 'Yatırımcı teklifi',
   },
   {
     id: 'tax_refund',
     title: 'Vergi İadesi',
-    description: 'Devletten sürpriz iade geldi!',
+    description: 'Reklam izle — kısa süreli gelir x2 bonusu envantere gider.',
     emoji: '🧾',
     durationMs: 10_000,
-    rewardType: 'instant_cash',
-    rewardValue: 2,
+    rewardType: 'income_boost',
+    rewardValue: 0,
+    boostKind: 'income_2x',
+    boostDurationMs: 90_000,
+    pendingLabel: 'Vergi iadesi',
   },
   {
     id: 'viral_ad',
     title: 'Viral Reklam',
-    description: 'Markan trend oldu — gelir patladı!',
+    description: 'Reklam izle — gelir x3 bonusu envantere eklenir (3 dk).',
     emoji: '📱',
     durationMs: 10_000,
     rewardType: 'income_boost',
-    rewardValue: 3,
-    boostDurationMs: 30_000,
+    rewardValue: 0,
+    boostKind: 'income_3x',
+    boostDurationMs: 180_000,
+    pendingLabel: 'Viral reklam',
   },
 ]
 

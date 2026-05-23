@@ -56,10 +56,9 @@ export class EventsPanel {
     this.scrollBody.appendChild(header)
 
     const boosts = this.renderBoostInventory(state)
-    if (boosts) this.scrollBody.appendChild(boosts)
-
     const active = this.renderActiveBoosts(state)
     if (active) this.scrollBody.appendChild(active)
+    if (boosts) this.scrollBody.appendChild(boosts)
 
     const heat = state.illegalHeat
     if (heat > 0 || state.illegalIncomePerDay() > 0) {
@@ -183,6 +182,10 @@ export class EventsPanel {
     expected.forEach((spec, i) => {
       const chip = chips[i]
       if (!chip) return
+      const emojiEl = chip.querySelector('span')
+      if (emojiEl && emojiEl.textContent !== spec.emoji) emojiEl.textContent = spec.emoji
+      const strong = chip.querySelector('strong')
+      if (strong && strong.textContent !== spec.label) strong.textContent = spec.label
       const small = chip.querySelector('small')
       if (small) small.textContent = spec.detail
     })
@@ -204,13 +207,39 @@ export class EventsPanel {
     const now = Date.now()
     const chips: { emoji: string; label: string; detail: string }[] = []
     if (now < state.adIncomeBoostUntil) {
-      chips.push({ emoji: '📺', label: 'Gelir x2', detail: formatRemainingMs(state.adIncomeBoostUntil - now) })
+      chips.push({
+        emoji: state.adBoostEmoji || '📺',
+        label: state.adBoostLabel || 'Gelir x2',
+        detail: formatRemainingMs(state.adIncomeBoostUntil - now),
+      })
     }
     if (state.getEventBoostActive()) {
-      chips.push({ emoji: '📱', label: 'Gelir x3', detail: formatRemainingMs(state.eventBoostUntil - now) })
+      chips.push({
+        emoji: state.eventBoostEmoji || '✨',
+        label: state.eventBoostLabel || 'Gelir x3',
+        detail: formatRemainingMs(state.eventBoostUntil - now),
+      })
     }
     if (now < state.shopBoostUntil) {
-      chips.push({ emoji: '🛒', label: 'Mağaza x1.5', detail: formatRemainingMs(state.shopBoostUntil - now) })
+      chips.push({
+        emoji: state.shopBoostEmoji || '🛒',
+        label: state.shopBoostLabel || 'Mağaza x1.5',
+        detail: formatRemainingMs(state.shopBoostUntil - now),
+      })
+    }
+    if (now < state.heatShieldUntil) {
+      chips.push({
+        emoji: '🛡️',
+        label: 'Radar kalkanı',
+        detail: formatRemainingMs(state.heatShieldUntil - now),
+      })
+    }
+    if (now < state.launderingUntil) {
+      chips.push({
+        emoji: '🧼',
+        label: 'Aklama',
+        detail: formatRemainingMs(state.launderingUntil - now),
+      })
     }
     return chips
   }

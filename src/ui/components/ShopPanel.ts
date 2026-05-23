@@ -24,10 +24,10 @@ export type BuyMode = 1 | 10 | 'max'
 export type ShopHub = 'growth' | 'powerup' | 'finance' | 'empire'
 export type GrowthSub = 'businesses' | 'management'
 export type PowerupSub = 'upgrades' | 'research'
-export type EmpireSub = 'sport' | 'politics' | 'dark'
+export type EmpireSub = 'sport' | 'politics' | 'dark' | 'luxury' | 'finance' | 'science'
 export type IpoSubTab = 'stock' | 'bank' | 'prestige' | 'ipo'
 export type UpgradeFilter = 'all' | 'click' | 'global' | 'producer'
-export type BizTypeFilter = 'all' | 'legal' | 'illegal' | 'sport' | 'politics' | 'dark'
+export type BizTypeFilter = 'all' | 'legal' | 'illegal' | 'sport' | 'politics' | 'dark' | 'luxury' | 'finance' | 'science'
 
 const HUB_SUBTITLES: Record<ShopHub, string> = {
   growth: 'İşletme satın al, yönetici işe al',
@@ -86,7 +86,9 @@ export class ShopPanel {
     if (id === 'growth' || id === 'powerup' || id === 'finance' || id === 'empire') return { hub: id }
     if (id === 'businesses' || id === 'management') return { hub: 'growth', growthSub: id }
     if (id === 'upgrades' || id === 'research') return { hub: 'powerup', powerupSub: id }
-    if (id === 'sport' || id === 'politics' || id === 'dark') return { hub: 'empire', empireSub: id }
+    if (id === 'sport' || id === 'politics' || id === 'dark' || id === 'luxury' || id === 'finance' || id === 'science') {
+      return { hub: 'empire', empireSub: id }
+    }
     if (id === 'ipo' || id === 'stock' || id === 'bank' || id === 'prestige') {
       return { hub: 'finance', ipoSub: (id === 'stock' || id === 'bank' || id === 'prestige' ? id : this.ipoSubTab) as IpoSubTab }
     }
@@ -159,7 +161,7 @@ export class ShopPanel {
       tabs.appendChild(btn)
     }
 
-    for (const id of ['businesses', 'management', 'upgrades', 'research', 'ipo', 'empire_sport', 'empire_politics', 'empire_dark']) {
+    for (const id of ['businesses', 'management', 'upgrades', 'research', 'ipo', 'empire_sport', 'empire_politics', 'empire_dark', 'empire_luxury', 'empire_finance', 'empire_science']) {
       const panel = document.createElement('div')
       panel.className = 'tab-panel'
       panel.dataset.panel = id
@@ -270,7 +272,10 @@ export class ShopPanel {
         this.subTabsEl.appendChild(btn)
       }
     } else if (this.activeHub === 'empire') {
-      for (const [id, label] of [['sport', 'Spor'], ['politics', 'Siyaset'], ['dark', 'Yeraltı']] as const) {
+      for (const [id, label] of [
+        ['sport', 'Spor'], ['politics', 'Siyaset'], ['dark', 'Yeraltı'],
+        ['luxury', 'Lüks'], ['finance', 'Finans'], ['science', 'Bilim'],
+      ] as const) {
         const btn = document.createElement('button')
         btn.type = 'button'
         btn.className = `shop-sub-tab${this.empireSub === id ? ' active' : ''}`
@@ -434,6 +439,9 @@ export class ShopPanel {
       case 'empire_sport':
       case 'empire_politics':
       case 'empire_dark':
+      case 'empire_luxury':
+      case 'empire_finance':
+      case 'empire_science':
         this.renderEmpireCategory(state, tab.replace('empire_', '') as EmpireSub)
         break
       case 'ipo': this.renderIpo(state); break
@@ -764,8 +772,11 @@ export class ShopPanel {
     hero.className = 'shop-tab-hero empire-shop-hero'
     const titles: Record<EmpireSub, { icon: string; title: string; desc: string }> = {
       sport: { icon: '⚽', title: 'Futbol İmparatorluğu', desc: 'Kulüp satın al, İmparatorluk sekmesinden yönet.' },
-      politics: { icon: '🏛️', title: 'Siyasi Kariyer', desc: 'Meclisten cumhurbaşkanlığına uzanan yol.' },
+      politics: { icon: '🏛️', title: 'Siyasi Kariyer', desc: 'Meclisten küresel lobi gücüne.' },
       dark: { icon: '🏭', title: 'Siyah Endüstri', desc: 'Yüksek gelir, yüksek radar riski.' },
+      luxury: { icon: '💎', title: 'Lüks İmparatorluk', desc: 'Yat, F1, casino — milyarder oyuncakları.' },
+      finance: { icon: '📈', title: 'Finans Gücü', desc: 'Fon, banka, PE — sermaye ile hükmet.' },
+      science: { icon: '🔬', title: 'Bilim & Uzay', desc: 'Ar-Ge, uzay istasyonu, biyotek.' },
     }
     const t = titles[category]
     hero.innerHTML = `<span class="shop-tab-hero-icon">${t.icon}</span><div class="shop-tab-hero-text"><strong>${t.title}</strong><small>${t.desc}</small></div>`
@@ -1080,24 +1091,27 @@ export class ShopPanel {
     top.className = 'biz-top'
     const left = document.createElement('div')
     left.className = 'biz-left'
+    const iconWrap = document.createElement('div')
+    iconWrap.className = 'biz-icon-wrap'
     const emoji = document.createElement('span')
-    emoji.className = 'biz-emoji'
+    emoji.className = 'biz-emoji-display'
+    emoji.textContent = p.emoji
+    iconWrap.appendChild(emoji)
     const icon = document.createElement('img')
     icon.className = 'biz-icon'
     icon.src = producerIconPath(p.id)
     icon.alt = ''
-    icon.onerror = () => {
-      icon.remove()
-      emoji.textContent = p.emoji
-    }
-    emoji.appendChild(icon)
+    icon.loading = 'lazy'
+    icon.onerror = () => { icon.remove() }
+    icon.onload = () => { iconWrap.appendChild(icon) }
     const info = document.createElement('div')
+    info.className = 'biz-info-block'
     const name = document.createElement('strong')
     name.textContent = p.name
     const desc = document.createElement('small')
     desc.textContent = p.description
     info.append(name, desc)
-    left.append(emoji, info)
+    left.append(iconWrap, info)
     const countEl = document.createElement('span')
     countEl.className = 'biz-owned'
     top.append(left, countEl)

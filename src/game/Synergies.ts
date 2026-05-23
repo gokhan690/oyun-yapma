@@ -77,6 +77,51 @@ export const SYNERGIES: SynergyDef[] = [
     effect: 'global',
     bonus: 0.15,
   },
+  {
+    id: 'luxury_yacht_jet',
+    name: 'Ultra Mobilite',
+    requires: ['yacht_filo', 'jet_filo'],
+    effect: 'producer',
+    targetProducer: 'yacht_filo',
+    bonus: 0.3,
+  },
+  {
+    id: 'finance_pe_hedge',
+    name: 'Wall Street Combo',
+    requires: ['hedge_fund', 'private_equity'],
+    effect: 'global',
+    bonus: 0.25,
+  },
+  {
+    id: 'science_fusion_mars',
+    name: 'Yıldızlararası Plan',
+    requires: ['fuzyon', 'mars'],
+    effect: 'producer',
+    targetProducer: 'mars',
+    bonus: 0.35,
+  },
+  {
+    id: 'havayolu_liman',
+    name: 'Lojistik Koridoru',
+    requires: ['havayolu', 'liman'],
+    effect: 'producer',
+    targetProducer: 'liman',
+    bonus: 0.2,
+  },
+  {
+    id: 'medya_streaming',
+    name: 'İçerik İmparatorluğu',
+    requires: ['medya', 'streaming'],
+    effect: 'global',
+    bonus: 0.18,
+  },
+  {
+    id: 'uzay_chain',
+    name: 'Orbital Ekonomi',
+    requires: ['uzay_turizmi', 'uzay_istasyonu'],
+    effect: 'global',
+    bonus: 0.4,
+  },
 ]
 
 export interface ActiveSynergy {

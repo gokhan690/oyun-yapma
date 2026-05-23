@@ -703,7 +703,12 @@ export class HUD {
         this.particles.spawnPurchasePulse()
         this.refreshShop(true)
       }
-      if (ev.type === 'ad_boost') this.statsBar.updateMeta()
+      if (ev.type === 'ad_boost') {
+        this.statsBar.updateMeta()
+        if (this.bottomNav.getActive() === 'events') {
+          if (!this.eventsPanel.patchLive(this.state)) this.eventsPanel.render(this.state)
+        }
+      }
       if (ev.type === 'research_purchased') {
         this.sound.playPurchase()
         this.refreshShop(true)
@@ -1521,11 +1526,14 @@ export class HUD {
   ): void {
     this.clearGoldenEventTimer()
     this.goldenEventExpiresAt = expiresAt
-    this.modals.openGoldenEvent(event.emoji, event.title, event.description, () => {
-      if (this.state.claimGoldenEvent()) {
-        this.clearGoldenEventTimer()
-      }
-    })
+    this.modals.openGoldenEvent(
+      event.emoji,
+      event.title,
+      `${event.description} Ödül envantere gider — Etkinlikler'den aktifleştirmen gerekir.`,
+      () => {
+        void this.claimGoldenEventWithAd()
+      },
+    )
     const tick = (): void => {
       if (!this.modals.hasGoldenEventOpen()) {
         this.clearGoldenEventTimer()
@@ -1541,6 +1549,22 @@ export class HUD {
     }
     tick()
     this.eventTimerInterval = window.setInterval(tick, 500)
+  }
+
+  private async claimGoldenEventWithAd(): Promise<void> {
+    const result = await this.ads.showRewarded('golden_event')
+    if (!result.success) {
+      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      return
+    }
+    this.state.incrementRewardedAdCount()
+    if (this.state.claimGoldenEvent()) {
+      this.clearGoldenEventTimer()
+      this.modals.close()
+      this.modals.showToast(this.root, '🎁 Bonus envanterine eklendi — Etkinlikler\'den aktifleştir')
+      this.eventsPanel.render(this.state)
+      this.updateNavBadges()
+    }
   }
 
   private showDeathModal(ev: {

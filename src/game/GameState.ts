@@ -339,6 +339,12 @@ export class GameState {
   dailyLastClaim: string | null = null
   dailyStreak = 0
   adIncomeBoostUntil = 0
+  adBoostLabel = ''
+  adBoostEmoji = '📺'
+  eventBoostLabel = ''
+  eventBoostEmoji = '✨'
+  shopBoostLabel = ''
+  shopBoostEmoji = '🛒'
   rewardedAdsToday = 0
   rewardedAdsDay = todayKey()
   luckyChestReady = false
@@ -584,15 +590,14 @@ export class GameState {
     this.activeEvent = null
     if (this.eventExpireTimer !== null) clearTimeout(this.eventExpireTimer)
 
-    let reward = 0
-    if (event.rewardType === 'instant_cash') {
-      reward = Math.max(50, this.incomePerDay() * event.rewardValue)
-      this.addMoney(reward)
-    } else {
-      this.grantPendingBoost('income_3x', event.boostDurationMs ?? 30_000, 'Viral reklam', '📱')
-      reward = event.rewardValue
-    }
-    this.emit({ type: 'event_claimed', event, reward })
+    this.grantPendingBoost(
+      event.boostKind,
+      event.boostDurationMs,
+      event.pendingLabel,
+      event.emoji,
+    )
+    this.emit({ type: 'event_claimed', event, reward: 0 })
+    this.emit({ type: 'pending_boost_added', label: event.pendingLabel })
     this.scheduleNextEvent()
     return true
   }
@@ -2094,13 +2099,20 @@ export class GameState {
     const now = Date.now()
     switch (item.kind) {
       case 'income_2x':
+        this.adBoostLabel = item.label
+        this.adBoostEmoji = item.emoji
         this.adIncomeBoostUntil = Math.max(this.adIncomeBoostUntil, now) + item.durationMs
         this.emit({ type: 'ad_boost', until: this.adIncomeBoostUntil })
         break
       case 'income_3x':
+        this.eventBoostLabel = item.label
+        this.eventBoostEmoji = item.emoji
         this.eventBoostUntil = Math.max(this.eventBoostUntil, now) + item.durationMs
+        this.emit({ type: 'ad_boost', until: this.eventBoostUntil })
         break
       case 'shop_1_5x':
+        this.shopBoostLabel = item.label
+        this.shopBoostEmoji = item.emoji
         this.shopBoostUntil = Math.max(this.shopBoostUntil, now) + item.durationMs
         this.emit({ type: 'ad_boost', until: this.shopBoostUntil })
         break
@@ -2232,6 +2244,8 @@ export class GameState {
   }
 
   activateAdBoost(): void {
+    this.adBoostLabel = 'Reklam boost'
+    this.adBoostEmoji = '📺'
     this.adIncomeBoostUntil = Date.now() + AD_BOOST_DURATION_MS
     this.emit({ type: 'ad_boost', until: this.adIncomeBoostUntil })
   }
@@ -2245,6 +2259,8 @@ export class GameState {
   }
 
   activateShopBoost(): void {
+    this.shopBoostLabel = 'Mağaza boost'
+    this.shopBoostEmoji = '🛒'
     this.shopBoostUntil = Date.now() + 15 * 60_000
     this.emit({ type: 'ad_boost', until: this.shopBoostUntil })
   }
