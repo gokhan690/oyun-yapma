@@ -1,8 +1,8 @@
 import { localDayKey } from './dateUtils'
 
-export const DAILY_GOAL_MIN = 120_000
+export const DAILY_GOAL_MIN = 8_000
 /** Günlük hedef = en az bu kadar oyun günü geliri */
-export const DAILY_GOAL_IPD_DAYS = 4
+export const DAILY_GOAL_IPD_DAYS = 12
 
 export function dailyGoalDayKey(): string {
   return localDayKey()
@@ -29,16 +29,16 @@ export function dailyGoalComplete(earned: number, target: number): boolean {
 /** Giriş ödülü — streak arttıkça yavaş büyür, erken günlerde milyon vermez */
 export function calcDailyLoginReward(streak: number, incomePerDay: number): number {
   const s = Math.max(1, Math.min(30, streak))
-  const flat = 35 * s
-  const fromPassive = Math.floor(incomePerDay * 0.035 * s)
-  const softCap = 400 + s * 450
+  const flat = 15 * s
+  const fromPassive = Math.floor(incomePerDay * 0.018 * s)
+  const softCap = 150 + s * 180
   return Math.min(softCap, Math.max(flat, fromPassive))
 }
 
 export function streakMilestoneBonus(milestone: number): number {
-  if (milestone === 7) return 750
-  if (milestone === 14) return 1800
-  if (milestone === 30) return 5000
+  if (milestone === 7) return 400
+  if (milestone === 14) return 900
+  if (milestone === 30) return 2_500
   return 0
 }
 

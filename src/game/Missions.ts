@@ -21,18 +21,18 @@ export interface MissionProgress {
 }
 
 const POOL: Omit<MissionDef, 'id'>[] = [
-  { type: 'clicks', label: 'kez tıkla', target: 50, rewardMoney: 280 },
-  { type: 'clicks', label: 'kez tıkla', target: 100, rewardMoney: 750 },
+  { type: 'clicks', label: 'kez tıkla', target: 50, rewardMoney: 80 },
+  { type: 'clicks', label: 'kez tıkla', target: 100, rewardMoney: 200 },
   { type: 'buy_business', label: 'işletme satın al', target: 3, rewardBoostMinutes: 4 },
-  { type: 'buy_business', label: 'işletme satın al', target: 5, rewardMoney: 900 },
-  { type: 'buy_upgrade', label: 'yükseltme al', target: 1, rewardMoney: 550 },
-  { type: 'earn_money', label: '₺ kazan', target: 5000, rewardMoney: 450 },
-  { type: 'earn_money', label: '₺ kazan', target: 25000, rewardMoney: 2200 },
-  { type: 'season_xp', label: 'sezon XP kazan', target: 200, rewardMoney: 1400 },
+  { type: 'buy_business', label: 'işletme satın al', target: 5, rewardMoney: 250 },
+  { type: 'buy_upgrade', label: 'yükseltme al', target: 1, rewardMoney: 150 },
+  { type: 'earn_money', label: '₺ kazan', target: 1_500, rewardMoney: 120 },
+  { type: 'earn_money', label: '₺ kazan', target: 8_000, rewardMoney: 600 },
+  { type: 'season_xp', label: 'sezon XP kazan', target: 200, rewardMoney: 400 },
   { type: 'autobuy_enable', label: 'işletmede auto-buy aç', target: 1, rewardBoostMinutes: 2 },
-  { type: 'use_underground', label: 'underground aksiyon kullan', target: 1, rewardMoney: 1200 },
-  { type: 'claim_daily', label: 'günlük ödül topla', target: 1, rewardMoney: 700 },
-  { type: 'season_tier', label: 'sezon tier ödülü topla', target: 1, rewardMoney: 1800 },
+  { type: 'use_underground', label: 'underground aksiyon kullan', target: 1, rewardMoney: 350 },
+  { type: 'claim_daily', label: 'günlük ödül topla', target: 1, rewardMoney: 200 },
+  { type: 'season_tier', label: 'sezon tier ödülü topla', target: 1, rewardMoney: 500 },
 ]
 
 export function generateDailyMissions(seed: string): MissionProgress[] {

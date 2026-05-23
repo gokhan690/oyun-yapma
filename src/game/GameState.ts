@@ -300,8 +300,8 @@ export type GameEvent =
 
 const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
-const CRIT_MULT = 10
-const BASE_CLICK = 22
+const CRIT_MULT = 5
+const BASE_CLICK = 5
 /** Sekme arka plana düşünce tek karede işlenecek max pasif süre (sn) */
 const PASSIVE_TICK_DT_CAP = 30
 const BASE_OFFLINE_CAP_GAME_DAYS = 365
@@ -567,7 +567,7 @@ export class GameState {
 
     let reward = 0
     if (event.rewardType === 'instant_cash') {
-      reward = Math.max(500, this.incomePerDay() * event.rewardValue)
+      reward = Math.max(50, this.incomePerDay() * event.rewardValue)
       this.addMoney(reward)
     } else {
       this.grantPendingBoost('income_3x', event.boostDurationMs ?? 30_000, 'Viral reklam', '📱')
@@ -2224,7 +2224,7 @@ export class GameState {
   openLuckyChest(): number {
     if (!this.luckyChestReady) return 0
     this.luckyChestReady = false
-    const amount = Math.max(300, Math.floor(this.incomePerDay() * 1.1))
+    const amount = Math.max(80, Math.floor(this.incomePerDay() * 0.85))
     this.addMoney(amount)
     this.emit({ type: 'chest_opened', amount })
     return amount

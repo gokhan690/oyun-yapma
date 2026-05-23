@@ -64,11 +64,11 @@ export const SEASON_REWARDS: SeasonReward[] = Array.from({ length: SEASON_MAX_TI
   const tier = i + 1
   if (tier % 10 === 0) return { tier, type: 'theme', label: 'Kozmetik Tema', value: tier }
   if (tier % 5 === 0) return { tier, type: 'boost', label: '5 dk x2 Gelir', value: 5 }
-  return { tier, type: 'money', label: 'Para Ödülü', value: tier * 500 }
+  return { tier, type: 'money', label: 'Para Ödülü', value: tier * 120 }
 })
 
 export function rewardForTier(tier: number): SeasonReward {
-  return SEASON_REWARDS[tier - 1] ?? { tier, type: 'money', label: 'Para', value: tier * 500 }
+  return SEASON_REWARDS[tier - 1] ?? { tier, type: 'money', label: 'Para', value: tier * 120 }
 }
 
 export function hasClaimableTier(state: SeasonState): boolean {
