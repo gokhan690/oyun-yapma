@@ -7,7 +7,6 @@ import { assetUrl } from '../utils/assetUrl'
 import type { DeathCauseId } from '../game/Mortality'
 import { currentRank, rankProgress } from '../game/PlayerRank'
 import { dayBonusExtra, nightBonusExtra } from '../game/PrestigeTree'
-import { calcPrestigePoints, prestigeMultiplier } from '../game/Prestige'
 import { StatsBar } from './components/StatsBar'
 import { ShopPanel } from './components/ShopPanel'
 import { ModalManager } from './components/ModalManager'
@@ -536,7 +535,7 @@ export class HUD {
       if (ev.type === 'passive_income') {
         this.patchShopAffordability()
       }
-      if (ev.type === 'stock_tick' && this.shop.getActiveTab() === 'finance' && this.shop.getIpoSubTab() === 'stock') {
+      if (ev.type === 'stock_tick' && this.shop.getActiveTab() === 'finance' && (this.shop.getIpoSubTab() === 'stock' || this.shop.getIpoSubTab() === 'bank')) {
         this.shop.render(this.state, true)
       }
       if (ev.type === 'click') {
@@ -598,15 +597,20 @@ export class HUD {
       }
       if (ev.type === 'day_night' || ev.type === 'game_time') {
         this.renderDayNightChip()
-        this.renderMarketNewsBanner()
-        this.statsBar.updateMeta()
-        this.refreshShop(true)
+        if (ev.type === 'day_night') {
+          this.renderMarketNewsBanner()
+          this.statsBar.updateMeta()
+          this.refreshShop(true)
+        } else {
+          this.statsBar.tickBoostTimers()
+        }
         if (this.bottomNav.getActive() === 'events') {
           if (!this.eventsPanel.patchLive(this.state)) this.eventsPanel.render(this.state)
         }
       }
       if (ev.type === 'market_news') {
         this.renderMarketNewsBanner()
+        this.statsBar.updateMeta()
         this.refreshShop(true)
       }
       if (ev.type === 'dynasty_update') {
@@ -621,11 +625,20 @@ export class HUD {
         this.updateNavBadges()
       }
       if (ev.type === 'prestige_tree') {
+        this.statsBar.updateMeta()
         this.refreshShop(true)
         this.renderDayNightChip()
       }
       if (ev.type === 'market_event') {
         this.modals.showToast(this.root, ev.crash ? '📉 Piyasa çöküşü!' : '📈 Piyasa rallisi!')
+        this.refreshShop(true)
+      }
+      if (ev.type === 'macro_event') {
+        this.modals.showToast(this.root, ev.headline)
+        if (this.shop.getActiveTab() === 'finance') this.refreshShop(true)
+      }
+      if (ev.type === 'bankruptcy') {
+        this.modals.showToast(this.root, `⚠️ İflas koruması: ${ev.reason}`)
         this.refreshShop(true)
       }
       if (ev.type === 'mission_complete') {
@@ -651,6 +664,7 @@ export class HUD {
       }
       if (ev.type === 'surprise_investor') {
         this.modals.showToast(this.root, '💎 Sürpriz yatırımcı — 30 sn x2 gelir!')
+        this.statsBar.updateMeta()
         this.eventsPanel.render(this.state)
       }
       if (ev.type === 'comeback_ready') {
@@ -1034,7 +1048,7 @@ export class HUD {
       }
       case 'ipo-sub-tab':
         if (id) {
-          this.shop.setIpoSubTab(id as 'stock' | 'prestige' | 'ipo')
+          this.shop.setIpoSubTab(id as 'stock' | 'bank' | 'prestige' | 'ipo')
           this.refreshShop(true)
         }
         break
@@ -1079,6 +1093,38 @@ export class HUD {
           this.refreshShop(true)
         }
         break
+      case 'bank-deposit': {
+        const n = count === 'max' ? this.state.money : Number(count ?? 1000)
+        if (this.state.bankDeposit(n)) this.refreshShop(true)
+        else this.modals.showToast(this.root, 'Yatırılamadı')
+        break
+      }
+      case 'bank-withdraw': {
+        const n = count === 'max' ? this.state.bank.deposit : Number(count ?? 1000)
+        if (this.state.bankWithdraw(n)) this.refreshShop(true)
+        break
+      }
+      case 'bank-loan': {
+        const n = count === 'max' ? this.state.maxAvailableLoan() : Number(count ?? 25000)
+        if (this.state.bankTakeLoan(n)) this.refreshShop(true)
+        else this.modals.showToast(this.root, 'Kredi limiti dolu')
+        break
+      }
+      case 'bank-repay': {
+        const n = count === 'max' ? Math.min(this.state.money, this.state.bank.loan) : Number(count ?? 10000)
+        if (this.state.bankRepayLoan(n)) this.refreshShop(true)
+        break
+      }
+      case 'bank-buy-bonds': {
+        const n = count === 'max' ? this.state.money : Number(count ?? 5000)
+        if (this.state.bankBuyBonds(n)) this.refreshShop(true)
+        break
+      }
+      case 'bank-sell-bonds': {
+        const n = count === 'max' ? this.state.bank.bonds : Number(count ?? 5000)
+        if (this.state.bankSellBonds(n)) this.refreshShop(true)
+        break
+      }
       case 'buy-tree-node':
         if (id) this.state.buyPrestigeTreeNode(id)
         break
@@ -1546,15 +1592,16 @@ export class HUD {
 
   private async handleIpo(): Promise<void> {
     if (!this.state.prestigeEligible()) return
-    const pending = calcPrestigePoints(this.state.totalEarned)
-    const newTotal = this.state.prestigePoints + pending
-    const newMult = prestigeMultiplier(newTotal)
-    this.modals.showIpoPreview(pending, newTotal, newMult, async () => {
+    const preview = this.state.ipoPreview()
+    this.modals.showIpoPreview(preview, async () => {
       this.modals.close()
       const points = this.state.doPrestige()
       if (points > 0) {
         await this.ads.showInterstitial()
-        this.modals.showToast(this.root, `IPO! +${points} hisse`)
+        const cash = preview.startingCash
+        this.modals.showToast(this.root, `IPO! +${points} hisse · ${formatMoney(cash)} başlangıç`)
+        this.shop.setIpoSubTab('stock')
+        this.refreshShop(true)
       }
     })
   }

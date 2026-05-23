@@ -17,15 +17,28 @@ import { managerCost, managerMultiplier, hasManager } from './Managers'
 import {
   createStockState,
   tickStockPrice,
+  tickMacro,
   buyShares,
   sellShares,
   startMarketEvent,
+  liquidatePortfolio,
+  portfolioValue,
   totalShares,
   ownedTickerCount,
   migrateLegacyStock,
+  migrateStockState,
   STOCK_TICK_MS,
   type StockState,
 } from './StockMarket'
+import {
+  createBankState,
+  tickBankInterest,
+  calcIpoStartingCash,
+  maxLoan,
+  netWorth,
+  type BankState,
+  type IpoPreviewData,
+} from './FinanceBank'
 import {
   createSeasonState,
   currentTier,
@@ -173,6 +186,7 @@ export interface SerializableState {
   lifetimeTotalEarned: number
   managers: Record<string, boolean>
   stock: StockState
+  bank: BankState
   weekly: WeeklyEventState
   milestonesReached: number[]
   managerDiscountActive: boolean
@@ -236,7 +250,7 @@ export type GameEvent =
   | { type: 'stock_tick' }
   | { type: 'click'; amount: number; critical: boolean; x: number; y: number; combo: number }
   | { type: 'purchase' }
-  | { type: 'prestige'; points: number }
+  | { type: 'prestige'; points: number; startingCash?: number }
   | { type: 'offline_earnings'; amount: number }
   | { type: 'daily_reward'; amount: number; streak: number }
   | { type: 'ad_boost'; until: number }
@@ -259,6 +273,9 @@ export type GameEvent =
   | { type: 'season_claimed'; tier: number; reward: string }
   | { type: 'prestige_tree'; nodeId: string }
   | { type: 'market_event'; crash: boolean }
+  | { type: 'macro_event'; headline: string; crash?: boolean }
+  | { type: 'finance_tick'; headline?: string }
+  | { type: 'bankruptcy'; loss: number; reason: string }
   | { type: 'auto_buy'; producerId: string }
   | { type: 'nav_changed'; view: string }
   | { type: 'illegal_raid'; fine: number; producerId: string }
@@ -320,6 +337,7 @@ export class GameState {
   lifetimeTotalEarned = 0
   managers: Record<string, boolean> = {}
   stock = createStockState()
+  bank = createBankState()
   weekly = createWeeklyState()
   milestonesReached: number[] = []
   managerDiscountActive = false
@@ -593,17 +611,40 @@ export class GameState {
     }
   }
 
+  private lastBankruptcyCheck = 0
+
   private tickStock(now: number): void {
     if (now - this.lastStockTick >= STOCK_TICK_MS) {
       tickStockPrice(this.stock)
       this.lastStockTick = now
       this.emit({ type: 'stock_tick' })
     }
+    const macro = tickMacro(this.stock, now)
+    if (macro) {
+      this.emit({ type: 'macro_event', headline: macro.headline, crash: macro.crash })
+      if (macro.crash) this.emit({ type: 'market_event', crash: true })
+    }
     if (now - this.lastMarketEventCheck > 300_000 && Math.random() < 0.05) {
       this.lastMarketEventCheck = now
       const crash = Math.random() < 0.5
       startMarketEvent(this.stock, crash)
       this.emit({ type: 'market_event', crash })
+    }
+    const interest = tickBankInterest(this.bank, this.stock.centralBankRate, now)
+    if (interest) {
+      if (interest.headline) this.emit({ type: 'finance_tick', headline: interest.headline })
+      if (interest.bankrupt && now > this.bank.bankruptcyCooldownUntil) {
+        this.resolveBankruptcy('Kredi faizi ödenemedi — iflas koruması devreye girdi')
+      }
+    }
+    if (
+      this.bank.loan > 0
+      && netWorth(this.money, portfolioValue(this.stock), this.bank) < this.bank.loan * 0.35
+      && now > this.bank.bankruptcyCooldownUntil
+      && now - this.lastBankruptcyCheck > 30_000
+    ) {
+      this.lastBankruptcyCheck = now
+      this.resolveBankruptcy('Net değer borcun altına düştü')
     }
   }
 
@@ -1176,6 +1217,42 @@ export class GameState {
     return BASE_CLICK * this.clickMultiplier()
   }
 
+  /** HUD chip — combo hariç sabit tıklama geliri */
+  baseClickIncomePerTap(): number {
+    let mult = 1
+    for (const id of this.purchasedUpgrades) {
+      const u = UPGRADES.find((x) => x.id === id)
+      if (u?.effect === 'click_mult') mult *= u.value
+    }
+    mult *= this.globalMultiplier()
+    mult *= researchClickBonus(this.research)
+    mult *= 1 + clickBonus(this.prestigeTree)
+    mult *= 1 + this.dayNightClickBonus()
+    mult *= traitClickMult(activeDynastyTrait(this.dynasty))
+    mult *= this.marketNewsClickMult()
+    return BASE_CLICK * mult
+  }
+
+  /** HUD için yuvarlanmış pasif hız — format titremesini önler */
+  displayPassiveIncomePerSecond(): number {
+    const v = this.passiveIncomePerSecond()
+    if (v <= 0) return 0
+    if (v < 100) return Math.round(v * 10) / 10
+    if (v < 10_000) return Math.round(v)
+    if (v < 1_000_000) return Math.round(v / 100) * 100
+    if (v < 1_000_000_000) return Math.round(v / 10_000) * 10_000
+    return Math.round(v / 1_000_000) * 1_000_000
+  }
+
+  /** HUD için yuvarlanmış tıklama geliri */
+  displayClickIncomePerTap(): number {
+    const v = this.baseClickIncomePerTap()
+    if (v <= 0) return 0
+    if (v < 100) return Math.round(v * 10) / 10
+    if (v < 10_000) return Math.round(v)
+    return Math.round(v / 100) * 100
+  }
+
   /** Son penceredeki gerçek pasif hız — teorik ile karşılaştırma için */
   measuredPassivePerSecond(): number {
     const now = performance.now()
@@ -1476,14 +1553,43 @@ export class GameState {
     return calcPrestigePoints(this.totalEarned)
   }
 
+  ipoPreview(): IpoPreviewData {
+    const pointsToEarn = this.pendingPrestigePoints()
+    const portfolio = portfolioValue(this.stock)
+    const liquidationNet = portfolio + this.bank.deposit + this.bank.bonds - this.bank.loan
+    const newTotal = this.prestigePoints + pointsToEarn
+    return {
+      pointsToEarn,
+      newTotal,
+      newMultiplier: prestigeMultiplier(newTotal),
+      portfolioValue: portfolio,
+      depositValue: this.bank.deposit,
+      bondValue: this.bank.bonds,
+      loanDebt: this.bank.loan,
+      liquidationNet,
+      startingCash: calcIpoStartingCash(pointsToEarn, this.prestigePoints, liquidationNet),
+      businessesOwned: Object.values(this.producers).reduce((s, n) => s + (n > 0 ? 1 : 0), 0),
+      upgradesOwned: this.purchasedUpgrades.size,
+      managersOwned: Object.values(this.managers).filter(Boolean).length,
+      keepsPrestigeTree: true,
+      keepsResearch: true,
+    }
+  }
+
   doPrestige(): number {
     const points = this.pendingPrestigePoints()
     if (points <= 0) return 0
 
+    const stockCash = liquidatePortfolio(this.stock, 1)
+    const bankCash = this.bank.deposit + this.bank.bonds
+    const loanDebt = this.bank.loan
+    const liquidationNet = stockCash + bankCash - loanDebt
+    const startingCash = calcIpoStartingCash(points, this.prestigePoints, liquidationNet)
+
     this.prestigePoints += points
     this.lifetimePrestige += points
     this.ipoCount++
-    this.money = 0
+    this.money = startingCash
     this.totalEarned = 0
     this.totalClicks = 0
     this.sessionEarned = 0
@@ -1496,13 +1602,97 @@ export class GameState {
     for (const p of PRODUCERS) this.managers[p.id] = false
     for (const p of PRODUCERS) this.managerAutoBuy[p.id] = false
     this.stock = createStockState()
+    this.bank = createBankState()
     this.nightEarningsSession = 0
+    syncEmpireFromProducers(this.empire, this.producers)
 
     this.addSeasonXp(points * 50)
-    this.emit({ type: 'prestige', points })
+    this.emit({ type: 'prestige', points, startingCash })
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
     return points
+  }
+
+  resolveBankruptcy(reason: string): void {
+    const portfolio = portfolioValue(this.stock)
+    const fireSale = liquidatePortfolio(this.stock, 0.62)
+    const loss = Math.floor(portfolio - fireSale + this.bank.loan * 0.25)
+    this.money += fireSale
+    this.bank.loan = Math.floor(this.bank.loan * 0.55)
+    this.bank.deposit = Math.floor(this.bank.deposit * 0.7)
+    this.bank.bonds = Math.floor(this.bank.bonds * 0.75)
+    this.bank.creditScore = Math.max(35, this.bank.creditScore - 18)
+    this.bank.bankruptcyCooldownUntil = Date.now() + 120_000
+    this.stock.marketFear = Math.min(95, this.stock.marketFear + 20)
+    this.stock.macroHeadline = `⚠️ İflas koruması: ${reason}`
+    this.emit({ type: 'bankruptcy', loss, reason })
+    this.emit({ type: 'money_changed' })
+  }
+
+  bankDeposit(amount: number): boolean {
+    const n = Math.floor(amount)
+    if (n <= 0 || n > this.money) return false
+    this.money -= n
+    this.bank.deposit += n
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  bankWithdraw(amount: number): boolean {
+    const n = Math.floor(amount)
+    if (n <= 0 || n > this.bank.deposit) return false
+    this.bank.deposit -= n
+    this.addMoney(n)
+    return true
+  }
+
+  bankTakeLoan(amount: number): boolean {
+    const n = Math.floor(amount)
+    if (n <= 0) return false
+    const nw = netWorth(this.money, portfolioValue(this.stock), this.bank)
+    const cap = maxLoan(this.totalEarned, nw)
+    if (this.bank.loan + n > cap) return false
+    this.bank.loan += n
+    this.addMoney(n)
+    return true
+  }
+
+  bankRepayLoan(amount: number): boolean {
+    const n = Math.floor(amount)
+    if (n <= 0) return false
+    const pay = Math.min(n, this.bank.loan, this.money)
+    if (pay <= 0) return false
+    this.money -= pay
+    this.bank.loan -= pay
+    if (this.bank.loan === 0) this.bank.creditScore = Math.min(100, this.bank.creditScore + 3)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  bankBuyBonds(amount: number): boolean {
+    const n = Math.floor(amount)
+    if (n <= 0 || n > this.money) return false
+    this.money -= n
+    this.bank.bonds += n
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  bankSellBonds(amount: number): boolean {
+    const n = Math.floor(amount)
+    if (n <= 0 || n > this.bank.bonds) return false
+    this.bank.bonds -= n
+    this.addMoney(n)
+    return true
+  }
+
+  financeNetWorth(): number {
+    return netWorth(this.money, portfolioValue(this.stock), this.bank)
+  }
+
+  maxAvailableLoan(): number {
+    const cap = maxLoan(this.totalEarned, this.financeNetWorth())
+    return Math.max(0, cap - this.bank.loan)
   }
 
   addSeasonXp(amount: number): void {
@@ -2163,6 +2353,7 @@ export class GameState {
     this.missionsDay = ''
     this.comboBest = 0
     this.stock = createStockState()
+    this.bank = createBankState()
     this.weekly = createWeeklyState()
     this.milestonesReached = []
     this.playTimeMs = 0
@@ -2262,7 +2453,8 @@ export class GameState {
       ipoCount: this.ipoCount,
       lifetimeTotalEarned: this.lifetimeTotalEarned,
       managers: { ...this.managers },
-      stock: { ...this.stock },
+      stock: structuredClone(this.stock),
+      bank: { ...this.bank },
       weekly: { ...this.weekly },
       milestonesReached: [...this.milestonesReached],
       managerDiscountActive: this.managerDiscountActive,
@@ -2360,8 +2552,9 @@ export class GameState {
       if (this.managers[p.id] === undefined) this.managers[p.id] = false
     }
     this.stock = data.stock && 'tickers' in data.stock
-      ? structuredClone(data.stock)
+      ? migrateStockState(structuredClone(data.stock))
       : migrateLegacyStock((data.stock ?? {}) as { price?: number; shares?: number; avgBuyPrice?: number })
+    this.bank = data.bank ? { ...createBankState(), ...data.bank } : createBankState()
     const loadedWeekly = data.weekly
     this.weekly = loadedWeekly
       ? {

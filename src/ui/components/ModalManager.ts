@@ -1,3 +1,6 @@
+import type { IpoPreviewData } from '../../game/FinanceBank'
+import { formatMoney } from '../../game/Economy'
+
 export class ModalManager {
   readonly layer: HTMLElement
   private goldenModal: HTMLElement | null = null
@@ -88,53 +91,85 @@ export class ModalManager {
     this.openLayer()
   }
 
-  showIpoPreview(
-    pointsToEarn: number,
-    newTotal: number,
-    newMultiplier: number,
-    onConfirm: () => Promise<void>,
-  ): void {
+  showIpoPreview(preview: IpoPreviewData, onConfirm: () => Promise<void>): void {
     this.layer.replaceChildren()
     const scrim = document.createElement('div')
     scrim.className = 'modal-scrim'
     scrim.dataset.action = 'close-modal'
     const modal = document.createElement('div')
-    modal.className = 'game-modal ipo-preview-modal modal-enter'
+    modal.className = 'game-modal ipo-preview-modal modal-enter ipo-preview-modal-lg'
+
     const icon = document.createElement('div')
     icon.className = 'ipo-preview-icon'
-    icon.textContent = '📈'
+    icon.textContent = '🚀'
+
     const h2 = document.createElement('h2')
-    h2.textContent = 'IPO Önizleme'
+    h2.textContent = 'IPO — Şirket Birleşmesi'
+
+    const intro = document.createElement('p')
+    intro.className = 'ipo-preview-intro'
+    intro.textContent = 'Run sıfırlanır; kalıcı prestij hisselerin ve meta ilerlemen korunur. Borsa ve mevduat nakde çevrilir — yeni turda başlangıç sermayesi alırsın.'
+
     const table = document.createElement('div')
     table.className = 'ipo-preview-table'
-    for (const [label, value] of [
-      ['Kazanılacak hisse', `+${pointsToEarn}`],
-      ['Yeni toplam', `${newTotal} hisse`],
-      ['Yeni çarpan', `x${newMultiplier.toFixed(2)}`],
-    ] as const) {
-      const row = document.createElement('div')
-      row.className = 'ipo-preview-row'
-      const l = document.createElement('span')
-      l.textContent = label
-      const v = document.createElement('strong')
-      v.textContent = value
-      row.append(l, v)
-      table.appendChild(row)
+
+    const gainRows: [string, string][] = [
+      ['Kazanılacak kalıcı hisse', `+${preview.pointsToEarn}`],
+      ['Yeni toplam hisse', `${preview.newTotal}`],
+      ['Kalıcı gelir çarpanı', `x${preview.newMultiplier.toFixed(2)}`],
+      ['Başlangıç sermayesi', formatMoney(preview.startingCash)],
+    ]
+    const lossRows: [string, string][] = [
+      ['Borsa portföyü (satılacak)', formatMoney(preview.portfolioValue)],
+      ['Mevduat + tahvil', formatMoney(preview.depositValue + preview.bondValue)],
+      ['Kredi borcu (kapanacak)', formatMoney(preview.loanDebt)],
+      ['İşletmeler sıfırlanır', `${preview.businessesOwned} adet`],
+      ['Yükseltmeler sıfırlanır', `${preview.upgradesOwned} adet`],
+      ['Yöneticiler sıfırlanır', `${preview.managersOwned} adet`],
+    ]
+    const keepRows: [string, string][] = [
+      ['Prestij ağacı', '✓ Korunur'],
+      ['Ar-Ge seviyeleri', '✓ Korunur'],
+      ['Hanedan / imparatorluk', '✓ Korunur'],
+    ]
+
+    const section = (title: string, rows: [string, string][], tone?: string) => {
+      const head = document.createElement('h3')
+      head.className = `ipo-preview-section${tone ? ` ipo-${tone}` : ''}`
+      head.textContent = title
+      table.appendChild(head)
+      for (const [label, value] of rows) {
+        const row = document.createElement('div')
+        row.className = 'ipo-preview-row'
+        const l = document.createElement('span')
+        l.textContent = label
+        const v = document.createElement('strong')
+        v.textContent = value
+        row.append(l, v)
+        table.appendChild(row)
+      }
     }
+
+    section('Kazanacakların', gainRows, 'gain')
+    section('Sıfırlanacaklar (run)', lossRows, 'loss')
+    section('Korunacaklar (meta)', keepRows, 'keep')
+
     const confirmBtn = document.createElement('button')
     confirmBtn.type = 'button'
     confirmBtn.className = 'btn-prestige'
-    confirmBtn.textContent = '🚀 IPO Yap!'
+    confirmBtn.textContent = `🚀 IPO Yap · ${formatMoney(preview.startingCash)} ile başla`
     confirmBtn.addEventListener('click', () => void onConfirm())
+
     const cancelBtn = document.createElement('button')
     cancelBtn.type = 'button'
     cancelBtn.className = 'btn-secondary'
     cancelBtn.dataset.action = 'close-modal'
     cancelBtn.textContent = 'Vazgeç'
+
     const actions = document.createElement('div')
     actions.className = 'modal-actions'
     actions.append(confirmBtn, cancelBtn)
-    modal.append(icon, h2, table, actions)
+    modal.append(icon, h2, intro, table, actions)
     this.layer.append(scrim, modal)
     this.openLayer()
   }

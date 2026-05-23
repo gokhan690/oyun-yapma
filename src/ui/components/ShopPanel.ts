@@ -2,10 +2,11 @@ import type { GameState } from '../../game/GameState'
 import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, formatIncomeRateHint, producerIconPath, earlyUnlockCost, isProducerUnlocked, scaledUnlockAt, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
 import { RESEARCH_NODES, researchCost } from '../../game/Research'
 import { getActiveSynergies } from '../../game/Synergies'
-import { PRESTIGE_THRESHOLD } from '../../game/GameState'
-import { calcPrestigePoints, prestigeMultiplier } from '../../game/Prestige'
+import { PRESTIGE_THRESHOLD } from '../../game/Prestige'
+import { prestigeMultiplier } from '../../game/Prestige'
 import { managerCost, hasManager } from '../../game/Managers'
-import { profitLoss, priceChangePct, portfolioSummary, sparklinePath, STOCK_DEFS } from '../../game/StockMarket'
+import { profitLoss, priceChangePct, portfolioSummary, sparklinePath, STOCK_DEFS, fearLabel, isBankruptTicker } from '../../game/StockMarket'
+import { depositRate, bondRate, loanRate } from '../../game/FinanceBank'
 import { PRESTIGE_TREE_NODES, canBuyNode, hasNode } from '../../game/PrestigeTree'
 import { dailyGoalProgress, scaledDailyGoalTarget } from '../../game/DailyGoal'
 import { assetUrl } from '../../utils/assetUrl'
@@ -24,14 +25,14 @@ export type ShopHub = 'growth' | 'powerup' | 'finance' | 'empire'
 export type GrowthSub = 'businesses' | 'management'
 export type PowerupSub = 'upgrades' | 'research'
 export type EmpireSub = 'sport' | 'politics' | 'dark'
-export type IpoSubTab = 'stock' | 'prestige' | 'ipo'
+export type IpoSubTab = 'stock' | 'bank' | 'prestige' | 'ipo'
 export type UpgradeFilter = 'all' | 'click' | 'global' | 'producer'
 export type BizTypeFilter = 'all' | 'legal' | 'illegal' | 'sport' | 'politics' | 'dark'
 
 const HUB_SUBTITLES: Record<ShopHub, string> = {
   growth: 'İşletme satın al, yönetici işe al',
   powerup: 'Yükseltme ve Ar-Ge',
-  finance: 'Borsa, prestij ve IPO',
+  finance: 'Borsa, banka, prestij ve IPO',
   empire: 'Spor, siyaset ve yeraltı yatırımları',
 }
 
@@ -86,8 +87,8 @@ export class ShopPanel {
     if (id === 'businesses' || id === 'management') return { hub: 'growth', growthSub: id }
     if (id === 'upgrades' || id === 'research') return { hub: 'powerup', powerupSub: id }
     if (id === 'sport' || id === 'politics' || id === 'dark') return { hub: 'empire', empireSub: id }
-    if (id === 'ipo' || id === 'stock' || id === 'prestige') {
-      return { hub: 'finance', ipoSub: id === 'stock' || id === 'prestige' ? id : this.ipoSubTab }
+    if (id === 'ipo' || id === 'stock' || id === 'bank' || id === 'prestige') {
+      return { hub: 'finance', ipoSub: (id === 'stock' || id === 'bank' || id === 'prestige' ? id : this.ipoSubTab) as IpoSubTab }
     }
     return { hub: 'growth', growthSub: 'businesses' }
   }
@@ -280,7 +281,7 @@ export class ShopPanel {
         this.subTabsEl.appendChild(btn)
       }
     } else if (this.activeHub === 'finance') {
-      for (const [id, label] of [['stock', 'Hisse'], ['prestige', 'Prestij'], ['ipo', 'IPO']] as const) {
+      for (const [id, label] of [['stock', 'Hisse'], ['bank', 'Banka'], ['prestige', 'Prestij'], ['ipo', 'IPO']] as const) {
         const btn = document.createElement('button')
         btn.type = 'button'
         btn.className = `shop-sub-tab ipo-nav-tab${this.ipoSubTab === id ? ' active' : ''}`
@@ -1414,18 +1415,38 @@ export class ShopPanel {
     panel.appendChild(this.createTabHero('📈', 'Finans Merkezi', 'Borsa, prestij ağacı ve şirket birleşmesi', `${state.prestigePoints} kalıcı hisse`))
 
     if (this.ipoSubTab === 'stock') this.renderIpoStock(state, panel)
+    else if (this.ipoSubTab === 'bank') this.renderIpoBank(state, panel)
     else if (this.ipoSubTab === 'prestige') this.renderIpoPrestige(state, panel)
     else this.renderIpoMerge(state, panel)
   }
 
   private renderIpoStock(state: GameState, panel: HTMLElement): void {
     const summary = portfolioSummary(state.stock)
+    const tickerCount = STOCK_DEFS.length
+
+    const macro = document.createElement('div')
+    macro.className = 'finance-macro-bar'
+    const ratePct = (state.stock.centralBankRate * 100).toFixed(1)
+    const fear = state.stock.marketFear
+    macro.innerHTML = `
+      <div class="finance-macro-stat"><small>Merkez faiz</small><strong>%${ratePct}</strong></div>
+      <div class="finance-macro-stat"><small>Korku endeksi</small><strong class="${fear >= 60 ? 'pl-negative' : fear <= 35 ? 'pl-positive' : ''}">${Math.round(fear)} · ${fearLabel(fear)}</strong></div>
+      <div class="finance-macro-stat"><small>Net değer</small><strong>${formatMoney(state.financeNetWorth())}</strong></div>
+    `
+    if (state.stock.macroHeadline) {
+      const headline = document.createElement('p')
+      headline.className = 'finance-macro-headline'
+      headline.textContent = state.stock.macroHeadline
+      macro.appendChild(headline)
+    }
+    panel.appendChild(macro)
+
     const portfolioEl = document.createElement('div')
     portfolioEl.className = 'stock-portfolio-summary'
     const portfolioPlClass = summary.totalPl >= 0 ? 'pl-positive' : 'pl-negative'
     portfolioEl.innerHTML = `
       <div class="stock-portfolio-stat"><strong>${formatMoney(summary.totalValue)}</strong><small>Portföy değeri</small></div>
-      <div class="stock-portfolio-stat"><strong>${summary.holdings}/3</strong><small>Pozisyon</small></div>
+      <div class="stock-portfolio-stat"><strong>${summary.holdings}/${tickerCount}</strong><small>Pozisyon</small></div>
       <div class="stock-portfolio-stat"><strong class="${portfolioPlClass}">${formatMoney(summary.totalPl)}</strong><small>Toplam K/Z</small></div>
       <div class="stock-portfolio-stat"><strong>${formatMoney(state.money)}</strong><small>Nakit</small></div>
     `
@@ -1485,7 +1506,10 @@ export class ShopPanel {
 
     const stockInfo = document.createElement('p')
     stockInfo.className = 'stock-info'
-    stockInfo.textContent = `Volatilite: ${Math.round(ticker.volatility * 100)}% · Fiyat her ~30 sn güncellenir`
+    const bankrupt = isBankruptTicker(state.stock, ticker.id)
+    stockInfo.textContent = bankrupt
+      ? `⚠️ İflas riski — fiyat baskı altında · Volatilite ${Math.round(ticker.volatility * 100)}%`
+      : `Sektör: ${ticker.sector} · Volatilite ${Math.round(ticker.volatility * 100)}% · Fiyat ~30 sn'de güncellenir`
 
     stockCard.append(stockTitle, priceRow, detailGrid, spark, stockInfo)
     panel.appendChild(stockCard)
@@ -1562,6 +1586,95 @@ export class ShopPanel {
     }
   }
 
+  private renderIpoBank(state: GameState, panel: HTMLElement): void {
+    const bank = state.bank
+    const rate = state.stock.centralBankRate
+    const dRate = (depositRate(rate) * 100).toFixed(2)
+    const bRate = (bondRate(rate) * 100).toFixed(2)
+    const lRate = (loanRate(rate, bank.creditScore) * 100).toFixed(2)
+    const maxLoan = state.maxAvailableLoan()
+
+    panel.appendChild(this.createSectionHeader('Merkez Bankası & Mevduat', `Kredi skoru: ${Math.round(bank.creditScore)}/100`))
+
+    const overview = document.createElement('div')
+    overview.className = 'bank-overview-grid'
+    overview.innerHTML = `
+      <div class="bank-stat"><small>Mevduat faizi</small><strong>%${dRate}/dk</strong></div>
+      <div class="bank-stat"><small>Tahvil getirisi</small><strong>%${bRate}/dk</strong></div>
+      <div class="bank-stat"><small>Kredi faizi</small><strong>%${lRate}/dk</strong></div>
+      <div class="bank-stat"><small>Merkez faiz</small><strong>%${(rate * 100).toFixed(1)}</strong></div>
+    `
+    panel.appendChild(overview)
+
+    const accounts = document.createElement('div')
+    accounts.className = 'bank-accounts'
+    accounts.innerHTML = `
+      <div class="bank-account-card">
+        <h4>💰 Vadesiz mevduat</h4>
+        <strong>${formatMoney(bank.deposit)}</strong>
+        <small>Güvenli · anında çekilir · faiz kazanır</small>
+      </div>
+      <div class="bank-account-card">
+        <h4>📜 Devlet tahvili</h4>
+        <strong>${formatMoney(bank.bonds)}</strong>
+        <small>Daha yüksek getiri · faiz riski düşük</small>
+      </div>
+      <div class="bank-account-card${bank.loan > 0 ? ' bank-debt' : ''}">
+        <h4>🏦 Kredi borcu</h4>
+        <strong>${formatMoney(bank.loan)}</strong>
+        <small>Limit: ${formatMoney(maxLoan)} · gecikme iflas riski</small>
+      </div>
+    `
+    panel.appendChild(accounts)
+
+    const warn = document.createElement('p')
+    warn.className = 'bank-warn'
+    warn.textContent = bank.loan > state.financeNetWorth() * 0.5
+      ? '⚠️ Borç yüksek — faiz ödeyemezsen iflas koruması hisselerini ucuz satar.'
+      : 'Faiz her dakika işler. Korku endeksi yüksekken borsa daha oynak, iflas haberleri gelebilir.'
+    panel.appendChild(warn)
+
+    const actions = (title: string, btns: [string, string, string][]) => {
+      const wrap = document.createElement('div')
+      wrap.className = 'bank-action-group'
+      const h = document.createElement('h4')
+      h.textContent = title
+      wrap.appendChild(h)
+      const row = document.createElement('div')
+      row.className = 'bank-action-row'
+      for (const [action, label, count] of btns) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = action.includes('loan') && action.includes('take') ? 'btn-buy-stock' : 'btn-secondary btn-sm'
+        btn.dataset.action = action
+        btn.dataset.count = count
+        btn.textContent = label
+        row.appendChild(btn)
+      }
+      wrap.appendChild(row)
+      return wrap
+    }
+
+    panel.appendChild(actions('Mevduat', [
+      ['bank-deposit', 'Yatır 1K', '1000'],
+      ['bank-deposit', 'Yatır 10K', '10000'],
+      ['bank-deposit', 'Yatır max', 'max'],
+      ['bank-withdraw', 'Çek 1K', '1000'],
+      ['bank-withdraw', 'Çek max', 'max'],
+    ]))
+    panel.appendChild(actions('Tahvil', [
+      ['bank-buy-bonds', 'Al 5K', '5000'],
+      ['bank-buy-bonds', 'Al max', 'max'],
+      ['bank-sell-bonds', 'Sat max', 'max'],
+    ]))
+    panel.appendChild(actions('Kredi', [
+      ['bank-loan', 'Çek 25K', '25000'],
+      ['bank-loan', 'Çek max', 'max'],
+      ['bank-repay', 'Öde 10K', '10000'],
+      ['bank-repay', 'Öde max', 'max'],
+    ]))
+  }
+
   private renderIpoPrestige(state: GameState, panel: HTMLElement): void {
     panel.appendChild(this.createSectionHeader('Prestij Ağacı', `${state.prestigePoints} harcanabilir puan`))
 
@@ -1585,11 +1698,10 @@ export class ShopPanel {
   private renderIpoMerge(state: GameState, panel: HTMLElement): void {
     panel.appendChild(this.createSectionHeader('Şirket Birleşmesi & IPO'))
 
+    const preview = state.ipoPreview()
     const ipoCard = document.createElement('div')
     ipoCard.className = 'shop-card ipo-card'
-    const pending = calcPrestigePoints(state.totalEarned)
     const currentMult = prestigeMultiplier(state.prestigePoints)
-    const nextMult = prestigeMultiplier(state.prestigePoints + pending)
     const remaining = Math.max(0, PRESTIGE_THRESHOLD - state.totalEarned)
 
     const stats = document.createElement('div')
@@ -1598,14 +1710,24 @@ export class ShopPanel {
       <span><small>Mevcut hisse</small><strong>${Math.floor(state.prestigePoints)}</strong></span>
       <span><small>Kalıcı çarpan</small><strong>x${currentMult.toFixed(2)}</strong></span>
       <span><small>IPO sayısı</small><strong>${state.ipoCount}</strong></span>
-      <span><small>Sonraki IPO</small><strong>${pending > 0 ? `+${pending} hisse` : formatMoney(remaining) + ' kaldı'}</strong></span>
+      <span><small>Başlangıç sermayesi</small><strong>${formatMoney(preview.startingCash)}</strong></span>
     `
     ipoCard.appendChild(stats)
 
+    const steps = document.createElement('ol')
+    steps.className = 'ipo-steps'
+    steps.innerHTML = `
+      <li>Borsa ve mevduatın nakde çevrilir (kredi kapanır)</li>
+      <li>Run sıfırlanır — işletmeler, yükseltmeler, yöneticiler gider</li>
+      <li>Kalıcı prestij hissesi + ${formatMoney(preview.startingCash)} ile yeni tur başlar</li>
+      <li>Prestij ağacı, Ar-Ge, hanedan ve imparatorluk korunur</li>
+    `
+    ipoCard.appendChild(steps)
+
     const info = document.createElement('p')
     info.className = 'ipo-info-text'
-    info.textContent = pending > 0
-      ? `Birleşme sonrası kalıcı çarpan x${currentMult.toFixed(2)} → x${nextMult.toFixed(2)} olur. Run sıfırlanır, hisseler kalır.`
+    info.textContent = preview.pointsToEarn > 0
+      ? `Hazırsın: +${preview.pointsToEarn} kalıcı hisse · çarpan x${currentMult.toFixed(2)} → x${preview.newMultiplier.toFixed(2)} · portföy ${formatMoney(preview.portfolioValue)} satılacak`
       : `IPO için ${formatMoney(PRESTIGE_THRESHOLD)} toplam kazanç gerekir. Şu an ${formatMoney(state.totalEarned)} — ${formatMoney(remaining)} kaldı.`
 
     const ipoPct = Math.min(100, (state.totalEarned / PRESTIGE_THRESHOLD) * 100)
@@ -1626,7 +1748,9 @@ export class ShopPanel {
     btn.type = 'button'
     btn.className = 'btn-prestige'
     btn.dataset.action = 'ipo'
-    btn.textContent = state.prestigeEligible() ? '🚀 Borsaya Çık (IPO)' : `IPO için ${formatMoney(remaining)} kaldı`
+    btn.textContent = state.prestigeEligible()
+      ? `🚀 IPO Yap · ${formatMoney(preview.startingCash)} ile başla`
+      : `IPO için ${formatMoney(remaining)} kaldı`
     btn.disabled = !state.prestigeEligible()
 
     ipoCard.append(info, bar, btn)

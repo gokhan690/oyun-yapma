@@ -4260,3 +4260,82 @@ html.theme-galactic {
 
 .ipo-stats-grid small { font-size: 0.62rem; color: var(--muted); }
 .ipo-info-text { font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+
+/* Finance v2 — borsa makro + banka */
+.finance-macro-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.finance-macro-stat { display: flex; flex-direction: column; gap: 2px; }
+.finance-macro-stat small { font-size: 0.62rem; color: var(--muted); }
+.finance-macro-stat strong { font-size: 0.82rem; }
+.finance-macro-headline {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  color: var(--accent);
+  line-height: 1.35;
+}
+.bank-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.bank-stat {
+  padding: 10px;
+  background: var(--surface2);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.bank-stat small { display: block; font-size: 0.62rem; color: var(--muted); }
+.bank-stat strong { font-size: 0.9rem; color: var(--accent); }
+.bank-accounts { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.bank-account-card {
+  padding: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.bank-account-card h4 { margin: 0 0 4px; font-size: 0.85rem; }
+.bank-account-card strong { display: block; font-size: 1rem; color: #fde68a; }
+.bank-account-card small { font-size: 0.68rem; color: var(--muted); }
+.bank-account-card.bank-debt { border-color: rgba(248, 113, 113, 0.45); }
+.bank-warn {
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.4;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  background: rgba(251, 191, 36, 0.08);
+  border-radius: 8px;
+}
+.bank-action-group { margin-bottom: 12px; }
+.bank-action-group h4 { margin: 0 0 6px; font-size: 0.78rem; color: var(--muted); }
+.bank-action-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.ipo-preview-modal-lg { width: min(100%, 400px); max-height: 85vh; overflow-y: auto; text-align: left; }
+.ipo-preview-intro { font-size: 0.78rem; color: var(--muted); line-height: 1.45; margin: 0 0 10px; }
+.ipo-preview-section {
+  margin: 10px 0 4px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.ipo-preview-section.ipo-gain { color: #34d399; }
+.ipo-preview-section.ipo-loss { color: #f87171; }
+.ipo-preview-section.ipo-keep { color: #60a5fa; }
+.ipo-steps {
+  margin: 8px 0;
+  padding-left: 18px;
+  font-size: 0.74rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.ipo-steps li { margin-bottom: 4px; }

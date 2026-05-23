@@ -12,6 +12,9 @@ export class StatsBar {
   private lastIncomeText = ''
   private lastPrestigeText = ''
   private lastBoostText = ''
+  private lastPassiveValue = -1
+  private lastClickValue = -1
+  private lastBoostWasTimer = false
 
   constructor(state: GameState) {
     this.state = state
@@ -40,7 +43,7 @@ export class StatsBar {
     this.incomeChip.title = 'Saniye başına pasif gelir (tıklama hariç)'
     this.prestigeChip = this.chip('📊', 'x1.00')
     this.boostChip = this.chip('👆', '—')
-    this.boostChip.title = 'Ortalama tıklama kazancı'
+    this.boostChip.title = 'Tıklama başına baz gelir (combo/krit hariç)'
     chips.append(this.incomeChip, this.prestigeChip, this.boostChip)
 
     heroEl.append(moneyBlock, chips)
@@ -63,11 +66,16 @@ export class StatsBar {
     if (updateMeta) this.updateMeta()
   }
 
+  /** Pasif/tıklama/prestij — satın alma, gün/gece, haber vb. anlarda */
   updateMeta(): void {
-    const incomeText = formatIncomeRate(this.state.passiveIncomePerSecond())
-    if (incomeText !== this.lastIncomeText) {
-      this.setChip(this.incomeChip, incomeText)
-      this.lastIncomeText = incomeText
+    const passiveValue = this.state.displayPassiveIncomePerSecond()
+    if (this.rateChanged(this.lastPassiveValue, passiveValue)) {
+      const incomeText = formatIncomeRate(passiveValue)
+      if (incomeText !== this.lastIncomeText) {
+        this.setChip(this.incomeChip, incomeText)
+        this.lastIncomeText = incomeText
+      }
+      this.lastPassiveValue = passiveValue
     }
 
     const prestigeText = `x${prestigeMultiplier(this.state.prestigePoints).toFixed(2)}`
@@ -76,6 +84,21 @@ export class StatsBar {
       this.lastPrestigeText = prestigeText
     }
 
+    this.updateBoostChip(false)
+  }
+
+  /** Sadece aktif bonus geri sayımı — pasif/tıklama dokunulmaz */
+  tickBoostTimers(): void {
+    const hasTimer = this.state.isShopBoostActive()
+      || this.state.isAdBoostActive()
+      || this.state.getEventBoostActive()
+    if (hasTimer || this.lastBoostWasTimer) {
+      this.updateBoostChip(hasTimer)
+      this.lastBoostWasTimer = hasTimer
+    }
+  }
+
+  private updateBoostChip(force: boolean): void {
     let boostIcon = '👆'
     let boostText: string
     if (this.state.isShopBoostActive()) {
@@ -91,8 +114,11 @@ export class StatsBar {
       boostText = '3x'
       this.boostChip.title = 'Altın etkinlik bonusu'
     } else {
-      boostText = formatMoney(this.state.clickIncomePerTap())
-      this.boostChip.title = 'Ortalama tıklama kazancı (combo/krit hariç)'
+      const clickValue = this.state.displayClickIncomePerTap()
+      if (!force && !this.rateChanged(this.lastClickValue, clickValue)) return
+      boostText = formatMoney(clickValue)
+      this.boostChip.title = 'Tıklama başına baz gelir (combo/krit hariç)'
+      this.lastClickValue = clickValue
     }
     const boostKey = `${boostIcon}|${boostText}`
     if (boostKey !== this.lastBoostText) {
@@ -100,6 +126,16 @@ export class StatsBar {
       this.setChip(this.boostChip, boostText)
       this.lastBoostText = boostKey
     }
+  }
+
+  /** Küçük dalgalanmalar chip metnini değiştirmesin */
+  private rateChanged(prev: number, next: number): boolean {
+    if (prev < 0) return true
+    if (prev === next) return false
+    if (prev === 0) return next > 0
+    const diff = Math.abs(next - prev)
+    if (diff < 1) return false
+    return diff / prev >= 0.02
   }
 
   destroy(): void {

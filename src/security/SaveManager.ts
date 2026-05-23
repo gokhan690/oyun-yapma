@@ -1,5 +1,6 @@
 import type { GameState, SerializableState } from '../game/GameState'
-import { migrateLegacyStock } from '../game/StockMarket'
+import { migrateLegacyStock, migrateStockState } from '../game/StockMarket'
+import { createBankState } from '../game/FinanceBank'
 import { createWeeklyState, scaledWeeklyTarget, WEEKLY_EARN_MIN } from '../game/WeeklyEvent'
 import { createSeasonState, isLegacyGameSeasonKey } from '../game/SeasonPass'
 import { dailyGoalDayKey } from '../game/DailyGoal'
@@ -395,6 +396,11 @@ function repairState(state: SerializableState): SerializableState {
   s.playerGender = s.playerGender === 'female' ? 'female' : 'male'
   if (!s.stock || typeof s.stock !== 'object') {
     s.stock = migrateLegacyStock({})
+  } else if ('tickers' in s.stock) {
+    s.stock = migrateStockState(s.stock)
+  }
+  if (!s.bank || typeof s.bank !== 'object') {
+    s.bank = createBankState()
   }
 
   return s
@@ -449,7 +455,8 @@ function applyV3Defaults(legacy: LegacyState): SerializableState {
     ipoCount: legacy.ipoCount ?? legacy.lifetimePrestige ?? 0,
     lifetimeTotalEarned: legacy.lifetimeTotalEarned ?? legacy.totalEarned ?? 0,
     managers,
-    stock,
+    stock: migrateStockState(stock && 'tickers' in stock ? stock : migrateLegacyStock({})),
+    bank: createBankState(),
     weekly: legacy.weekly ?? createWeeklyState(),
     milestonesReached: legacy.milestonesReached ?? [],
     managerDiscountActive: legacy.managerDiscountActive ?? false,
@@ -501,8 +508,16 @@ function applyV3Defaults(legacy: LegacyState): SerializableState {
 }
 
 function applyV9Defaults(state: SerializableState): SerializableState {
+  let stock = state.stock
+  if (!stock || !('tickers' in stock)) {
+    stock = migrateLegacyStock((stock ?? {}) as { price?: number; shares?: number; avgBuyPrice?: number })
+  } else {
+    stock = migrateStockState(stock)
+  }
   return {
     ...state,
+    stock,
+    bank: state.bank ? { ...createBankState(), ...state.bank } : createBankState(),
     empire: state.empire ?? createEmpireState(),
     gameStartYear: state.gameStartYear ?? 2026,
     playerGender: state.playerGender === 'female' ? 'female' : 'male',
@@ -545,6 +560,8 @@ function applyV4Defaults(state: SerializableState): SerializableState {
   let stock = state.stock
   if (!stock || !('tickers' in stock)) {
     stock = migrateLegacyStock((stock ?? {}) as { price?: number; shares?: number; avgBuyPrice?: number })
+  } else {
+    stock = migrateStockState(stock)
   }
 
   return {
@@ -560,6 +577,7 @@ function applyV4Defaults(state: SerializableState): SerializableState {
     forcedUnlocks: state.forcedUnlocks ?? [],
     illegalHeat: state.illegalHeat ?? 0,
     stock,
+    bank: state.bank ? { ...createBankState(), ...state.bank } : createBankState(),
   }
 }
 
