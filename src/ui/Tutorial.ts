@@ -10,8 +10,9 @@ export interface TutorialStep {
 const STEPS: TutorialStep[] = [
   { target: '.tap-area', title: 'Kazan', text: 'Buraya tıklayarak para kazan. Hızlı tıkla = combo bonusu!' },
   { target: '[data-tab="growth"]', title: 'Mağaza — Büyüme', text: 'İşletme al ve yönetici işe al. 4 hub: Büyüme, Güçlendir, Finans, İmparatorluk.', tab: 'growth' },
-  { target: '[data-id="empire"]', title: 'İmparatorluk', text: 'Futbol kulübü, siyaset ve siyah fabrikayı buradan yönet. Mağazadan satın al!' },
-  { target: '[data-tab="empire"]', title: 'Mağaza — İmparatorluk', text: 'Spor, siyaset ve yeraltı yatırımlarını buradan satın al.', tab: 'empire' },
+  { target: '[data-id="shop"]', title: 'İşletme', text: 'Tüm işletmeleri geniş kartlarla buradan satın al.' },
+  { target: '[data-id="market"]', title: 'Borsa', text: 'Hisse al/sat, banka işlemleri ve run birleşmesi burada.' },
+  { target: '[data-tab="empire"]', title: 'İmparatorluk yatırımları', text: 'Spor, lüks, finans ve bilim kategorilerini İşletme sekmesinden aç.', tab: 'empire' },
   { target: '.shop-advisor-strip', title: 'Akıllı Alım', text: 'En iyi sonraki alım önerisi burada — tek tıkla satın al.', tab: 'growth' },
   { target: '.combo-wrap', title: 'Combo', text: '2 saniye içinde art arda tıkla — combo çarpanı artar.' },
   { target: '[data-id="events"]', title: 'Etkinlikler & Görevler', text: 'Günlük hedef, haftalık etkinlik, sezon yolu ve görevler burada.' },

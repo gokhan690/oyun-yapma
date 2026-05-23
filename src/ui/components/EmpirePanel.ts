@@ -26,7 +26,13 @@ export class EmpirePanel {
   private build(): void {
     const header = document.createElement('div')
     header.className = 'empire-header'
-    header.innerHTML = `<h2>İmparatorluk</h2><p class="empire-sub">Satın aldığın varlıkları yönet, gücünü artır</p>`
+    header.innerHTML = `
+      <div class="empire-header-top">
+        <h2>İmparatorluk Yönetimi</h2>
+        <button type="button" class="btn-secondary btn-sm" data-action="close-empire-manage">✕ Kapat</button>
+      </div>
+      <p class="empire-sub">Satın aldığın varlıkları yönet, gücünü artır</p>
+    `
 
     const tabs = document.createElement('div')
     tabs.className = 'empire-section-tabs'

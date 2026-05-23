@@ -400,17 +400,21 @@ export class HUD {
     this.goalsSheet.close()
     this.modals.close()
     this.bottomNav.setActive(view)
-    this.earnView.hidden = view === 'shop' || view === 'events' || view === 'empire'
-    this.shop.root.hidden = view !== 'shop'
+    this.earnView.hidden = view === 'shop' || view === 'market' || view === 'events'
+    this.shop.root.hidden = view !== 'shop' && view !== 'market'
     this.eventsPanel.root.hidden = view !== 'events'
-    this.empirePanel.root.hidden = view !== 'empire'
-    this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'empire' || view === 'events')
-    if (view === 'shop') this.refreshShop(true)
-    if (view === 'events') this.eventsPanel.render(this.state)
-    if (view === 'empire') {
-      this.empirePanel.render(this.state)
+    this.empirePanel.root.hidden = true
+    this.empirePanel.root.classList.remove('empire-overlay-open')
+    this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'market' || view === 'events')
+    if (view === 'shop') {
+      this.shop.setViewContext('shop', this.state)
       this.refreshShop(true)
     }
+    if (view === 'market') {
+      this.shop.setViewContext('market', this.state)
+      this.refreshShop(true)
+    }
+    if (view === 'events') this.eventsPanel.render(this.state)
     if (view === 'profile') {
       this.statsScreen.show()
       this.settings.hide()
@@ -432,6 +436,7 @@ export class HUD {
         || this.state.canClaimDaily()
         || this.state.hasPendingBoosts(),
       this.shop.hasShopBadge(this.state),
+      this.shop.hasMarketBadge(this.state),
     )
   }
 
@@ -504,9 +509,10 @@ export class HUD {
     this.unsub = this.state.subscribe((ev) => {
       if (ev.type === 'money_changed') {
         this.statsBar.render(false)
-        if (this.bottomNav.getActive() === 'shop' && this.shop.getActiveTab() === 'growth') {
+        const nav = this.bottomNav.getActive()
+        if (nav === 'shop' && this.shop.getViewContext() === 'shop' && this.shop.getActiveTab() === 'growth') {
           this.shop.patchAffordability(this.state)
-        } else if (this.bottomNav.getActive() === 'shop') {
+        } else if (nav === 'shop' || nav === 'market') {
           this.refreshShop(false)
         }
         if (this.bottomNav.getActive() === 'events') {
@@ -528,7 +534,7 @@ export class HUD {
       }
       if (ev.type === 'illegal_heat') {
         this.renderHeatMeter()
-        if (this.bottomNav.getActive() === 'shop') {
+        if (this.bottomNav.getActive() === 'shop' || this.bottomNav.getActive() === 'market') {
           this.shop.render(this.state, false)
         }
       }
@@ -539,7 +545,7 @@ export class HUD {
       if (ev.type === 'passive_income') {
         this.patchShopAffordability()
       }
-      if (ev.type === 'stock_tick' && this.shop.getActiveTab() === 'finance' && (this.shop.getIpoSubTab() === 'stock' || this.shop.getIpoSubTab() === 'bank')) {
+      if (ev.type === 'stock_tick' && this.bottomNav.getActive() === 'market') {
         this.shop.render(this.state, true)
       }
       if (ev.type === 'click') {
@@ -644,7 +650,7 @@ export class HUD {
       }
       if (ev.type === 'macro_event') {
         this.modals.showToast(this.root, ev.headline)
-        if (this.shop.getActiveTab() === 'finance') this.refreshShop(true)
+        if (this.shop.getViewContext() === 'market') this.refreshShop(true)
       }
       if (ev.type === 'bankruptcy') {
         this.modals.showToast(this.root, `⚠️ İflas koruması: ${ev.reason}`)
@@ -717,6 +723,8 @@ export class HUD {
   }
 
   private refreshShop(force: boolean): void {
+    const nav = this.bottomNav.getActive()
+    if (nav !== 'shop' && nav !== 'market') return
     const now = Date.now()
     if (force || now - this.lastShopRefresh >= 800) {
       this.lastShopRefresh = now
@@ -1025,8 +1033,19 @@ export class HUD {
       case 'shop-sub-tab':
         if (id === 'businesses' || id === 'management') this.shop.setGrowthSub(id)
         else if (id === 'upgrades' || id === 'research') this.shop.setPowerupSub(id)
-        else if (id === 'sport' || id === 'politics' || id === 'dark') this.shop.setEmpireSub(id)
+        else if (id === 'sport' || id === 'politics' || id === 'dark' || id === 'luxury' || id === 'finance' || id === 'science') {
+          this.shop.setEmpireSub(id as 'sport' | 'politics' | 'dark' | 'luxury' | 'finance' | 'science')
+        }
         this.refreshShop(true)
+        break
+      case 'open-empire-manage':
+        this.empirePanel.render(this.state)
+        this.empirePanel.root.hidden = false
+        this.empirePanel.root.classList.add('empire-overlay-open')
+        break
+      case 'close-empire-manage':
+        this.empirePanel.root.hidden = true
+        this.empirePanel.root.classList.remove('empire-overlay-open')
         break
       case 'biz-sort':
         if (id) {
@@ -1066,8 +1085,8 @@ export class HUD {
         break
       case 'open-finance-news': {
         const ticker = this.state.marketNewsStockTickerId()
-        this.bottomNav.setActive('shop')
-        this.setView('shop')
+        this.bottomNav.setActive('market')
+        this.setView('market')
         this.shop.goToFinanceStock(ticker ?? undefined)
         this.refreshShop(true)
         break
@@ -1972,7 +1991,7 @@ export class HUD {
     this.statsBar.render()
     this.renderSessionPanel()
     this.renderHeatMeter()
-    if (this.bottomNav.getActive() === 'shop' || this.bottomNav.getActive() === 'empire') {
+    if (this.bottomNav.getActive() === 'shop' || this.bottomNav.getActive() === 'market') {
       this.refreshShop(true)
     } else {
       this.patchShopAffordability()
@@ -1981,9 +2000,6 @@ export class HUD {
     this.goalsSheet.render(this.state)
     if (this.bottomNav.getActive() === 'events') {
       this.eventsPanel.render(this.state)
-    }
-    if (this.bottomNav.getActive() === 'empire') {
-      this.empirePanel.render(this.state)
     }
     this.renderMarketNewsBanner()
     this.renderDayNightChip()

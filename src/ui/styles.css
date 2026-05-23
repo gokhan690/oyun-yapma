@@ -4623,3 +4623,208 @@ html.theme-galactic {
   line-height: 1.45;
 }
 .ipo-steps li { margin-bottom: 4px; }
+
+/* —— İşletme / Borsa ayrımı —— */
+.shop-context-business .shop-hub-tabs { margin-bottom: 4px; }
+.shop-context-market .shop-hub-strip,
+.shop-context-market .buy-modes.is-hidden { display: none !important; }
+.shop-context-market .shop-advisor-strip.is-hidden { display: none !important; }
+.shop-context-market .shop-body .tab-panel { padding: 10px 12px 20px; }
+.shop-context-business .shop-body .tab-panel[data-panel="businesses"] {
+  padding: 10px 14px 24px;
+}
+.shop-context-business .biz-cards-grid {
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+@media (min-width: 720px) {
+  .shop-context-business .biz-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.shop-context-business .biz-cards-grid .biz-card {
+  min-height: 228px;
+}
+.shop-context-business .biz-icon-wrap {
+  width: 72px;
+  height: 72px;
+}
+.shop-context-business .biz-emoji-display { font-size: 2.5rem; }
+.shop-context-business .biz-buy-btn {
+  min-height: 200px;
+  padding: 20px;
+}
+
+/* Kilitli imparatorluk kartları */
+.biz-locked-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 20px 16px;
+  min-height: 180px;
+  justify-content: center;
+}
+.biz-locked-info strong { display: block; font-size: 0.95rem; margin-bottom: 4px; }
+.biz-locked-info small { display: block; color: var(--muted); font-size: 0.72rem; line-height: 1.35; }
+.biz-locked-tier { color: var(--accent) !important; margin-top: 4px; }
+
+.shop-sub-tab-manage {
+  margin-left: auto;
+  border-color: rgba(251, 191, 36, 0.45) !important;
+  color: var(--accent) !important;
+}
+
+/* İmparatorluk yönetim overlay */
+.empire-panel.empire-overlay-open {
+  position: fixed;
+  inset: 0;
+  bottom: calc(50px + var(--safe-bottom));
+  z-index: 50;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
+}
+.empire-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* Borsa tahtası */
+.stock-portfolio-hero {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+@media (min-width: 560px) {
+  .stock-portfolio-hero { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.stock-portfolio-hero .stock-portfolio-stat {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.stock-portfolio-hero .stock-portfolio-stat small {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.stock-portfolio-hero .stock-portfolio-stat strong { font-size: 1rem; }
+
+.stock-board-title {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0 0 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.stock-market-board {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+@media (min-width: 520px) {
+  .stock-market-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.stock-board-card {
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  border-radius: 14px;
+  padding: 12px;
+  cursor: pointer;
+  color: inherit;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.stock-board-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.25);
+}
+.stock-board-card.stock-bankrupt { border-color: rgba(248, 113, 113, 0.5); }
+.stock-board-card.ticker-highlight { animation: affordablePulse 1.5s ease infinite; }
+.stock-board-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.stock-board-emoji { font-size: 1.5rem; line-height: 1; }
+.stock-board-names { flex: 1; min-width: 0; }
+.stock-board-names strong { display: block; font-size: 0.88rem; }
+.stock-board-names small { color: var(--muted); font-size: 0.68rem; }
+.stock-board-price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.stock-board-price-row strong { font-size: 1.05rem; }
+.stock-board-spark {
+  width: 100%;
+  height: 28px;
+  display: block;
+}
+
+.stock-trade-panel {
+  background: linear-gradient(135deg, var(--surface2), rgba(26, 45, 74, 0.9));
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.stock-trade-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.stock-trade-emoji { font-size: 2rem; }
+.stock-trade-head h3 { margin: 0; font-size: 1.05rem; }
+.stock-trade-head small { color: var(--muted); font-size: 0.72rem; }
+.stock-trade-price {
+  margin-left: auto;
+  text-align: right;
+}
+.stock-trade-price strong { display: block; font-size: 1.2rem; }
+.stock-detail-grid-lg {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.stock-sparkline-xl {
+  width: 100%;
+  height: 80px;
+  display: block;
+  margin-bottom: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+.stock-trade-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.stock-hint-box {
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+}
+.market-event-banner-top {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-weight: 700;
+  text-align: center;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}

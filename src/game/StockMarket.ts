@@ -48,6 +48,8 @@ export const STOCK_DEFS = [
   { id: 'realestate', name: 'Gayrimenkul', emoji: '🏢', basePrice: 120, volatility: 0.08, sector: 'realestate' as const },
   { id: 'finance', name: 'Bankacılık', emoji: '🏦', basePrice: 95, volatility: 0.11, sector: 'finance' as const },
   { id: 'industrial', name: 'Sanayi', emoji: '🏭', basePrice: 72, volatility: 0.13, sector: 'industrial' as const },
+  { id: 'crypto', name: 'Kripto Endeks', emoji: '₿', basePrice: 55, volatility: 0.22, sector: 'finance' as const },
+  { id: 'health', name: 'Sağlık', emoji: '💊', basePrice: 88, volatility: 0.09, sector: 'industrial' as const },
 ] as const
 
 function createTicker(def: (typeof STOCK_DEFS)[number]): StockTicker {

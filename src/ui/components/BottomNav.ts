@@ -1,12 +1,12 @@
-export type NavView = 'earn' | 'shop' | 'events' | 'empire' | 'profile'
+export type NavView = 'earn' | 'shop' | 'market' | 'events' | 'profile'
 
 import { assetUrl } from '../../utils/assetUrl'
 
 const NAV_ICONS: Record<NavView, string> = {
   earn: assetUrl('icons/nav/earn.svg'),
   shop: assetUrl('icons/nav/shop.svg'),
+  market: assetUrl('icons/nav/shop.svg'),
   events: assetUrl('icons/nav/events.svg'),
-  empire: assetUrl('icons/nav/empire.svg'),
   profile: assetUrl('icons/nav/profile.svg'),
 }
 
@@ -16,15 +16,16 @@ export class BottomNav {
   private buttons = new Map<NavView, HTMLButtonElement>()
   private badgeEvents!: HTMLElement
   private badgeShop!: HTMLElement
+  private badgeMarket!: HTMLElement
 
   constructor() {
     this.root = document.createElement('nav')
     this.root.className = 'bottom-nav'
     const defs: { id: NavView; label: string }[] = [
       { id: 'earn', label: 'Kazan' },
-      { id: 'shop', label: 'Mağaza' },
+      { id: 'shop', label: 'İşletme' },
+      { id: 'market', label: 'Borsa' },
       { id: 'events', label: 'Etkinlik' },
-      { id: 'empire', label: 'İmparatorluk' },
       { id: 'profile', label: 'Profil' },
     ]
     for (const d of defs) {
@@ -60,6 +61,13 @@ export class BottomNav {
         btn.appendChild(badge)
         this.badgeShop = badge
       }
+      if (d.id === 'market') {
+        const badge = document.createElement('span')
+        badge.className = 'nav-badge'
+        badge.hidden = true
+        btn.appendChild(badge)
+        this.badgeMarket = badge
+      }
       this.buttons.set(d.id, btn)
       this.root.appendChild(btn)
     }
@@ -76,8 +84,9 @@ export class BottomNav {
     return this.active
   }
 
-  setBadges(events: boolean, shop: boolean): void {
+  setBadges(events: boolean, shop: boolean, market = false): void {
     if (this.badgeEvents) this.badgeEvents.hidden = !events
     if (this.badgeShop) this.badgeShop.hidden = !shop
+    if (this.badgeMarket) this.badgeMarket.hidden = !market
   }
 }
