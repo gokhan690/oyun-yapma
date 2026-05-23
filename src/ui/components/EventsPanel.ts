@@ -49,22 +49,6 @@ export class EventsPanel {
     const boosts = this.renderActiveBoosts(state)
     if (boosts) this.scrollBody.appendChild(boosts)
 
-    if (state.isSurpriseInvestorActive()) {
-      this.scrollBody.appendChild(this.banner('💎 Sürpriz yatırımcı aktif — tüm gelir iki kat!', 'surprise-investor-banner'))
-    }
-
-    const headline = state.currentMarketHeadline()
-    if (headline) {
-      this.scrollBody.appendChild(this.banner(`📰 ${headline}`, 'market-news-banner'))
-    }
-
-    if (Date.now() < state.stock.marketEventUntil) {
-      this.scrollBody.appendChild(this.banner(
-        state.stock.marketEventMult < 0 ? '📉 Borsa çöküşü — fiyatlar düşüyor!' : '📈 Borsa rallisi — fiyatlar yükseliyor!',
-        'market-event-banner',
-      ))
-    }
-
     const heat = state.illegalHeat
     if (heat > 0 || state.illegalIncomePerDay() > 0) {
       const heatWarn = document.createElement('div')
@@ -90,10 +74,69 @@ export class EventsPanel {
     this.scrollBody.appendChild(this.renderMissions(state))
   }
 
-  private renderActiveBoosts(state: GameState): HTMLElement | null {
+  /** Tam DOM yenilemeden ilerleme ve bonus sürelerini günceller. */
+  patchLive(state: GameState): boolean {
+    if (!this.scrollBody.querySelector('.events-block-daily')) return false
+
+    const target = state.dailyGoalTarget()
+    const goalPct = Math.floor(dailyGoalProgress(state.dailyGoalEarned, target))
+    const dailyBlock = this.scrollBody.querySelector('.events-block-daily')
+    if (dailyBlock) {
+      const stat = dailyBlock.querySelector('.events-hero-stat')
+      if (stat) stat.textContent = `${goalPct}%`
+      const sub = dailyBlock.querySelector('.events-hero-text > small')
+      if (sub) sub.textContent = `${formatMoney(state.dailyGoalEarned)} / ${formatMoney(target)} kazanç`
+      const fill = dailyBlock.querySelector('.progress-fill') as HTMLElement | null
+      if (fill) fill.style.width = `${goalPct}%`
+    }
+
+    const w = state.weekly
+    const wPct = w.target > 0 ? Math.min(100, (w.progress / w.target) * 100) : 0
+    const daysLeft = daysUntilWeekReset()
+    const weeklyBlock = this.scrollBody.querySelector('.events-block-weekly')
+    if (weeklyBlock) {
+      const stat = weeklyBlock.querySelector('.events-hero-stat')
+      if (stat) stat.textContent = `${Math.floor(wPct)}%`
+      const sub = weeklyBlock.querySelector('.events-hero-text > small')
+      if (sub) sub.textContent = `${formatMoney(w.progress)} / ${formatMoney(w.target)} · ${daysLeft} gün kaldı`
+      const fill = weeklyBlock.querySelector('.progress-fill') as HTMLElement | null
+      if (fill) fill.style.width = `${wPct}%`
+    }
+
+    for (const m of state.missions) {
+      const card = this.scrollBody.querySelector(`.events-mission-card[data-mission-id="${m.id}"]`)
+      if (!card) continue
+      const pct = Math.min(100, (m.progress / m.target) * 100)
+      const headSmall = card.querySelector('.events-mission-head small')
+      if (headSmall) headSmall.textContent = `${Math.floor(m.progress)}/${m.target}`
+      const fill = card.querySelector('.progress-fill') as HTMLElement | null
+      if (fill) fill.style.width = `${pct}%`
+    }
+
+    return this.patchBoostRow(state)
+  }
+
+  private patchBoostRow(state: GameState): boolean {
+    const expected = this.activeBoostSpecs(state)
+    const row = this.scrollBody.querySelector('.events-boosts-row')
+    if (expected.length === 0) {
+      row?.remove()
+      return true
+    }
+    if (!row || row.querySelectorAll('.events-boost-chip').length !== expected.length) return false
+    const chips = row.querySelectorAll('.events-boost-chip')
+    expected.forEach((spec, i) => {
+      const chip = chips[i]
+      if (!chip) return
+      const small = chip.querySelector('small')
+      if (small) small.textContent = spec.detail
+    })
+    return true
+  }
+
+  private activeBoostSpecs(state: GameState): { emoji: string; label: string; detail: string }[] {
     const now = Date.now()
     const chips: { emoji: string; label: string; detail: string }[] = []
-
     if (now < state.adIncomeBoostUntil) {
       chips.push({ emoji: '📺', label: 'Reklam bonusu', detail: formatRemainingMs(state.adIncomeBoostUntil - now) })
     }
@@ -106,12 +149,11 @@ export class EventsPanel {
     if (state.isSurpriseInvestorActive()) {
       chips.push({ emoji: '💎', label: 'Yatırımcı bonusu', detail: formatRemainingMs(state.surpriseInvestorUntil - now) })
     }
-    if (state.isNight) {
-      chips.push({ emoji: '🌙', label: 'Hafta sonu pasif', detail: 'Oyun takvimi Cmt–Paz' })
-    } else {
-      chips.push({ emoji: '☀️', label: 'Hafta içi tık', detail: 'Oyun takvimi Pzt–Cum' })
-    }
+    return chips
+  }
 
+  private renderActiveBoosts(state: GameState): HTMLElement | null {
+    const chips = this.activeBoostSpecs(state)
     if (chips.length === 0) return null
 
     const wrap = document.createElement('div')
@@ -123,13 +165,6 @@ export class EventsPanel {
       wrap.appendChild(chip)
     }
     return wrap
-  }
-
-  private banner(text: string, className: string): HTMLElement {
-    const el = document.createElement('div')
-    el.className = `events-banner ${className}`
-    el.textContent = text
-    return el
   }
 
   private renderDaily(state: GameState): HTMLElement {
@@ -285,6 +320,7 @@ export class EventsPanel {
           : '—'
       const card = document.createElement('div')
       card.className = `events-mission-card${m.claimed ? ' claimed' : ''}${m.progress >= m.target && !m.claimed ? ' ready' : ''}`
+      card.dataset.missionId = m.id
       card.innerHTML = `
         <div class="events-mission-head">
           <strong>${m.label}</strong>

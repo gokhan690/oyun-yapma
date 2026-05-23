@@ -3529,13 +3529,12 @@ html.theme-galactic {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.app-root.money-pulse .stats-bar,
 .app-root.money-pulse .stats-hero-value {
-  animation: moneyPulse var(--duration-normal, 0.28s) var(--ease-spring, ease);
+  animation: moneyGlow 0.22s ease;
 }
-@keyframes moneyPulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.03); filter: brightness(1.15); }
+@keyframes moneyGlow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.25); }
 }
 .tap-area:active .tap-inner {
   transform: scale(0.94);
@@ -3593,9 +3592,26 @@ html.theme-galactic {
   border: 1px solid rgba(251,191,36,0.25);
   box-shadow: var(--shadow-md);
 }
+.stats-hero-money {
+  flex: 1;
+  min-width: 0;
+}
 .stats-hero-label { font-size: var(--text-caption); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-.stats-hero-value { display: block; font-size: var(--text-hero); font-weight: 800; color: #fde68a; font-variant-numeric: tabular-nums; }
-.stats-hero-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.stats-hero-value {
+  display: block;
+  font-size: var(--text-hero);
+  font-weight: 800;
+  color: #fde68a;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.stats-hero-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
 .stats-chip {
   display: inline-flex;
   align-items: center;
@@ -3605,8 +3621,15 @@ html.theme-galactic {
   background: var(--surface2);
   border: 1px solid var(--border);
   font-size: 0.72rem;
+  min-width: 4.5rem;
+  justify-content: center;
+  white-space: nowrap;
 }
-.stats-chip-value { font-weight: 700; color: var(--accent); }
+.stats-chip-value {
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
 
 /* Shop v2.7 */
 .shop-hub-btn { display: inline-flex; align-items: center; gap: 6px; }

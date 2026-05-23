@@ -500,20 +500,22 @@ export class HUD {
 
     this.unsub = this.state.subscribe((ev) => {
       if (ev.type === 'money_changed') {
-        this.statsBar.render(true)
+        this.statsBar.render(false)
         if (this.bottomNav.getActive() === 'shop' && this.shop.getActiveTab() === 'growth') {
           this.shop.patchAffordability(this.state)
         } else if (this.bottomNav.getActive() === 'shop') {
           this.refreshShop(false)
         }
         if (this.bottomNav.getActive() === 'events') {
-          this.eventsPanel.render(this.state)
+          if (!this.eventsPanel.patchLive(this.state)) this.eventsPanel.render(this.state)
         }
         this.scheduleUiSync()
         this.renderProgressStrip()
         this.checkRankUp()
+      }
+      if (ev.type === 'click') {
         this.root.classList.add('money-pulse')
-        window.setTimeout(() => this.root.classList.remove('money-pulse'), 280)
+        window.setTimeout(() => this.root.classList.remove('money-pulse'), 220)
       }
       if (ev.type === 'illegal_raid') {
         const p = PRODUCERS.find((x) => x.id === ev.producerId)
@@ -558,6 +560,7 @@ export class HUD {
         if (ev.type === 'purchase') {
           this.particles.spawnMoneyToHeader()
         }
+        this.statsBar.updateMeta()
         this.refreshShop(true)
         this.skyline.update(this.state.ownedBusinessTiers(), this.state.gameTimeMs)
       }
@@ -596,7 +599,11 @@ export class HUD {
       if (ev.type === 'day_night' || ev.type === 'game_time') {
         this.renderDayNightChip()
         this.renderMarketNewsBanner()
+        this.statsBar.updateMeta()
         this.refreshShop(true)
+        if (this.bottomNav.getActive() === 'events') {
+          if (!this.eventsPanel.patchLive(this.state)) this.eventsPanel.render(this.state)
+        }
       }
       if (ev.type === 'market_news') {
         this.renderMarketNewsBanner()
@@ -668,7 +675,7 @@ export class HUD {
         this.particles.spawnPurchasePulse()
         this.refreshShop(true)
       }
-      if (ev.type === 'ad_boost') this.statsBar.render()
+      if (ev.type === 'ad_boost') this.statsBar.updateMeta()
       if (ev.type === 'research_purchased') {
         this.sound.playPurchase()
         this.refreshShop(true)

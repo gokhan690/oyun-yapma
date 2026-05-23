@@ -4,27 +4,25 @@ import { prestigeMultiplier } from '../../game/Prestige'
 
 export class StatsBar {
   readonly root: HTMLElement
-  private heroEl!: HTMLElement
   private moneyEl!: HTMLElement
   private incomeChip!: HTMLElement
   private prestigeChip!: HTMLElement
   private boostChip!: HTMLElement
-  private displayedMoney = 0
-  private moneyTarget = 0
-  private rafId: number | null = null
   private state: GameState
+  private lastIncomeText = ''
+  private lastPrestigeText = ''
+  private lastBoostText = ''
 
   constructor(state: GameState) {
     this.state = state
     this.root = document.createElement('div')
     this.root.className = 'stats-bar stats-bar-hero'
     this.build()
-    this.startMoneyLoop()
   }
 
   private build(): void {
-    this.heroEl = document.createElement('div')
-    this.heroEl.className = 'stats-hero'
+    const heroEl = document.createElement('div')
+    heroEl.className = 'stats-hero'
 
     const moneyBlock = document.createElement('div')
     moneyBlock.className = 'stats-hero-money'
@@ -45,8 +43,8 @@ export class StatsBar {
     this.boostChip.title = 'Ortalama tıklama kazancı'
     chips.append(this.incomeChip, this.prestigeChip, this.boostChip)
 
-    this.heroEl.append(moneyBlock, chips)
-    this.root.appendChild(this.heroEl)
+    heroEl.append(moneyBlock, chips)
+    this.root.appendChild(heroEl)
   }
 
   private chip(icon: string, val: string): HTMLElement {
@@ -56,68 +54,65 @@ export class StatsBar {
     return el
   }
 
-  setMoney(target: number): void {
-    this.moneyTarget = target
+  /** Cüzdan anında güncellenir; chip'ler sadece updateMeta=true iken yenilenir */
+  render(updateMeta = true): void {
+    const formatted = formatMoney(this.state.money)
+    if (this.moneyEl.textContent !== formatted) {
+      this.moneyEl.textContent = formatted
+    }
+    if (updateMeta) this.updateMeta()
   }
 
-  render(updateAll = true): void {
-    this.moneyTarget = this.state.money
-    if (!updateAll) return
-    this.updateMeta()
-  }
+  updateMeta(): void {
+    const incomeText = formatIncomeRate(this.state.passiveIncomePerSecond())
+    if (incomeText !== this.lastIncomeText) {
+      this.setChip(this.incomeChip, incomeText)
+      this.lastIncomeText = incomeText
+    }
 
-  private updateMeta(): void {
-    this.setChip(this.incomeChip, formatIncomeRate(this.state.passiveIncomePerSecond()))
-    this.setChip(this.prestigeChip, `x${prestigeMultiplier(this.state.prestigePoints).toFixed(2)}`)
+    const prestigeText = `x${prestigeMultiplier(this.state.prestigePoints).toFixed(2)}`
+    if (prestigeText !== this.lastPrestigeText) {
+      this.setChip(this.prestigeChip, prestigeText)
+      this.lastPrestigeText = prestigeText
+    }
+
+    let boostIcon = '👆'
+    let boostText: string
     if (this.state.isShopBoostActive()) {
-      const sec = Math.ceil(this.state.shopBoostRemainingMs() / 1000)
-      this.setChip(this.boostChip, `Mağaza +50% ${sec}sn`)
+      boostIcon = '🛒'
+      boostText = `${Math.ceil(this.state.shopBoostRemainingMs() / 1000)}s`
       this.boostChip.title = 'Mağaza gelir bonusu aktif'
     } else if (this.state.isAdBoostActive()) {
-      const sec = Math.ceil(this.state.adBoostRemainingMs() / 1000)
-      this.setChip(this.boostChip, `Reklam 2x ${sec}sn`)
+      boostIcon = '📺'
+      boostText = `${Math.ceil(this.state.adBoostRemainingMs() / 1000)}s`
       this.boostChip.title = 'Reklam gelir bonusu aktif'
     } else if (this.state.getEventBoostActive()) {
-      this.setChip(this.boostChip, 'Etkinlik 3x')
+      boostIcon = '✨'
+      boostText = '3x'
       this.boostChip.title = 'Altın etkinlik bonusu'
     } else {
-      this.setChip(this.boostChip, formatMoney(this.state.clickIncomePerTap()))
+      boostText = formatMoney(this.state.clickIncomePerTap())
       this.boostChip.title = 'Ortalama tıklama kazancı (combo/krit hariç)'
     }
-  }
-
-  private startMoneyLoop(): void {
-    let lastMeta = 0
-    const tick = (): void => {
-      this.moneyTarget = this.state.money
-      const diff = this.moneyTarget - this.displayedMoney
-      if (Math.abs(diff) < 0.05 || (this.moneyTarget > 0 && Math.abs(diff) < this.moneyTarget * 0.002)) {
-        this.displayedMoney = this.moneyTarget
-      } else if (Math.abs(diff) > 500) {
-        this.displayedMoney += diff * 0.12
-      } else {
-        this.displayedMoney += diff * 0.25
-      }
-      const formatted = formatMoney(this.displayedMoney)
-      if (this.moneyEl.textContent !== formatted) this.moneyEl.textContent = formatted
-
-      const now = performance.now()
-      if (now - lastMeta > 450) {
-        lastMeta = now
-        this.updateMeta()
-      }
-
-      this.rafId = requestAnimationFrame(tick)
+    const boostKey = `${boostIcon}|${boostText}`
+    if (boostKey !== this.lastBoostText) {
+      this.setChipIcon(this.boostChip, boostIcon)
+      this.setChip(this.boostChip, boostText)
+      this.lastBoostText = boostKey
     }
-    this.rafId = requestAnimationFrame(tick)
   }
 
   destroy(): void {
-    if (this.rafId !== null) cancelAnimationFrame(this.rafId)
+    /* no rAF loop */
   }
 
   private setChip(chip: HTMLElement, value: string): void {
     const v = chip.querySelector('.stats-chip-value')
-    if (v && v.textContent !== value) v.textContent = value
+    if (v) v.textContent = value
+  }
+
+  private setChipIcon(chip: HTMLElement, icon: string): void {
+    const el = chip.querySelector('.stats-chip-icon')
+    if (el) el.textContent = icon
   }
 }
