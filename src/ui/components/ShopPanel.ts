@@ -207,11 +207,17 @@ export class ShopPanel {
     }
   }
 
+  private shopContextClass(): 'market' | 'business' {
+    return this.viewContext === 'market' ? 'market' : 'business'
+  }
+
+  private applyRootClasses(hub: ShopHub = this.activeHub): void {
+    this.root.className = `shop-panel shop-hub-${hub} shop-context-${this.shopContextClass()}`
+  }
+
   private applyViewChrome(state?: GameState): void {
     const isMarket = this.viewContext === 'market'
-    this.root.classList.toggle('shop-context-market', isMarket)
-    this.root.classList.toggle('shop-context-business', !isMarket)
-    this.root.className = `shop-panel shop-hub-${this.activeHub} shop-context-${this.viewContext}`
+    this.applyRootClasses()
     this.titleEl.textContent = isMarket ? '📈 Borsa & Finans' : '🏢 İşletmeler'
     this.shopSubEl.textContent = isMarket
       ? 'Hisse al/sat · banka · prestij · run birleşmesi'
@@ -243,7 +249,7 @@ export class ShopPanel {
     if (resolved.ipoSub) this.ipoSubTab = resolved.ipoSub
     if (resolved.empireSub) this.empireSub = resolved.empireSub
     const panelId = this.activePanelId()
-    this.root.className = `shop-panel shop-hub-${this.activeHub} shop-context-${this.viewContext}`
+    this.applyRootClasses()
     for (const btn of this.tabButtons) {
       btn.classList.toggle('active', btn.dataset.tab === this.activeHub)
       btn.hidden = this.viewContext === 'market'
@@ -364,7 +370,7 @@ export class ShopPanel {
     this.empireSub = sub
     this.activeHub = 'empire'
     const panelId = this.activePanelId()
-    this.root.className = `shop-panel shop-hub-empire shop-context-${this.viewContext}`
+    this.applyRootClasses('empire')
     for (const [pid, panel] of Object.entries(this.panels)) {
       panel.hidden = pid !== panelId
     }
@@ -439,8 +445,11 @@ export class ShopPanel {
   render(state: GameState, onlyActiveTab = false, patch = false): void {
     this.applyViewChrome(state)
     if (this.viewContext === 'shop') {
-      this.renderShopHub(state)
+      this.shopHubEl.hidden = true
+      this.shopHubEl.replaceChildren()
       this.renderAdvisorStrip(state)
+    } else {
+      this.renderShopHub(state)
     }
     this.renderSubTabs(state)
     const panelId = this.activePanelId()
@@ -550,8 +559,11 @@ export class ShopPanel {
   }
 
   private renderShopHub(state: GameState): void {
-    if (this.viewContext === 'market') return
-    this.shopHubEl.hidden = true
+    if (this.viewContext !== 'market') {
+      this.shopHubEl.hidden = true
+      return
+    }
+    this.shopHubEl.hidden = false
     const ipd = state.incomePerDay()
     const click = state.clickIncomePerTap()
     const illegalIpd = state.illegalIncomePerDay()

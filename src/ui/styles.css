@@ -186,7 +186,7 @@ body {
 
 .tap-wrap {
   position: relative;
-  min-height: 220px;
+  min-height: 180px;
   border-radius: var(--radius-lg, 24px);
   overflow: hidden;
   border: 1px solid rgba(251, 191, 36, 0.35);
@@ -307,8 +307,8 @@ html.theme-night .tap-wrap {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 220px;
+  gap: 10px;
+  min-height: 180px;
   transition: transform var(--duration-fast, 0.08s) ease;
 }
 
@@ -319,10 +319,11 @@ html.theme-night .tap-wrap {
 }
 
 .tap-label {
-  font-size: 1.2rem;
-  font-weight: 800;
-  letter-spacing: 0.15em;
-  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(251, 191, 36, 0.85);
+  text-transform: none;
 }
 
 @keyframes pulse {
@@ -2847,6 +2848,11 @@ button.shop-card {
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
+.shop-hub-strip[hidden],
+.finance-modifiers[hidden],
+.shop-advisor-strip[hidden] {
+  display: none !important;
+}
 .hub-stat {
   flex: 1;
   min-width: 0;
@@ -4690,6 +4696,37 @@ html.theme-galactic {
 .shop-context-business .biz-bottom { font-size: 0.95rem; }
 .shop-context-business .biz-cost { font-size: 1rem !important; }
 .shop-context-business .biz-income { font-size: 0.92rem; font-weight: 700; color: var(--green); }
+
+@media (max-width: 640px) {
+  .shop-context-business .shop-body {
+    flex: 1 1 0;
+    min-height: 42vh;
+  }
+  .shop-context-business .shop-body .tab-panel[data-panel="businesses"] {
+    min-height: 36vh;
+    padding-bottom: 28px;
+  }
+  .shop-context-business .biz-cards-grid .biz-card {
+    min-height: 220px;
+  }
+  .shop-context-business .biz-buy-btn {
+    min-height: 200px;
+  }
+  .tap-wrap,
+  .tap-inner {
+    min-height: 150px;
+  }
+  .tap-mascot {
+    width: 72px;
+    height: 72px;
+  }
+  .tap-label {
+    font-size: 0.72rem;
+  }
+  .tutorial-card {
+    bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px);
+  }
+}
 
 /* Kilitli imparatorluk kartları */
 .biz-locked-inner {

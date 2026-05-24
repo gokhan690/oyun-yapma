@@ -1,24 +1,25 @@
 import type { GameState } from '../game/GameState'
+import type { NavView } from './components/BottomNav'
 
 export interface TutorialStep {
   target: string
   title: string
   text: string
   tab?: string
+  view?: NavView
 }
 
 const STEPS: TutorialStep[] = [
-  { target: '.tap-area', title: 'Kazan', text: 'Buraya tıklayarak para kazan. Hızlı tıkla = combo bonusu!' },
-  { target: '[data-tab="growth"]', title: 'Mağaza — Büyüme', text: 'İşletme al ve yönetici işe al. 4 hub: Büyüme, Güçlendir, Finans, İmparatorluk.', tab: 'growth' },
+  { target: '.tap-area', title: 'Para kazan', text: 'Buraya tıklayarak para kazan. Hızlı tık = combo bonusu!', view: 'earn' },
   { target: '[data-id="shop"]', title: 'İşletme', text: 'Tüm işletmeleri geniş kartlarla buradan satın al.' },
+  { target: '[data-tab="growth"]', title: 'Büyüme', text: 'İşletme al, yönetici işe al. Büyüme · Güçlendir · İmparatorluk sekmeleri burada.', tab: 'growth', view: 'shop' },
+  { target: '.shop-advisor-strip', title: 'Akıllı alım', text: 'En iyi sonraki alım önerisi — tek tıkla satın al.', tab: 'growth', view: 'shop' },
   { target: '[data-id="market"]', title: 'Borsa', text: 'Hisse al/sat, banka işlemleri ve run birleşmesi burada.' },
-  { target: '[data-tab="empire"]', title: 'İmparatorluk yatırımları', text: 'Spor, lüks, finans ve bilim kategorilerini İşletme sekmesinden aç.', tab: 'empire' },
-  { target: '.shop-advisor-strip', title: 'Akıllı Alım', text: 'En iyi sonraki alım önerisi burada — tek tıkla satın al.', tab: 'growth' },
-  { target: '.combo-wrap', title: 'Combo', text: '2 saniye içinde art arda tıkla — combo çarpanı artar.' },
-  { target: '[data-id="events"]', title: 'Etkinlikler & Görevler', text: 'Günlük hedef, haftalık etkinlik, sezon yolu ve görevler burada.' },
-  { target: '[data-tab="finance"]', title: 'Finans', text: 'Borsa, prestij ağacı ve IPO burada.', tab: 'finance' },
-  { target: '.btn-daily', title: 'Günlük Ödül', text: 'Her gün giriş yap, streak bonusu topla!' },
-  { target: '.heat-meter-row', title: 'Illegal Radar', text: 'Illegal işletmeler radar biriktirir. Underground menüsünden temizle.' },
+  { target: '[data-tab="empire"]', title: 'İmparatorluk', text: 'Spor, lüks, finans ve bilim kategorilerini İşletme sekmesinden aç.', tab: 'empire', view: 'shop' },
+  { target: '.combo-wrap', title: 'Combo', text: '2 saniye içinde art arda tıkla — combo çarpanı artar.', view: 'earn' },
+  { target: '[data-id="events"]', title: 'Etkinlikler', text: 'Günlük hedef, haftalık etkinlik, sezon yolu ve görevler burada.' },
+  { target: '.btn-daily', title: 'Günlük ödül', text: 'Her gün giriş yap, streak bonusu topla!' },
+  { target: '.heat-meter-row', title: 'Illegal radar', text: 'Illegal işletmeler radar biriktirir. Underground menüsünden temizle.', view: 'earn' },
 ]
 
 export class Tutorial {
@@ -26,6 +27,7 @@ export class Tutorial {
   private stepIndex = 0
   private onTab: ((tab: string) => void) | null = null
   private state: GameState
+  private currentView: NavView = 'earn'
 
   constructor(state: GameState) {
     this.state = state
@@ -37,6 +39,24 @@ export class Tutorial {
 
   shouldShow(): boolean {
     return !this.state.tutorialDone
+  }
+
+  onViewChange(view: NavView): void {
+    this.currentView = view
+    if (this.state.tutorialDone) {
+      this.cleanup()
+      return
+    }
+    this.cleanup()
+    if (this.stepIndex >= STEPS.length) return
+    const step = STEPS[this.stepIndex]!
+    if (!step.view || step.view === view) {
+      window.setTimeout(() => this.showStep(), 120)
+    }
+  }
+
+  dismiss(): void {
+    this.cleanup()
   }
 
   start(): void {
@@ -58,19 +78,29 @@ export class Tutorial {
       return
     }
     const step = STEPS[this.stepIndex]!
+    if (step.view && step.view !== this.currentView) return
+
     if (step.tab && this.onTab) this.onTab(step.tab)
 
     window.setTimeout(() => {
-      const target = document.querySelector(step.target) as HTMLElement | null
+      if (this.state.tutorialDone || this.stepIndex >= STEPS.length) return
+      const current = STEPS[this.stepIndex]!
+      if (current.view && current.view !== this.currentView) return
+
+      const target = document.querySelector(current.target) as HTMLElement | null
+      if (!target) return
+      const rect = target.getBoundingClientRect()
+      if (rect.width < 1 && rect.height < 1) return
+
       this.overlay = document.createElement('div')
       this.overlay.className = 'tutorial-overlay'
 
       const card = document.createElement('div')
       card.className = 'tutorial-card'
       const h = document.createElement('h3')
-      h.textContent = step.title
+      h.textContent = current.title
       const p = document.createElement('p')
-      p.textContent = step.text
+      p.textContent = current.text
       const row = document.createElement('div')
       row.className = 'tutorial-actions'
       const skip = document.createElement('button')
@@ -93,17 +123,14 @@ export class Tutorial {
       card.append(h, p, row)
       this.overlay.appendChild(card)
 
-      if (target) {
-        const rect = target.getBoundingClientRect()
-        const highlight = document.createElement('div')
-        highlight.className = 'tutorial-highlight'
-        highlight.style.top = `${rect.top - 6}px`
-        highlight.style.left = `${rect.left - 6}px`
-        highlight.style.width = `${rect.width + 12}px`
-        highlight.style.height = `${rect.height + 12}px`
-        this.overlay.appendChild(highlight)
-        card.style.top = `${Math.min(rect.bottom + 12, window.innerHeight - 180)}px`
-      }
+      const highlight = document.createElement('div')
+      highlight.className = 'tutorial-highlight'
+      highlight.style.top = `${rect.top - 6}px`
+      highlight.style.left = `${rect.left - 6}px`
+      highlight.style.width = `${rect.width + 12}px`
+      highlight.style.height = `${rect.height + 12}px`
+      this.overlay.appendChild(highlight)
+      card.style.top = `${Math.min(rect.bottom + 12, window.innerHeight - 180)}px`
 
       document.body.appendChild(this.overlay)
     }, step.tab ? 400 : 100)

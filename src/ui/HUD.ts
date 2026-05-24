@@ -248,7 +248,7 @@ export class HUD {
     }
     const tapLabel = document.createElement('span')
     tapLabel.className = 'tap-label'
-    tapLabel.textContent = 'KAZAN'
+    tapLabel.textContent = 'Tıkla & kazan'
     tapInner.append(mascot, tapLabel)
     this.tapArea.appendChild(tapInner)
 
@@ -399,6 +399,7 @@ export class HUD {
   private setView(view: NavView): void {
     this.goalsSheet.close()
     this.modals.close()
+    this.tutorial.onViewChange(view)
     this.bottomNav.setActive(view)
     this.earnView.hidden = view === 'shop' || view === 'market' || view === 'events'
     this.shop.root.hidden = view !== 'shop' && view !== 'market'
