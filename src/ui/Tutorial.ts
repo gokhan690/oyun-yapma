@@ -10,11 +10,11 @@ export interface TutorialStep {
 }
 
 const STEPS: TutorialStep[] = [
-  { target: '.tap-area', title: 'Para kazan', text: 'Buraya tıklayarak para kazan. Hızlı tık = combo bonusu!', view: 'earn' },
-  { target: '[data-id="shop"]', title: 'İşletme', text: 'Tüm işletmeleri geniş kartlarla buradan satın al.' },
+  { target: '.tap-area', title: 'Tıkla & Kazan', text: 'Buraya tıklayarak para kazan. Hızlı tık = combo bonusu!', view: 'earn' },
+  { target: '[data-id="shop"]', title: 'İşletme', text: 'Tüm işletmeleri geniş kartlarla buradan satın al.', view: 'shop' },
   { target: '[data-tab="growth"]', title: 'Büyüme', text: 'İşletme al, yönetici işe al. Büyüme · Güçlendir · İmparatorluk sekmeleri burada.', tab: 'growth', view: 'shop' },
   { target: '.shop-advisor-strip', title: 'Akıllı alım', text: 'En iyi sonraki alım önerisi — tek tıkla satın al.', tab: 'growth', view: 'shop' },
-  { target: '[data-id="market"]', title: 'Borsa', text: 'Hisse al/sat, banka işlemleri ve run birleşmesi burada.' },
+  { target: '[data-id="market"]', title: 'Borsa', text: 'Hisse al/sat, banka işlemleri ve run birleşmesi burada.', view: 'market' },
   { target: '[data-tab="empire"]', title: 'İmparatorluk', text: 'Spor, lüks, finans ve bilim kategorilerini İşletme sekmesinden aç.', tab: 'empire', view: 'shop' },
   { target: '.combo-wrap', title: 'Combo', text: '2 saniye içinde art arda tıkla — combo çarpanı artar.', view: 'earn' },
   { target: '[data-id="events"]', title: 'Etkinlikler', text: 'Günlük hedef, haftalık etkinlik, sezon yolu ve görevler burada.' },
@@ -25,6 +25,7 @@ const STEPS: TutorialStep[] = [
 export class Tutorial {
   private overlay: HTMLElement | null = null
   private stepIndex = 0
+  private pendingStepTimer: number | null = null
   private onTab: ((tab: string) => void) | null = null
   private state: GameState
   private currentView: NavView = 'earn'
@@ -82,15 +83,17 @@ export class Tutorial {
 
     if (step.tab && this.onTab) this.onTab(step.tab)
 
-    window.setTimeout(() => {
+    const delay = step.tab ? 400 : 100
+    this.pendingStepTimer = window.setTimeout(() => {
+      this.pendingStepTimer = null
       if (this.state.tutorialDone || this.stepIndex >= STEPS.length) return
       const current = STEPS[this.stepIndex]!
       if (current.view && current.view !== this.currentView) return
 
       const target = document.querySelector(current.target) as HTMLElement | null
-      if (!target) return
-      const rect = target.getBoundingClientRect()
-      if (rect.width < 1 && rect.height < 1) return
+      if (!this.isTargetVisible(target)) return
+
+      const rect = target!.getBoundingClientRect()
 
       this.overlay = document.createElement('div')
       this.overlay.className = 'tutorial-overlay'
@@ -133,10 +136,27 @@ export class Tutorial {
       card.style.top = `${Math.min(rect.bottom + 12, window.innerHeight - 180)}px`
 
       document.body.appendChild(this.overlay)
-    }, step.tab ? 400 : 100)
+    }, delay)
+  }
+
+  private isTargetVisible(target: HTMLElement | null): boolean {
+    if (!target) return false
+    let el: HTMLElement | null = target
+    while (el) {
+      if (el.hidden) return false
+      el = el.parentElement
+    }
+    const rect = target.getBoundingClientRect()
+    if (rect.width < 1 || rect.height < 1) return false
+    const style = window.getComputedStyle(target)
+    return style.display !== 'none' && style.visibility !== 'hidden'
   }
 
   private cleanup(): void {
+    if (this.pendingStepTimer !== null) {
+      window.clearTimeout(this.pendingStepTimer)
+      this.pendingStepTimer = null
+    }
     this.overlay?.remove()
     this.overlay = null
   }

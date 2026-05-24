@@ -209,17 +209,37 @@ export const ECONOMY_BASE_INCOME_MULT = ECONOMY_BASE_COST_MULT
 export const ECONOMY_UPGRADE_COST_SCALE = 1.35
 export const EARLY_UNLOCK_COST_SCALE = 1.65
 
+function tierEconomyBand(tier: number): number {
+  if (tier >= 16) return 180
+  if (tier >= 12) return 95
+  if (tier >= 9) return 18
+  if (tier >= 6) return 5
+  return 1
+}
+
+function tierLateExponent(tier: number): number {
+  if (tier <= 5) return 1
+  return Math.pow(1.22, tier - 5)
+}
+
 /** Maliyet ve gelir için ortak tier / mega / kilit eğrisi */
 export function producerEconomyMult(def: ProducerDef): number {
   const tierMult = 1 + Math.max(0, def.tier - 1) * ECONOMY_TIER_COST_BONUS
   const megaMult = def.tier >= 12 ? 1.35 : def.tier >= 8 ? 1.12 : 1
   const unlockSpread = def.unlockAt > 0 ? 1 + Math.log10(Math.max(10, def.unlockAt)) * 0.012 : 1
-  return ECONOMY_COST_SCALE * ECONOMY_BASE_COST_MULT * tierMult * megaMult * unlockSpread
+  const lateExp = tierLateExponent(def.tier)
+  const band = tierEconomyBand(def.tier)
+  return ECONOMY_COST_SCALE * ECONOMY_BASE_COST_MULT * tierMult * megaMult * unlockSpread * lateExp * band
 }
 
 export function scaledUnlockAt(def: ProducerDef): number {
   if (def.unlockAt <= 0) return 0
-  return Math.floor(def.unlockAt * ECONOMY_UNLOCK_SCALE)
+  let scale = ECONOMY_UNLOCK_SCALE
+  if (def.tier >= 16) scale *= 2.8
+  else if (def.tier >= 12) scale *= 1.65
+  else if (def.tier >= 9) scale *= 1.35
+  else if (def.tier >= 6) scale *= 1.12
+  return Math.floor(def.unlockAt * scale)
 }
 
 export function scaledBaseIncome(baseIncome: number, def?: ProducerDef): number {
@@ -258,8 +278,9 @@ export function isProducerUnlocked(
 
 export function earlyUnlockCost(def: ProducerDef): number {
   const unlock = scaledUnlockAt(def)
-  const raw = Math.max(def.baseCost * 6, Math.floor(unlock * 0.22))
-  return Math.ceil(raw * EARLY_UNLOCK_COST_SCALE * producerEconomyMult(def) / (ECONOMY_COST_SCALE * ECONOMY_BASE_COST_MULT))
+  const firstUnit = producerCost(def, 0, 1)
+  const raw = Math.max(firstUnit * 0.35, Math.floor(unlock * 0.2), def.baseCost * 8)
+  return Math.ceil(raw * EARLY_UNLOCK_COST_SCALE * 0.85)
 }
 
 export function producerIconPath(id: string): string {

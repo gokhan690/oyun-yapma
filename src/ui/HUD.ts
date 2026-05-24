@@ -131,6 +131,16 @@ export class HUD {
     if (this.tutorial.shouldShow()) {
       window.setTimeout(() => this.tutorial.start(), 600)
     }
+    if (this.state.hasPendingBankruptcyRecovery()) {
+      window.setTimeout(() => {
+        this.showBankruptcyPopup(
+          'İflas sonrası kurtarma bekliyor',
+          0,
+          this.state.bankruptcyRecoveryPool,
+          this.state.bankruptcySeizedSnapshot.map((item) => item.id),
+        )
+      }, 900)
+    }
     this.bindOwnerAccess()
   }
 
@@ -379,7 +389,11 @@ export class HUD {
     adChest.innerHTML = '<span class="quick-ad-icon">🎁</span><span class="quick-ad-text"><strong>Sandık</strong><small>Rastgele ödül kazan</small></span>'
     adsPanel.append(adDouble, adChest)
 
-    this.earnView.append(this.weeklyBanner, progressStrip, sessionPanel, tapWrap, adsPanel)
+    const earnHero = document.createElement('div')
+    earnHero.className = 'earn-tab-hero'
+    earnHero.innerHTML = '<h2>Tıkla & Kazan</h2><p>Tıkla, combo yap · Sandık ve 2x gelir aşağıda</p>'
+
+    this.earnView.append(this.weeklyBanner, earnHero, progressStrip, adsPanel, sessionPanel, tapWrap)
     main.append(this.earnView, this.shop.root, this.eventsPanel.root, this.empirePanel.root)
 
     this.adBannerSlot = document.createElement('div')
@@ -406,6 +420,7 @@ export class HUD {
     this.eventsPanel.root.hidden = view !== 'events'
     this.empirePanel.root.hidden = true
     this.empirePanel.root.classList.remove('empire-overlay-open')
+    this.gameMain.classList.toggle('earn-active', view === 'earn')
     this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'market' || view === 'events')
     if (view === 'shop') {
       this.shop.setViewContext('shop', this.state)
@@ -654,7 +669,7 @@ export class HUD {
         if (this.shop.getViewContext() === 'market') this.refreshShop(true)
       }
       if (ev.type === 'bankruptcy') {
-        this.modals.showToast(this.root, `⚠️ İflas koruması: ${ev.reason}`)
+        this.showBankruptcyPopup(ev.reason, ev.loss, ev.recoveryPool, ev.seizedBusinesses)
         this.refreshShop(true)
       }
       if (ev.type === 'mission_complete') {
@@ -870,6 +885,16 @@ export class HUD {
         break
       case 'ad-comeback-x2':
         await this.handleAdComeback(2)
+        break
+      case 'ad-bankruptcy-recovery':
+        await this.handleAdBankruptcyRecovery(1)
+        break
+      case 'ad-bankruptcy-recovery-x2':
+        await this.handleAdBankruptcyRecovery(2)
+        break
+      case 'skip-bankruptcy-recovery':
+        this.state.discardBankruptcyRecovery()
+        this.modals.close()
         break
       case 'skip-comeback':
         this.state.discardComeback()
@@ -1849,6 +1874,23 @@ export class HUD {
     this.renderAll()
   }
 
+  private async handleAdBankruptcyRecovery(multiplier = 1): Promise<void> {
+    if (!this.state.hasPendingBankruptcyRecovery()) {
+      this.modals.close()
+      return
+    }
+    const result = await this.ads.showRewarded('bankruptcy_recovery')
+    if (!result.success) {
+      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      return
+    }
+    this.state.incrementRewardedAdCount()
+    const amount = this.state.claimBankruptcyRecovery(multiplier)
+    this.modals.close()
+    this.modals.showToast(this.root, `İflas kurtarma: +${formatMoney(amount)}`)
+    this.renderAll()
+  }
+
   private async handleAdComeback(multiplier = 1): Promise<void> {
     if (!this.state.hasPendingComeback()) {
       this.modals.close()
@@ -1958,6 +2000,46 @@ export class HUD {
         this.renderAll()
       },
       streakLost,
+    )
+  }
+
+  showBankruptcyPopup(reason: string, loss: number, recoveryPool: number, seizedIds: string[]): void {
+    if (!this.state.hasPendingBankruptcyRecovery() && recoveryPool <= 0) return
+    const seizedLines = this.state.bankruptcySeizedSnapshot.map(
+      (item) => `${item.emoji} ${item.name} ×${item.units} (${formatMoney(item.value)})`,
+    )
+    if (seizedLines.length === 0) {
+      for (const id of seizedIds) {
+        const def = PRODUCERS.find((p) => p.id === id)
+        if (def) seizedLines.push(`${def.emoji} ${def.name}`)
+      }
+    }
+    const pool = recoveryPool || this.state.bankruptcyRecoveryPool
+    const lossLabel = loss > 0 ? formatMoney(loss) : formatMoney(Math.max(pool, Math.floor(pool / 0.85)))
+    const rec40 = formatMoney(Math.floor(pool * 0.4))
+    const rec80 = formatMoney(Math.floor(pool * 0.8))
+    const ad = document.createElement('button')
+    ad.type = 'button'
+    ad.className = 'btn-ad'
+    ad.dataset.action = 'ad-bankruptcy-recovery'
+    ad.textContent = `📺 Kurtar %40 — ${rec40}`
+    const ad2 = document.createElement('button')
+    ad2.type = 'button'
+    ad2.className = 'btn-primary'
+    ad2.dataset.action = 'ad-bankruptcy-recovery-x2'
+    ad2.textContent = `📺 x2 Kurtar %80 — ${rec80}`
+    const skip = document.createElement('button')
+    skip.type = 'button'
+    skip.className = 'btn-secondary'
+    skip.dataset.action = 'skip-bankruptcy-recovery'
+    skip.textContent = 'Vazgeç'
+    this.modals.showBankruptcyModal(
+      reason,
+      lossLabel,
+      rec40,
+      rec80,
+      seizedLines,
+      [ad2, ad, skip],
     )
   }
 

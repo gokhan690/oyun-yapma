@@ -40,6 +40,14 @@ import {
   type IpoPreviewData,
 } from './FinanceBank'
 import {
+  BANKRUPTCY_CASH_GRACE_MS,
+  BANKRUPTCY_COOLDOWN_MS,
+  BANKRUPTCY_RECOVERY_BASE_RATE,
+  restoreSeizedBusinesses,
+  seizeBusinesses,
+  type SeizedBusiness,
+} from './Bankruptcy'
+import {
   createSeasonState,
   currentTier,
   rewardForTier,
@@ -252,6 +260,11 @@ export interface SerializableState {
   chestPityCounter: number
   chestTickets: number
   campaign: CampaignState
+  bankruptcyRecoveryPool?: number
+  bankruptcyRecoveryClaimed?: boolean
+  bankruptcySeizedSnapshot?: SeizedBusiness[]
+  lastBankruptcyAt?: number
+  bankruptcyCashGraceSince?: number
 }
 
 export interface ProducerBreakdown {
@@ -295,7 +308,7 @@ export type GameEvent =
   | { type: 'market_event'; crash: boolean }
   | { type: 'macro_event'; headline: string; crash?: boolean }
   | { type: 'finance_tick'; headline?: string }
-  | { type: 'bankruptcy'; loss: number; reason: string }
+  | { type: 'bankruptcy'; loss: number; reason: string; recoveryPool: number; seizedBusinesses: string[] }
   | { type: 'auto_buy'; producerId: string }
   | { type: 'nav_changed'; view: string }
   | { type: 'illegal_raid'; fine: number; producerId: string }
@@ -426,6 +439,11 @@ export class GameState {
   private nudgeFlags = new Set<string>()
   /** Yokken biriken — sadece reklamla toplanır */
   pendingOfflineEarnings = 0
+  bankruptcyRecoveryPool = 0
+  bankruptcyRecoveryClaimed = false
+  bankruptcySeizedSnapshot: SeizedBusiness[] = []
+  lastBankruptcyAt = 0
+  bankruptcyCashGraceSince = 0
 
   comboCount = 0
   comboMultiplier = 1
@@ -676,6 +694,39 @@ export class GameState {
       this.lastBankruptcyCheck = now
       this.resolveBankruptcy('Net değer borcun altına düştü')
     }
+    this.checkBankruptcyTriggers(now)
+  }
+
+  private checkBankruptcyTriggers(now: number): void {
+    if (now <= this.bank.bankruptcyCooldownUntil) return
+    if (now - this.lastBankruptcyAt < BANKRUPTCY_COOLDOWN_MS) return
+
+    if (this.financeNetWorth() <= 0 && now - this.lastBankruptcyCheck > 30_000) {
+      this.lastBankruptcyCheck = now
+      this.resolveBankruptcy('Net değer sıfırın altına düştü — tam iflas')
+      return
+    }
+
+    if (this.money <= 0 && this.bank.loan > 0) {
+      if (this.bankruptcyCashGraceSince === 0) this.bankruptcyCashGraceSince = now
+      const graceElapsed = now - this.bankruptcyCashGraceSince
+      const passive = this.incomePerDay()
+      const canServiceDebt = passive >= this.bank.loan * 0.002
+      if (graceElapsed >= BANKRUPTCY_CASH_GRACE_MS && !canServiceDebt) {
+        this.resolveBankruptcy('Nakit tükendi — borç ödenemiyor')
+      }
+    } else {
+      this.bankruptcyCashGraceSince = 0
+    }
+  }
+
+  private maybeBankruptcyAfterFinancialShock(reason: string): void {
+    const now = Date.now()
+    if (now <= this.bank.bankruptcyCooldownUntil) return
+    if (now - this.lastBankruptcyAt < BANKRUPTCY_COOLDOWN_MS) return
+    if (this.financeNetWorth() <= 0) {
+      this.resolveBankruptcy(reason)
+    }
   }
 
   private tickDayNight(now: number): void {
@@ -810,6 +861,7 @@ export class GameState {
       this.emit({ type: 'illegal_raid', fine, producerId: p.id })
       this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
       this.emit({ type: 'money_changed' })
+      this.maybeBankruptcyAfterFinancialShock('Illegal baskın sonrası iflas')
       break
     }
   }
@@ -1654,19 +1706,86 @@ export class GameState {
   }
 
   resolveBankruptcy(reason: string): void {
+    const now = Date.now()
+    if (now <= this.bank.bankruptcyCooldownUntil) return
+    if (now - this.lastBankruptcyAt < BANKRUPTCY_COOLDOWN_MS) return
+
     const portfolio = portfolioValue(this.stock)
     const fireSale = liquidatePortfolio(this.stock, 0.62)
-    const loss = Math.floor(portfolio - fireSale + this.bank.loan * 0.25)
+    const portfolioLoss = Math.max(0, portfolio - fireSale)
+    const loanPenalty = Math.floor(this.bank.loan * 0.25)
+    const depositBefore = this.bank.deposit
+    const bondsBefore = this.bank.bonds
+
+    const { seized, updated } = seizeBusinesses(this.producers)
+    this.producers = updated
+    syncEmpireFromProducers(this.empire, this.producers)
+
+    const businessLoss = seized.reduce((sum, item) => sum + item.value, 0)
+    const depositLoss = Math.floor(depositBefore * 0.3)
+    const bondLoss = Math.floor(bondsBefore * 0.25)
+    const loss = portfolioLoss + loanPenalty + depositLoss + bondLoss + businessLoss
+
     this.money += fireSale
     this.bank.loan = Math.floor(this.bank.loan * 0.55)
     this.bank.deposit = Math.floor(this.bank.deposit * 0.7)
     this.bank.bonds = Math.floor(this.bank.bonds * 0.75)
     this.bank.creditScore = Math.max(35, this.bank.creditScore - 18)
-    this.bank.bankruptcyCooldownUntil = Date.now() + 120_000
+    this.bank.bankruptcyCooldownUntil = now + BANKRUPTCY_COOLDOWN_MS
+    this.lastBankruptcyAt = now
+    this.bankruptcyCashGraceSince = 0
+    this.bankruptcyRecoveryPool = Math.max(0, Math.floor(loss * 0.85))
+    this.bankruptcyRecoveryClaimed = false
+    this.bankruptcySeizedSnapshot = seized.map((item) => ({ ...item }))
     this.stock.marketFear = Math.min(95, this.stock.marketFear + 20)
-    this.stock.macroHeadline = `⚠️ İflas koruması: ${reason}`
-    this.emit({ type: 'bankruptcy', loss, reason })
+    this.stock.macroHeadline = `⚠️ İflas: ${reason}`
+
+    this.emit({
+      type: 'bankruptcy',
+      loss,
+      reason,
+      recoveryPool: this.bankruptcyRecoveryPool,
+      seizedBusinesses: seized.map((item) => item.id),
+    })
+    this.emit({
+      type: 'story_beat',
+      beatId: 'bankruptcy',
+      text: `İflas ettin. ${formatMoney(loss)} değerinde varlık kaybı. Reklam izleyerek bir kısmını geri alabilirsin.`,
+    })
     this.emit({ type: 'money_changed' })
+  }
+
+  hasPendingBankruptcyRecovery(): boolean {
+    return this.bankruptcyRecoveryPool > 0 && !this.bankruptcyRecoveryClaimed
+  }
+
+  bankruptcyRecoveryPreview(multiplier = 1): number {
+    return Math.floor(this.bankruptcyRecoveryPool * BANKRUPTCY_RECOVERY_BASE_RATE * multiplier)
+  }
+
+  claimBankruptcyRecovery(multiplier = 1): number {
+    if (!this.hasPendingBankruptcyRecovery()) return 0
+    const cash = this.bankruptcyRecoveryPreview(multiplier)
+    this.addMoney(cash)
+    if (this.bankruptcySeizedSnapshot.length > 0) {
+      this.producers = restoreSeizedBusinesses(
+        this.producers,
+        this.bankruptcySeizedSnapshot,
+        multiplier >= 2 ? 0.5 : 0.35,
+      )
+      syncEmpireFromProducers(this.empire, this.producers)
+    }
+    this.bankruptcyRecoveryClaimed = true
+    this.bankruptcyRecoveryPool = 0
+    this.bankruptcySeizedSnapshot = []
+    this.emit({ type: 'money_changed' })
+    return cash
+  }
+
+  discardBankruptcyRecovery(): void {
+    this.bankruptcyRecoveryPool = 0
+    this.bankruptcyRecoveryClaimed = true
+    this.bankruptcySeizedSnapshot = []
   }
 
   bankDeposit(amount: number): boolean {
@@ -2716,6 +2835,11 @@ export class GameState {
         ...this.campaign,
         completedChapters: [...this.campaign.completedChapters],
       },
+      bankruptcyRecoveryPool: this.bankruptcyRecoveryPool,
+      bankruptcyRecoveryClaimed: this.bankruptcyRecoveryClaimed,
+      bankruptcySeizedSnapshot: this.bankruptcySeizedSnapshot.map((item) => ({ ...item })),
+      lastBankruptcyAt: this.lastBankruptcyAt,
+      bankruptcyCashGraceSince: this.bankruptcyCashGraceSince,
     }
   }
 
@@ -2877,6 +3001,11 @@ export class GameState {
     if (this.dynasty.playerStartAge === undefined) this.dynasty.playerStartAge = 18
     if (this.dynasty.lifespanNotified === undefined) this.dynasty.lifespanNotified = false
     if (this.dynasty.pendingDeath === undefined) this.dynasty.pendingDeath = null
+    this.bankruptcyRecoveryPool = data.bankruptcyRecoveryPool ?? 0
+    this.bankruptcyRecoveryClaimed = data.bankruptcyRecoveryClaimed ?? false
+    this.bankruptcySeizedSnapshot = (data.bankruptcySeizedSnapshot ?? []).map((item) => ({ ...item }))
+    this.lastBankruptcyAt = data.lastBankruptcyAt ?? 0
+    this.bankruptcyCashGraceSince = data.bankruptcyCashGraceSince ?? 0
     this.lastSaveTime = data.lastSaveTime
     this.isNight = isGameNight(this.gameTimeMs)
     this.ensureDailyGoal()

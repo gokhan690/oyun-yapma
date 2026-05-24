@@ -681,6 +681,26 @@ export class ShopPanel {
     return `${Math.ceil(days / 365)}y`
   }
 
+  private patchEarlyUnlockFooter(
+    card: HTMLElement,
+    def: ProducerDef,
+    state: GameState,
+    unlockAt: number,
+  ): void {
+    const earlyBtn = card.querySelector('.btn-early-unlock') as HTMLButtonElement | null
+    const earlyHint = card.querySelector('.btn-early-unlock-hint') as HTMLElement | null
+    if (!earlyBtn) return
+    const cost = earlyUnlockCost(def)
+    const canAfford = state.canAfford(cost)
+    earlyBtn.textContent = `Erken aç · ${formatMoney(cost)}`
+    earlyBtn.disabled = !canAfford
+    earlyBtn.title = `Cüzdandan ödenir · Normal açılış: ${formatMoney(unlockAt)} toplam kazanç`
+    if (earlyHint) {
+      earlyHint.textContent = canAfford ? '' : 'Yetersiz bakiye'
+      earlyHint.hidden = canAfford
+    }
+  }
+
   private createSectionHeader(title: string, subtitle?: string): HTMLElement {
     const el = document.createElement('div')
     el.className = 'shop-section-header'
@@ -891,21 +911,33 @@ export class ShopPanel {
           grid.appendChild(card)
         }
         card.hidden = false
-        const earlyCost = earlyUnlockCost(p)
-        const canEarly = state.canAfford(earlyCost)
-        card.innerHTML = `
-          <div class="biz-locked-inner">
-            <span class="biz-emoji-display">${p.emoji}</span>
-            <div class="biz-locked-info">
-              <strong>🔒 ${p.name}</strong>
-              <small>${formatMoney(scaledUnlockAt(p))} kazançta açılır</small>
-              <small class="biz-locked-tier">Tier ${p.tier} · +${formatIncomeRate(scaledBaseIncome(p.baseIncome, p))}</small>
-            </div>
-            <button type="button" class="btn-secondary btn-sm" data-action="early-unlock" data-id="${p.id}" ${canEarly ? '' : 'disabled'}>
-              Erken aç · ${formatMoney(earlyCost)}
-            </button>
+        const unlockAt = scaledUnlockAt(p)
+        card.replaceChildren()
+        const inner = document.createElement('div')
+        inner.className = 'biz-locked-inner'
+        inner.innerHTML = `
+          <span class="biz-emoji-display">${p.emoji}</span>
+          <div class="biz-locked-info">
+            <strong>🔒 ${p.name}</strong>
+            <small>${formatMoney(unlockAt)} kazançta açılır</small>
+            <small class="biz-locked-tier">Tier ${p.tier} · +${formatIncomeRate(scaledBaseIncome(p.baseIncome, p))}</small>
           </div>
         `
+        const overlay = document.createElement('div')
+        overlay.className = 'biz-locked-overlay biz-locked-overlay-compact'
+        overlay.innerHTML = `<span class="biz-locked-icon">${p.illegal ? '🕶️' : '🔒'}</span>`
+        const footer = document.createElement('div')
+        footer.className = 'biz-card-locked-footer'
+        const earlyBtn = document.createElement('button')
+        earlyBtn.type = 'button'
+        earlyBtn.className = 'btn-early-unlock'
+        earlyBtn.dataset.action = 'early-unlock'
+        earlyBtn.dataset.id = p.id
+        const earlyHint = document.createElement('small')
+        earlyHint.className = 'btn-early-unlock-hint'
+        footer.append(earlyBtn, earlyHint)
+        card.append(inner, overlay, footer)
+        this.patchEarlyUnlockFooter(card, p, state, unlockAt)
       }
     }
 
@@ -1100,13 +1132,18 @@ export class ShopPanel {
           lockIcon.textContent = nextLockedDef.illegal ? '🕶️' : '🔒'
           const lockText = document.createElement('span')
           lockText.className = 'biz-locked-text'
+          overlay.append(lockIcon, lockText)
+          const footer = document.createElement('div')
+          footer.className = 'biz-card-locked-footer'
           const earlyBtn = document.createElement('button')
           earlyBtn.type = 'button'
           earlyBtn.className = 'btn-early-unlock'
           earlyBtn.dataset.action = 'early-unlock'
           earlyBtn.dataset.id = nextLockedDef.id
-          overlay.append(lockIcon, lockText, earlyBtn)
-          lockedCard.append(inner, overlay)
+          const earlyHint = document.createElement('small')
+          earlyHint.className = 'btn-early-unlock-hint'
+          footer.append(earlyBtn, earlyHint)
+          lockedCard.append(inner, overlay, footer)
           grid.appendChild(lockedCard)
         } else {
           lockedCard.dataset.producerId = nextLockedDef.id
@@ -1122,18 +1159,13 @@ export class ShopPanel {
           const eta = ipd > 0 ? remaining / ipd : Infinity
           lockText.textContent = `${formatMoney(state.totalEarned)} / ${formatMoney(unlockAt)} kazanç · ~${this.formatEta(eta)}`
         }
-        const earlyBtn = lockedCard.querySelector('.btn-early-unlock') as HTMLButtonElement | null
-        if (earlyBtn) {
-          const cost = earlyUnlockCost(nextLockedDef)
-          const canAfford = state.canAfford(cost)
-          earlyBtn.textContent = canAfford ? `Erken aç · ${formatMoney(cost)}` : `Erken aç · ${formatMoney(cost)} (yetersiz)`
-          earlyBtn.disabled = !canAfford
-          earlyBtn.title = `Cüzdandan ödenir · Normal açılış: ${formatMoney(unlockAt)} toplam kazanç`
-        }
+        this.patchEarlyUnlockFooter(lockedCard, nextLockedDef, state, unlockAt)
         let progressBar = lockedCard.querySelector('.unlock-progress') as HTMLElement | null
+        const footerEl = lockedCard.querySelector('.biz-card-locked-footer')
         if (!progressBar) {
           progressBar = this.createProgressBar(pct, 'unlock-progress')
-          lockedCard.appendChild(progressBar)
+          if (footerEl) lockedCard.insertBefore(progressBar, footerEl)
+          else lockedCard.appendChild(progressBar)
         } else {
           const fill = progressBar.querySelector('.progress-fill') as HTMLElement
           if (fill) fill.style.width = `${Math.min(100, pct)}%`
@@ -1803,8 +1835,8 @@ export class ShopPanel {
     const warn = document.createElement('p')
     warn.className = 'bank-warn'
     warn.textContent = bank.loan > state.financeNetWorth() * 0.5
-      ? '⚠️ Borç yüksek — faiz ödeyemezsen iflas koruması devreye girer.'
-      : 'Faiz her oyun dakikasında işler. Korku endeksi yükselince borsa oynaklaşır.'
+      ? '⚠️ Borç yüksek — net değer negatife inerse iflas tetiklenir, işletmelere el konulabilir.'
+      : 'Faiz her oyun dakikasında işler. Net değer sıfırın altına düşerse tam iflas riski vardır.'
     panel.appendChild(warn)
 
     panel.appendChild(this.createBankActions('Mevduat işlemleri', 'Nakitten yatır veya çek', [

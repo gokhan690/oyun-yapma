@@ -12,6 +12,7 @@ export type RewardedAdType =
   | 'shop_boost_15m'
   | 'upgrade_discount'
   | 'golden_event'
+  | 'bankruptcy_recovery'
 
 export interface AdRewardResult {
   success: boolean

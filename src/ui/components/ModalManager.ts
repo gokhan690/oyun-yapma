@@ -31,6 +31,43 @@ export class ModalManager {
     this.showContent(title, p, actions)
   }
 
+  showBankruptcyModal(
+    reason: string,
+    loss: string,
+    recovery40: string,
+    recovery80: string,
+    seizedLines: string[],
+    actions: HTMLElement[],
+  ): void {
+    const body = document.createElement('div')
+    body.className = 'bankruptcy-modal-body'
+    const reasonEl = document.createElement('p')
+    reasonEl.className = 'bankruptcy-reason'
+    reasonEl.textContent = reason
+    const lossEl = document.createElement('p')
+    lossEl.className = 'bankruptcy-loss'
+    lossEl.innerHTML = `Toplam kayıp: <strong>${loss}</strong>`
+    body.append(reasonEl, lossEl)
+    if (seizedLines.length > 0) {
+      const listTitle = document.createElement('p')
+      listTitle.className = 'bankruptcy-seized-title'
+      listTitle.textContent = 'El konulan varlıklar:'
+      const list = document.createElement('ul')
+      list.className = 'bankruptcy-seized-list'
+      for (const line of seizedLines) {
+        const li = document.createElement('li')
+        li.textContent = line
+        list.appendChild(li)
+      }
+      body.append(listTitle, list)
+    }
+    const hint = document.createElement('p')
+    hint.className = 'bankruptcy-recovery-hint'
+    hint.textContent = `Reklam izleyerek ${recovery40} (%40) veya ${recovery80} (%80) geri alabilirsin. İşletmelerin bir kısmı da iade edilir.`
+    body.appendChild(hint)
+    this.showContent('İflas ettin', body, actions)
+  }
+
   showContent(title: string, bodyEl: HTMLElement, actions: HTMLElement[]): void {
     this.layer.replaceChildren()
     const scrim = document.createElement('div')

@@ -442,10 +442,11 @@ html.theme-night .tap-wrap {
 }
 
 .quick-ads {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
   position: relative;
-  z-index: 1;
+  z-index: 2;
   flex-shrink: 0;
 }
 
@@ -1673,6 +1674,36 @@ html.theme-night body {
   padding: 8px 8px;
 }
 
+.earn-view:not([hidden]) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  gap: 8px;
+  padding-bottom: calc(var(--nav-h) + var(--ad-h) + 8px);
+}
+
+.game-main.earn-active {
+  overflow: hidden;
+}
+
+.earn-tab-hero {
+  flex-shrink: 0;
+  padding: 4px 2px 2px;
+}
+.earn-tab-hero h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+.earn-tab-hero p {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
 .earn-view,
 .events-panel,
 .shop-panel:not([hidden]) {
@@ -1888,23 +1919,75 @@ html.theme-night body {
   35%  { transform: scale(1.04); box-shadow: 0 0 18px 4px rgba(251,191,36,0.55); }
   100% { transform: scale(1);    box-shadow: 0 0 0   rgba(251,191,36,0); }
 }
-.biz-card.just-bought { animation: bizBought 0.45s ease; }
+.bankruptcy-modal-body { display: flex; flex-direction: column; gap: 10px; font-size: 0.88rem; }
+.bankruptcy-reason { color: var(--muted); margin: 0; line-height: 1.45; }
+.bankruptcy-loss strong { color: #f87171; }
+.bankruptcy-seized-title { margin: 4px 0 0; font-size: 0.78rem; color: var(--muted); }
+.bankruptcy-seized-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.4;
+}
+.bankruptcy-recovery-hint { margin: 0; font-size: 0.76rem; color: var(--accent); line-height: 1.4; }
 
 /* V2 — Kilitli işletme overlay */
-.biz-card-locked-preview { position: relative; overflow: hidden; }
+.biz-card-locked-preview {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+}
 .biz-card-locked-inner {
   display: flex; gap: 10px; align-items: center;
   padding: 12px 14px;
   filter: blur(2px); opacity: 0.5;
+  flex: 1;
+  min-height: 0;
 }
 .biz-locked-overlay {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 4px; background: rgba(5,10,20,0.6);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(5,10,20,0.6);
+  pointer-events: none;
+}
+.biz-locked-overlay-compact {
+  bottom: 56px;
+}
+.biz-card-locked-footer {
+  margin-top: auto;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 18, 32, 0.95);
+  z-index: 4;
+}
+.biz-card-locked-footer .btn-early-unlock {
+  width: 100%;
+  margin-top: 0;
+}
+.btn-early-unlock-hint {
+  display: block;
+  text-align: center;
+  font-size: 0.62rem;
+  color: #f87171;
+  font-weight: 600;
 }
 .biz-locked-icon { font-size: 1.4rem; }
-.biz-locked-text { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+.biz-locked-text { font-size: 0.72rem; color: var(--muted); font-weight: 600; text-align: center; padding: 0 8px; }
 
 /* V3 — Combo pulse */
 @keyframes comboPulse {
@@ -2811,6 +2894,68 @@ button.shop-card {
 .session-value { font-size: 1rem; font-weight: 800; color: var(--accent); }
 .session-combo { color: #fb923c; }
 .session-passive { color: var(--green); font-size: 1.1rem; }
+
+@media (max-width: 640px) {
+  .game-main.shop-scroll-lock {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  .shop-panel:not([hidden]) {
+    flex: none;
+    min-height: auto;
+    overflow: visible;
+  }
+  .shop-chrome {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+  }
+  .shop-body {
+    flex: none;
+    min-height: auto;
+    overflow: visible;
+  }
+  .shop-panel .tab-panel {
+    flex: none;
+    min-height: auto;
+    overflow: visible;
+  }
+  .shop-context-business .shop-body .tab-panel[data-panel="businesses"] {
+    min-height: auto;
+    padding-bottom: calc(var(--nav-h) + var(--ad-h) + 48px);
+  }
+  .session-panel {
+    padding: 8px 10px;
+  }
+  .session-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .session-stat-wide {
+    grid-column: auto;
+  }
+  .session-passive {
+    font-size: 0.88rem;
+  }
+  .player-progress-strip {
+    padding: 8px 10px;
+    margin-bottom: 0;
+  }
+  .tap-wrap {
+    min-height: 140px;
+  }
+  .tap-inner {
+    min-height: 130px;
+  }
+  .tap-area {
+    min-height: 130px;
+  }
+  .quick-ad-card {
+    min-height: 52px;
+  }
+}
+
 .quick-ads {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -4698,23 +4843,11 @@ html.theme-galactic {
 .shop-context-business .biz-income { font-size: 0.92rem; font-weight: 700; color: var(--green); }
 
 @media (max-width: 640px) {
-  .shop-context-business .shop-body {
-    flex: 1 1 0;
-    min-height: 42vh;
-  }
-  .shop-context-business .shop-body .tab-panel[data-panel="businesses"] {
-    min-height: 36vh;
-    padding-bottom: 28px;
-  }
   .shop-context-business .biz-cards-grid .biz-card {
     min-height: 220px;
   }
   .shop-context-business .biz-buy-btn {
     min-height: 200px;
-  }
-  .tap-wrap,
-  .tap-inner {
-    min-height: 150px;
   }
   .tap-mascot {
     width: 72px;
