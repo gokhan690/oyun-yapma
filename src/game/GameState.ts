@@ -9,8 +9,11 @@ import {
   researchOfflineBonusMs,
   researchSynergyMultiplier,
   researchEfficiencyBonus,
+  researchFootballBonus,
+  researchHeatGainReduction,
 } from './Research'
 import { pickRandomEvent, nextEventDelayMs, type GameEventDef } from './Events'
+import { EVENT_PREVIEW_LEAD_MS, NEAR_MISS_COOLDOWN_MS } from './EventDirector'
 import { checkNewAchievements, type AchievementDef } from './Achievements'
 import { generateDailyMissions, type MissionProgress } from './Missions'
 import { managerCost, managerMultiplier, hasManager } from './Managers'
@@ -106,6 +109,7 @@ import {
   leagueUpgradeCost,
   lobbyCost,
   donateCampaign,
+  canUpgradeLeague,
   type EmpireState,
 } from './Empire'
 import {
@@ -201,6 +205,7 @@ export interface SerializableState {
   eventBoostUntil: number
   playTimeMs: number
   gameTimeMs: number
+  gamePaused?: boolean
   tutorialDone: boolean
   ipoCount: number
   lifetimeTotalEarned: number
@@ -288,6 +293,7 @@ export type GameEvent =
   | { type: 'chest_opened'; amount?: number; loot?: ChestLootResult }
   | { type: 'combo_changed'; combo: number; multiplier: number }
   | { type: 'golden_event'; event: GameEventDef; expiresAt: number }
+  | { type: 'golden_event_preview'; hint: string; arrivesInMs: number }
   | { type: 'event_claimed'; event: GameEventDef; reward: number }
   | { type: 'event_missed'; event: GameEventDef }
   | { type: 'achievement'; def: AchievementDef }
@@ -300,6 +306,7 @@ export type GameEvent =
   | { type: 'daily_goal_updated'; earned: number; target: number }
   | { type: 'day_night'; isNight: boolean }
   | { type: 'game_time' }
+  | { type: 'game_pause'; paused: boolean }
   | { type: 'season_updated'; xp: number; tier: number }
   | { type: 'season_claimed'; tier: number; reward: string; track?: SeasonTrack }
   | { type: 'campaign_step'; chapterId: number; stepId: string; reward: string }
@@ -307,7 +314,7 @@ export type GameEvent =
   | { type: 'prestige_tree'; nodeId: string }
   | { type: 'market_event'; crash: boolean }
   | { type: 'macro_event'; headline: string; crash?: boolean }
-  | { type: 'finance_tick'; headline?: string }
+  | { type: 'finance_tick'; headline?: string; snapshot?: import('./FinanceBank').BankInterestSnapshot }
   | { type: 'bankruptcy'; loss: number; reason: string; recoveryPool: number; seizedBusinesses: string[] }
   | { type: 'auto_buy'; producerId: string }
   | { type: 'nav_changed'; view: string }
@@ -321,6 +328,7 @@ export type GameEvent =
   | { type: 'pending_boost_added'; label: string }
   | { type: 'boost_activated'; label: string }
   | { type: 'near_miss'; kind: string; message: string }
+  | { type: 'match_result'; clubId: string; clubName: string; won: boolean; score: string; fanGain: number; bonus: number }
   | { type: 'theme_unlocked'; themeId: ThemeId }
   | { type: 'badge_earned'; badgeId: string }
   | { type: 'market_news'; headline: string; active: boolean }
@@ -373,6 +381,7 @@ export class GameState {
   eventBoostUntil = 0
   playTimeMs = 0
   gameTimeMs = 0
+  gamePaused = false
   tutorialDone = false
   ipoCount = 0
   lifetimeTotalEarned = 0
@@ -435,7 +444,6 @@ export class GameState {
   pendingBoosts: PendingBoostItem[] = []
   private lastIllegalRiskCheck = 0
   private lastHeatTick = 0
-  private lastSurpriseCheck = 0
   private nudgeFlags = new Set<string>()
   /** Yokken biriken — sadece reklamla toplanır */
   pendingOfflineEarnings = 0
@@ -453,6 +461,12 @@ export class GameState {
   private missedEvent: GameEventDef | null = null
   private eventTimer: number | null = null
   private eventExpireTimer: number | null = null
+  private nextEventAt = 0
+  private eventExpireAt = 0
+  private eventScheduleRemainingMs = 0
+  private eventExpireRemainingMs = 0
+  private eventPreviewTimer: number | null = null
+  private lastNearMissToastAt = 0
   private lastStockTick = Date.now()
   private lastAutoBuyTick = 0
   private lastDayNightCheck = 0
@@ -525,23 +539,27 @@ export class GameState {
     const loop = (now: number) => {
       const dt = (now - last) / 1000
       last = now
-      this.playTimeMs += dt * 1000
-      const gameDt = dt > 0 && dt < 2 ? dt : 0
-      const passiveDt = dt > 0 ? Math.min(dt, PASSIVE_TICK_DT_CAP) : 0
+      if (!this.gamePaused) {
+        this.playTimeMs += dt * 1000
+      }
+      const gameDt = !this.gamePaused && dt > 0 && dt < 2 ? dt : 0
+      const passiveDt = !this.gamePaused && dt > 0 ? Math.min(dt, PASSIVE_TICK_DT_CAP) : 0
       if (gameDt > 0) {
         this.gameTimeMs += realSecondsToGameMs(gameDt)
         this.tickChildEducation(realSecondsToGameMs(gameDt))
       }
       this.updateComboDecay(now)
-      this.tickStock(now)
-      this.tickDayNight(now)
-      this.tickAutoBuy(now)
-      this.tickIllegalRisk(now)
-      this.tickIllegalHeat(now)
-      this.tickSurpriseInvestor(now)
-      this.tickNearMiss(now)
+      if (!this.gamePaused) {
+        this.tickStock(now)
+        this.tickDayNight(now)
+        this.tickAutoBuy(now)
+        this.tickIllegalRisk(now)
+        this.tickIllegalHeat(now)
+        this.tickNearMiss(now)
+      }
       if (passiveDt > 0) {
-        const income = this.incomePerDay() * passiveDt
+        const gameDaysDelta = realSecondsToGameMs(passiveDt) / MS_PER_GAME_DAY
+        const income = this.incomePerDay() * gameDaysDelta
         if (income > 0) this.passiveAccrued += income
       }
       if (now - lastPassiveEmit > 250 && this.passiveAccrued >= 0.01) {
@@ -550,7 +568,7 @@ export class GameState {
         this.passiveAccrued = 0
         this.addMoney(batch, true)
       }
-      if (now - this.lastGameClockEmit > 1000) {
+      if (!this.gamePaused && now - this.lastGameClockEmit > 1000) {
         this.lastGameClockEmit = now
         this.tickMarketNews()
         this.tickDynasty()
@@ -567,8 +585,63 @@ export class GameState {
       cancelAnimationFrame(this.tickHandle)
       this.tickHandle = null
     }
-    if (this.eventTimer !== null) clearTimeout(this.eventTimer)
-    if (this.eventExpireTimer !== null) clearTimeout(this.eventExpireTimer)
+    this.freezeEventTimers()
+  }
+
+  isPaused(): boolean {
+    return this.gamePaused
+  }
+
+  togglePause(): boolean {
+    this.gamePaused = !this.gamePaused
+    if (this.gamePaused) {
+      this.freezeEventTimers()
+    } else {
+      this.resumeEventTimers()
+    }
+    this.emit({ type: 'game_pause', paused: this.gamePaused })
+    if (!this.gamePaused) this.emit({ type: 'game_time' })
+    return this.gamePaused
+  }
+
+  private freezeEventTimers(): void {
+    const now = Date.now()
+    if (this.eventPreviewTimer !== null) {
+      clearTimeout(this.eventPreviewTimer)
+      this.eventPreviewTimer = null
+    }
+    if (this.eventTimer !== null) {
+      clearTimeout(this.eventTimer)
+      this.eventTimer = null
+      this.eventScheduleRemainingMs = Math.max(0, this.nextEventAt - now)
+    }
+    if (this.eventExpireTimer !== null) {
+      clearTimeout(this.eventExpireTimer)
+      this.eventExpireTimer = null
+      this.eventExpireRemainingMs = Math.max(0, this.eventExpireAt - now)
+    }
+  }
+
+  private resumeEventTimers(): void {
+    if (this.activeEvent && this.eventExpireRemainingMs > 0) {
+      this.eventExpireAt = Date.now() + this.eventExpireRemainingMs
+      this.activeEventExpires = this.eventExpireAt
+      this.eventExpireTimer = window.setTimeout(() => {
+        const event = this.activeEvent
+        if (event) {
+          this.missedEvent = event
+          this.activeEvent = null
+          this.emit({ type: 'event_missed', event })
+        }
+        this.scheduleNextEvent()
+      }, this.eventExpireRemainingMs)
+      this.eventExpireRemainingMs = 0
+    } else if (!this.activeEvent) {
+      const delay = this.eventScheduleRemainingMs > 0 ? this.eventScheduleRemainingMs : nextEventDelayMs()
+      this.eventScheduleRemainingMs = 0
+      this.nextEventAt = Date.now() + delay
+      this.eventTimer = window.setTimeout(() => this.spawnGoldenEvent(), delay)
+    }
   }
 
   startEventLoop(): void {
@@ -577,10 +650,41 @@ export class GameState {
 
   private scheduleNextEvent(): void {
     if (this.eventTimer !== null) clearTimeout(this.eventTimer)
-    this.eventTimer = window.setTimeout(() => this.spawnGoldenEvent(), nextEventDelayMs())
+    if (this.eventPreviewTimer !== null) clearTimeout(this.eventPreviewTimer)
+    if (this.gamePaused) {
+      this.eventScheduleRemainingMs = nextEventDelayMs()
+      this.nextEventAt = Date.now() + this.eventScheduleRemainingMs
+      return
+    }
+    const delay = nextEventDelayMs()
+    this.nextEventAt = Date.now() + delay
+    this.eventScheduleRemainingMs = 0
+    const previewDelay = Math.max(0, delay - EVENT_PREVIEW_LEAD_MS)
+    if (previewDelay > 0) {
+      this.eventPreviewTimer = window.setTimeout(() => {
+        this.eventPreviewTimer = null
+        if (!this.gamePaused && !this.activeEvent) {
+          this.emit({
+            type: 'golden_event_preview',
+            hint: 'Yatırımcı, vergi iadesi veya viral reklam fırsatı geliyor…',
+            arrivesInMs: EVENT_PREVIEW_LEAD_MS,
+          })
+        }
+      }, previewDelay)
+    }
+    this.eventTimer = window.setTimeout(() => this.spawnGoldenEvent(), delay)
+  }
+
+  getNextGoldenEventInMs(): number {
+    if (this.activeEvent) return 0
+    return Math.max(0, this.nextEventAt - Date.now())
   }
 
   private spawnGoldenEvent(): void {
+    if (this.gamePaused) {
+      this.eventScheduleRemainingMs = nextEventDelayMs()
+      return
+    }
     if (this.activeEvent) {
       this.scheduleNextEvent()
       return
@@ -588,10 +692,12 @@ export class GameState {
     const event = pickRandomEvent()
     this.activeEvent = event
     this.activeEventExpires = Date.now() + event.durationMs
+    this.eventExpireAt = this.activeEventExpires
     this.eventsSeen++
     this.emit({ type: 'golden_event', event, expiresAt: this.activeEventExpires })
 
     if (this.eventExpireTimer !== null) clearTimeout(this.eventExpireTimer)
+    this.eventExpireRemainingMs = 0
     this.eventExpireTimer = window.setTimeout(() => {
       if (this.activeEvent?.id === event.id) {
         this.missedEvent = event
@@ -680,7 +786,12 @@ export class GameState {
     }
     const interest = tickBankInterest(this.bank, this.stock.centralBankRate, now)
     if (interest) {
-      if (interest.headline) this.emit({ type: 'finance_tick', headline: interest.headline })
+      const snap = this.bank.lastInterestSnapshot
+      if (snap && Math.abs(snap.net) >= 500_000) {
+        this.emit({ type: 'finance_tick', headline: interest.headline, snapshot: snap })
+      } else {
+        this.emit({ type: 'finance_tick', snapshot: snap })
+      }
       if (interest.bankrupt && now > this.bank.bankruptcyCooldownUntil) {
         this.resolveBankruptcy('Kredi faizi ödenemedi — iflas koruması devreye girdi')
       }
@@ -757,7 +868,8 @@ export class GameState {
     if (Math.abs(target - this.illegalHeat) < 0.5) {
       this.illegalHeat = target
     } else if (target > this.illegalHeat) {
-      this.illegalHeat += (target - this.illegalHeat) * 0.15
+      const heatReduce = researchHeatGainReduction(this.research)
+      this.illegalHeat += (target - this.illegalHeat) * 0.15 * (1 - heatReduce)
     } else {
       this.illegalHeat += (target - this.illegalHeat) * 0.15 * decayMult
     }
@@ -1001,6 +1113,7 @@ export class GameState {
     if (def.category === 'sport') {
       const club = this.empire.football.find((c) => c.clubId === def.id)
       if (club) mult *= empireFootballIncomeMult(club)
+      mult *= researchFootballBonus(this.research)
     }
     return scaledBaseIncome(def.baseIncome, def) * owned * mult * this.passiveMultiplier()
   }
@@ -1086,8 +1199,11 @@ export class GameState {
     if (day === this.lastDynastyGameDay) return
     this.lastDynastyGameDay = day
     syncEmpireFromProducers(this.empire, this.producers)
-    const { matchBonus, election } = tickEmpireDaily(this.empire, this.producers, this.gameTimeMs, gameYear(this.gameTimeMs))
+    const { matchBonus, election, matches } = tickEmpireDaily(this.empire, this.producers, this.gameTimeMs, gameYear(this.gameTimeMs))
     if (matchBonus > 0) this.addMoney(matchBonus)
+    for (const m of matches) {
+      this.emit({ type: 'match_result', ...m })
+    }
     if (election) this.triggerStoryBeat('election_year')
     if (gameYear(this.gameTimeMs) === 2027 && !this.seenStoryBeats.has('year_2027')) {
       this.triggerStoryBeat('year_2027')
@@ -1288,6 +1404,7 @@ export class GameState {
     if (def.category === 'sport') {
       const club = this.empire.football.find((c) => c.clubId === def.id)
       if (club) mult *= empireFootballIncomeMult(club)
+      mult *= researchFootballBonus(this.research)
     }
     return scaledBaseIncome(def.baseIncome, def) * count * mult * this.passiveMultiplier()
   }
@@ -1633,7 +1750,13 @@ export class GameState {
   }
 
   availableUpgrades(): UpgradeDef[] {
-    return UPGRADES.filter((u) => !this.purchasedUpgrades.has(u.id))
+    return UPGRADES.filter((u) => {
+      if (this.purchasedUpgrades.has(u.id)) return false
+      if (u.requiresTotalEarned != null && this.totalEarned < u.requiresTotalEarned) return false
+      if (u.requiresProducer != null && (this.producers[u.requiresProducer] ?? 0) <= 0) return false
+      if (u.requiresUpgrade != null && !this.purchasedUpgrades.has(u.requiresUpgrade)) return false
+      return true
+    })
   }
 
   prestigeEligible(): boolean {
@@ -2136,7 +2259,7 @@ export class GameState {
 
   upgradeFootballLeague(clubId: string): boolean {
     const club = this.empire.football.find((c) => c.clubId === clubId)
-    if (!club || club.leagueLevel >= 4) return false
+    if (!club || club.leagueLevel >= 4 || !canUpgradeLeague(club)) return false
     const cost = leagueUpgradeCost(club.leagueLevel)
     if (!this.canAfford(cost)) return false
     this.money -= cost
@@ -2244,36 +2367,27 @@ export class GameState {
     return this.pendingBoosts.length > 0
   }
 
-  private tickSurpriseInvestor(now: number): void {
-    if (this.playTimeMs < 300_000) return
-    if (now - this.lastSurpriseCheck < 90_000) return
-    this.lastSurpriseCheck = now
-    const today = todayKey()
-    if (this.surpriseInvestorDay === today && !this.ownerFlag('surprise_often')) return
-    const chance = this.ownerFlag('surprise_often') ? 0.12 : 0.015
-    if (Math.random() > chance) return
-    this.surpriseInvestorDay = today
-    this.grantPendingBoost('income_2x', 30_000, 'Yatırımcı', '💎')
-    this.triggerStoryBeat('surprise_investor')
-    this.awardBadge('investor')
-    this.emit({ type: 'surprise_investor', until: 0 })
-  }
-
   private tickNearMiss(now: number): void {
-    void now
+    if (now - this.lastNearMissToastAt < NEAR_MISS_COOLDOWN_MS) return
+
     const ipo = this.ipoProgress()
     if (ipo.pct >= 90 && ipo.pct < 100 && !this.nudgeFlags.has('ipo')) {
       this.nudgeFlags.add('ipo')
+      this.lastNearMissToastAt = now
       this.emit({ type: 'near_miss', kind: 'ipo', message: 'Birleşmeye az kaldı!' })
+      return
     }
     this.ensureSeason()
     const prog = tierProgress(this.season.xp)
     if (prog.pct >= 95 && prog.pct < 100 && !this.nudgeFlags.has('season')) {
       this.nudgeFlags.add('season')
+      this.lastNearMissToastAt = now
       this.emit({ type: 'near_miss', kind: 'season', message: 'Sezon tier\'ına az kaldı!' })
+      return
     }
     if (this.comboCount >= this.comboBest - 2 && this.comboBest >= 10 && !this.nudgeFlags.has('combo')) {
       this.nudgeFlags.add('combo')
+      this.lastNearMissToastAt = now
       this.emit({ type: 'near_miss', kind: 'combo', message: 'Combo rekoruna yakınsın!' })
     }
   }
@@ -2762,6 +2876,7 @@ export class GameState {
       eventBoostUntil: this.eventBoostUntil,
       playTimeMs: this.playTimeMs,
       gameTimeMs: this.gameTimeMs,
+      gamePaused: this.gamePaused,
       tutorialDone: this.tutorialDone,
       ipoCount: this.ipoCount,
       lifetimeTotalEarned: this.lifetimeTotalEarned,
@@ -2875,6 +2990,7 @@ export class GameState {
     this.eventBoostUntil = data.eventBoostUntil ?? 0
     this.playTimeMs = data.playTimeMs ?? 0
     this.gameTimeMs = data.gameTimeMs ?? 0
+    this.gamePaused = data.gamePaused ?? false
     this.tutorialDone = data.tutorialDone ?? false
     this.ipoCount = data.ipoCount ?? 0
     this.lifetimeTotalEarned = data.lifetimeTotalEarned ?? data.totalEarned ?? 0

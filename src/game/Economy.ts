@@ -26,6 +26,9 @@ export interface UpgradeDef {
   effect: 'click_mult' | 'global_mult' | 'producer_mult'
   value: number
   producerId?: string
+  requiresTotalEarned?: number
+  requiresProducer?: string
+  requiresUpgrade?: string
 }
 
 export const PRODUCERS: ProducerDef[] = [
@@ -193,20 +196,64 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'futbol_x2', name: 'Transfer Sezonu', description: 'Futbol kulüpleri geliri x2', cost: 95_000, effect: 'producer_mult', value: 2, producerId: 'futbol_superlig' },
   { id: 'siyaset_x2', name: 'Lobi Gücü', description: 'Siyaset gelirleri x1.5', cost: 180_000, effect: 'global_mult', value: 1.5 },
   { id: 'siyah_fabrika_x2', name: 'Gizli Üretim', description: 'Siyah fabrika geliri x2', cost: 42_000, effect: 'producer_mult', value: 2, producerId: 'siyah_fabrika' },
+  // — Tier 1–3 erken oyun —
+  { id: 'berber_x2', name: 'Randevu Sistemi', description: 'Berber geliri x2', cost: 95, effect: 'producer_mult', value: 2, producerId: 'berber' },
+  { id: 'giyim_x2', name: 'Sezon Koleksiyonu', description: 'Giyim mağazası geliri x2', cost: 680, effect: 'producer_mult', value: 2, producerId: 'giyim' },
+  { id: 'gym_x2', name: 'Premium Üyelik', description: 'Spor salonu geliri x2', cost: 820, effect: 'producer_mult', value: 2, producerId: 'gym' },
+  { id: 'kargo_x2', name: 'Ekspres Teslimat', description: 'Kargo geliri x2', cost: 2_800, effect: 'producer_mult', value: 2, producerId: 'kargo' },
+  { id: 'reklam_ajansi_x2', name: 'Medya Planlama', description: 'Reklam ajansı geliri x2', cost: 3_200, effect: 'producer_mult', value: 2, producerId: 'reklam_ajansi' },
+  { id: 'cikolata_x2', name: 'Export Hattı', description: 'Çikolata fabrikası geliri x2', cost: 3_800, effect: 'producer_mult', value: 2, producerId: 'cikolata' },
+  { id: 'click_x3', name: 'Sosyal Medya', description: 'Tıklama geliri x3', cost: 2_200, effect: 'click_mult', value: 3, requiresTotalEarned: 5_000 },
+  { id: 'early_global_15', name: 'Erken Büyüme', description: 'Tüm gelir x1.5', cost: 8_500, effect: 'global_mult', value: 1.5, requiresTotalEarned: 15_000 },
+  // — Tier 4–6 kategori —
+  { id: 'insaat_x2', name: 'Mega Proje', description: 'İnşaat geliri x2', cost: 12_000, effect: 'producer_mult', value: 2, producerId: 'insaat', requiresTotalEarned: 80_000 },
+  { id: 'hukuk_x2', name: 'Uluslararası Dava', description: 'Hukuk bürosu geliri x2', cost: 14_000, effect: 'producer_mult', value: 2, producerId: 'hukuk', requiresTotalEarned: 90_000 },
+  { id: 'oyun_studio_x2', name: 'AAA Stüdyo', description: 'Oyun stüdyosu geliri x2', cost: 16_000, effect: 'producer_mult', value: 2, producerId: 'oyun_studio', requiresTotalEarned: 100_000 },
+  { id: 'streaming_x2', name: 'Global Yayın', description: 'Streaming geliri x2', cost: 20_000, effect: 'producer_mult', value: 2, producerId: 'streaming', requiresTotalEarned: 110_000 },
+  { id: 'ilac_x2', name: 'Patent Portföyü', description: 'İlaç lab geliri x2', cost: 28_000, effect: 'producer_mult', value: 2, producerId: 'ilac', requiresTotalEarned: 200_000 },
+  { id: 'sigorta_x2', name: 'Reasürans Anlaşması', description: 'Sigorta geliri x2', cost: 32_000, effect: 'producer_mult', value: 2, producerId: 'sigorta', requiresTotalEarned: 250_000 },
+  { id: 'havayolu_x2', name: 'Yeni Rotalar', description: 'Havayolu geliri x2', cost: 55_000, effect: 'producer_mult', value: 2, producerId: 'havayolu', requiresTotalEarned: 800_000 },
+  { id: 'legal_bundle', name: 'Yasal Portföy', description: 'Yasal işletmeler geliri x1.25', cost: 45_000, effect: 'global_mult', value: 1.25, requiresTotalEarned: 150_000 },
+  { id: 'finance_bundle', name: 'Finans Sinergisi', description: 'Finans kategorisi geliri x2 (banka, fon, VC)', cost: 220_000, effect: 'producer_mult', value: 2, producerId: 'banka_ozel', requiresTotalEarned: 5_000_000 },
+  { id: 'hedge_fund_x2', name: 'Alpha Strateji', description: 'Hedge fon geliri x2', cost: 380_000, effect: 'producer_mult', value: 2, producerId: 'hedge_fund', requiresTotalEarned: 12_000_000 },
+  { id: 'venture_capital_x2', name: 'Unicorn Avı', description: 'VC geliri x2', cost: 165_000, effect: 'producer_mult', value: 2, producerId: 'venture_capital', requiresTotalEarned: 8_000_000 },
+  { id: 'luxury_bundle', name: 'Lüks İmparatorluk', description: 'Lüks kategorisi geliri x1.5', cost: 520_000, effect: 'global_mult', value: 1.5, requiresTotalEarned: 20_000_000, requiresProducer: 'yacht_filo' },
+  { id: 'formula1_x2', name: 'Podyum Bonusu', description: 'F1 takımı geliri x2', cost: 1_200_000, effect: 'producer_mult', value: 2, producerId: 'formula1', requiresTotalEarned: 80_000_000 },
+  { id: 'casino_legal_x2', name: 'VIP Salon', description: 'Casino geliri x2', cost: 680_000, effect: 'producer_mult', value: 2, producerId: 'casino_legal', requiresTotalEarned: 30_000_000 },
+  { id: 'sport_bundle', name: 'Spor Holding', description: 'Futbol kulüpleri geliri x1.5', cost: 125_000, effect: 'global_mult', value: 1.5, requiresProducer: 'futbol_amateur' },
+  { id: 'futbol_amateur_x2', name: 'Altyapı Akademisi', description: 'Amatör kulüp geliri x2', cost: 18_000, effect: 'producer_mult', value: 2, producerId: 'futbol_amateur', requiresProducer: 'futbol_amateur' },
+  { id: 'futbol_avrupa_x2', name: 'Şampiyonlar Ligi', description: 'Avrupa kulübü geliri x2', cost: 2_800_000, effect: 'producer_mult', value: 2, producerId: 'futbol_avrupa', requiresProducer: 'futbol_avrupa' },
+  { id: 'politics_bundle', name: 'Devlet Desteği', description: 'Siyaset gelirleri x1.35', cost: 95_000, effect: 'global_mult', value: 1.35, requiresProducer: 'siyaset_belediye' },
+  { id: 'siyaset_bakan_x2', name: 'Bakanlık Reformu', description: 'Bakanlık geliri x2', cost: 420_000, effect: 'producer_mult', value: 2, producerId: 'siyaset_bakan', requiresProducer: 'siyaset_bakan' },
+  // — Tier 7+ global & illegal —
+  { id: 'global_x4', name: 'Mega Holding', description: 'Tüm gelir x1.5', cost: 2_200_000, effect: 'global_mult', value: 1.5, requiresTotalEarned: 15_000_000, requiresUpgrade: 'global_mega' },
+  { id: 'global_x5', name: 'Galaktik Expansion', description: 'Tüm gelir x2', cost: 12_000_000, effect: 'global_mult', value: 2, requiresTotalEarned: 200_000_000, requiresUpgrade: 'global_x4' },
+  { id: 'kripto_x2', name: 'Listing Boost', description: 'Kripto borsası geliri x2', cost: 38_000, effect: 'producer_mult', value: 2, producerId: 'kripto', requiresTotalEarned: 400_000 },
+  { id: 'bahis_x2', name: 'Underground Ağ', description: 'Bahis ağı geliri x2', cost: 5_500, effect: 'producer_mult', value: 2, producerId: 'bahis', requiresProducer: 'bahis' },
+  { id: 'piramit_x2', name: 'Ponzi Optimizasyonu', description: 'Piramit geliri x2', cost: 48_000, effect: 'producer_mult', value: 2, producerId: 'piramit', requiresProducer: 'piramit' },
+  { id: 'kacak_imalat_x2', name: 'Gizli Hat', description: 'Kaçak imalat geliri x2', cost: 15_000, effect: 'producer_mult', value: 2, producerId: 'kacak_imalat', requiresProducer: 'kacak_imalat' },
+  { id: 'silah_x2', name: 'Karaborsa Ağı', description: 'Silah ticareti geliri x2', cost: 280_000, effect: 'producer_mult', value: 2, producerId: 'silah_ticareti', requiresProducer: 'silah_ticareti' },
+  { id: 'illegal_risk_down', name: 'Avukat Ağı', description: 'Illegal baskın riski −15%', cost: 120_000, effect: 'producer_mult', value: 0.85, producerId: 'offshore', requiresTotalEarned: 500_000 },
+  { id: 'nano_x2', name: 'Nano Patent', description: 'Nano lab geliri x2', cost: 3_500_000, effect: 'producer_mult', value: 2, producerId: 'nano', requiresTotalEarned: 400_000_000 },
+  { id: 'nukleer_x2', name: 'Reaktör Upgrade', description: 'Nükleer santral geliri x2', cost: 890_000, effect: 'producer_mult', value: 2, producerId: 'nukleer', requiresTotalEarned: 25_000_000 },
+  { id: 'data_center_x2', name: 'Cloud Scale', description: 'Veri merkezi geliri x2', cost: 19_000, effect: 'producer_mult', value: 2, producerId: 'data_center', requiresTotalEarned: 100_000 },
+  { id: 'private_equity_x2', name: 'Buyout Modu', description: 'PE fonu geliri x2', cost: 450_000, effect: 'producer_mult', value: 2, producerId: 'private_equity', requiresTotalEarned: 18_000_000 },
+  { id: 'family_office_x2', name: 'Dynasty Trust', description: 'Family office geliri x2', cost: 4_200_000, effect: 'producer_mult', value: 2, producerId: 'family_office', requiresTotalEarned: 150_000_000 },
+  { id: 'click_ultimate', name: 'Elon Modu', description: 'Tıklama geliri x25', cost: 8_500_000, effect: 'click_mult', value: 25, requiresTotalEarned: 50_000_000, requiresUpgrade: 'click_x10' },
 ]
 
-/** BitLife uyumlu ekonomi — baseIncome = günlük maaş ($), 1 sn = 1 oyun günü */
+/** BitLife uyumlu ekonomi — baseIncome = günlük gelir ($), 5 sn = 1 oyun günü */
 /** Tüm işletme maliyetlerine uygulanan global çarpan */
 export const ECONOMY_COST_SCALE = 4.5
 /** baseCost katmanı */
 export const ECONOMY_BASE_COST_MULT = 2.5
 export const ECONOMY_UNLOCK_SCALE = 1.0
-export const ECONOMY_COST_GROWTH_BONUS = 0.022
+export const ECONOMY_COST_GROWTH_BONUS = 0.028
 export const ECONOMY_TIER_COST_BONUS = 0.075
 /** Gelir maliyetle aynı ölçekte — ROI korunur */
 export const ECONOMY_INCOME_SCALE = ECONOMY_COST_SCALE
 export const ECONOMY_BASE_INCOME_MULT = ECONOMY_BASE_COST_MULT
-export const ECONOMY_UPGRADE_COST_SCALE = 1.35
+export const ECONOMY_UPGRADE_COST_SCALE = 1.45
 export const EARLY_UNLOCK_COST_SCALE = 1.65
 
 function tierEconomyBand(tier: number): number {
@@ -311,15 +358,15 @@ export function formatMoney(value: number): string {
   return `${(v / 1_000_000_000_000).toFixed(1)}T`
 }
 
-/** Pasif gelir hızı — 1 gerçek sn = 1 oyun günü */
+/** Pasif gelir hızı — oyun günü bazlı (5 gerçek sn = 1 gün) */
 export function formatIncomeRate(value: number): string {
   const v = Math.max(0, value)
-  if (v <= 0) return '0/sn'
-  return `${formatMoney(v)}/sn`
+  if (v <= 0) return '0/gün'
+  return `${formatMoney(v)}/gün`
 }
 
 /** Açıklamalı gelir satırı (finans paneli) */
 export function formatIncomeRateHint(value: number): string {
   if (value <= 0) return 'Pasif gelir yok'
-  return `${formatIncomeRate(value)} pasif (tıklama ayrı)`
+  return `${formatIncomeRate(value)} pasif · 5 sn = 1 oyun günü (tıklama ayrı)`
 }

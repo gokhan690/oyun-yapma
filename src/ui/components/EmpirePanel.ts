@@ -7,8 +7,11 @@ import {
   leagueUpgradeCost,
   lobbyCost,
   footballClubDef,
+  footballIncomeBreakdown,
+  leagueUpgradeRequirements,
+  canUpgradeLeague,
 } from '../../game/Empire'
-import { formatGameClock, gameYear } from '../../game/GameClock'
+import { formatGameClock, gameDay, gameYear } from '../../game/GameClock'
 
 export type EmpireSection = 'football' | 'politics' | 'dark'
 
@@ -83,24 +86,51 @@ export class EmpirePanel {
     }
     const meta = document.createElement('p')
     meta.className = 'empire-meta-line'
-    meta.textContent = `📅 ${clock} · Günde 1 otomatik maç`
+    meta.textContent = `📅 ${clock} · Günde 1 otomatik maç (5 sn = 1 oyun günü)`
     this.contentEl.appendChild(meta)
 
     for (const club of state.empire.football) {
       const def = footballClubDef(club.clubId)
+      const breakdown = footballIncomeBreakdown(club)
+      const req = leagueUpgradeRequirements(club)
+      const canLeague = club.leagueLevel < 4
+      const leagueReady = canUpgradeLeague(club)
       const card = document.createElement('div')
       card.className = 'shop-card empire-club-card'
       const stCost = stadiumUpgradeCost(club.stadiumLevel)
       const lgCost = leagueUpgradeCost(club.leagueLevel)
-      const canLeague = club.leagueLevel < 4
-      card.innerHTML = `
-        <span class="shop-card-icon">${def?.emoji ?? '⚽'}</span>
-        <div class="shop-card-body">
-          <strong>${def?.name ?? club.clubId}</strong>
-          <small>Lig: ${leagueName(club.leagueLevel)} · Taraftar: ${club.fanBase.toLocaleString('tr-TR')} · Galibiyet: ${club.wins}</small>
-          <small>Stadyum Lv.${club.stadiumLevel}</small>
-        </div>
+
+      const body = document.createElement('div')
+      body.className = 'shop-card-body empire-club-body'
+      body.innerHTML = `
+        <strong>${def?.emoji ?? '⚽'} ${def?.name ?? club.clubId}</strong>
+        <small>Lig: ${leagueName(club.leagueLevel)} · Taraftar: ${club.fanBase.toLocaleString('tr-TR')} · Galibiyet: ${club.wins}</small>
+        <small>Stadyum Lv.${club.stadiumLevel} · Kapasite ~${breakdown.stadiumCapacity.toLocaleString('tr-TR')}</small>
+        <small class="empire-income-breakdown">Gelir çarpanı x${breakdown.totalMult.toFixed(2)} · Lig +${Math.round(breakdown.leaguePct * 100)}% · Taraftar +${Math.round(breakdown.fanPct * 100)}% · G'ler +${Math.round(breakdown.winsPct * 100)}%</small>
+        <small class="empire-match-estimate">Maç günü tahmini: ${formatMoney(breakdown.matchDayEstimate)}</small>
       `
+      if (club.lastMatch) {
+        const matchEl = document.createElement('small')
+        matchEl.className = 'empire-last-match'
+        matchEl.textContent = `Son maç (Gün ${club.lastMatch.gameDay}): ${club.lastMatch.score} · ${club.lastMatch.won ? 'Galibiyet' : 'Mağlubiyet'} · +${club.lastMatch.fanGain.toLocaleString('tr-TR')} taraftar${club.lastMatch.bonus > 0 ? ` · ${formatMoney(club.lastMatch.bonus)} prim` : ''}`
+        body.appendChild(matchEl)
+      } else {
+        const nextEl = document.createElement('small')
+        nextEl.className = 'empire-last-match'
+        nextEl.textContent = `Sonraki maç: Gün ${gameDay(state.gameTimeMs) + 1}`
+        body.appendChild(nextEl)
+      }
+      if (canLeague) {
+        const reqEl = document.createElement('small')
+        reqEl.className = 'empire-league-req'
+        reqEl.textContent = leagueReady
+          ? `Lig yükseltmeye hazır (${formatMoney(lgCost)})`
+          : `Lig ↑ için: ${req.minFans.toLocaleString('tr-TR')} taraftar & ${req.minWins} galibiyet (şu an ${club.fanBase.toLocaleString('tr-TR')} / ${club.wins})`
+        body.appendChild(reqEl)
+      }
+
+      card.appendChild(body)
+
       const actions = document.createElement('div')
       actions.className = 'shop-card-actions'
       const stBtn = document.createElement('button')
@@ -108,7 +138,7 @@ export class EmpirePanel {
       stBtn.className = 'btn-secondary btn-sm'
       stBtn.dataset.action = 'empire-stadium'
       stBtn.dataset.id = club.clubId
-      stBtn.textContent = `Stadyum ${formatMoney(stCost)}`
+      stBtn.textContent = `Stadyum ↑ ${formatMoney(stCost)}`
       stBtn.disabled = !state.canAfford(stCost)
       actions.appendChild(stBtn)
       if (canLeague) {
@@ -118,7 +148,8 @@ export class EmpirePanel {
         lgBtn.dataset.action = 'empire-league'
         lgBtn.dataset.id = club.clubId
         lgBtn.textContent = `Lig ↑ ${formatMoney(lgCost)}`
-        lgBtn.disabled = !state.canAfford(lgCost)
+        lgBtn.disabled = !state.canAfford(lgCost) || !leagueReady
+        lgBtn.title = leagueReady ? '' : `${req.minFans} taraftar ve ${req.minWins} galibiyet gerekli`
         actions.appendChild(lgBtn)
       }
       card.appendChild(actions)

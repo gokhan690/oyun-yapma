@@ -9,6 +9,7 @@ import { currentRank, rankProgress } from '../game/PlayerRank'
 import { dayBonusExtra, nightBonusExtra } from '../game/PrestigeTree'
 import { StatsBar } from './components/StatsBar'
 import { ShopPanel } from './components/ShopPanel'
+import type { ResearchBranch } from '../game/Research'
 import { ModalManager } from './components/ModalManager'
 import { SettingsPanel } from './components/SettingsPanel'
 import { StatsScreen } from './components/StatsScreen'
@@ -27,6 +28,8 @@ import type { ThemeId } from '../game/Themes'
 import { isOwnerSession } from '../owner/OwnerAuth'
 import { OwnerAccessGate } from '../owner/OwnerAccessGate'
 import { formatGameClock } from '../game/GameClock'
+import { EventDirector } from '../game/EventDirector'
+import type { GameEventDef } from '../game/Events'
 import { activeTicker } from '../game/StockMarket'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy } from '../utils/haptics'
@@ -56,6 +59,7 @@ export class HUD {
   private weeklyBanner!: HTMLElement
   private goalsChip!: HTMLButtonElement
   private dayNightChip!: HTMLElement
+  private pauseBtn!: HTMLButtonElement
   private earnView!: HTMLElement
   private gameMain!: HTMLElement
   private bottomNav: BottomNav
@@ -90,6 +94,7 @@ export class HUD {
   private sound: SoundManager
   private saveManager: SaveManager
   private unsub: (() => void) | null = null
+  private eventDirector = new EventDirector()
 
   constructor(
     state: GameState,
@@ -214,12 +219,19 @@ export class HUD {
     this.dayNightChip = document.createElement('span')
     this.dayNightChip.className = 'day-night-chip'
 
+    this.pauseBtn = document.createElement('button')
+    this.pauseBtn.type = 'button'
+    this.pauseBtn.className = 'btn-pause'
+    this.pauseBtn.dataset.action = 'toggle-pause'
+    this.pauseBtn.setAttribute('aria-label', 'Oyunu duraklat')
+    this.pauseBtn.textContent = '⏸'
+
     const dailyBtn = document.createElement('button')
     dailyBtn.type = 'button'
     dailyBtn.className = 'btn-daily'
     dailyBtn.dataset.action = 'daily'
     dailyBtn.textContent = '🎁'
-    actions.append(this.goalsChip, this.dayNightChip, dailyBtn)
+    actions.append(this.goalsChip, this.pauseBtn, this.dayNightChip, dailyBtn)
     titleRow.append(title, actions)
     this.profileChip = document.createElement('button')
     this.profileChip.type = 'button'
@@ -471,6 +483,16 @@ export class HUD {
 
   private renderDayNightChip(): void {
     const clock = formatGameClock(this.state.gameTimeMs)
+    if (this.state.isPaused()) {
+      this.dayNightChip.textContent = `⏸ Duraklatıldı · ${clock}`
+      this.pauseBtn.textContent = '▶'
+      this.pauseBtn.setAttribute('aria-label', 'Oyunu devam ettir')
+      this.pauseBtn.classList.add('is-paused')
+      return
+    }
+    this.pauseBtn.textContent = '⏸'
+    this.pauseBtn.setAttribute('aria-label', 'Oyunu duraklat')
+    this.pauseBtn.classList.remove('is-paused')
     if (this.state.isNight) {
       this.dayNightChip.textContent = `🌙 ${clock} · Hafta sonu pasif +${Math.round((0.15 + nightBonusExtra(this.state.prestigeTree)) * 100)}%`
     } else {
@@ -526,8 +548,13 @@ export class HUD {
       if (ev.type === 'money_changed') {
         this.statsBar.render(false)
         const nav = this.bottomNav.getActive()
-        if (nav === 'shop' && this.shop.getViewContext() === 'shop' && this.shop.getActiveTab() === 'growth') {
-          this.shop.patchAffordability(this.state)
+        if (nav === 'shop' && this.shop.getViewContext() === 'shop') {
+          const hub = this.shop.getActiveTab()
+          if (hub === 'growth' || hub === 'empire') {
+            this.shop.patchAffordability(this.state)
+          } else {
+            this.refreshShop(false)
+          }
         } else if (nav === 'shop' || nav === 'market') {
           this.refreshShop(false)
         }
@@ -603,17 +630,30 @@ export class HUD {
         this.refreshShop(true)
       }
       if (ev.type === 'milestone_reached') this.showMilestone(ev.amount)
+      if (ev.type === 'golden_event_preview') {
+        this.modals.showToast(this.root, `⏳ ${ev.hint}`)
+      }
       if (ev.type === 'golden_event') {
         this.sound.playEvent()
-        this.showGoldenEventModal(ev.event, ev.expiresAt)
+        const { event, expiresAt } = ev
+        this.eventDirector.enqueue({
+          id: 'golden',
+          priority: 2,
+          run: () => this.showGoldenEventModal(event, expiresAt),
+        })
       }
       if (ev.type === 'event_missed') {
         this.clearGoldenEventTimer()
-        this.showMissedEventOffer(ev.event)
+        const { event } = ev
+        this.eventDirector.enqueue({
+          id: 'missed',
+          priority: 2,
+          run: () => this.showMissedEventOffer(event),
+        })
       }
       if (ev.type === 'event_claimed') {
         this.clearGoldenEventTimer()
-        this.modals.close()
+        this.closeModalAndPump()
         const msg = ev.event.rewardType === 'income_boost'
           ? `${ev.event.title} — bonus envantere eklendi`
           : `${ev.event.title} — +${formatMoney(ev.reward)}`
@@ -626,7 +666,7 @@ export class HUD {
         if (this.bottomNav.getActive() === 'events') this.eventsPanel.render(this.state)
         this.updateNavBadges()
       }
-      if (ev.type === 'day_night' || ev.type === 'game_time') {
+      if (ev.type === 'day_night' || ev.type === 'game_time' || ev.type === 'game_pause') {
         this.renderDayNightChip()
         if (ev.type === 'day_night') {
           this.renderMarketNewsBanner()
@@ -669,7 +709,12 @@ export class HUD {
         if (this.shop.getViewContext() === 'market') this.refreshShop(true)
       }
       if (ev.type === 'bankruptcy') {
-        this.showBankruptcyPopup(ev.reason, ev.loss, ev.recoveryPool, ev.seizedBusinesses)
+        const { reason, loss, recoveryPool, seizedBusinesses } = ev
+        this.eventDirector.enqueue({
+          id: 'bankruptcy',
+          priority: 1,
+          run: () => this.showBankruptcyPopup(reason, loss, recoveryPool, seizedBusinesses),
+        })
         this.refreshShop(true)
       }
       if (ev.type === 'mission_complete') {
@@ -692,6 +737,17 @@ export class HUD {
       }
       if (ev.type === 'near_miss') {
         this.modals.showToast(this.root, ev.message)
+      }
+      if (ev.type === 'match_result') {
+        const icon = ev.won ? '⚽' : '🏟️'
+        const bonus = ev.bonus > 0 ? ` · +${formatMoney(ev.bonus)}` : ''
+        this.modals.showToast(
+          this.root,
+          `${icon} ${ev.clubName} ${ev.score} · +${ev.fanGain.toLocaleString('tr-TR')} taraftar${bonus}`,
+        )
+        if (this.empirePanel.root && !this.empirePanel.root.hidden) {
+          this.empirePanel.render(this.state)
+        }
       }
       if (ev.type === 'surprise_investor') {
         this.modals.showToast(this.root, '💎 Yatırımcı teklifi envanterde — Etkinlikler\'den aktifleştir')
@@ -834,6 +890,10 @@ export class HUD {
       case 'close-stats':
         this.setView('earn')
         break
+      case 'toggle-pause':
+        this.state.togglePause()
+        this.renderDayNightChip()
+        break
       case 'daily': {
         if (!this.state.canClaimDaily()) {
           this.modals.showToast(this.root, 'Bugünkü ödül alındı')
@@ -907,7 +967,12 @@ export class HUD {
         } else if (id) {
           const def = PRODUCERS.find((p) => p.id === id)
           const cost = def ? earlyUnlockCost(def) : 0
-          this.modals.showToast(this.root, `Yetersiz bakiye — erken aç: ${formatMoney(cost)}`)
+          const wallet = this.state.money
+          const short = Math.max(0, cost - wallet)
+          this.modals.showToast(
+            this.root,
+            `Erken aç: ${formatMoney(cost)} gerekli · Cüzdan: ${formatMoney(wallet)} · Eksik: ${formatMoney(short)}`,
+          )
         }
         break
       case 'empire-section':
@@ -1034,7 +1099,7 @@ export class HUD {
         break
       }
       case 'close-modal':
-        this.modals.close()
+        this.closeModalAndPump()
         break
       case 'restore-save-backup': {
         if (this.saveManager.tryRestoreBackup(this.state)) {
@@ -1126,6 +1191,12 @@ export class HUD {
       case 'upgrade-filter':
         if (id) {
           this.shop.setUpgradeFilter(id as 'all' | 'click' | 'global' | 'producer')
+          this.refreshShop(true)
+        }
+        break
+      case 'research-branch':
+        if (id) {
+          this.shop.setResearchBranch(id as ResearchBranch | 'all')
           this.refreshShop(true)
         }
         break
@@ -1587,7 +1658,7 @@ export class HUD {
       const left = Math.ceil((this.goldenEventExpiresAt - Date.now()) / 1000)
       if (left <= 0) {
         this.clearGoldenEventTimer()
-        this.modals.close()
+        this.closeModalAndPump()
         return
       }
       this.modals.updateGoldenEventTimer(left)
@@ -1605,7 +1676,7 @@ export class HUD {
     this.state.incrementRewardedAdCount()
     if (this.state.claimGoldenEvent()) {
       this.clearGoldenEventTimer()
-      this.modals.close()
+      this.closeModalAndPump()
       this.modals.showToast(this.root, '🎁 Bonus envanterine eklendi — Etkinlikler\'den aktifleştir')
       this.eventsPanel.render(this.state)
       this.updateNavBadges()
@@ -1707,7 +1778,13 @@ export class HUD {
     this.modals.showDetail(`${detail.name} — Gelir Dökümü`, rows, 'Kapat butonuna bas.')
   }
 
-  private showMissedEventOffer(event: { title: string }): void {
+  private closeModalAndPump(): void {
+    this.modals.close()
+    this.eventDirector.release()
+  }
+
+  private showMissedEventOffer(event: GameEventDef): void {
+    const nextIn = Math.ceil(this.state.getNextGoldenEventInMs() / 1000)
     const ad = document.createElement('button')
     ad.type = 'button'
     ad.className = 'btn-ad'
@@ -1718,7 +1795,11 @@ export class HUD {
     close.className = 'btn-primary'
     close.dataset.action = 'close-modal'
     close.textContent = 'Kapat'
-    this.modals.show('Fırsat Kaçtı!', `${event.title} kaçırıldı.`, [ad, close])
+    const detail = `${event.title} kaçırıldı — reklam izleyerek gelir bonusunu envantere ekleyebilirsin.`
+    const timing = nextIn > 0
+      ? ` Sonraki otomatik fırsat ~${nextIn} sn sonra.`
+      : ' Yeni fırsat yakında tekrar denenecek.'
+    this.modals.show('Fırsat Kaçtı!', `${detail}${timing}`, [ad, close])
   }
 
   private showIpoAnimation(points: number): void {

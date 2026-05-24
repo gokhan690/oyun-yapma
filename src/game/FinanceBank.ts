@@ -1,5 +1,13 @@
 import { formatMoney } from './Economy'
 
+export interface BankInterestSnapshot {
+  depositGain: number
+  bondGain: number
+  loanCost: number
+  net: number
+  at: number
+}
+
 export interface BankState {
   deposit: number
   loan: number
@@ -7,6 +15,7 @@ export interface BankState {
   lastInterestTick: number
   creditScore: number
   bankruptcyCooldownUntil: number
+  lastInterestSnapshot?: BankInterestSnapshot
 }
 
 export const INTEREST_TICK_MS = 60_000
@@ -36,6 +45,33 @@ export function bondRate(centralRate: number): number {
 export function loanRate(centralRate: number, creditScore: number): number {
   const risk = (100 - Math.min(100, Math.max(30, creditScore))) * 0.0008
   return Math.max(0.03, centralRate * 1.45 + risk)
+}
+
+/** Faiz tick başına uygulanan oran (INTEREST_TICK_MS = 1 dk gerçek zaman) */
+export function perTickDepositRate(centralRate: number): number {
+  return depositRate(centralRate) / 60
+}
+
+export function perTickBondRate(centralRate: number): number {
+  return bondRate(centralRate) / 60
+}
+
+export function perTickLoanRate(centralRate: number, creditScore: number): number {
+  return loanRate(centralRate, creditScore) / 60
+}
+
+export function projectInterestTick(
+  bank: BankState,
+  centralRate: number,
+): { depositGain: number; bondGain: number; loanCost: number; net: number } {
+  const depositGain = Math.floor(bank.deposit * perTickDepositRate(centralRate))
+  const bondGain = Math.floor(bank.bonds * perTickBondRate(centralRate))
+  const loanCost = Math.floor(bank.loan * perTickLoanRate(centralRate, bank.creditScore))
+  return { depositGain, bondGain, loanCost, net: depositGain + bondGain - loanCost }
+}
+
+export function interestTickCountdownMs(bank: BankState, now: number): number {
+  return Math.max(0, INTEREST_TICK_MS - (now - bank.lastInterestTick))
 }
 
 export function maxLoan(totalEarned: number, netWorth: number): number {
@@ -70,17 +106,22 @@ export function tickBankInterest(
   if (now - bank.lastInterestTick < INTEREST_TICK_MS) return null
   bank.lastInterestTick = now
 
-  const dRate = depositRate(centralRate) / 60
-  const bRate = bondRate(centralRate) / 60
-  const lRate = loanRate(centralRate, bank.creditScore) / 60
-
-  const depositGain = Math.floor(bank.deposit * dRate)
-  const bondGain = Math.floor(bank.bonds * bRate)
-  const loanCost = Math.floor(bank.loan * lRate)
+  const depositGain = Math.floor(bank.deposit * perTickDepositRate(centralRate))
+  const bondGain = Math.floor(bank.bonds * perTickBondRate(centralRate))
+  const loanCost = Math.floor(bank.loan * perTickLoanRate(centralRate, bank.creditScore))
 
   bank.deposit += depositGain
   bank.bonds += bondGain
   bank.loan += loanCost
+
+  const net = depositGain + bondGain - loanCost
+  bank.lastInterestSnapshot = {
+    depositGain,
+    bondGain,
+    loanCost,
+    net,
+    at: now,
+  }
 
   let headline = ''
   if (depositGain + bondGain > 0) {

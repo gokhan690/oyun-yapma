@@ -97,7 +97,8 @@ body {
 }
 
 .icon-btn,
-.btn-daily {
+.btn-daily,
+.btn-pause {
   border: 1px solid var(--border);
   background: var(--surface2);
   color: var(--text);
@@ -105,6 +106,19 @@ body {
   padding: 8px 12px;
   cursor: pointer;
   font-size: 1rem;
+}
+
+.btn-pause {
+  min-width: 36px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  touch-action: manipulation;
+}
+
+.btn-pause.is-paused {
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #86efac;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.2);
 }
 
 .stats-bar {
@@ -1965,6 +1979,7 @@ html.theme-night body {
   bottom: 56px;
 }
 .biz-card-locked-footer {
+  position: relative;
   margin-top: auto;
   flex-shrink: 0;
   display: flex;
@@ -1973,11 +1988,17 @@ html.theme-night body {
   padding: 8px 12px 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(10, 18, 32, 0.95);
-  z-index: 4;
+  z-index: 5;
+  pointer-events: auto;
 }
 .biz-card-locked-footer .btn-early-unlock {
   width: 100%;
   margin-top: 0;
+  pointer-events: auto;
+}
+.btn-early-unlock-ready {
+  border-color: rgba(34, 197, 94, 0.55);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.25);
 }
 .btn-early-unlock-hint {
   display: block;
@@ -1985,6 +2006,9 @@ html.theme-night body {
   font-size: 0.62rem;
   color: #f87171;
   font-weight: 600;
+}
+.btn-early-unlock-hint.hint-ready {
+  color: #86efac;
 }
 .biz-locked-icon { font-size: 1.4rem; }
 .biz-locked-text { font-size: 0.72rem; color: var(--muted); font-weight: 600; text-align: center; padding: 0 8px; }
@@ -3266,6 +3290,15 @@ button.shop-card {
 }
 .research-tree-node.research-money { border-left: 3px solid var(--green); }
 .research-tree-node.research-prestige { border-left: 3px solid #a78bfa; }
+
+.research-branch-tag {
+  display: inline-block;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-top: 2px;
+}
 .mission-daily-summary {
   display: flex;
   justify-content: space-between;
@@ -4243,6 +4276,32 @@ html.theme-galactic {
 }
 .empire-empty span { font-size: 2rem; display: block; margin-bottom: 8px; }
 .empire-meta-line { font-size: 0.72rem; color: var(--muted); margin: 0 0 8px; }
+
+.empire-club-card {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.empire-club-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.empire-income-breakdown {
+  color: #86efac !important;
+  font-weight: 600;
+}
+
+.empire-match-estimate,
+.empire-last-match,
+.empire-league-req {
+  font-size: 0.68rem !important;
+}
+
+.empire-league-req {
+  color: var(--accent) !important;
+}
 .empire-action-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .empire-owned-chip {
   font-size: 0.72rem;
@@ -4664,6 +4723,49 @@ html.theme-galactic {
 
 .finance-rate-strip small { font-size: 0.58rem; color: var(--muted); }
 .finance-rate-strip strong { font-size: 0.78rem; color: var(--accent); }
+
+.bank-interest-summary {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bank-interest-summary-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bank-interest-summary-head strong { font-size: 0.82rem; }
+.bank-interest-summary-head small { font-size: 0.62rem; color: var(--muted); }
+
+.bank-interest-last,
+.bank-interest-projected {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+}
+
+.bank-interest-last small,
+.bank-interest-projected small {
+  font-size: 0.6rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.bank-interest-hint {
+  margin: 0;
+  font-size: 0.62rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
 
 .finance-account-grid {
   display: grid;

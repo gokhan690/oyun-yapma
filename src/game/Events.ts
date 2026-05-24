@@ -1,4 +1,5 @@
 import type { BoostKind } from './BoostInventory'
+import { GOLDEN_EVENT_CLAIM_MS, GOLDEN_EVENT_INTERVAL_MS } from './EventDirector'
 
 export type EventKind = 'investor' | 'tax_refund' | 'viral_ad'
 
@@ -21,7 +22,7 @@ export const EVENT_DEFS: GameEventDef[] = [
     title: 'Yatırımcı Teklifi',
     description: 'Reklam izle — bonus envanterine gelir x2 eklenir (2 dk).',
     emoji: '💼',
-    durationMs: 10_000,
+    durationMs: GOLDEN_EVENT_CLAIM_MS,
     rewardType: 'income_boost',
     rewardValue: 0,
     boostKind: 'income_2x',
@@ -33,7 +34,7 @@ export const EVENT_DEFS: GameEventDef[] = [
     title: 'Vergi İadesi',
     description: 'Reklam izle — kısa süreli gelir x2 bonusu envantere gider.',
     emoji: '🧾',
-    durationMs: 10_000,
+    durationMs: GOLDEN_EVENT_CLAIM_MS,
     rewardType: 'income_boost',
     rewardValue: 0,
     boostKind: 'income_2x',
@@ -45,7 +46,7 @@ export const EVENT_DEFS: GameEventDef[] = [
     title: 'Viral Reklam',
     description: 'Reklam izle — gelir x3 bonusu envantere eklenir (3 dk).',
     emoji: '📱',
-    durationMs: 10_000,
+    durationMs: GOLDEN_EVENT_CLAIM_MS,
     rewardType: 'income_boost',
     rewardValue: 0,
     boostKind: 'income_3x',
@@ -60,5 +61,5 @@ export function pickRandomEvent(): GameEventDef {
 }
 
 export function nextEventDelayMs(): number {
-  return 60_000 + Math.random() * 60_000
+  return GOLDEN_EVENT_INTERVAL_MS
 }

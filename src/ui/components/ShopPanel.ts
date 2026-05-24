@@ -1,12 +1,12 @@
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, producerIconPath, earlyUnlockCost, isProducerUnlocked, scaledUnlockAt, scaledBaseIncome, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
-import { RESEARCH_NODES, researchCost } from '../../game/Research'
+import { RESEARCH_NODES, researchCost, researchNodesByBranch, type ResearchBranch } from '../../game/Research'
 import { getActiveSynergies } from '../../game/Synergies'
 import { PRESTIGE_THRESHOLD } from '../../game/Prestige'
 import { prestigeMultiplier } from '../../game/Prestige'
 import { managerCost, hasManager } from '../../game/Managers'
 import { profitLoss, priceChangePct, portfolioSummary, sparklinePath, STOCK_DEFS, fearLabel, isBankruptTicker } from '../../game/StockMarket'
-import { depositRate, bondRate, loanRate } from '../../game/FinanceBank'
+import { depositRate, bondRate, loanRate, projectInterestTick, interestTickCountdownMs, INTEREST_TICK_MS } from '../../game/FinanceBank'
 import { PRESTIGE_TREE_NODES, canBuyNode, hasNode } from '../../game/PrestigeTree'
 import { dailyGoalProgress, scaledDailyGoalTarget } from '../../game/DailyGoal'
 import { assetUrl } from '../../utils/assetUrl'
@@ -63,6 +63,7 @@ export class ShopPanel {
   private synergyEl: HTMLElement | null = null
   private ipoSubTab: IpoSubTab = 'stock'
   private upgradeFilter: UpgradeFilter = 'all'
+  private researchBranch: ResearchBranch | 'all' = 'all'
   private bizTypeFilter: BizTypeFilter = 'all'
   private empireSub: EmpireSub = 'sport'
   private empireCards = new Map<string, HTMLDivElement>()
@@ -391,6 +392,10 @@ export class ShopPanel {
     this.upgradeFilter = filter
   }
 
+  setResearchBranch(branch: ResearchBranch | 'all'): void {
+    this.researchBranch = branch
+  }
+
   setBizTypeFilter(filter: BizTypeFilter): void {
     this.bizTypeFilter = filter
   }
@@ -477,8 +482,27 @@ export class ShopPanel {
   }
 
   patchAffordability(state: GameState): void {
-    if (this.activePanelId() === 'businesses') this.renderBusinesses(state, true)
+    const panelId = this.activePanelId()
+    if (panelId === 'businesses') this.renderBusinesses(state, true)
+    else if (panelId.startsWith('empire_')) this.patchEmpireLockedCards(state)
     this.renderAdvisorStrip(state)
+  }
+
+  private patchLockedCards(state: GameState, root: ParentNode): void {
+    root.querySelectorAll<HTMLElement>('.biz-card-locked-preview[data-producer-id]').forEach((card) => {
+      const id = card.dataset.producerId
+      if (!id) return
+      const def = PRODUCERS.find((p) => p.id === id)
+      if (!def) return
+      this.patchEarlyUnlockFooter(card, def, state, scaledUnlockAt(def))
+    })
+  }
+
+  private patchEmpireLockedCards(state: GameState): void {
+    const panelId = this.activePanelId()
+    const panel = this.panels[panelId]
+    if (!panel) return
+    this.patchLockedCards(state, panel)
   }
 
   private renderAdvisorStrip(state: GameState): void {
@@ -692,12 +716,18 @@ export class ShopPanel {
     if (!earlyBtn) return
     const cost = earlyUnlockCost(def)
     const canAfford = state.canAfford(cost)
-    earlyBtn.textContent = `Erken aç · ${formatMoney(cost)}`
-    earlyBtn.disabled = !canAfford
-    earlyBtn.title = `Cüzdandan ödenir · Normal açılış: ${formatMoney(unlockAt)} toplam kazanç`
+    earlyBtn.textContent = canAfford
+      ? `Erken aç · ${formatMoney(cost)}`
+      : `Erken aç · ${formatMoney(cost)} / ${formatMoney(state.money)}`
+    earlyBtn.disabled = false
+    earlyBtn.classList.toggle('btn-early-unlock-ready', canAfford)
+    earlyBtn.title = canAfford
+      ? `Cüzdandan ödenir · Normal açılış: ${formatMoney(unlockAt)} toplam kazanç`
+      : `Gerekli: ${formatMoney(cost)} · Cüzdan: ${formatMoney(state.money)} · Eksik: ${formatMoney(Math.max(0, cost - state.money))}`
     if (earlyHint) {
-      earlyHint.textContent = canAfford ? '' : 'Yetersiz bakiye'
-      earlyHint.hidden = canAfford
+      earlyHint.textContent = canAfford ? 'Cüzdandan ödenir' : `Eksik: ${formatMoney(Math.max(0, cost - state.money))}`
+      earlyHint.hidden = false
+      earlyHint.classList.toggle('hint-ready', canAfford)
     }
   }
 
@@ -1173,6 +1203,8 @@ export class ShopPanel {
       } else {
         panel.querySelector('.biz-card-locked-preview')?.remove()
       }
+    } else {
+      this.patchLockedCards(state, panel)
     }
 
     if (!patchOnly && panel.querySelectorAll('.biz-card:not([hidden]):not(.biz-card-locked-preview)').length === 0 && visibleIds.size === 0) {
@@ -1558,14 +1590,32 @@ export class ShopPanel {
   private renderResearch(state: GameState): void {
     const panel = this.panels.research!
     panel.replaceChildren()
-    const totalLevels = RESEARCH_NODES.reduce((s, n) => s + (state.research[n.id] ?? 0), 0)
-    const maxLevels = RESEARCH_NODES.reduce((s, n) => s + n.maxLevel, 0)
-    panel.appendChild(this.createTabHero('🔬', 'Ar-Ge Laboratuvarı', 'Uzun vadeli bonuslar — her seviye kalıcı etki', `${totalLevels}/${maxLevels} seviye`))
+    const nodes = this.researchBranch === 'all'
+      ? RESEARCH_NODES
+      : researchNodesByBranch(this.researchBranch)
+    const totalLevels = nodes.reduce((s, n) => s + (state.research[n.id] ?? 0), 0)
+    const maxLevels = nodes.reduce((s, n) => s + n.maxLevel, 0)
+    panel.appendChild(this.createTabHero('🔬', 'Ar-Ge Laboratuvarı', 'Uzun vadeli bonuslar — dal seçerek ilerle', `${totalLevels}/${maxLevels} seviye`))
+
+    const branchLabels: Record<ResearchBranch | 'all', string> = {
+      all: 'Tümü',
+      operasyon: 'Operasyon',
+      finans: 'Finans',
+      imparatorluk: 'İmparatorluk',
+    }
+    panel.appendChild(this.createFilterPills(
+      (['all', 'operasyon', 'finans', 'imparatorluk'] as const).map((id) => ({
+        id,
+        label: branchLabels[id],
+      })),
+      this.researchBranch,
+      'research-branch',
+    ))
 
     const treeGrid = document.createElement('div')
     treeGrid.className = 'research-tree-grid'
 
-    for (const node of RESEARCH_NODES) {
+    for (const node of nodes) {
       const level = state.research[node.id] ?? 0
       const maxed = level >= node.maxLevel
       const cost = state.researchCostWithWeekly(researchCost(node, level))
@@ -1586,6 +1636,9 @@ export class ShopPanel {
       body.className = 'shop-card-body'
       const name = document.createElement('strong')
       name.textContent = node.name
+      const branchTag = document.createElement('span')
+      branchTag.className = 'research-branch-tag'
+      branchTag.textContent = node.branch
       const desc = document.createElement('small')
       desc.textContent = node.description
       const dots = document.createElement('div')
@@ -1598,7 +1651,7 @@ export class ShopPanel {
       const levelLabel = document.createElement('span')
       levelLabel.className = 'shop-level-label'
       levelLabel.textContent = `${level}/${node.maxLevel}`
-      body.append(name, desc, dots, levelLabel)
+      body.append(name, branchTag, desc, dots, levelLabel)
 
       const price = document.createElement('span')
       price.className = `shop-card-price${node.currency === 'prestige' ? ' price-prestige' : ''}`
@@ -1804,12 +1857,40 @@ export class ShopPanel {
     const rateStrip = document.createElement('div')
     rateStrip.className = 'finance-rate-strip'
     rateStrip.innerHTML = `
-      <span><small>Mevduat faizi</small><strong>%${dRate}/dk</strong></span>
-      <span><small>Tahvil</small><strong>%${bRate}/dk</strong></span>
-      <span><small>Kredi</small><strong>%${lRate}/dk</strong></span>
+      <span><small>Mevduat (yıllık)</small><strong>%${dRate}</strong></span>
+      <span><small>Tahvil (yıllık)</small><strong>%${bRate}</strong></span>
+      <span><small>Kredi (yıllık)</small><strong>%${lRate}</strong></span>
       <span><small>Skor</small><strong>${score}/100</strong></span>
     `
     panel.appendChild(rateStrip)
+
+    const now = Date.now()
+    const countdownSec = Math.ceil(interestTickCountdownMs(bank, now) / 1000)
+    const last = bank.lastInterestSnapshot
+    const projected = projectInterestTick(bank, rate)
+    const netClass = projected.net >= 0 ? 'pl-positive' : 'pl-negative'
+
+    const interestSummary = document.createElement('div')
+    interestSummary.className = 'bank-interest-summary'
+    interestSummary.innerHTML = `
+      <div class="bank-interest-summary-head">
+        <strong>Faiz özeti</strong>
+        <small>Sonraki tick: ${countdownSec} sn · Her ${INTEREST_TICK_MS / 1000} sn gerçek zaman</small>
+      </div>
+      <div class="bank-interest-last">
+        <small>Son tick</small>
+        <span>${last
+          ? `+${formatMoney(last.depositGain)} mevduat · +${formatMoney(last.bondGain)} tahvil · −${formatMoney(last.loanCost)} kredi = <strong class="${last.net >= 0 ? 'pl-positive' : 'pl-negative'}">${last.net >= 0 ? '+' : ''}${formatMoney(last.net)}</strong> net`
+          : 'Henüz faiz işlenmedi'}
+        </span>
+      </div>
+      <div class="bank-interest-projected">
+        <small>Tahmini sonraki tick</small>
+        <span>+${formatMoney(projected.depositGain)} · +${formatMoney(projected.bondGain)} · −${formatMoney(projected.loanCost)} = <strong class="${netClass}">${projected.net >= 0 ? '+' : ''}${formatMoney(projected.net)}</strong></span>
+      </div>
+      <p class="bank-interest-hint">Kredi skoru düştükçe faiz artar (30–100 arası). Mevduat/tahvil bakiyene göre kazanç; kredi borcuna faiz eklenir.</p>
+    `
+    panel.appendChild(interestSummary)
 
     const accounts = document.createElement('div')
     accounts.className = 'bank-accounts finance-account-grid'
@@ -1836,7 +1917,7 @@ export class ShopPanel {
     warn.className = 'bank-warn'
     warn.textContent = bank.loan > state.financeNetWorth() * 0.5
       ? '⚠️ Borç yüksek — net değer negatife inerse iflas tetiklenir, işletmelere el konulabilir.'
-      : 'Faiz her oyun dakikasında işler. Net değer sıfırın altına düşerse tam iflas riski vardır.'
+      : 'Faiz her 60 sn gerçek zamanda işler (duraklatınca durur). Net değer sıfırın altına düşerse iflas riski vardır.'
     panel.appendChild(warn)
 
     panel.appendChild(this.createBankActions('Mevduat işlemleri', 'Nakitten yatır veya çek', [

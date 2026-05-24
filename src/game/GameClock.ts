@@ -1,8 +1,8 @@
 export const GAME_START_YEAR = 2026
-/** 1 gerçek saniye = 1 oyun günü */
-export const REAL_SECONDS_PER_GAME_DAY = 1
+/** 5 gerçek saniye = 1 oyun günü (BitLife tarzı yavaş tempo) */
+export const REAL_SECONDS_PER_GAME_DAY = 5
 
-export const MS_PER_GAME_DAY = 1000
+export const MS_PER_GAME_DAY = REAL_SECONDS_PER_GAME_DAY * 1000
 
 const MONTH_NAMES = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
 
