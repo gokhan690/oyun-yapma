@@ -6,7 +6,7 @@ import type { WorldStageId } from '../game/WorldStage'
 const MAX_BUILDINGS = 16
 
 const TIER_HEIGHTS: Record<number, number> = {
-  1: 28, 2: 36, 3: 42, 4: 48, 5: 56, 6: 64, 7: 72, 8: 80, 9: 88, 10: 96, 11: 104,
+  1: 40, 2: 52, 3: 62, 4: 72, 5: 84, 6: 96, 7: 108, 8: 120, 9: 134, 10: 148, 11: 165,
 }
 
 const TIER_COLORS: Record<number, [string, string]> = {
@@ -42,6 +42,7 @@ export class Skyline {
   private layerBack: HTMLElement
   private layerFront: HTMLElement
   private skyEl: HTMLElement
+  private sunMoonEl!: HTMLElement
   private startTime = Date.now()
   private lastNight: boolean | null = null
   private gameTimeMs = 0
@@ -58,6 +59,9 @@ export class Skyline {
 
     this.skyEl = document.createElement('div')
     this.skyEl.className = 'skyline-sky'
+
+    this.sunMoonEl = document.createElement('div')
+    this.sunMoonEl.className = 'skyline-sun-moon'
 
     this.starsEl = document.createElement('div')
     this.starsEl.className = 'skyline-stars'
@@ -79,7 +83,7 @@ export class Skyline {
     const ground = document.createElement('div')
     ground.className = 'skyline-ground'
 
-    this.el.append(this.layerBack, this.skyEl, this.starsEl, this.buildingsEl, this.layerFront, ground)
+    this.el.append(this.layerBack, this.skyEl, this.sunMoonEl, this.starsEl, this.buildingsEl, this.layerFront, ground)
     container.prepend(this.el)
     this.animateParallax()
   }
@@ -131,10 +135,19 @@ export class Skyline {
       el.title = `${b.name} · ${Math.floor(b.income).toLocaleString('tr-TR')}/sn`
       el.dataset.producerId = b.producerId
 
+      const pDef = PRODUCERS.find(p => p.id === b.producerId)
+      if (pDef?.illegal) el.classList.add('skyline-illegal')
+
       const tower = document.createElement('div')
       tower.className = 'skyline-tower'
       tower.style.height = `${height}px`
       tower.style.background = `linear-gradient(180deg, ${top} 0%, ${bottom} 100%)`
+
+      if (b.tier >= 7) {
+        const antenna = document.createElement('div')
+        antenna.className = 'skyline-antenna'
+        tower.prepend(antenna)
+      }
 
       const windows = document.createElement('div')
       windows.className = 'skyline-windows'
@@ -218,6 +231,7 @@ export class Skyline {
     this.skyEl.classList.toggle('skyline-sky-night', night)
     this.starsEl.classList.toggle('visible', night)
     document.documentElement.classList.toggle('theme-night', night)
+    this.sunMoonEl.className = night ? 'skyline-sun-moon skyline-moon' : 'skyline-sun-moon skyline-sun'
   }
 
   isNight(): boolean {

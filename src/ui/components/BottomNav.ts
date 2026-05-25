@@ -5,7 +5,7 @@ import { assetUrl } from '../../utils/assetUrl'
 const NAV_ICONS: Record<NavView, string> = {
   earn: assetUrl('icons/nav/earn.svg'),
   shop: assetUrl('icons/nav/shop.svg'),
-  market: assetUrl('icons/nav/shop.svg'),
+  market: assetUrl('icons/nav/empire.svg'),
   profile: assetUrl('icons/nav/profile.svg'),
 }
 

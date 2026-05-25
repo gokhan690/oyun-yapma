@@ -46,7 +46,7 @@ class MockAdProvider implements IAdProvider {
     container.replaceChildren()
     const banner = document.createElement('div')
     banner.className = 'ad-banner-mock'
-    banner.textContent = 'Reklam alanı (banner)'
+    banner.setAttribute('aria-hidden', 'true')
     container.appendChild(banner)
   }
 
