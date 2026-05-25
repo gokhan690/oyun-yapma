@@ -213,7 +213,7 @@ export class ShopPanel {
     chrome.className = 'shop-chrome'
     this.shopHubEl = document.createElement('div')
     this.shopHubEl.className = 'shop-hub-strip'
-    chrome.append(header, this.shopHubEl, buyModes, this.subTabsEl, tabsWrap)
+    chrome.append(header, tabsWrap, this.subTabsEl, buyModes, this.shopHubEl)
     this.renderSubTabs()
 
     const body = document.createElement('div')
