@@ -73,9 +73,11 @@ export const PRODUCERS: ProducerDef[] = [
 
   // —— Erken / orta oyun: daha fazla kariyer yolu ——
   { id: 'berber', name: 'Berber & Kuaför', emoji: '💈', description: 'Mahallede güvenilir gelir.', tier: 1, unlockAt: 0, baseCost: 280, baseIncome: 5, costMultiplier: 1.17 },
-  { id: 'giyim', name: 'Giyim Mağazası', emoji: '👔', description: 'Moda perakende zinciri.', tier: 2, unlockAt: 3_000, baseCost: 540, baseIncome: 9, costMultiplier: 1.17 },
+  { id: 'firin', name: 'Fırın & Pastane', emoji: '🥐', description: 'Taze ekmek, sıcak kâr.', tier: 1, unlockAt: 0, baseCost: 350, baseIncome: 6.5, costMultiplier: 1.17 },
+  { id: 'cicekci', name: 'Çiçekçi', emoji: '💐', description: 'Çiçek satar, mutluluk taşır.', tier: 1, unlockAt: 0, baseCost: 420, baseIncome: 7.5, costMultiplier: 1.17 },
+  { id: 'giyim', name: 'Giyim Mağazası', emoji: '👔', description: 'Moda perakende zinciri.', tier: 2, unlockAt: 0, baseCost: 540, baseIncome: 9, costMultiplier: 1.17 },
   { id: 'gym', name: 'Spor Salonu Zinciri', emoji: '🏋️', description: 'Abonelik bazlı fitness.', tier: 2, unlockAt: 8_000, baseCost: 620, baseIncome: 11, costMultiplier: 1.17 },
-  { id: 'kargo', name: 'Kargo & Kurye', emoji: '📦', description: 'Şehir içi hızlı teslimat.', tier: 3, unlockAt: 18_000, baseCost: 1_020, baseIncome: 16, costMultiplier: 1.18 },
+  { id: 'kargo', name: 'Kargo & Kurye', emoji: '📦', description: 'Şehir içi hızlı teslimat.', tier: 3, unlockAt: 500, baseCost: 1_020, baseIncome: 16, costMultiplier: 1.18 },
   { id: 'reklam_ajansi', name: 'Reklam Ajansı', emoji: '📣', description: 'Markalar için kampanya yönetimi.', tier: 3, unlockAt: 22_000, baseCost: 1_150, baseIncome: 18, costMultiplier: 1.18 },
   { id: 'insaat', name: 'İnşaat Firması', emoji: '🏗️', description: 'Konut ve ticari projeler.', tier: 4, unlockAt: 90_000, baseCost: 1_950, baseIncome: 26, costMultiplier: 1.18 },
   { id: 'hukuk', name: 'Hukuk Bürosu', emoji: '⚖️', description: 'Kurumsal dava ve danışmanlık.', tier: 4, unlockAt: 100_000, baseCost: 2_100, baseIncome: 28, costMultiplier: 1.18 },

@@ -1211,6 +1211,9 @@ export class ShopPanel {
     }
 
     if (!this.tierBandsInit) {
+      for (const band of BIZ_TIER_BANDS) {
+        if (bandUnlocked(band, state.totalEarned)) this.expandedBands.add(band.id)
+      }
       this.expandedBands.add(activeTierBandId(state))
       this.tierBandsInit = true
     }
@@ -1280,7 +1283,7 @@ export class ShopPanel {
       const lockedPreview = producersInBand(band).filter(
         (p) => !isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks)
           && this.matchesBizFilter(p, this.bizTypeFilter),
-      ).slice(0, 2)
+      ).slice(0, 3)
 
       if (bandProducers.length === 0 && lockedPreview.length === 0 && unlocked) {
         const empty = document.createElement('p')

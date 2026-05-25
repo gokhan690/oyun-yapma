@@ -1049,9 +1049,17 @@ export class HUD {
     this.particles.spawnConfetti()
     const overlay = document.createElement('div')
     overlay.className = 'milestone-overlay'
-    overlay.textContent = `Kilometre Taşı: ${formatMoney(amount)}! 🎉`
+    const labels: Record<number, string> = {
+      1_000: 'İlk binliğin! 🎉',
+      10_000: 'On bin baron! 💼',
+      100_000: 'Küçük imparatorluk! 🏙️',
+      1_000_000: 'Milyoner oldun! 👑',
+      10_000_000: 'On milyonluk güç! 💎',
+      100_000_000: 'Yüz milyonluk efsane! 🚀',
+    }
+    overlay.textContent = labels[amount] ?? `${formatMoney(amount)} kilometre taşı! 🎉`
     this.root.appendChild(overlay)
-    window.setTimeout(() => overlay.remove(), 2200)
+    window.setTimeout(() => overlay.remove(), 2800)
   }
 
   private async handleAction(action: string, id?: string, count?: string): Promise<void> {
@@ -1109,6 +1117,10 @@ export class HUD {
         } else {
           this.setView('earn')
         }
+        break
+      case 'restart-tutorial':
+        this.settings.hide()
+        this.tutorial.restart()
         break
       case 'close-stats':
         this.setView('earn')

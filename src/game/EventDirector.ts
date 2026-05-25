@@ -1,9 +1,9 @@
 import { nextEventDelayMs } from './Events'
 
 /** Golden / reklam olayları arası sabit ritim (AdManager ile hizalı) */
-export const GOLDEN_EVENT_INTERVAL_MS = 90_000
+export const GOLDEN_EVENT_INTERVAL_MS = 240_000
 /** Yeni oyuncuya ilk golden event — retention hook */
-export const FIRST_GOLDEN_EVENT_MS = 55_000
+export const FIRST_GOLDEN_EVENT_MS = 120_000
 export const GOLDEN_EVENT_CLAIM_MS = 15_000
 export const NEAR_MISS_COOLDOWN_MS = 120_000
 export const EVENT_PREVIEW_LEAD_MS = 2_000

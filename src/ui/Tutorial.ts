@@ -23,12 +23,12 @@ const MANDATORY_STEPS: TutorialStep[] = [
   {
     target: '[data-id="shop"]',
     title: 'İlk işletmen',
-    text: 'İşletme sekmesine git — limonata veya berber ile başla.',
+    text: 'İşletme sekmesine git — Limonata Tezgahı ile başla.',
     view: 'shop',
     mandatory: true,
   },
   {
-    target: '.shop-advisor-card, .biz-card:not(.biz-card-locked-preview)',
+    target: '.biz-hero-card:not(.biz-hero-locked)',
     title: 'Satın al',
     text: 'Bir işletme seç — pasif gelir kazanmaya başlarsın.',
     tab: 'growth',

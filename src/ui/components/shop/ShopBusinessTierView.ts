@@ -14,7 +14,6 @@ import { appendFranchiseSection } from './FranchiseBlock'
 import { getActiveSynergies } from '../../../game/Synergies'
 import { sortProducers, formatRoi, producerRoiSeconds, type BizSortOrder } from '../../../game/ShopAdvisor'
 import type { BizTypeFilter, BuyMode } from '../ShopPanel'
-import { isStarterBusiness, isStarterPhase } from '../../../game/ProgressiveUnlock'
 
 export interface TierBand {
   id: string
@@ -234,8 +233,7 @@ export function filterProducersForShop(
   return sortProducers(
     state.unlockedProducers()
       .filter((p) => !p.category)
-      .filter((p) => matchesBizFilter(p, bizTypeFilter))
-      .filter((p) => !isStarterPhase(state.producers) || isStarterBusiness(p.id)),
+      .filter((p) => matchesBizFilter(p, bizTypeFilter)),
     bizSortOrder,
     state,
   )

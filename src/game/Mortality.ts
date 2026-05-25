@@ -69,15 +69,15 @@ function traitMult(ctx: MortalityContext): number {
 }
 
 function ageBaseRisk(age: number): number {
-  if (age < 22) return 0.000012
-  if (age < 30) return 0.000018
-  if (age < 40) return 0.000028
-  if (age < 50) return 0.000045
-  if (age < 60) return 0.000075
-  if (age < 70) return 0.00012
-  if (age < 80) return 0.00022
-  if (age < 90) return 0.00042
-  return 0.00075
+  if (age < 22) return 0.0000048
+  if (age < 30) return 0.0000072
+  if (age < 40) return 0.0000112
+  if (age < 50) return 0.000018
+  if (age < 60) return 0.00003
+  if (age < 70) return 0.000048
+  if (age < 80) return 0.000088
+  if (age < 90) return 0.000168
+  return 0.0003
 }
 
 const DEATH_CAUSES: DeathCauseDef[] = [
@@ -252,7 +252,7 @@ export function totalDailyMortalityRisk(ctx: MortalityContext): number {
   for (const { risk } of entries) {
     combined = combined + risk - combined * risk
   }
-  return Math.min(0.06, combined)
+  return Math.min(0.015, combined)
 }
 
 export function estimatedYearsRemaining(ctx: MortalityContext): number {

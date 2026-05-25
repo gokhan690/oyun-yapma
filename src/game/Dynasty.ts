@@ -33,7 +33,7 @@ export interface ChildRecord {
 
 export const PLAYER_START_AGE = 18
 /** İstatistiksel üst yaş referansı — zorunlu ölüm sınırı değil */
-export const PLAYER_LIFESPAN = 80
+export const PLAYER_LIFESPAN = 100
 export const SUCCESSION_START_AGE = 25
 
 export interface DynastyState {

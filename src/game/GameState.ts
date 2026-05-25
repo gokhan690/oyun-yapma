@@ -534,7 +534,7 @@ export type GameEvent =
   | { type: 'calendar_event'; headline: string; emoji: string }
   | { type: 'skyline_building_click'; producerId: string; income: number; name: string }
 
-const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
+const MILESTONE_THRESHOLDS = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
 const CRIT_CHANCE = 0.1
 const CRIT_MULT = 5
 const BASE_CLICK = 5
@@ -3565,8 +3565,8 @@ export class GameState {
 
   private maybeSpawnCrisis(day: number): void {
     if (this.activeCrisis && !this.activeCrisis.resolved) return
-    if (day - this.lastCrisisGameDay < 15) return
-    if (Math.random() > 0.08) return
+    if (day - this.lastCrisisGameDay < 60) return
+    if (Math.random() > 0.04) return
     const id = pickRandomCrisis()
     const def = crisisDef(id)
     this.activeCrisis = {
@@ -3981,8 +3981,8 @@ export class GameState {
   }
 
   private maybeNaturalDisaster(day: number): void {
-    if (day - this.lastDisasterGameDay < 20) return
-    if (Math.random() > 0.04) return
+    if (day - this.lastDisasterGameDay < 90) return
+    if (Math.random() > 0.02) return
     const disaster = pickDisaster(this.cities.activeCity)
     if (!disaster) return
     this.lastDisasterGameDay = day
