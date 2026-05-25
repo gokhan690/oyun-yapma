@@ -1,6 +1,6 @@
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, producerIconPath, earlyUnlockCost, isProducerUnlocked, scaledUnlockAt, scaledBaseIncome, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
-import { RESEARCH_NODES, researchCost, researchNodesByBranch, type ResearchBranch } from '../../game/Research'
+import { RESEARCH_NODES, researchCost, researchNodesByBranch, researchIsUnlocked, researchPrereqName, type ResearchBranch } from '../../game/Research'
 import { reputationLoanBlocked } from '../../game/Reputation'
 import { NAMED_MANAGERS } from '../../game/NamedManagers'
 import { getActiveSynergies, getNearSynergies } from '../../game/Synergies'
@@ -1864,18 +1864,19 @@ export class ShopPanel {
         const level = state.research[node.id] ?? 0
         const maxed = level >= node.maxLevel
         const cost = state.researchCostWithWeekly(researchCost(node, level))
-        const canBuy = !maxed && (node.currency === 'money' ? state.canAfford(cost) : state.prestigePoints >= cost)
+        const prereqMet = researchIsUnlocked(node.id, state.research)
+        const canBuy = prereqMet && !maxed && (node.currency === 'money' ? state.canAfford(cost) : state.prestigePoints >= cost)
 
         const card = document.createElement('button')
         card.type = 'button'
-        card.className = `shop-card shop-card-research research-tree-node branch-${branch}${canBuy ? ' affordable' : ''}${maxed ? ' research-maxed' : ''}${node.currency === 'prestige' ? ' research-prestige' : ' research-money'}`
+        card.className = `shop-card shop-card-research research-tree-node branch-${branch}${canBuy ? ' affordable' : ''}${maxed ? ' research-maxed' : ''}${!prereqMet ? ' locked-prereq' : ''}${node.currency === 'prestige' ? ' research-prestige' : ' research-money'}`
         card.dataset.action = 'buy-research'
         card.dataset.id = node.id
         card.disabled = !canBuy
 
         const icon = document.createElement('span')
         icon.className = 'shop-card-icon'
-        icon.textContent = nodeEmojis[node.id] ?? '🔬'
+        icon.textContent = !prereqMet ? '🔒' : (nodeEmojis[node.id] ?? '🔬')
 
         const body = document.createElement('div')
         body.className = 'shop-card-body'
@@ -1884,22 +1885,29 @@ export class ShopPanel {
         const desc = document.createElement('small')
         desc.textContent = node.description
 
-        const progressBar = document.createElement('div')
-        progressBar.className = 'research-node-progress'
-        const fill = document.createElement('div')
-        fill.className = 'research-node-progress-fill'
-        fill.style.width = `${maxed ? 100 : Math.round((level / node.maxLevel) * 100)}%`
-        fill.style.background = maxed ? 'var(--green)' : cfg.color
-        progressBar.appendChild(fill)
+        if (!prereqMet) {
+          const prereqHint = document.createElement('span')
+          prereqHint.className = 'research-prereq-hint'
+          prereqHint.textContent = `Önce: ${researchPrereqName(node.id) ?? '?'}`
+          body.append(name, desc, prereqHint)
+        } else {
+          const progressBar = document.createElement('div')
+          progressBar.className = 'research-node-progress'
+          const fill = document.createElement('div')
+          fill.className = 'research-node-progress-fill'
+          fill.style.width = `${maxed ? 100 : Math.round((level / node.maxLevel) * 100)}%`
+          fill.style.background = maxed ? 'var(--green)' : cfg.color
+          progressBar.appendChild(fill)
 
-        const levelLabel = document.createElement('span')
-        levelLabel.className = 'shop-level-label'
-        levelLabel.textContent = maxed ? '✅ Tamamlandı' : `${level}/${node.maxLevel} seviye`
-        body.append(name, desc, progressBar, levelLabel)
+          const levelLabel = document.createElement('span')
+          levelLabel.className = 'shop-level-label'
+          levelLabel.textContent = maxed ? '✅ Tamamlandı' : `${level}/${node.maxLevel} seviye`
+          body.append(name, desc, progressBar, levelLabel)
+        }
 
         const price = document.createElement('span')
         price.className = `shop-card-price${node.currency === 'prestige' ? ' price-prestige' : ''}`
-        price.textContent = maxed ? '✓' : node.currency === 'money' ? formatMoney(cost) : `${cost} ✦`
+        price.textContent = !prereqMet ? '🔒' : maxed ? '✓' : node.currency === 'money' ? formatMoney(cost) : `${cost} ✦`
 
         card.append(icon, body, price)
         chain.appendChild(card)
@@ -2336,6 +2344,29 @@ export class ShopPanel {
       ? `🚀 IPO Yap · ${formatMoney(preview.startingCash)} ile başla`
       : `IPO için ${formatMoney(remaining)} kaldı`
     btn.disabled = !state.prestigeEligible()
+
+    // IPO Önizleme kartı (Adım 8)
+    if (preview.pointsToEarn > 0) {
+      const previewCard = document.createElement('div')
+      previewCard.className = 'ipo-preview-card'
+      const previewTitle = document.createElement('div')
+      previewTitle.style.cssText = 'font-size:0.8rem;font-weight:800;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em'
+      previewTitle.textContent = '📊 IPO Önizlemesi'
+      const rows: [string, string][] = [
+        ['Şu an kazanacağın hisse', `+${preview.pointsToEarn} ✦`],
+        ['Yeni kalıcı çarpan', `x${currentMult.toFixed(2)} → x${preview.newMultiplier.toFixed(2)}`],
+        ['Portföy nakde çevrilecek', formatMoney(preview.portfolioValue)],
+        ['Başlangıç sermayesi', formatMoney(preview.startingCash)],
+      ]
+      previewCard.appendChild(previewTitle)
+      for (const [label, val] of rows) {
+        const row = document.createElement('div')
+        row.className = 'ipo-preview-row'
+        row.innerHTML = `<span>${label}</span><strong>${val}</strong>`
+        previewCard.appendChild(row)
+      }
+      ipoCard.appendChild(previewCard)
+    }
 
     ipoCard.append(info, bar, btn)
     panel.appendChild(ipoCard)

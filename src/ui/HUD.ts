@@ -705,14 +705,29 @@ export class HUD {
         } else {
           this.particles.spawnCoins(ev.x, ev.y)
         }
-        this.spawnFloat(ev.amount, ev.x, ev.y, ev.critical)
+        this.spawnFloat(ev.amount, ev.x, ev.y, ev.critical, ev.combo)
         this.renderCombo(ev.combo, this.state.comboMultiplier)
+        // Mascot bounce animasyonu
+        const mascotEl = this.tapArea.querySelector('.tap-mascot, .tap-emoji') as HTMLElement | null
+        if (mascotEl) {
+          mascotEl.classList.remove('mascot-bounce')
+          void mascotEl.offsetWidth
+          mascotEl.classList.add('mascot-bounce')
+          window.setTimeout(() => mascotEl.classList.remove('mascot-bounce'), 400)
+        }
         if (ev.combo >= 25) {
           this.tapWrap.classList.add('combo-fire')
           window.setTimeout(() => this.tapWrap.classList.remove('combo-fire'), 400)
         } else if (ev.combo >= 10) {
           this.tapWrap.classList.add('combo-heat')
           window.setTimeout(() => this.tapWrap.classList.remove('combo-heat'), 300)
+        }
+        // Her 10 combo'da ekrana ışık çakması
+        if (ev.combo > 0 && ev.combo % 10 === 0) {
+          const flash = document.createElement('div')
+          flash.className = 'combo-flash'
+          this.root.appendChild(flash)
+          window.setTimeout(() => flash.remove(), 600)
         }
       }
       if (ev.type === 'combo_changed') this.renderCombo(ev.combo, ev.multiplier)
@@ -1048,19 +1063,26 @@ export class HUD {
 
   private showMilestone(amount: number): void {
     this.particles.spawnConfetti()
+    const messages: Record<number, { text: string; emoji: string }> = {
+      1_000:         { text: 'İlk binliğin!', emoji: '🎉' },
+      10_000:        { text: 'On bin baron! İş dünyasına giriyorsun', emoji: '💼' },
+      100_000:       { text: 'Küçük imparatorluk! Şehir seni konuşuyor', emoji: '🏙️' },
+      1_000_000:     { text: 'Milyoner oldun! Forbes seni takip ediyor', emoji: '👑' },
+      10_000_000:    { text: 'On milyoncu! Türkiye\'nin zirvesine çıktın', emoji: '🏆' },
+      100_000_000:   { text: 'Yüz milyon! Dünya seni tanıyor', emoji: '🌍' },
+      1_000_000_000: { text: 'MİLYARDER! Tarihe geçtin', emoji: '💎' },
+    }
+    const info = messages[amount]
     const overlay = document.createElement('div')
     overlay.className = 'milestone-overlay'
-    const labels: Record<number, string> = {
-      1_000: 'İlk binliğin! 🎉',
-      10_000: 'On bin baron! 💼',
-      100_000: 'Küçük imparatorluk! 🏙️',
-      1_000_000: 'Milyoner oldun! 👑',
-      10_000_000: 'On milyonluk güç! 💎',
-      100_000_000: 'Yüz milyonluk efsane! 🚀',
-    }
-    overlay.textContent = labels[amount] ?? `${formatMoney(amount)} kilometre taşı! 🎉`
+    overlay.innerHTML = info
+      ? `<span class="milestone-emoji">${info.emoji}</span><span class="milestone-text">${info.text}</span><span class="milestone-amount">${formatMoney(amount)}</span>`
+      : `<span class="milestone-emoji">🎉</span><span class="milestone-text">${formatMoney(amount)} kilometre taşı!</span>`
     this.root.appendChild(overlay)
-    window.setTimeout(() => overlay.remove(), 2800)
+    // Altın parlama arka plan efekti
+    this.root.classList.add('milestone-glow')
+    window.setTimeout(() => this.root.classList.remove('milestone-glow'), 2000)
+    window.setTimeout(() => overlay.remove(), 3200)
   }
 
   private async handleAction(action: string, id?: string, count?: string): Promise<void> {
@@ -2018,6 +2040,7 @@ export class HUD {
       return p ? this.state.producerIncome(p) : 0
     })
     this.skyline.update(buildings, this.state.skylineWorldStageId(), this.state.gameTimeMs, this.state.legacyMonuments, cityDef(this.state.activeCityId()).skylineClass)
+    this.skyline.setCrisis(this.state.activeCrisis !== null)
   }
 
   private showCrisisModal(crisisId: import('../game/CrisisEvents').CrisisId, title: string): void {
@@ -2085,10 +2108,14 @@ export class HUD {
     }
   }
 
-  private spawnFloat(amount: number, x: number, y: number, critical: boolean): void {
+  private spawnFloat(amount: number, x: number, y: number, critical: boolean, combo = 0): void {
     const el = document.createElement('span')
     el.className = `float-text${critical ? ' critical' : ''}`
-    el.textContent = `+${formatMoney(amount)}`
+    let comboEmoji = ''
+    if (combo >= 20) comboEmoji = ' 💥'
+    else if (combo >= 10) comboEmoji = ' ⚡'
+    else if (combo >= 5) comboEmoji = ' 🔥'
+    el.textContent = `+${formatMoney(amount)}${comboEmoji}`
     el.style.left = `${x}px`
     el.style.top = `${y}px`
     this.floatLayer.appendChild(el)

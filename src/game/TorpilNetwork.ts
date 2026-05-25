@@ -75,3 +75,10 @@ export function torpilBypassCreditScore(active: TorpilContactState[]): boolean {
 export function torpilRaidWarning(active: TorpilContactState[]): boolean {
   return active.some((t) => t.id === 'siyaset_tanidik' && t.active && !t.giftDue)
 }
+
+export function torpilRelationScore(st: TorpilContactState, def: TorpilContactDef, currentGameDay: number): number {
+  if (!st.active) return 0
+  if (st.giftDue) return 15
+  const elapsed = Math.max(0, currentGameDay - st.lastGiftGameDay)
+  return Math.max(10, Math.round(100 - (elapsed / def.giftIntervalDays) * 90))
+}

@@ -365,6 +365,7 @@ export interface SerializableState {
   nightEarningsSession: number
   hapticsEnabled: boolean
   reducedMotion: boolean
+  difficulty?: 'easy' | 'normal' | 'hard'
   playerName: string
   birthYear: number
   playerGender: PlayerGender
@@ -602,6 +603,7 @@ export class GameState {
   nightEarningsSession = 0
   hapticsEnabled = true
   reducedMotion = false
+  difficulty: 'easy' | 'normal' | 'hard' = 'normal'
   isNight = isGameNight(0)
   playerName = 'Baron'
   birthYear = 0
@@ -4100,6 +4102,7 @@ export class GameState {
       nightEarningsSession: this.nightEarningsSession,
       hapticsEnabled: this.hapticsEnabled,
       reducedMotion: this.reducedMotion,
+      difficulty: this.difficulty,
       playerName: this.playerName,
       birthYear: this.birthYear,
       playerGender: this.playerGender,
@@ -4287,6 +4290,9 @@ export class GameState {
     this.nightEarningsSession = data.nightEarningsSession ?? 0
     this.hapticsEnabled = data.hapticsEnabled ?? true
     this.reducedMotion = data.reducedMotion ?? false
+    this.difficulty = (['easy', 'normal', 'hard'] as const).includes(data.difficulty as 'easy' | 'normal' | 'hard')
+      ? (data.difficulty as 'easy' | 'normal' | 'hard')
+      : 'normal'
     this.playerName = data.playerName ?? 'Baron'
     this.birthYear = data.birthYear ?? 0
     this.playerGender = data.playerGender === 'female' ? 'female' : 'male'

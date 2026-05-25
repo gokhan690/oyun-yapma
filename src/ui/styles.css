@@ -6466,3 +6466,706 @@ html.theme-galactic {
 .research-tree-node.branch-operasyon { border-left-color: var(--green) !important; }
 .research-tree-node.branch-finans { border-left-color: #60a5fa !important; }
 .research-tree-node.branch-imparatorluk { border-left-color: #c084fc !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 1 — Tıklama Deneyimi Güçlendirme
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes mascotBounce {
+  0%   { transform: scale(1) rotate(0deg); }
+  25%  { transform: scale(1.22) rotate(-4deg); }
+  50%  { transform: scale(1.28) rotate(4deg); }
+  75%  { transform: scale(1.15) rotate(-2deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.tap-mascot.mascot-bounce,
+.tap-emoji.mascot-bounce {
+  animation: mascotBounce 0.4s ease forwards;
+}
+
+/* Combo flash — her 10 combo'da tam ekran ışık */
+@keyframes comboFlash {
+  0%   { opacity: 0; }
+  20%  { opacity: 0.35; }
+  100% { opacity: 0; }
+}
+
+.combo-flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  background: radial-gradient(ellipse at center, rgba(251,191,36,0.45) 0%, transparent 70%);
+  animation: comboFlash 0.6s ease forwards;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 2 — Milestone Kutlamaları
+   ═══════════════════════════════════════════════════════════ */
+
+.milestone-overlay {
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+  padding: 24px;
+  animation: milestoneIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, milestoneOut 0.5s 2.7s ease forwards;
+}
+
+@keyframes milestoneIn {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes milestoneOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.milestone-emoji  { font-size: 3.5rem; display: block; }
+.milestone-text   { font-size: 1.4rem; font-weight: 800; color: var(--accent); }
+.milestone-amount { font-size: 0.95rem; color: var(--muted); font-weight: 600; }
+
+@keyframes milestoneGlow {
+  0%   { box-shadow: inset 0 0 0px transparent; }
+  30%  { box-shadow: inset 0 0 60px rgba(251,191,36,0.18); }
+  100% { box-shadow: inset 0 0 0px transparent; }
+}
+
+.app-root.milestone-glow {
+  animation: milestoneGlow 2s ease forwards;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 3 — Başarımlar Galerisi
+   ═══════════════════════════════════════════════════════════ */
+
+.achievements-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 12px 0;
+}
+
+@media (max-width: 360px) {
+  .achievements-gallery { grid-template-columns: repeat(3, 1fr); }
+}
+
+.ach-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px 8px;
+  border-radius: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.2s;
+  position: relative;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ach-badge.earned {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface2));
+}
+
+.ach-badge.earned::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(251,191,36,0.2);
+  pointer-events: none;
+}
+
+.ach-badge:not(.earned) {
+  filter: grayscale(0.7);
+  opacity: 0.55;
+}
+
+.ach-badge:active { transform: scale(0.93); }
+
+.ach-badge-emoji {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.ach-badge-name {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.2;
+  max-width: 56px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ach-badge.earned .ach-badge-name {
+  color: var(--text);
+}
+
+.ach-badge-lock {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 0.65rem;
+  opacity: 0.6;
+}
+
+.ach-category-header {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 10px 0 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 5 — Pasif Gelir Göstergesi İyileştirmesi
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes incomePulse {
+  0%   { color: var(--muted); }
+  40%  { color: var(--green); text-shadow: 0 0 8px rgba(52,211,153,0.5); }
+  100% { color: var(--muted); }
+}
+
+.stats-chip.income-grew .stats-chip-value {
+  animation: incomePulse 1.2s ease forwards;
+}
+
+.active-biz-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px 8px;
+}
+
+/* Offline kazanç chip */
+.offline-earn-chip {
+  position: fixed;
+  top: calc(var(--safe-top, 0px) + 70px);
+  right: 12px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  z-index: 55;
+  animation: slideInRight 0.4s ease, fadeOutUp 0.5s 3.5s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(60px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeOutUp {
+  from { opacity: 1; }
+  to   { opacity: 0; transform: translateY(-20px); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 8 — IPO Önizleme İyileştirmesi
+   ═══════════════════════════════════════════════════════════ */
+
+.ipo-preview-card {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface2));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.ipo-preview-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 0.85rem;
+}
+
+.ipo-preview-row span:first-child { color: var(--muted); }
+.ipo-preview-row strong { color: var(--accent); font-size: 1rem; }
+
+.ipo-sim-result {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: var(--accent);
+  text-align: center;
+  padding: 10px 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 9 — Araştırma Önkoşulları
+   ═══════════════════════════════════════════════════════════ */
+
+.research-tree-node.locked-prereq {
+  opacity: 0.45;
+  pointer-events: none;
+  filter: grayscale(0.7);
+}
+
+.research-prereq-hint {
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 13 — Rakipler Paneli
+   ═══════════════════════════════════════════════════════════ */
+
+.rivals-panel { padding: 12px 0; }
+
+.rival-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: border-color 0.2s;
+}
+
+.rival-card.threat-high  { border-left: 3px solid var(--accent2); }
+.rival-card.threat-med   { border-left: 3px solid var(--accent); }
+.rival-card.threat-low   { border-left: 3px solid var(--green); }
+
+.rival-emoji  { font-size: 2rem; flex-shrink: 0; }
+.rival-info   { flex: 1; min-width: 0; }
+.rival-name   { font-weight: 800; font-size: 0.95rem; }
+.rival-sector { font-size: 0.72rem; color: var(--muted); }
+.rival-worth  { font-size: 0.82rem; color: var(--accent); font-weight: 700; margin-top: 2px; }
+.rival-threat-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  border-radius: 8px;
+  padding: 3px 8px;
+  background: var(--surface);
+  color: var(--muted);
+}
+.rival-threat-badge.high { background: rgba(248,113,113,0.15); color: var(--accent2); }
+.rival-threat-badge.med  { background: rgba(251,191,36,0.15);  color: var(--accent); }
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 14 — Franchise Harita Görsel
+   ═══════════════════════════════════════════════════════════ */
+
+.franchise-map-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.franchise-map-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--muted);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.franchise-map-cities {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.franchise-city-dot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.franchise-city-dot.active { color: var(--green); }
+.franchise-city-dot .dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.franchise-city-dot.active .dot {
+  background: var(--green);
+  box-shadow: 0 0 6px rgba(52,211,153,0.5);
+}
+
+.franchise-total-income {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--green);
+  margin-top: 10px;
+  text-align: right;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 16 — Baron Gazetesi Dinamik Haberler
+   ═══════════════════════════════════════════════════════════ */
+
+.gazette-feed { padding: 0 0 12px; }
+
+.gazette-entry {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.gazette-entry:active { opacity: 0.7; }
+.gazette-entry:last-child { border-bottom: none; }
+
+.gazette-cat-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+.gazette-cat-dot.player   { background: var(--accent); }
+.gazette-cat-dot.rival    { background: var(--accent2); }
+.gazette-cat-dot.market   { background: var(--green); }
+.gazette-cat-dot.politics { background: #a78bfa; }
+.gazette-cat-dot.crisis   { background: #f97316; }
+.gazette-cat-dot.calendar { background: var(--blue); }
+
+.gazette-headline {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  flex: 1;
+}
+
+.gazette-date {
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 17 — Torpil Ağı Derinlik
+   ═══════════════════════════════════════════════════════════ */
+
+.torpil-contact-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.torpil-contact-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.torpil-avatar { font-size: 2rem; }
+
+.torpil-contact-info { flex: 1; }
+.torpil-contact-name { font-weight: 800; font-size: 0.9rem; }
+.torpil-contact-role { font-size: 0.72rem; color: var(--muted); }
+
+.torpil-relation-bar {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+
+.torpil-relation-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--green);
+  transition: width 0.4s ease;
+}
+
+.torpil-relation-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 20 — Zorluk Modu Seçimi
+   ═══════════════════════════════════════════════════════════ */
+
+.difficulty-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.difficulty-card {
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.difficulty-card:active { transform: scale(0.96); }
+.difficulty-card.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface2)); }
+
+.difficulty-card .diff-emoji { font-size: 2rem; }
+.difficulty-card .diff-name  { font-size: 0.88rem; font-weight: 800; }
+.difficulty-card .diff-desc  { font-size: 0.68rem; color: var(--muted); line-height: 1.3; }
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 21 — Skyline Dramatik (Rain efekti)
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes rainDrop {
+  0%   { transform: translateY(-10px); opacity: 0; }
+  10%  { opacity: 0.6; }
+  100% { transform: translateY(120px); opacity: 0; }
+}
+
+.skyline-rain-drop {
+  position: absolute;
+  width: 1px;
+  height: 12px;
+  background: rgba(96,165,250,0.55);
+  top: 0;
+  border-radius: 1px;
+  animation: rainDrop linear infinite;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 22 — Kart Glassmorphism & Premium Görünüm
+   ═══════════════════════════════════════════════════════════ */
+
+.biz-buy-btn.owned {
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes ownerPulse {
+  0%, 100% { opacity: 0; }
+  50%       { opacity: 0.12; }
+}
+
+.biz-buy-btn.owned::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  border-radius: inherit;
+  animation: ownerPulse 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Tier rozet renkleri */
+.biz-tier-badge.tier-1  { background: #6b7280; }
+.biz-tier-badge.tier-2  { background: #3b82f6; }
+.biz-tier-badge.tier-3  { background: #10b981; }
+.biz-tier-badge.tier-4  { background: #f59e0b; }
+.biz-tier-badge.tier-5  { background: #ef4444; }
+.biz-tier-badge.tier-6  { background: #8b5cf6; }
+.biz-tier-badge.tier-7  { background: #ec4899; }
+.biz-tier-badge.tier-8  { background: #06b6d4; }
+.biz-tier-badge.tier-9  { background: #f97316; }
+.biz-tier-badge.tier-10 { background: #fbbf24; box-shadow: 0 0 8px rgba(251,191,36,0.4); }
+
+/* "YENİ" badge — 30 saniye */
+.biz-new-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 0.58rem;
+  font-weight: 900;
+  background: var(--green);
+  color: #000;
+  border-radius: 6px;
+  padding: 2px 5px;
+  letter-spacing: 0.04em;
+  animation: newBadgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes newBadgePop {
+  from { transform: scale(0); }
+  to   { transform: scale(1); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 24 — Tema Mağazası
+   ═══════════════════════════════════════════════════════════ */
+
+.theme-store-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.theme-store-card {
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+  background: var(--surface2);
+  position: relative;
+}
+
+.theme-store-card:active { transform: scale(0.96); }
+.theme-store-card.active-theme { border-color: var(--accent); }
+.theme-store-card.locked-theme { opacity: 0.5; }
+
+.theme-store-card .theme-emoji { font-size: 2rem; }
+.theme-store-card .theme-name  { font-size: 0.85rem; font-weight: 800; }
+.theme-store-card .theme-unlock-hint { font-size: 0.65rem; color: var(--muted); text-align: center; }
+
+.theme-lock-icon {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADIM 25 — Leaderboard
+   ═══════════════════════════════════════════════════════════ */
+
+.leaderboard-table { width: 100%; border-collapse: collapse; }
+.leaderboard-table th {
+  text-align: left;
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.leaderboard-table td {
+  padding: 8px 4px;
+  font-size: 0.82rem;
+  border-bottom: 1px solid rgba(45,74,111,0.4);
+}
+.leaderboard-table tr.my-row td {
+  color: var(--accent);
+  font-weight: 800;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.lb-rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-weight: 900;
+  background: var(--surface);
+  color: var(--muted);
+}
+.lb-rank-badge.gold   { background: #fbbf24; color: #000; }
+.lb-rank-badge.silver { background: #94a3b8; color: #000; }
+.lb-rank-badge.bronze { background: #b45309; color: #fff; }
+
+.lb-share-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-top: 14px;
+  text-align: center;
+}
+
+.lb-share-card .baron-card-name {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: var(--accent);
+}
+
+.lb-share-card .baron-card-stats {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.lb-share-card .baron-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.lb-share-card .baron-stat-label { font-size: 0.65rem; color: var(--muted); }
+.lb-share-card .baron-stat-value { font-size: 0.9rem; font-weight: 800; }
+
+
+/* ═══════════════════════════════════════════════════════════
+   Skyline Rain & Crisis
+   ═══════════════════════════════════════════════════════════ */
+
+.skyline-rain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+
+.skyline-crisis .skyline-sky {
+  background: linear-gradient(180deg, #1a1a2e 0%, #2d1b2e 60%, #3d1b1b 100%) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Torpil extras
+   ═══════════════════════════════════════════════════════════ */
+
+.torpil-contact-emoji { font-size: 2rem; flex-shrink: 0; }
+.torpil-contact-desc { font-size: 0.78rem; color: var(--muted); margin: 4px 0 10px; }
+.torpil-relation-row { margin: 4px 0 8px; }
+.torpil-gift-warn { font-size: 0.76rem; color: #ef4444; margin: 4px 0; }
+
+/* ═══════════════════════════════════════════════════════════
+   Gazette extras
+   ═══════════════════════════════════════════════════════════ */
+
+.gazette-text { flex: 1; min-width: 0; }
+.gazette-cat-dot { flex-shrink: 0; margin-top: 5px; }

@@ -13,6 +13,7 @@ import {
   isChapterUnlocked,
 } from '../../game/Campaign'
 import { iapManager } from '../../monetization/IAPManager'
+import type { GazetteCategory } from '../../game/BaronGazette'
 
 function formatRemainingMs(ms: number): string {
   if (ms <= 0) return 'bitti'
@@ -86,6 +87,8 @@ export class EventsPanel {
     this.scrollBody.appendChild(this.renderGacha(state))
     this.scrollBody.appendChild(this.renderSeason(state))
     this.scrollBody.appendChild(this.renderMissions(state))
+    const gazette = this.renderGazette(state)
+    if (gazette) this.scrollBody.appendChild(gazette)
 
     const iapFooter = document.createElement('div')
     iapFooter.className = 'iap-restore-footer'
@@ -638,6 +641,54 @@ export class EventsPanel {
     }
     section.appendChild(list)
     return section
+  }
+
+  private renderGazette(state: GameState): HTMLElement | null {
+    const entries = state.latestGazetteHeadlines(10)
+    if (entries.length === 0) return null
+    const wrap = document.createElement('section')
+    wrap.className = 'events-block events-block-gazette'
+    const head = document.createElement('div')
+    head.className = 'events-block-head'
+    head.innerHTML = `
+      <span class="events-hero-icon">📰</span>
+      <div class="events-hero-text">
+        <strong>Baron Gazetesi</strong>
+        <small>İmparatorluğunun son gelişmeleri</small>
+      </div>
+      <span class="events-hero-stat">${entries.length}</span>
+    `
+    wrap.appendChild(head)
+    const feed = document.createElement('div')
+    feed.className = 'gazette-feed'
+    const catColors: Record<GazetteCategory, string> = {
+      player: 'var(--accent)',
+      rival: 'var(--accent2, #f59e0b)',
+      market: 'var(--green)',
+      politics: '#8b5cf6',
+      crisis: '#ef4444',
+      calendar: '#06b6d4',
+    }
+    for (const entry of entries) {
+      const row = document.createElement('div')
+      row.className = 'gazette-entry'
+      const dot = document.createElement('span')
+      dot.className = `gazette-cat-dot ${entry.category}`
+      dot.style.background = catColors[entry.category] ?? 'var(--accent)'
+      const text = document.createElement('div')
+      text.className = 'gazette-text'
+      const headline = document.createElement('div')
+      headline.className = 'gazette-headline'
+      headline.textContent = entry.headline
+      const date = document.createElement('div')
+      date.className = 'gazette-date'
+      date.textContent = `Gün ${entry.gameDay}`
+      text.append(headline, date)
+      row.append(dot, text)
+      feed.appendChild(row)
+    }
+    wrap.appendChild(feed)
+    return wrap
   }
 
   private blockHeader(icon: string, title: string, subtitle: string, stat: string, hint?: string): HTMLElement {

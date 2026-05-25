@@ -1,4 +1,4 @@
-export type NamedManagerId = 'fatma' | 'mehmet' | 'ahmet' | 'zara'
+export type NamedManagerId = 'fatma' | 'mehmet' | 'ahmet' | 'zara' | 'ayse' | 'kemal' | 'leyla' | 'orhan'
 
 export interface NamedManagerDef {
   id: NamedManagerId
@@ -49,6 +49,42 @@ export const NAMED_MANAGERS: NamedManagerDef[] = [
     dailySalary: 12_000,
     hireCost: 150_000,
     illegalHeatReduce: 0.15,
+  },
+  {
+    id: 'ayse',
+    name: 'Ayşe Çelik',
+    emoji: '👩‍⚕️',
+    specialty: 'Sağlık & İlaç +%35',
+    dailySalary: 9_000,
+    hireCost: 95_000,
+    producerMult: { hastane: 0.35, ilac: 0.25, gen_terapi: 0.20 },
+  },
+  {
+    id: 'kemal',
+    name: 'Kemal Arslan',
+    emoji: '👨‍🌾',
+    specialty: 'Tarım & Gıda +%30',
+    dailySalary: 5_000,
+    hireCost: 60_000,
+    producerMult: { tarim_tek: 0.30, cikolata: 0.20, catering: 0.15 },
+  },
+  {
+    id: 'leyla',
+    name: 'Leyla Şahin',
+    emoji: '👩‍💻',
+    specialty: 'Fintech +%30',
+    dailySalary: 11_000,
+    hireCost: 120_000,
+    producerMult: { kripto: 0.30, nft_borsa: 0.25, borsa_araci: 0.20 },
+  },
+  {
+    id: 'orhan',
+    name: 'Orhan Doğan',
+    emoji: '🤵',
+    specialty: 'Lüks İmparatorluk +%25',
+    dailySalary: 14_000,
+    hireCost: 180_000,
+    producerMult: { kuyumcu: 0.25, tatil_koyu: 0.20, yacht_filo: 0.25, saat_marka: 0.20 },
   },
 ]
 

@@ -145,8 +145,8 @@ export const PRODUCERS: ProducerDef[] = [
 
   // —— Ek kariyer yolları (dengeli tier aralığı) ——
   { id: 'market_zincir', name: 'Market Zinciri', emoji: '🛍️', description: 'Mahalle marketlerinden zincire.', tier: 2, unlockAt: 4_000, baseCost: 520, baseIncome: 9, costMultiplier: 1.17 },
-  { id: 'otopark', name: 'Otopark İşletmesi', emoji: '🅿️', description: 'Şehir merkezinde park geliri.', tier: 2, unlockAt: 12_000, baseCost: 650, baseIncome: 11, costMultiplier: 1.17 },
-  { id: 'bahce_merkez', name: 'Bahçe & Peyzaj', emoji: '🌿', description: 'Villa ve site projeleri.', tier: 2, unlockAt: 15_000, baseCost: 700, baseIncome: 12, costMultiplier: 1.17 },
+  { id: 'otopark', name: 'Otopark İşletmesi', emoji: '🅿️', description: 'Şehir merkezinde park geliri.', tier: 2, unlockAt: 8_000, baseCost: 650, baseIncome: 11, costMultiplier: 1.17 },
+  { id: 'bahce_merkez', name: 'Bahçe & Peyzaj', emoji: '🌿', description: 'Villa ve site projeleri.', tier: 2, unlockAt: 10_000, baseCost: 700, baseIncome: 12, costMultiplier: 1.17 },
   { id: 'optik', name: 'Optik Zinciri', emoji: '👓', description: 'Gözlük ve lens satışı.', tier: 3, unlockAt: 25_000, baseCost: 1_080, baseIncome: 16, costMultiplier: 1.18 },
   { id: 'sinema', name: 'Sinema Zinciri', emoji: '🎬', description: 'Salon, patlamış mısır, IMAX.', tier: 3, unlockAt: 32_000, baseCost: 1_220, baseIncome: 18, costMultiplier: 1.18 },
   { id: 'veteriner', name: 'Veteriner Kliniği', emoji: '🐕', description: 'Evcil hayvan sağlığı.', tier: 3, unlockAt: 45_000, baseCost: 1_350, baseIncome: 20, costMultiplier: 1.18 },
@@ -169,6 +169,22 @@ export const PRODUCERS: ProducerDef[] = [
   { id: 'dunya_hava', name: 'Küresel Hava Trafik Ağı', emoji: '🌐', description: 'Hava sahası ve rota lisansları.', tier: 10, unlockAt: 1_500_000_000, baseCost: 105_000, baseIncome: 900, costMultiplier: 1.22 },
   { id: 'yapay_organ', name: 'Yapay Organ Fabrikası', emoji: '🫀', description: 'Biyobaskı ve transplant pazarı.', tier: 12, unlockAt: 12_000_000_000, baseCost: 380_000, baseIncome: 1_950, costMultiplier: 1.22, category: 'science' },
   { id: 'zaman_bank', name: 'Zaman Bankası', emoji: '⏳', description: 'Gelecek gelirini bugüne sat.', tier: 13, unlockAt: 28_000_000_000, baseCost: 580_000, baseIncome: 2_850, costMultiplier: 1.23, category: 'finance' },
+
+  // —— YENİ: Tier 3 boşluk doldurucu ——
+  { id: 'guzellik', name: 'Güzellik Merkezi', emoji: '💅', description: 'Kuaför, nail art, spa zinciri.', tier: 3, unlockAt: 20_000, baseCost: 1_150, baseIncome: 17, costMultiplier: 1.18 },
+  { id: 'spor_okulu', name: 'Spor Okulu', emoji: '🏅', description: 'Kurs ve turnuva gelirleri.', tier: 3, unlockAt: 30_000, baseCost: 1_250, baseIncome: 18, costMultiplier: 1.18, category: 'sport' },
+  { id: 'akaryakit', name: 'Akaryakıt İstasyonu', emoji: '⛽', description: 'Benzin, market, oto yıkama.', tier: 3, unlockAt: 15_000, baseCost: 1_080, baseIncome: 16, costMultiplier: 1.18 },
+  { id: 'fotograf_stud', name: 'Fotoğraf Stüdyosu', emoji: '📷', description: 'Düğün, ticari ve reklam çekimi.', tier: 3, unlockAt: 18_000, baseCost: 1_100, baseIncome: 16, costMultiplier: 1.18 },
+
+  // —— YENİ: Tier 4 boşluk doldurucu ——
+  { id: 'ic_mimar', name: 'İç Mimar Ağı', emoji: '🛋️', description: 'Villa ve otel tasarım projeleri.', tier: 4, unlockAt: 80_000, baseCost: 1_900, baseIncome: 26, costMultiplier: 1.18 },
+  { id: 'tatil_koyu', name: 'Tatil Köyü', emoji: '🏖️', description: 'All-inclusive resort zinciri.', tier: 4, unlockAt: 90_000, baseCost: 2_050, baseIncome: 28, costMultiplier: 1.18, category: 'luxury' },
+  { id: 'fitness_app', name: 'Fitness Uygulaması', emoji: '🏃', description: 'Antrenman aboneliği ve PT.', tier: 4, unlockAt: 100_000, baseCost: 2_100, baseIncome: 29, costMultiplier: 1.18 },
+  { id: 'fulfillment', name: 'Fulfillment Merkezi', emoji: '📦', description: 'E-ticaret depo ve lojistik.', tier: 4, unlockAt: 110_000, baseCost: 2_150, baseIncome: 30, costMultiplier: 1.18 },
+
+  // —— YENİ: Tier 5 içerik ——
+  { id: 'online_egitim', name: 'Online Eğitim Platformu', emoji: '🎓', description: 'Kurs, sertifika ve bootcamp.', tier: 5, unlockAt: 400_000, baseCost: 4_000, baseIncome: 50, costMultiplier: 1.19 },
+  { id: 'biyoteknoloji', name: 'Biyoteknoloji Firması', emoji: '🧬', description: 'CRISPR, ilaç geliştirme.', tier: 5, unlockAt: 600_000, baseCost: 5_200, baseIncome: 59, costMultiplier: 1.19, category: 'science' },
 ]
 
 export const UPGRADES: UpgradeDef[] = [
@@ -204,7 +220,7 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'kargo_x2', name: 'Ekspres Teslimat', description: 'Kargo geliri x2', cost: 2_800, effect: 'producer_mult', value: 2, producerId: 'kargo' },
   { id: 'reklam_ajansi_x2', name: 'Medya Planlama', description: 'Reklam ajansı geliri x2', cost: 3_200, effect: 'producer_mult', value: 2, producerId: 'reklam_ajansi' },
   { id: 'cikolata_x2', name: 'Export Hattı', description: 'Çikolata fabrikası geliri x2', cost: 3_800, effect: 'producer_mult', value: 2, producerId: 'cikolata' },
-  { id: 'click_x3', name: 'Sosyal Medya', description: 'Tıklama geliri x3', cost: 2_200, effect: 'click_mult', value: 3, requiresTotalEarned: 5_000 },
+  { id: 'click_x3', name: 'Sosyal Medya', description: 'Tıklama geliri x3', cost: 2_200, effect: 'click_mult', value: 3, requiresTotalEarned: 2_000 },
   { id: 'early_global_15', name: 'Erken Büyüme', description: 'Tüm gelir x1.5', cost: 8_500, effect: 'global_mult', value: 1.5, requiresTotalEarned: 15_000 },
   // — Tier 4–6 kategori —
   { id: 'insaat_x2', name: 'Mega Proje', description: 'İnşaat geliri x2', cost: 12_000, effect: 'producer_mult', value: 2, producerId: 'insaat', requiresTotalEarned: 80_000 },
@@ -241,6 +257,17 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'private_equity_x2', name: 'Buyout Modu', description: 'PE fonu geliri x2', cost: 450_000, effect: 'producer_mult', value: 2, producerId: 'private_equity', requiresTotalEarned: 18_000_000 },
   { id: 'family_office_x2', name: 'Dynasty Trust', description: 'Family office geliri x2', cost: 4_200_000, effect: 'producer_mult', value: 2, producerId: 'family_office', requiresTotalEarned: 150_000_000 },
   { id: 'click_ultimate', name: 'Elon Modu', description: 'Tıklama geliri x25', cost: 8_500_000, effect: 'click_mult', value: 25, requiresTotalEarned: 50_000_000, requiresUpgrade: 'click_x10' },
+  // —— YENİ işletme upgradeleri ——
+  { id: 'guzellik_x2', name: 'Premium Bakım', description: 'Güzellik merkezi geliri x2', cost: 3_800, effect: 'producer_mult', value: 2, producerId: 'guzellik', requiresProducer: 'guzellik' },
+  { id: 'spor_okulu_x2', name: 'Şampiyonluk Ligi', description: 'Spor okulu geliri x2', cost: 4_500, effect: 'producer_mult', value: 2, producerId: 'spor_okulu', requiresProducer: 'spor_okulu' },
+  { id: 'akaryakit_x2', name: 'Market Zinciri', description: 'Akaryakıt istasyonu geliri x2', cost: 3_200, effect: 'producer_mult', value: 2, producerId: 'akaryakit', requiresProducer: 'akaryakit' },
+  { id: 'fotograf_x2', name: 'Kurumsal Sözleşmeler', description: 'Fotoğraf stüdyosu geliri x2', cost: 3_500, effect: 'producer_mult', value: 2, producerId: 'fotograf_stud', requiresProducer: 'fotograf_stud' },
+  { id: 'ic_mimar_x2', name: 'Mimari Ödüller', description: 'İç mimar ağı geliri x2', cost: 12_000, effect: 'producer_mult', value: 2, producerId: 'ic_mimar', requiresProducer: 'ic_mimar' },
+  { id: 'tatil_koyu_x2', name: 'All-Inclusive Paketi', description: 'Tatil köyü geliri x2', cost: 14_000, effect: 'producer_mult', value: 2, producerId: 'tatil_koyu', requiresProducer: 'tatil_koyu' },
+  { id: 'fitness_app_x2', name: 'AI Antrenör', description: 'Fitness uygulaması geliri x2', cost: 15_000, effect: 'producer_mult', value: 2, producerId: 'fitness_app', requiresProducer: 'fitness_app' },
+  { id: 'fulfillment_x2', name: 'Drone Teslimat', description: 'Fulfillment merkezi geliri x2', cost: 16_000, effect: 'producer_mult', value: 2, producerId: 'fulfillment', requiresProducer: 'fulfillment' },
+  { id: 'online_egitim_x2', name: 'Sertifika Programı', description: 'Online eğitim geliri x2', cost: 28_000, effect: 'producer_mult', value: 2, producerId: 'online_egitim', requiresProducer: 'online_egitim' },
+  { id: 'biyoteknoloji_x2', name: 'Gen Patent', description: 'Biyoteknoloji geliri x2', cost: 40_000, effect: 'producer_mult', value: 2, producerId: 'biyoteknoloji', requiresProducer: 'biyoteknoloji' },
 ]
 
 /** BitLife uyumlu ekonomi — baseIncome = günlük gelir ($), 5 sn = 1 oyun günü */

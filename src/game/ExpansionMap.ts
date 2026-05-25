@@ -13,8 +13,8 @@ export interface CityDef {
 
 export const EXPANSION_CITIES: CityDef[] = [
   { id: 'istanbul', label: 'İstanbul', emoji: '🌉', unlockCost: 0, repReq: 0, ipoReq: 0, skylineClass: 'city-istanbul' },
-  { id: 'ankara', label: 'Ankara', emoji: '🏛️', unlockCost: 250_000, repReq: 35, ipoReq: 0, skylineClass: 'city-ankara', rivalFamily: 'Sabanoğlu' },
-  { id: 'izmir', label: 'İzmir', emoji: '🌊', unlockCost: 1_000_000, repReq: 45, ipoReq: 0, skylineClass: 'city-izmir', rivalFamily: 'Koçak' },
+  { id: 'ankara', label: 'Ankara', emoji: '🏛️', unlockCost: 80_000, repReq: 25, ipoReq: 0, skylineClass: 'city-ankara', rivalFamily: 'Sabanoğlu' },
+  { id: 'izmir', label: 'İzmir', emoji: '🌊', unlockCost: 300_000, repReq: 35, ipoReq: 0, skylineClass: 'city-izmir', rivalFamily: 'Koçak' },
   { id: 'dubai', label: 'Dubai', emoji: '🏜️', unlockCost: 25_000_000, repReq: 60, ipoReq: 1, skylineClass: 'city-dubai' },
   { id: 'london', label: 'Londra', emoji: '🇬🇧', unlockCost: 100_000_000, repReq: 70, ipoReq: 3, skylineClass: 'city-london' },
 ]

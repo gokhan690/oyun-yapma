@@ -10,6 +10,7 @@ import { BADGES, badgeDef } from '../../game/Badges'
 import { SYNERGIES } from '../../game/Synergies'
 import type { BaronSection } from './BaronSections'
 import { BARON_SECTION_TITLES } from './BaronSections'
+import { RIVAL_FAMILY_DEFS } from '../../game/Rivals'
 
 export class StatsScreen {
   readonly layer: HTMLElement
@@ -64,6 +65,7 @@ export class StatsScreen {
       this.renderProfileHero()
       this.renderStats()
       this.renderAchievements()
+      this.renderRivals()
       this.renderBadges()
       this.renderSynergyGuide()
       this.codex.render(this.state)
@@ -224,24 +226,44 @@ export class StatsScreen {
   private renderAchievements(): void {
     const section = document.createElement('div')
     section.className = 'stats-section achievements-section'
+    const header = document.createElement('div')
+    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:4px'
     const title = document.createElement('h3')
-    title.textContent = 'Başarımlar'
-    section.appendChild(title)
-    const grid = document.createElement('div')
-    grid.className = 'achieve-grid profile-achieve-grid'
-    for (const a of ACHIEVEMENTS) {
+    title.style.margin = '0'
+    title.textContent = '🏆 Başarımlar'
+    const countBadge = document.createElement('span')
+    countBadge.style.cssText = 'font-size:0.75rem;color:var(--muted);font-weight:700'
+    countBadge.textContent = `${this.state.achievements.size}/${ACHIEVEMENTS.length}`
+    header.append(title, countBadge)
+    section.appendChild(header)
+
+    // Tamamlananlar önce, kilitliler sonra
+    const allCategorized = new Set<string>()
+    const gallery = document.createElement('div')
+    gallery.className = 'achievements-gallery'
+
+    // Tümünü düz göster — tamamlananlar önce
+    const sorted = [...ACHIEVEMENTS].sort((a, b) => {
+      const da = this.state.achievements.has(a.id) ? 1 : 0
+      const db = this.state.achievements.has(b.id) ? 1 : 0
+      return db - da
+    })
+
+    for (const a of sorted) {
       const done = this.state.achievements.has(a.id)
-      const cell = document.createElement('div')
-      cell.className = `achieve-cell achieve-cell-profile${done ? ' done' : ''}`
-      cell.title = `${a.name}: ${a.description}${done ? ` · Ödül: ${formatMoney(a.reward)}` : ''}`
-      cell.innerHTML = `
-        <span class="achieve-cell-emoji">${done ? a.emoji : '🔒'}</span>
-        <span class="achieve-cell-name">${done ? a.name : 'Gizli'}</span>
-        <small class="achieve-cell-desc">${done ? a.description : '???'}</small>
+      const badge = document.createElement('div')
+      badge.className = `ach-badge${done ? ' earned' : ''}`
+      badge.title = `${a.name}: ${a.description}${done ? ` · Ödül: ${formatMoney(a.reward)}` : ''}`
+      badge.innerHTML = `
+        <span class="ach-badge-emoji">${done ? a.emoji : '🔒'}</span>
+        <span class="ach-badge-name">${done ? a.name : '???'}</span>
+        ${!done ? '<span class="ach-badge-lock">🔒</span>' : ''}
       `
-      grid.appendChild(cell)
+      gallery.appendChild(badge)
+      allCategorized.add(a.id)
     }
-    section.appendChild(grid)
+
+    section.appendChild(gallery)
     this.content.appendChild(section)
   }
 
@@ -550,6 +572,41 @@ export class StatsScreen {
       row.append(rank, name, val, sub)
       section.appendChild(row)
     }
+  }
+
+  private renderRivals(): void {
+    const rivalStates = this.state.rivals ?? []
+    if (rivalStates.length === 0) return
+    const section = document.createElement('div')
+    section.className = 'stats-section'
+    const title = document.createElement('div')
+    title.className = 'stats-section-title'
+    title.textContent = '⚔️ Rakip Aileler'
+    section.appendChild(title)
+    const panel = document.createElement('div')
+    panel.className = 'rivals-panel'
+    for (const rs of rivalStates) {
+      const def = RIVAL_FAMILY_DEFS.find(d => d.id === rs.id)
+      if (!def) continue
+      const playerWorth = this.state.financeNetWorth()
+      const diff = rs.netWorth - playerWorth
+      const threatLevel = diff > 2_000_000 ? 'high' : diff > 0 ? 'med' : 'low'
+      const card = document.createElement('div')
+      card.className = `rival-card threat-${threatLevel}`
+      const threat = threatLevel === 'high' ? 'Tehlikeli' : threatLevel === 'med' ? 'Rekabetçi' : 'Geride'
+      card.innerHTML = `
+        <span class="rival-emoji">${def.emoji}</span>
+        <div class="rival-info">
+          <div class="rival-name">${def.name}</div>
+          <div class="rival-sector">${def.sectorFocus.join(' · ')}</div>
+          <div class="rival-worth">💰 ${formatMoney(rs.netWorth)}</div>
+        </div>
+        <span class="rival-threat-badge ${threatLevel}">${threat}</span>
+      `
+      panel.appendChild(card)
+    }
+    section.appendChild(panel)
+    this.content.appendChild(section)
   }
 
   private embedded = false
