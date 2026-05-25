@@ -487,6 +487,7 @@ export class HUD {
     this.empirePanel.root.classList.remove('empire-overlay-open')
     this.gameMain.classList.toggle('earn-active', view === 'earn')
     this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'market' || view === 'profile')
+    this.root.dataset.view = view
     if (view === 'shop') {
       this.shop.setViewContext('shop', this.state)
       this.refreshShop(true)
