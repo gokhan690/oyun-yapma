@@ -7233,3 +7233,65 @@ html.theme-galactic {
 /* Premium spin & ad boost */
 .spin-premium-btn { width: 100%; margin-top: 8px; font-size: 0.82rem; padding: 10px 14px; border: 1px dashed var(--accent2, #f59e0b); }
 .lifestyle-ad-boost-btn { font-size: 0.75rem; padding: 6px 12px; margin-top: 4px; border: 1px dashed #f59e0b; color: #f59e0b; }
+
+/* ========== Kompakt İşletme Kartları (İmparatorluk Stili) ========== */
+/* Kartları daha küçük ve sığdırılmış yap */
+.biz-hero-card {
+  gap: 8px !important;
+  padding: 12px 10px !important;
+  border-radius: 14px !important;
+}
+.biz-hero-head { gap: 10px !important; }
+.biz-hero-icon-wrap { width: 48px !important; height: 48px !important; border-radius: 12px !important; }
+.biz-hero-emoji { font-size: 1.6rem !important; }
+.biz-hero-name { font-size: 0.9rem !important; }
+.biz-hero-desc { font-size: 0.68rem !important; margin-top: 2px !important; }
+.biz-hero-owned-badge { font-size: 0.72rem !important; padding: 3px 7px !important; }
+.biz-hero-metrics { font-size: 0.74rem !important; gap: 3px 10px !important; }
+.biz-hero-income { font-size: 0.74rem !important; }
+.biz-hero-buy { min-height: 40px !important; font-size: 0.82rem !important; }
+.biz-hero-info { min-height: 40px !important; font-size: 0.82rem !important; }
+.biz-milestone-dot { width: 18px !important; height: 18px !important; font-size: 0.6rem !important; }
+.biz-tier-badge { font-size: 0.6rem !important; padding: 1px 5px !important; }
+
+/* ========== İllegal İş Kartları ========== */
+.biz-hero-card.biz-hero-illegal {
+  border-color: rgba(239,68,68,0.45) !important;
+  background: linear-gradient(145deg, rgba(239,68,68,0.06), var(--surface)) !important;
+}
+.biz-hero-card.biz-hero-illegal.biz-owned {
+  border-color: rgba(239,68,68,0.7) !important;
+  background: linear-gradient(145deg, rgba(239,68,68,0.12), var(--surface)) !important;
+  box-shadow: 0 4px 16px rgba(239,68,68,0.18) !important;
+}
+.biz-hero-card.biz-hero-illegal .biz-hero-icon-wrap {
+  background: rgba(239,68,68,0.15) !important;
+}
+.biz-illegal-badge {
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: #ef4444;
+  background: rgba(239,68,68,0.15);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 6px;
+  padding: 2px 6px;
+  letter-spacing: 0.04em;
+}
+.biz-illegal-risk {
+  font-size: 0.68rem;
+  color: #f59e0b;
+  font-weight: 600;
+}
+.biz-illegal-heat-bar {
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(239,68,68,0.2);
+  overflow: hidden;
+  margin-top: 2px;
+}
+.biz-illegal-heat-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #f59e0b, #ef4444);
+  transition: width 0.5s;
+}
