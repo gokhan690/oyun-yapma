@@ -46,7 +46,7 @@ export const PRODUCERS: ProducerDef[] = [
   { id: 'tuzaq', name: 'Borsa IPO', emoji: '📈', description: 'Halka arz — zirve noktası.', tier: 8, unlockAt: 180_000_000, baseCost: 27_600, baseIncome: 276, costMultiplier: 1.22 },
   { id: 'uydu', name: 'Uydu İnternet Ağı', emoji: '🛰️', description: 'Küresel bağlantı imparatorluğu.', tier: 9, unlockAt: 800_000_000, baseCost: 51_788, baseIncome: 484, costMultiplier: 1.22 },
   { id: 'merkezbankasi', name: 'Küresel Merkez Bankası', emoji: '🏦', description: 'Para basan makine.', tier: 10, unlockAt: 3_600_000_000, baseCost: 96_558, baseIncome: 847, costMultiplier: 1.22 },
-  { id: 'galaksiyum', name: 'Galaktik Tekno-İmparatorluk', emoji: '🌌', description: 'Evreni avucunun içine aldın.', tier: 11, unlockAt: 16_000_000_000, baseCost: 179_322, baseIncome: 1_482, costMultiplier: 1.22 },
+  { id: 'galaksiyum', name: 'Galaktik Tekno-İmparatorluk', emoji: '🌌', description: 'Evreni avucunun içine aldın.', tier: 11, unlockAt: 4_000_000_000, baseCost: 179_322, baseIncome: 1_482, costMultiplier: 1.22 },
   { id: 'kripto', name: 'Kripto Borsası', emoji: '₿', description: 'Volatil ama kârlı dijital pazar.', tier: 5, unlockAt: 8_000_000, baseCost: 4_108, baseIncome: 52, costMultiplier: 1.19 },
   { id: 'nano', name: 'Nano Teknoloji Lab', emoji: '🔬', description: 'Atom ölçeğinde devrim.', tier: 10, unlockAt: 3_600_000_000, baseCost: 96_558, baseIncome: 847, costMultiplier: 1.22 },
   { id: 'bahis', name: 'Gizli Bahis Ağı', emoji: '🎲', description: 'Yüksek gelir, yüksek risk.', tier: 3, unlockAt: 110_000, baseCost: 1_365, baseIncome: 21, costMultiplier: 1.25, illegal: true, riskChance: 0.06, riskFinePct: 0.18 },
@@ -79,8 +79,8 @@ export const PRODUCERS: ProducerDef[] = [
   { id: 'gym', name: 'Spor Salonu Zinciri', emoji: '🏋️', description: 'Abonelik bazlı fitness.', tier: 2, unlockAt: 8_000, baseCost: 620, baseIncome: 11, costMultiplier: 1.17 },
   { id: 'kargo', name: 'Kargo & Kurye', emoji: '📦', description: 'Şehir içi hızlı teslimat.', tier: 3, unlockAt: 500, baseCost: 1_020, baseIncome: 16, costMultiplier: 1.22 },
   { id: 'reklam_ajansi', name: 'Reklam Ajansı', emoji: '📣', description: 'Markalar için kampanya yönetimi.', tier: 3, unlockAt: 22_000, baseCost: 1_150, baseIncome: 18, costMultiplier: 1.22 },
-  { id: 'insaat', name: 'İnşaat Firması', emoji: '🏗️', description: 'Konut ve ticari projeler.', tier: 4, unlockAt: 360_000, baseCost: 1_950, baseIncome: 26, costMultiplier: 1.22 },
-  { id: 'hukuk', name: 'Hukuk Bürosu', emoji: '⚖️', description: 'Kurumsal dava ve danışmanlık.', tier: 4, unlockAt: 400_000, baseCost: 2_100, baseIncome: 28, costMultiplier: 1.22 },
+  { id: 'insaat', name: 'İnşaat Firması', emoji: '🏗️', description: 'Konut ve ticari projeler.', tier: 4, unlockAt: 90_000, baseCost: 1_950, baseIncome: 26, costMultiplier: 1.22 },
+  { id: 'hukuk', name: 'Hukuk Bürosu', emoji: '⚖️', description: 'Kurumsal dava ve danışmanlık.', tier: 4, unlockAt: 100_000, baseCost: 2_100, baseIncome: 28, costMultiplier: 1.22 },
   { id: 'cikolata', name: 'Çikolata Fabrikası', emoji: '🍫', description: 'Tatlı bir imparatorluk.', tier: 3, unlockAt: 35_000, baseCost: 1_280, baseIncome: 19, costMultiplier: 1.22 },
   { id: 'pet_shop', name: 'Pet Shop Zinciri', emoji: '🐾', description: 'Evcil hayvan pazarı.', tier: 2, unlockAt: 10_000, baseCost: 680, baseIncome: 12, costMultiplier: 1.17 },
   { id: 'oyun_studio', name: 'Oyun Stüdyosu', emoji: '🎮', description: 'Indie oyunlar, büyük hitler.', tier: 4, unlockAt: 150_000, baseCost: 2_400, baseIncome: 32, costMultiplier: 1.22 },
@@ -131,11 +131,11 @@ export const PRODUCERS: ProducerDef[] = [
   { id: 'cyber_kara', name: 'Siber Suç Şebekesi', emoji: '💻', description: 'Veri ve fidye geliri.', tier: 6, unlockAt: 5_000_000, baseCost: 13_500, baseIncome: 125, costMultiplier: 1.22, illegal: true, category: 'dark', riskChance: 0.06, riskFinePct: 0.22 },
   { id: 'kripto_aklama', name: 'Kripto Aklama Hattı', emoji: '🪙', description: 'Mixer ve offshore zincir.', tier: 7, unlockAt: 25_000_000, baseCost: 26_000, baseIncome: 210, costMultiplier: 1.23, illegal: true, category: 'dark', riskChance: 0.05, riskFinePct: 0.20 },
   { id: 'veri_broker', name: 'Veri Brokerlığı', emoji: '📡', description: 'Gölge pazar istihbaratı.', tier: 8, unlockAt: 75_000_000, baseCost: 45_000, baseIncome: 315, costMultiplier: 1.22, illegal: true, category: 'dark', riskChance: 0.04, riskFinePct: 0.18 },
-  { id: 'kacak_sigara', name: 'Kaçak Sigara Kaçakçılığı', emoji: '🚬', description: 'Gümrük kaçakçılığı, kolay para ama riskli.', tier: 2, unlockAt: 6_000, baseCost: 720, baseIncome: 13, costMultiplier: 1.19, illegal: true, riskChance: 0.05, riskFinePct: 0.12 },
+  { id: 'kacak_sigara', name: 'Kaçak Sigara Kaçakçılığı', emoji: '🚬', description: 'Gümrük kaçakçılığı, kolay para ama riskli.', tier: 2, unlockAt: 25_000, baseCost: 720, baseIncome: 13, costMultiplier: 1.19, illegal: true, riskChance: 0.05, riskFinePct: 0.12 },
   { id: 'sahte_evrak', name: 'Sahte Evrak Basımevi', emoji: '📄', description: 'Kimlik, pasaport, diploma — gizli baskı.', tier: 3, unlockAt: 38_000, baseCost: 1_350, baseIncome: 23, costMultiplier: 1.19, illegal: true, riskChance: 0.07, riskFinePct: 0.16 },
-  { id: 'gizli_kumarhane', name: 'Yeraltı Kumarhane Ağı', emoji: '🎰', description: 'VIP salonlar, yüksek bahis, yüksek risk.', tier: 4, unlockAt: 145_000, baseCost: 2_480, baseIncome: 37, costMultiplier: 1.20, illegal: true, riskChance: 0.08, riskFinePct: 0.18 },
-  { id: 'banka_dolandirici', name: 'Fintech Dolandırıcılığı', emoji: '🕵️', description: 'Sahte yatırım platformları, phishing.', tier: 4, unlockAt: 175_000, baseCost: 2_780, baseIncome: 40, costMultiplier: 1.20, illegal: true, category: 'dark', riskChance: 0.07, riskFinePct: 0.20 },
-  { id: 'organize_suc', name: 'Organize Suç Sendikası', emoji: '🦅', description: 'Haraç, koruma, kara ekonomi koordinasyonu.', tier: 5, unlockAt: 850_000, baseCost: 6_800, baseIncome: 86, costMultiplier: 1.20, illegal: true, category: 'dark', riskChance: 0.06, riskFinePct: 0.25 },
+  { id: 'gizli_kumarhane', name: 'Yeraltı Kumarhane Ağı', emoji: '🎰', description: 'VIP salonlar, yüksek bahis, yüksek risk.', tier: 4, unlockAt: 145_000, baseCost: 2_480, baseIncome: 37, costMultiplier: 1.25, illegal: true, riskChance: 0.08, riskFinePct: 0.18 },
+  { id: 'banka_dolandirici', name: 'Fintech Dolandırıcılığı', emoji: '🕵️', description: 'Sahte yatırım platformları, phishing.', tier: 4, unlockAt: 175_000, baseCost: 2_780, baseIncome: 40, costMultiplier: 1.25, illegal: true, category: 'dark', riskChance: 0.07, riskFinePct: 0.20 },
+  { id: 'organize_suc', name: 'Organize Suç Sendikası', emoji: '🦅', description: 'Haraç, koruma, kara ekonomi koordinasyonu.', tier: 5, unlockAt: 850_000, baseCost: 6_800, baseIncome: 86, costMultiplier: 1.25, illegal: true, category: 'dark', riskChance: 0.06, riskFinePct: 0.25 },
   { id: 'paralel_banka', name: 'Gölge Bankacılık', emoji: '🏦', description: 'Kayıt dışı kredi ve sermaye.', tier: 6, unlockAt: 4_500_000, baseCost: 11_500, baseIncome: 118, costMultiplier: 1.21, illegal: true, category: 'dark', riskChance: 0.05, riskFinePct: 0.22 },
 
   // —— MEGA PROJELER (tier 12–20) — milyarder bile düşünür ——
@@ -153,16 +153,16 @@ export const PRODUCERS: ProducerDef[] = [
   { id: 'market_zincir', name: 'Market Zinciri', emoji: '🛍️', description: 'Mahalle marketlerinden zincire.', tier: 2, unlockAt: 4_000, baseCost: 520, baseIncome: 9, costMultiplier: 1.17 },
   { id: 'otopark', name: 'Otopark İşletmesi', emoji: '🅿️', description: 'Şehir merkezinde park geliri.', tier: 2, unlockAt: 8_000, baseCost: 650, baseIncome: 11, costMultiplier: 1.17 },
   { id: 'bahce_merkez', name: 'Bahçe & Peyzaj', emoji: '🌿', description: 'Villa ve site projeleri.', tier: 2, unlockAt: 10_000, baseCost: 700, baseIncome: 12, costMultiplier: 1.17 },
-  { id: 'optik', name: 'Optik Zinciri', emoji: '👓', description: 'Gözlük ve lens satışı.', tier: 3, unlockAt: 25_000, baseCost: 1_080, baseIncome: 16, costMultiplier: 1.18 },
-  { id: 'sinema', name: 'Sinema Zinciri', emoji: '🎬', description: 'Salon, patlamış mısır, IMAX.', tier: 3, unlockAt: 32_000, baseCost: 1_220, baseIncome: 18, costMultiplier: 1.18 },
-  { id: 'veteriner', name: 'Veteriner Kliniği', emoji: '🐕', description: 'Evcil hayvan sağlığı.', tier: 3, unlockAt: 45_000, baseCost: 1_350, baseIncome: 20, costMultiplier: 1.18 },
-  { id: 'catering', name: 'Catering Şirketi', emoji: '🍱', description: 'Kurumsal etkinlik yemekleri.', tier: 3, unlockAt: 50_000, baseCost: 1_400, baseIncome: 21, costMultiplier: 1.18 },
-  { id: 'guvenlik', name: 'Güvenlik Şirketi', emoji: '🛡️', description: 'Özel koruma ve alarm.', tier: 3, unlockAt: 60_000, baseCost: 1_480, baseIncome: 22, costMultiplier: 1.18 },
-  { id: 'egitim_app', name: 'Eğitim Uygulaması', emoji: '📚', description: 'Online kurs ve abonelik.', tier: 3, unlockAt: 75_000, baseCost: 1_620, baseIncome: 24, costMultiplier: 1.18 },
-  { id: 'geri_donusum', name: 'Geri Dönüşüm Tesisi', emoji: '♻️', description: 'Atıktan hammadde.', tier: 4, unlockAt: 110_000, baseCost: 2_000, baseIncome: 27, costMultiplier: 1.18 },
-  { id: 'coworking', name: 'Coworking Ağı', emoji: '🏢', description: 'Esnek ofis kiralama.', tier: 4, unlockAt: 140_000, baseCost: 2_300, baseIncome: 31, costMultiplier: 1.18 },
-  { id: 'mobilya', name: 'Mobilya Fabrikası', emoji: '🪑', description: 'Perakende ve toptan üretim.', tier: 4, unlockAt: 170_000, baseCost: 2_500, baseIncome: 33, costMultiplier: 1.18 },
-  { id: 'radyo', name: 'Radyo & Podcast Ağı', emoji: '🎙️', description: 'Yayın hakları ve reklam.', tier: 4, unlockAt: 200_000, baseCost: 2_650, baseIncome: 35, costMultiplier: 1.18 },
+  { id: 'optik', name: 'Optik Zinciri', emoji: '👓', description: 'Gözlük ve lens satışı.', tier: 3, unlockAt: 25_000, baseCost: 1_080, baseIncome: 16, costMultiplier: 1.22 },
+  { id: 'sinema', name: 'Sinema Zinciri', emoji: '🎬', description: 'Salon, patlamış mısır, IMAX.', tier: 3, unlockAt: 32_000, baseCost: 1_220, baseIncome: 18, costMultiplier: 1.22 },
+  { id: 'veteriner', name: 'Veteriner Kliniği', emoji: '🐕', description: 'Evcil hayvan sağlığı.', tier: 3, unlockAt: 45_000, baseCost: 1_350, baseIncome: 20, costMultiplier: 1.22 },
+  { id: 'catering', name: 'Catering Şirketi', emoji: '🍱', description: 'Kurumsal etkinlik yemekleri.', tier: 3, unlockAt: 50_000, baseCost: 1_400, baseIncome: 21, costMultiplier: 1.22 },
+  { id: 'guvenlik', name: 'Güvenlik Şirketi', emoji: '🛡️', description: 'Özel koruma ve alarm.', tier: 3, unlockAt: 60_000, baseCost: 1_480, baseIncome: 22, costMultiplier: 1.22 },
+  { id: 'egitim_app', name: 'Eğitim Uygulaması', emoji: '📚', description: 'Online kurs ve abonelik.', tier: 3, unlockAt: 75_000, baseCost: 1_620, baseIncome: 24, costMultiplier: 1.22 },
+  { id: 'geri_donusum', name: 'Geri Dönüşüm Tesisi', emoji: '♻️', description: 'Atıktan hammadde.', tier: 4, unlockAt: 110_000, baseCost: 2_000, baseIncome: 27, costMultiplier: 1.22 },
+  { id: 'coworking', name: 'Coworking Ağı', emoji: '🏢', description: 'Esnek ofis kiralama.', tier: 4, unlockAt: 140_000, baseCost: 2_300, baseIncome: 31, costMultiplier: 1.22 },
+  { id: 'mobilya', name: 'Mobilya Fabrikası', emoji: '🪑', description: 'Perakende ve toptan üretim.', tier: 4, unlockAt: 170_000, baseCost: 2_500, baseIncome: 33, costMultiplier: 1.22 },
+  { id: 'radyo', name: 'Radyo & Podcast Ağı', emoji: '🎙️', description: 'Yayın hakları ve reklam.', tier: 4, unlockAt: 200_000, baseCost: 2_650, baseIncome: 35, costMultiplier: 1.22 },
   { id: 'mikrokredi', name: 'Mikrokredi Kurumu', emoji: '💳', description: 'Küçük işletmelere kredi.', tier: 4, unlockAt: 250_000, baseCost: 2_850, baseIncome: 38, costMultiplier: 1.19, category: 'finance' },
   { id: 'su_aritma', name: 'Su Arıtma Tesisi', emoji: '💧', description: 'Endüstriyel ve belediye sözleşmeleri.', tier: 5, unlockAt: 480_000, baseCost: 4_600, baseIncome: 54, costMultiplier: 1.19 },
   { id: 'yazilim_outsource', name: 'Yazılım Outsource', emoji: '👨‍💻', description: 'Global yazılım projeleri.', tier: 5, unlockAt: 580_000, baseCost: 5_000, baseIncome: 57, costMultiplier: 1.19 },
@@ -177,16 +177,16 @@ export const PRODUCERS: ProducerDef[] = [
   { id: 'zaman_bank', name: 'Zaman Bankası', emoji: '⏳', description: 'Gelecek gelirini bugüne sat.', tier: 13, unlockAt: 28_000_000_000, baseCost: 580_000, baseIncome: 2_850, costMultiplier: 1.23, category: 'finance' },
 
   // —— YENİ: Tier 3 boşluk doldurucu ——
-  { id: 'guzellik', name: 'Güzellik Merkezi', emoji: '💅', description: 'Kuaför, nail art, spa zinciri.', tier: 3, unlockAt: 20_000, baseCost: 1_150, baseIncome: 17, costMultiplier: 1.18 },
-  { id: 'spor_okulu', name: 'Spor Okulu', emoji: '🏅', description: 'Kurs ve turnuva gelirleri.', tier: 3, unlockAt: 30_000, baseCost: 1_250, baseIncome: 18, costMultiplier: 1.18, category: 'sport' },
-  { id: 'akaryakit', name: 'Akaryakıt İstasyonu', emoji: '⛽', description: 'Benzin, market, oto yıkama.', tier: 3, unlockAt: 15_000, baseCost: 1_080, baseIncome: 16, costMultiplier: 1.18 },
-  { id: 'fotograf_stud', name: 'Fotoğraf Stüdyosu', emoji: '📷', description: 'Düğün, ticari ve reklam çekimi.', tier: 3, unlockAt: 18_000, baseCost: 1_100, baseIncome: 16, costMultiplier: 1.18 },
+  { id: 'guzellik', name: 'Güzellik Merkezi', emoji: '💅', description: 'Kuaför, nail art, spa zinciri.', tier: 3, unlockAt: 20_000, baseCost: 1_150, baseIncome: 17, costMultiplier: 1.22 },
+  { id: 'spor_okulu', name: 'Spor Okulu', emoji: '🏅', description: 'Kurs ve turnuva gelirleri.', tier: 3, unlockAt: 30_000, baseCost: 1_250, baseIncome: 18, costMultiplier: 1.22, category: 'sport' },
+  { id: 'akaryakit', name: 'Akaryakıt İstasyonu', emoji: '⛽', description: 'Benzin, market, oto yıkama.', tier: 3, unlockAt: 15_000, baseCost: 1_080, baseIncome: 16, costMultiplier: 1.22 },
+  { id: 'fotograf_stud', name: 'Fotoğraf Stüdyosu', emoji: '📷', description: 'Düğün, ticari ve reklam çekimi.', tier: 3, unlockAt: 18_000, baseCost: 1_100, baseIncome: 16, costMultiplier: 1.22 },
 
   // —— YENİ: Tier 4 boşluk doldurucu ——
-  { id: 'ic_mimar', name: 'İç Mimar Ağı', emoji: '🛋️', description: 'Villa ve otel tasarım projeleri.', tier: 4, unlockAt: 80_000, baseCost: 1_900, baseIncome: 26, costMultiplier: 1.18 },
-  { id: 'tatil_koyu', name: 'Tatil Köyü', emoji: '🏖️', description: 'All-inclusive resort zinciri.', tier: 4, unlockAt: 90_000, baseCost: 2_050, baseIncome: 28, costMultiplier: 1.18, category: 'luxury' },
-  { id: 'fitness_app', name: 'Fitness Uygulaması', emoji: '🏃', description: 'Antrenman aboneliği ve PT.', tier: 4, unlockAt: 100_000, baseCost: 2_100, baseIncome: 29, costMultiplier: 1.18 },
-  { id: 'fulfillment', name: 'Fulfillment Merkezi', emoji: '📦', description: 'E-ticaret depo ve lojistik.', tier: 4, unlockAt: 110_000, baseCost: 2_150, baseIncome: 30, costMultiplier: 1.18 },
+  { id: 'ic_mimar', name: 'İç Mimar Ağı', emoji: '🛋️', description: 'Villa ve otel tasarım projeleri.', tier: 4, unlockAt: 80_000, baseCost: 1_900, baseIncome: 26, costMultiplier: 1.22 },
+  { id: 'tatil_koyu', name: 'Tatil Köyü', emoji: '🏖️', description: 'All-inclusive resort zinciri.', tier: 4, unlockAt: 90_000, baseCost: 2_050, baseIncome: 28, costMultiplier: 1.22, category: 'luxury' },
+  { id: 'fitness_app', name: 'Fitness Uygulaması', emoji: '🏃', description: 'Antrenman aboneliği ve PT.', tier: 4, unlockAt: 100_000, baseCost: 2_100, baseIncome: 29, costMultiplier: 1.22 },
+  { id: 'fulfillment', name: 'Fulfillment Merkezi', emoji: '📦', description: 'E-ticaret depo ve lojistik.', tier: 4, unlockAt: 110_000, baseCost: 2_150, baseIncome: 30, costMultiplier: 1.22 },
 
   // —— YENİ: Tier 5 içerik ——
   { id: 'online_egitim', name: 'Online Eğitim Platformu', emoji: '🎓', description: 'Kurs, sertifika ve bootcamp.', tier: 5, unlockAt: 400_000, baseCost: 4_000, baseIncome: 50, costMultiplier: 1.19 },
@@ -292,7 +292,7 @@ export const ECONOMY_COST_GROWTH_BONUS = 0.028
 export const ECONOMY_TIER_COST_BONUS = 0.075
 /** Gelir maliyetle aynı ölçekte — ROI korunur */
 export const ECONOMY_INCOME_SCALE = ECONOMY_COST_SCALE
-export const ECONOMY_BASE_INCOME_MULT = ECONOMY_BASE_COST_MULT * 1.35
+export const ECONOMY_BASE_INCOME_MULT = ECONOMY_BASE_COST_MULT * 0.65
 export const ECONOMY_UPGRADE_COST_SCALE = 1.45
 export const EARLY_UNLOCK_COST_SCALE = 1.65
 
