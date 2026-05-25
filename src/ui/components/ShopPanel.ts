@@ -1,6 +1,12 @@
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, producerIconPath, earlyUnlockCost, isProducerUnlocked, scaledUnlockAt, scaledBaseIncome, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
 import { RESEARCH_NODES, researchCost, researchNodesByBranch, type ResearchBranch } from '../../game/Research'
+import { reputationLoanBlocked } from '../../game/Reputation'
+import { COMMODITIES, commodityChangePct } from '../../game/Commodities'
+import { INSURANCE_DAILY_COST } from '../../game/Insurance'
+import { NAMED_MANAGERS } from '../../game/NamedManagers'
+import { UNDERGROUND_MARKET } from '../../game/UndergroundMarket'
+import { ADVISOR_FEE } from '../../game/AdvisorNPC'
 import { getActiveSynergies, getNearSynergies } from '../../game/Synergies'
 import {
   isStarterPhase,
@@ -26,14 +32,14 @@ import {
   type BizSortOrder,
 } from '../../game/ShopAdvisor'
 import { UNDERGROUND_TREE_NODES, treeNodeCost } from '../../game/UndergroundTree'
-import { reputationLoanBlocked } from '../../game/Reputation'
+import { modernizeCost } from '../../game/TechObsolescence'
 
 export type BuyMode = 1 | 10 | 'max'
 export type ShopHub = 'growth' | 'powerup' | 'finance' | 'empire'
 export type GrowthSub = 'businesses' | 'management'
 export type PowerupSub = 'upgrades' | 'research'
 export type EmpireSub = 'sport' | 'politics' | 'dark' | 'luxury' | 'finance' | 'science'
-export type IpoSubTab = 'stock' | 'bank' | 'prestige' | 'ipo'
+export type IpoSubTab = 'stock' | 'bank' | 'prestige' | 'ipo' | 'insurance' | 'commodities' | 'opportunities' | 'underground_market'
 export type UpgradeFilter = 'all' | 'click' | 'global' | 'producer'
 export type BizTypeFilter = 'all' | 'legal' | 'illegal' | 'sport' | 'politics' | 'dark' | 'luxury' | 'finance' | 'science'
 
@@ -100,8 +106,8 @@ export class ShopPanel {
     if (id === 'sport' || id === 'politics' || id === 'dark' || id === 'luxury' || id === 'finance' || id === 'science') {
       return { hub: 'empire', empireSub: id }
     }
-    if (id === 'ipo' || id === 'stock' || id === 'bank' || id === 'prestige') {
-      return { hub: 'finance', ipoSub: (id === 'stock' || id === 'bank' || id === 'prestige' ? id : this.ipoSubTab) as IpoSubTab }
+    if (id === 'ipo' || id === 'stock' || id === 'bank' || id === 'prestige' || id === 'insurance' || id === 'commodities' || id === 'opportunities' || id === 'underground_market') {
+      return { hub: 'finance', ipoSub: (['stock', 'bank', 'prestige', 'insurance', 'commodities', 'opportunities', 'underground_market'].includes(id) ? id : this.ipoSubTab) as IpoSubTab }
     }
     return { hub: 'growth', growthSub: 'businesses' }
   }
@@ -346,7 +352,11 @@ export class ShopPanel {
     this.subTabsEl.replaceChildren()
     this.subTabButtons = []
     if (this.viewContext === 'market' || this.activeHub === 'finance') {
-      for (const [id, label] of [['stock', 'Borsa'], ['bank', 'Banka'], ['prestige', 'Prestij'], ['ipo', 'Birleşme']] as const) {
+      for (const [id, label] of [
+        ['stock', 'Borsa'], ['bank', 'Banka'], ['insurance', 'Sigorta'],
+        ['commodities', 'Emtia'], ['opportunities', 'Fırsatlar'],
+        ['underground_market', 'Kara'], ['prestige', 'Prestij'], ['ipo', 'Birleşme'],
+      ] as const) {
         const btn = document.createElement('button')
         btn.type = 'button'
         btn.className = `shop-sub-tab ipo-nav-tab${this.ipoSubTab === id ? ' active' : ''}`
@@ -1396,15 +1406,19 @@ export class ShopPanel {
     }
     if (roiEl.textContent !== roiText) roiEl.textContent = roiText
 
-    const synIds = getActiveSynergies(state.producers).flatMap((s) => [...s.def.requires, s.def.targetProducer ?? ''])
+    const activeSyns = getActiveSynergies(state.producers).filter(
+      (s) => s.active && (s.def.requires.includes(p.id) || s.def.targetProducer === p.id),
+    )
     let synBadge = card.querySelector('.biz-synergy-badge') as HTMLElement | null
-    if (synIds.includes(p.id)) {
+    if (activeSyns.length > 0) {
+      const s = activeSyns[0]!
       if (!synBadge) {
         synBadge = document.createElement('span')
         synBadge.className = 'biz-synergy-badge'
         card.appendChild(synBadge)
       }
-      synBadge.textContent = '⚡ Sinerji'
+      synBadge.textContent = `⚡ +${Math.round(s.def.bonus * 100)}% ${s.def.name}`
+      synBadge.title = 'Aktif sinerji bonusu'
       synBadge.hidden = false
     } else if (synBadge) synBadge.hidden = true
 
@@ -1422,6 +1436,18 @@ export class ShopPanel {
       nearBadge.hidden = false
     } else if (nearBadge) nearBadge.hidden = true
 
+    const obsLabel = state.obsolescenceLabel(p.id)
+    let obsBadge = card.querySelector('.biz-obsolete-badge') as HTMLElement | null
+    if (obsLabel && owned > 0) {
+      if (!obsBadge) {
+        obsBadge = document.createElement('span')
+        obsBadge.className = 'biz-obsolete-badge'
+        card.appendChild(obsBadge)
+      }
+      obsBadge.textContent = obsLabel
+      obsBadge.hidden = false
+    } else if (obsBadge) obsBadge.hidden = true
+
     card.querySelectorAll('.biz-milestone-dot').forEach((dot) => {
       const ms = Number((dot as HTMLElement).dataset.milestone)
       dot.classList.toggle('reached', owned >= ms)
@@ -1431,6 +1457,41 @@ export class ShopPanel {
       const riskBadge = card.querySelector('.biz-risk-badge')
       const chancePct = Math.round(p.riskChance * 100 * (1 + state.illegalHeat / 100))
       if (riskBadge) riskBadge.textContent = `🕶️ Baskın ~${chancePct}%/dk`
+    }
+
+    let actionRow = card.querySelector('.biz-action-row') as HTMLElement | null
+    const showSell = owned > 0
+    const showModernize = owned > 0 && !!obsLabel && !state.producerModernized[p.id]
+    if (showSell || showModernize) {
+      if (!actionRow) {
+        actionRow = document.createElement('div')
+        actionRow.className = 'biz-action-row'
+        card.appendChild(actionRow)
+      }
+      actionRow.replaceChildren()
+      if (showSell) {
+        const sellBtn = document.createElement('button')
+        sellBtn.type = 'button'
+        sellBtn.className = 'btn-secondary biz-sell-btn'
+        sellBtn.dataset.action = 'sell-producer'
+        sellBtn.dataset.id = p.id
+        sellBtn.textContent = 'Sat (1)'
+        actionRow.appendChild(sellBtn)
+      }
+      if (showModernize) {
+        const modCost = modernizeCost(p.tier, owned)
+        const modBtn = document.createElement('button')
+        modBtn.type = 'button'
+        modBtn.className = 'btn-primary biz-modernize-btn'
+        modBtn.dataset.action = 'modernize-producer'
+        modBtn.dataset.id = p.id
+        modBtn.textContent = `Modernize · ${formatMoney(modCost)}`
+        modBtn.disabled = !state.canAfford(modCost)
+        actionRow.appendChild(modBtn)
+      }
+      actionRow.hidden = false
+    } else if (actionRow) {
+      actionRow.hidden = true
     }
   }
 
@@ -1445,6 +1506,38 @@ export class ShopPanel {
     const ownedCount = ownedProducers.length
     const missing = ownedCount - hiredCount
     panel.appendChild(this.createTabHero('👔', 'Yönetim Merkezi', 'Yöneticiler geliri artırır; yokken biriken kazancı yükseltir (reklamla toplanır)', `${hiredCount}/${ownedCount} aktif`))
+
+    const namedTitle = document.createElement('h3')
+    namedTitle.className = 'shop-section-title'
+    namedTitle.textContent = '⭐ Özel Yöneticiler'
+    panel.appendChild(namedTitle)
+    for (const m of NAMED_MANAGERS) {
+      const hired = state.namedManagers.some((h) => h.id === m.id)
+      const card = document.createElement('div')
+      card.className = `shop-card manager-card${hired ? ' manager-active' : ''}`
+      card.innerHTML = `<strong>${m.emoji} ${m.name}</strong><p>${m.specialty}</p><span>Maaş: ${formatMoney(m.dailySalary)}/gün</span>`
+      if (!hired) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = 'btn-primary'
+        btn.dataset.action = 'hire-named-manager'
+        btn.dataset.id = m.id
+        btn.textContent = `İşe al · ${formatMoney(m.hireCost)}`
+        btn.disabled = !state.canAfford(m.hireCost)
+        card.appendChild(btn)
+      } else {
+        const ok = document.createElement('span')
+        ok.className = 'manager-status-ok'
+        ok.textContent = '✅ Aktif'
+        card.appendChild(ok)
+      }
+      panel.appendChild(card)
+    }
+
+    const bizTitle = document.createElement('h3')
+    bizTitle.className = 'shop-section-title'
+    bizTitle.textContent = 'İşletme Yöneticileri'
+    panel.appendChild(bizTitle)
 
     if (missing > 0) {
       const summary = document.createElement('div')
@@ -1761,6 +1854,10 @@ export class ShopPanel {
       bank: 'Paranı güvene al veya kredi çek — faiz her dakika işler',
       prestige: 'Kalıcı prestij puanlarıyla run gücünü artır',
       ipo: 'Run sonu birleşmesi — kalıcı prestij hissesi kazan (oyun bitirmez, reset)',
+      insurance: 'Risk al — sigortasız oyna veya güvenlik için öde',
+      commodities: 'Altın, petrol, buğday, kahve — haberlerle al/sat',
+      opportunities: 'Süreli startup yatırımları — yüksek getiri, garantisiz',
+      underground_market: 'Kara borsa — heat artırır ama gelir çok yüksek',
     }
     subHint.textContent = hints[this.ipoSubTab]
     panel.appendChild(subHint)
@@ -1768,7 +1865,130 @@ export class ShopPanel {
     if (this.ipoSubTab === 'stock') this.renderIpoStock(state, panel)
     else if (this.ipoSubTab === 'bank') this.renderIpoBank(state, panel)
     else if (this.ipoSubTab === 'prestige') this.renderIpoPrestige(state, panel)
+    else if (this.ipoSubTab === 'insurance') this.renderInsurance(state, panel)
+    else if (this.ipoSubTab === 'commodities') this.renderCommodities(state, panel)
+    else if (this.ipoSubTab === 'opportunities') this.renderOpportunities(state, panel)
+    else if (this.ipoSubTab === 'underground_market') this.renderUndergroundMarket(state, panel)
     else this.renderIpoMerge(state, panel)
+  }
+
+  private renderInsurance(state: GameState, panel: HTMLElement): void {
+    panel.appendChild(this.createTabHero('🛡️', 'İşletme Sigortası', 'Risk al veya güvenlik için öde — gerçek karar', ''))
+    for (const [kind, label, desc] of [
+      ['business', 'Fabrika Sigortası', 'Baskında hasar yarıya iner'] as const,
+      ['illegal', 'Illegal Koruma', 'İlk polis baskını bağışık'] as const,
+      ['dynasty', 'Hanedan Sigortası', 'Mirasçısız ölümde %50 varlık korunur'] as const,
+    ]) {
+      const active = state.insurance[kind]
+      const cost = INSURANCE_DAILY_COST[kind]
+      const card = document.createElement('div')
+      card.className = `shop-card${active ? ' manager-active' : ''}`
+      card.innerHTML = `<strong>${label}</strong><p>${desc}</p><span>${formatMoney(cost)}/gün</span>`
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = active ? 'btn-secondary' : 'btn-primary'
+      btn.dataset.action = 'insurance-toggle'
+      btn.dataset.id = kind
+      btn.textContent = active ? 'İptal et' : 'Aktif et'
+      card.appendChild(btn)
+      panel.appendChild(card)
+    }
+  }
+
+  private renderCommodities(state: GameState, panel: HTMLElement): void {
+    panel.appendChild(this.createTabHero('📦', 'Emtialar', 'Piyasa haberlerine tepki veren fiziksel varlıklar', ''))
+    if (state.advisorTip) {
+      const adv = document.createElement('div')
+      adv.className = 'advisor-card'
+      adv.innerHTML = `<strong>👨‍💼 Danışman Kemal</strong><p>${state.advisorTip.headline}</p>`
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'btn-secondary'
+      btn.dataset.action = 'advisor-pay'
+      btn.textContent = `Dinle → ${formatMoney(ADVISOR_FEE)}`
+      adv.appendChild(btn)
+      panel.appendChild(adv)
+    }
+    for (const c of COMMODITIES) {
+      const price = state.commodities.prices[c.id] ?? c.basePrice
+      const chg = commodityChangePct(state.commodities, c.id)
+      const held = state.commodities.holdings[c.id] ?? 0
+      const chgClass = chg >= 0 ? 'pl-positive' : chg < 0 ? 'pl-negative' : ''
+      const card = document.createElement('div')
+      card.className = 'shop-card stock-board-card'
+      card.innerHTML = `
+        <div><strong>${c.emoji} ${c.name}</strong><br>${formatMoney(price)}/${c.unit}</div>
+        <div class="${chgClass}">${chg >= 0 ? '▲' : chg < 0 ? '▼' : '→'} ${Math.abs(chg).toFixed(1)}%</div>
+        <div>Stok: ${held}</div>
+      `
+      const buy = document.createElement('button')
+      buy.type = 'button'
+      buy.className = 'btn-primary'
+      buy.dataset.action = 'commodity-buy'
+      buy.dataset.id = c.id
+      buy.textContent = 'Al'
+      const sell = document.createElement('button')
+      sell.type = 'button'
+      sell.className = 'btn-secondary'
+      sell.dataset.action = 'commodity-sell'
+      sell.dataset.id = c.id
+      sell.textContent = 'Sat'
+      sell.disabled = held <= 0
+      card.append(buy, sell)
+      panel.appendChild(card)
+    }
+  }
+
+  private renderOpportunities(state: GameState, panel: HTMLElement): void {
+    panel.appendChild(this.createTabHero('💡', 'Yatırım Fırsatları', 'Süreli teklifler — yüksek getiri, garantisiz', ''))
+    const offer = state.investmentOffer
+    if (!offer) {
+      const empty = document.createElement('p')
+      empty.className = 'finance-sub-hint'
+      empty.textContent = 'Yeni fırsat birkaç gün içinde gelecek...'
+      panel.appendChild(empty)
+      return
+    }
+    const left = Math.max(0, Math.floor((offer.expiresAt - Date.now()) / 1000))
+    const card = document.createElement('div')
+    card.className = 'shop-card'
+    card.innerHTML = `
+      <strong>⏰ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} kaldı</strong>
+      <h4>${offer.title}</h4>
+      <p>${offer.description}</p>
+      <p>Maliyet: ${formatMoney(offer.cost)}</p>
+    `
+    const invest = document.createElement('button')
+    invest.type = 'button'
+    invest.className = 'btn-primary'
+    invest.dataset.action = 'investment-accept'
+    invest.textContent = 'Yatır'
+    const skip = document.createElement('button')
+    skip.type = 'button'
+    skip.className = 'btn-secondary'
+    skip.dataset.action = 'investment-dismiss'
+    skip.textContent = 'Geç'
+    card.append(invest, skip)
+    panel.appendChild(card)
+  }
+
+  private renderUndergroundMarket(state: GameState, panel: HTMLElement): void {
+    panel.appendChild(this.createTabHero('🕶️', 'Kara Borsa', 'Heat artırır — sadece cesur baronlar', ''))
+    for (const def of UNDERGROUND_MARKET) {
+      if (def.id === 'intel_leak' && !state.hasVictoryMechanic('shadow_network')) continue
+      const active = state.undergroundMarketActive.includes(def.id)
+      const card = document.createElement('div')
+      card.className = `shop-card${active ? ' manager-active' : ''}`
+      card.innerHTML = `<strong>${def.emoji} ${def.name}</strong><p>${def.description}</p><span>${formatMoney(def.dailyCost)}/gün · Heat +${def.heatGain}</span>`
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = active ? 'btn-secondary' : 'btn-primary'
+      btn.dataset.action = 'underground-market-toggle'
+      btn.dataset.id = def.id
+      btn.textContent = active ? 'Kapat' : 'Aç'
+      card.appendChild(btn)
+      panel.appendChild(card)
+    }
   }
 
   private renderIpoStock(state: GameState, panel: HTMLElement): void {

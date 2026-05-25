@@ -94,7 +94,7 @@ import {
   hasNode,
 } from './PrestigeTree'
 import { localDayKey, yesterdayLocalKey, calendarWeekKey } from './dateUtils'
-import { gameDay, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSecondsToGameMs } from './GameClock'
+import { gameDay, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSecondsToGameMs, gameCalendarDate } from './GameClock'
 import {
   createEmpireState,
   syncEmpireFromProducers,
@@ -110,6 +110,7 @@ import {
   lobbyCost,
   donateCampaign,
   canUpgradeLeague,
+  leagueName,
   type EmpireState,
 } from './Empire'
 import {
@@ -130,6 +131,8 @@ import {
   CHILD_EDUCATION_MAX,
   type DynastyState,
   type PlayerGender,
+  pickChildRiskProfile,
+  migrateChildRecord,
 } from './Dynasty'
 import {
   rollDailyMortality,
@@ -199,6 +202,8 @@ import {
   cooperateWithRival,
   mergeRival,
   mergeRivalCost,
+  acceptRivalAlliance,
+  rivalDef,
   type RivalFamilyState,
 } from './Rivals'
 import {
@@ -215,6 +220,101 @@ import {
   type LegacyMonument,
 } from './Chronicle'
 import { gameSeasonKey } from './GameClock'
+import {
+  pushGazette,
+  headlinePurchase,
+  headlineLoanDenied,
+  headlineCrisis,
+  headlineMonthlyIncome,
+  type GazetteEntry,
+  type GazetteCategory,
+} from './BaronGazette'
+import {
+  type ActiveCrisis,
+  type CrisisId,
+  crisisDef,
+  pickRandomCrisis,
+} from './CrisisEvents'
+import { computePlayerTitle, type PlayerTitleDef } from './PlayerTitle'
+import {
+  activeCalendarEvents,
+  calendarPassiveMult,
+  calendarClickMult,
+} from './CalendarEvents'
+import {
+  mechanicForVictory,
+  hasMechanic,
+  type VictoryMechanic,
+} from './VictoryUnlocks'
+import {
+  createInsuranceState,
+  insuranceDailyCost,
+  raidFineMult,
+  type InsuranceState,
+} from './Insurance'
+import {
+  createCommodityMarket,
+  tickCommodityPrices,
+  type CommodityId,
+  type CommodityMarketState,
+} from './Commodities'
+import {
+  createStartupOffer,
+  type InvestmentOffer,
+  type PendingInvestment,
+} from './InvestmentOffers'
+import {
+  FRANCHISE_COST,
+  FRANCHISE_UNLOCK_COUNT,
+  FRANCHISE_REPUTATION_MIN,
+  FRANCHISE_CITIES,
+  franchiseIncomeBonus,
+  type FranchiseBranch,
+  type FranchiseCity,
+} from './Franchise'
+import {
+  namedManagerDef,
+  type HiredNamedManager,
+  type NamedManagerId,
+} from './NamedManagers'
+import {
+  undergroundActionDef,
+  type UndergroundMarketAction,
+} from './UndergroundMarket'
+import { rollAdvisorTip, ADVISOR_FEE, type AdvisorTip } from './AdvisorNPC'
+import type { RivalAllianceOffer } from './Rivals'
+import { buildBaronRecord, dynastyHistorySummary, type BaronRecord, type BaronLifeSnapshot } from './BaronLegacy'
+import {
+  createCityState,
+  canUnlockCity,
+  cityDef,
+  type CityState,
+  type CityId,
+} from './ExpansionMap'
+import {
+  createTorpilState,
+  torpilDef,
+  torpilBusinessDiscount,
+  torpilBypassCreditScore,
+  torpilRaidWarning,
+  type TorpilContactState,
+  type TorpilId,
+} from './TorpilNetwork'
+import { obsolescenceMult, modernizeCost } from './TechObsolescence'
+import { pickDisaster, disasterDamage } from './NaturalDisasters'
+import { progressPathSnapshot, type ProgressPathSnapshot } from './ProgressPath'
+
+export interface PendingUndo {
+  id: string
+  kind: 'manager_hire' | 'named_manager' | 'sell_producer'
+  label: string
+  cost: number
+  expiresAt: number
+  producerId?: string
+  namedManagerId?: NamedManagerId
+  soldCount?: number
+  soldCost?: number
+}
 
 export interface SerializableState {
   money: number
@@ -319,6 +419,38 @@ export interface SerializableState {
   presidentSinceSeasonKey?: string | null
   lastWorldStageId?: WorldStageId
   childCrises?: { childId: string; type: 'gambler' | 'illegal' | 'scandal' }[]
+  gazetteEntries?: GazetteEntry[]
+  activeCrisis?: ActiveCrisis | null
+  crisisIncomeMult?: number
+  crisisHoldBonusUntil?: number
+  victoryMechanics?: VictoryMechanic[]
+  bankruptcyCount?: number
+  insurance?: InsuranceState
+  commodities?: CommodityMarketState
+  investmentOffer?: InvestmentOffer | null
+  pendingInvestments?: PendingInvestment[]
+  franchises?: FranchiseBranch[]
+  namedManagers?: HiredNamedManager[]
+  pendingRivalOffer?: RivalAllianceOffer | null
+  undergroundMarketActive?: UndergroundMarketAction[]
+  advisorTip?: AdvisorTip | null
+  advisorTipDay?: number
+  calendarPurchaseDay?: string
+  lastCrisisGameDay?: number
+  lastInvestmentOfferDay?: number
+  playerTitleId?: string
+  baronHistory?: BaronRecord[]
+  baronCounter?: number
+  currentBaronStartedGameDay?: number
+  baronLifePeakNetWorth?: number
+  baronLifeEarnedStart?: number
+  baronLifeRaidsUninsured?: number
+  baronLifeChildCrises?: number
+  cities?: CityState
+  torpil?: TorpilContactState[]
+  producerModernized?: Record<string, boolean>
+  pendingUndo?: PendingUndo | null
+  lastDisasterGameDay?: number
 }
 
 export interface ProducerBreakdown {
@@ -383,11 +515,24 @@ export type GameEvent =
   | { type: 'market_news'; headline: string; active: boolean }
   | { type: 'dynasty_update'; kind: string; name?: string }
   | { type: 'player_death'; age: number; causeId: DeathCauseId; emoji: string; label: string; message: string; hasHeir: boolean }
+  | { type: 'baron_eulogy'; record: BaronRecord; hasHeir: boolean }
+  | { type: 'disaster_hit'; title: string; emoji: string; city: string; damage: number; insured: boolean }
+  | { type: 'undo_available'; label: string; cost: number; undoId: string }
   | { type: 'reputation_changed'; reputation: number; delta: number }
   | { type: 'world_stage'; stageId: WorldStageId; name: string }
   | { type: 'rival_action'; rivalId: string; headline: string }
   | { type: 'victory_unlocked'; victoryId: VictoryId; name: string; emoji: string }
   | { type: 'child_crisis'; childName: string; crisisType: string; message: string }
+  | { type: 'gazette_headline'; headline: string; category: GazetteCategory }
+  | { type: 'crisis_started'; crisisId: CrisisId; title: string }
+  | { type: 'crisis_resolved'; crisisId: CrisisId; choiceId: string; summary: string }
+  | { type: 'loan_denied'; reason: string }
+  | { type: 'victory_mechanic_unlocked'; victoryId: VictoryId; title: string; description: string; emoji: string }
+  | { type: 'rival_alliance_offer'; offer: RivalAllianceOffer }
+  | { type: 'investment_offer'; offer: InvestmentOffer }
+  | { type: 'player_title'; title: PlayerTitleDef }
+  | { type: 'calendar_event'; headline: string; emoji: string }
+  | { type: 'skyline_building_click'; producerId: string; income: number; name: string }
 
 const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
@@ -506,6 +651,42 @@ export class GameState {
   presidentSinceSeasonKey: string | null = null
   lastWorldStageId: WorldStageId = 'local'
   childCrises: { childId: string; type: 'gambler' | 'illegal' | 'scandal' }[] = []
+  gazetteEntries: GazetteEntry[] = []
+  activeCrisis: ActiveCrisis | null = null
+  crisisIncomeMult = 1
+  crisisHoldBonusUntil = 0
+  victoryMechanics: VictoryMechanic[] = []
+  bankruptcyCount = 0
+  insurance = createInsuranceState()
+  commodities = createCommodityMarket()
+  investmentOffer: InvestmentOffer | null = null
+  pendingInvestments: PendingInvestment[] = []
+  franchises: FranchiseBranch[] = []
+  namedManagers: HiredNamedManager[] = []
+  pendingRivalOffer: RivalAllianceOffer | null = null
+  undergroundMarketActive: UndergroundMarketAction[] = []
+  advisorTip: AdvisorTip | null = null
+  advisorTipDay = 0
+  calendarPurchaseDay = ''
+  lastCrisisGameDay = 0
+  lastInvestmentOfferDay = 0
+  playerTitleId = 'tycoon'
+  baronHistory: BaronRecord[] = []
+  baronCounter = 1
+  currentBaronStartedGameDay = 1
+  baronLifePeakNetWorth = 0
+  baronLifeEarnedStart = 0
+  baronLifeRaidsUninsured = 0
+  baronLifeChildCrises = 0
+  baronLifeFactoryRaidDamage = 0
+  cities = createCityState()
+  torpil = createTorpilState()
+  producerModernized: Record<string, boolean> = {}
+  pendingUndo: PendingUndo | null = null
+  lastDisasterGameDay = 0
+  private lastCalendarEmitDay = ''
+  private lastCommodityTick = Date.now()
+  private lastInsuranceChargeDay = 0
   pendingBoosts: PendingBoostItem[] = []
   private lastRivalTickDay = 0
   private lastIllegalRiskCheck = 0
@@ -638,6 +819,7 @@ export class GameState {
         this.lastGameClockEmit = now
         this.tickMarketNews()
         this.tickDynasty()
+        this.tickMetaSystems()
         this.emit({ type: 'game_time' })
       }
       this.tickHandle = requestAnimationFrame(loop)
@@ -1029,16 +1211,30 @@ export class GameState {
       const owned = this.producers[p.id] ?? 0
       if (owned <= 0) continue
       const chance = Math.min(0.35, p.riskChance * heatMult * (1 - raidChanceReduction(this.undergroundTree)))
+      if (torpilRaidWarning(this.torpil) && Math.random() < 0.35) {
+        this.addGazette('🎖️ Torpil ağı uyarı verdi — baskın engellendi', 'player')
+        break
+      }
       if (Math.random() > chance) continue
       let finePct = (p.riskFinePct ?? 0.15) * (0.8 + this.illegalHeat / 200)
       finePct *= 1 - raidFineReduction(this.undergroundTree)
       if (hasRaidInsurance(this.prestigeTree) && this.raidsToday === 0) finePct *= 0.5
+      if (this.insurance.illegal && this.raidsToday === 0) {
+        this.raidsToday++
+        this.addGazette(`${this.playerName.trim() || 'Baron'} — illegal koruma devreye girdi, baskın engellendi`, 'player')
+        break
+      }
+      finePct *= raidFineMult(this.insurance, this.raidsToday === 0)
       const fine = Math.floor(this.money * finePct)
       if (fine <= 0) continue
       this.money = Math.max(0, this.money - fine)
       this.illegalHeat = Math.min(100, this.illegalHeat + 20)
       this.raidsToday++
       this.totalRaidsCaught++
+      if (!this.insurance.business && !this.insurance.illegal) {
+        this.baronLifeRaidsUninsured++
+        if (p.tier >= 4) this.baronLifeFactoryRaidDamage = (this.baronLifeFactoryRaidDamage ?? 0) + 1
+      }
       this.addReputation(reputationFromRaid())
       this.emit({ type: 'illegal_raid', fine, producerId: p.id })
       this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
@@ -1140,6 +1336,18 @@ export class GameState {
       if (t === 'merchant' || t === 'diplomat') mult *= 1.05
     }
     mult *= 1 + this.legacyMonuments.length * 0.004
+    mult *= this.crisisIncomeMult
+    if (Date.now() < this.crisisHoldBonusUntil) mult *= 1.4
+    mult *= calendarPassiveMult()
+    mult *= 1 + franchiseIncomeBonus(this.franchises)
+    for (const hm of this.namedManagers) {
+      const def = namedManagerDef(hm.id)
+      if (def?.globalPassiveMult) mult *= 1 + def.globalPassiveMult
+    }
+    for (const act of this.undergroundMarketActive) {
+      const def = undergroundActionDef(act)
+      if (def.incomeMult) mult *= 1 + def.incomeMult
+    }
     return mult
   }
 
@@ -1160,6 +1368,7 @@ export class GameState {
     mult *= 1 + this.dayNightClickBonus()
     mult *= traitClickMult(activeDynastyTrait(this.dynasty))
     mult *= this.marketNewsClickMult()
+    mult *= calendarClickMult()
     return mult
   }
 
@@ -1185,6 +1394,14 @@ export class GameState {
       const club = this.empire.football.find((c) => c.clubId === def.id)
       if (club) mult *= empireFootballIncomeMult(club)
       mult *= researchFootballBonus(this.research)
+    }
+    for (const hm of this.namedManagers) {
+      const mdef = namedManagerDef(hm.id)
+      if (mdef?.producerMult?.[def.id]) mult *= 1 + mdef.producerMult[def.id]!
+      if (def.illegal && mdef?.illegalHeatReduce) mult *= 1 + 0.05
+    }
+    if (!this.producerModernized[def.id]) {
+      mult *= obsolescenceMult(def.tier, this.ipoCount)
     }
     return scaledBaseIncome(def.baseIncome, def) * owned * mult * this.passiveMultiplier()
   }
@@ -1294,15 +1511,18 @@ export class GameState {
       trait: randomChildTrait(),
       bornGameDay: day,
       educationXp: 0,
+      ...pickChildRiskProfile(),
     }
     this.dynasty.children.push(child)
+    this.addGazette(`👶 ${this.playerName.trim() || 'Baron'} ailesine ${child.name} doğdu — ${child.riskLabel}`, 'player')
     this.emit({ type: 'dynasty_update', kind: 'child_born', name: child.name })
   }
 
   private tickChildEducation(gameMsDelta: number): void {
     if (this.dynasty.children.length === 0) return
     const days = gameMsDelta / MS_PER_GAME_DAY
-    const gain = educationXpPerGameDay() * days
+    const academyMult = this.dynastyAcademyActive() ? 2 : 1
+    const gain = educationXpPerGameDay() * days * academyMult
     if (gain <= 0) return
     for (const child of this.dynasty.children) {
       if (child.educationXp >= CHILD_EDUCATION_MAX) continue
@@ -1340,6 +1560,7 @@ export class GameState {
     this.dynasty.pendingDeath = null
     this.recordChronicle('dynasty', '👑', `${child.name} imparatorluğu devraldı — ${this.dynasty.generation}. nesil`)
     this.triggerStoryBeat('succession')
+    this.resetBaronLifeTracking()
     this.emit({ type: 'dynasty_update', kind: 'succession', name: child.name })
     this.emit({ type: 'story_beat', beatId: 'succession', text: `${prevName} emekli oldu. ${child.name} (${SUCCESSION_START_AGE} yaş) imparatorluğu devraldı.` })
     return true
@@ -1412,6 +1633,8 @@ export class GameState {
       message: outcome.message,
     }
 
+    const record = this.finalizeBaronOnDeath(outcome.label, outcome.emoji, outcome.causeId)
+    this.emit({ type: 'baron_eulogy', record, hasHeir: this.dynasty.children.length > 0 })
     this.emit({
       type: 'player_death',
       age: outcome.age,
@@ -1421,10 +1644,6 @@ export class GameState {
       message: outcome.message,
       hasHeir: this.dynasty.children.length > 0,
     })
-
-    if (this.dynasty.children.length === 1) {
-      this.successionToChild(this.dynasty.children[0]!.id)
-    }
   }
 
   resolveDeathWithoutHeir(): boolean {
@@ -1435,6 +1654,7 @@ export class GameState {
     this.dynasty.pendingDeath = null
     this.dynasty.playerBornGameDay = gameDay(this.gameTimeMs)
     this.dynasty.playerStartAge = Math.max(PLAYER_START_AGE, death.age - 8)
+    this.resetBaronLifeTracking()
     this.emit({
       type: 'story_beat',
       beatId: 'death_no_heir',
@@ -1591,6 +1811,12 @@ export class GameState {
     } else {
       this.emit({ type: 'passive_income' })
     }
+    this.trackBaronPeak()
+  }
+
+  private trackBaronPeak(): void {
+    const nw = this.financeNetWorth()
+    if (nw > this.baronLifePeakNetWorth) this.baronLifePeakNetWorth = nw
   }
 
   ensureDailyGoal(): void {
@@ -1727,13 +1953,22 @@ export class GameState {
   producerCostFor(def: ProducerDef, owned: number, count = 1): number {
     const raw = producerCost(def, owned, count)
     const efficiencyDiscount = researchEfficiencyBonus(this.research)
-    return Math.floor(
+    let cost = Math.floor(
       raw
         * (1 - producerCostDiscount(this.prestigeTree))
         * (1 - efficiencyDiscount)
         * this.dynastyCostMult()
         * reputationCostMult(this.reputation),
     )
+    const cal = activeCalendarEvents()
+    const monday = cal.find((e) => e.id === 'monday_market')
+    const dayKey = localDayKey()
+    if (monday?.firstPurchaseDiscount && this.calendarPurchaseDay !== dayKey && owned === 0) {
+      cost = Math.floor(cost * (1 - monday.firstPurchaseDiscount))
+    }
+    const torpilDisc = torpilBusinessDiscount(this.torpil)
+    if (torpilDisc > 0) cost = Math.floor(cost * (1 - torpilDisc))
+    return cost
   }
 
   countMaxAffordable(id: string): number {
@@ -1746,9 +1981,16 @@ export class GameState {
     const def = PRODUCERS.find((p) => p.id === id)
     if (!def || !isProducerUnlocked(def, this.totalEarned, this.forcedUnlocks)) return false
     const owned = this.producers[id] ?? 0
-    if (def.category === 'politics' && owned === 0 && reputationPoliticsBlocked(this.reputation)) return false
+    if (def.category === 'politics' && owned === 0 && reputationPoliticsBlocked(this.reputation)) {
+      this.emit({ type: 'loan_denied', reason: 'Siyasi işletme kapalı — itibarın çok düşük (min 30)' })
+      return false
+    }
     const cost = this.producerCostFor(def, owned, count)
     if (!this.canAfford(cost)) return false
+    const dayKey = localDayKey()
+    if (owned === 0 && activeCalendarEvents().some((e) => e.id === 'monday_market')) {
+      this.calendarPurchaseDay = dayKey
+    }
     this.money -= cost
     this.producers[id] = owned + count
     this.businessesBoughtSession += count
@@ -1766,6 +2008,10 @@ export class GameState {
     }
     if (owned === 0) {
       this.recordChronicle('business', def.emoji, `${def.name} kuruldu`)
+    }
+    this.addGazette(headlinePurchase(this.playerName, def.name, owned + count), 'player')
+    if ((this.producers[id] ?? 0) >= FRANCHISE_UNLOCK_COUNT) {
+      this.addGazette(`${this.playerName.trim() || 'Baron'} — ${def.name} franchise açmaya hazır (${FRANCHISE_UNLOCK_COUNT}+ şube)`, 'player')
     }
     if (this.hasCodexLegalComplete()) {
       this.awardBadge('codex_legal')
@@ -1956,6 +2202,7 @@ export class GameState {
     this.bank.creditScore = Math.max(35, this.bank.creditScore - 18)
     this.bank.bankruptcyCooldownUntil = now + BANKRUPTCY_COOLDOWN_MS
     this.lastBankruptcyAt = now
+    this.bankruptcyCount++
     this.bankruptcyCashGraceSince = 0
     this.bankruptcyRecoveryPool = Math.max(0, Math.floor(loss * 0.85))
     this.bankruptcyRecoveryClaimed = false
@@ -2031,11 +2278,18 @@ export class GameState {
   bankTakeLoan(amount: number): boolean {
     const n = Math.floor(amount)
     if (n <= 0) return false
-    if (reputationLoanBlocked(this.reputation)) return false
+    if (reputationLoanBlocked(this.reputation) && !torpilBypassCreditScore(this.torpil)) {
+      this.addGazette(headlineLoanDenied(this.playerName), 'market')
+      this.emit({ type: 'loan_denied', reason: 'Banka kredi başvurunu reddetti — itibarın çok düşük' })
+      return false
+    }
     const nw = netWorth(this.money, portfolioValue(this.stock), this.bank)
     const cap = maxLoan(this.totalEarned, nw)
     if (this.bank.loan + n > cap) return false
     this.bank.loan += n
+    if (torpilBypassCreditScore(this.torpil) && reputationLoanBlocked(this.reputation)) {
+      this.addReputation(reputationFromScandal())
+    }
     this.addMoney(n)
     return true
   }
@@ -2074,7 +2328,7 @@ export class GameState {
   }
 
   maxAvailableLoan(): number {
-    if (reputationLoanBlocked(this.reputation)) return 0
+    if (reputationLoanBlocked(this.reputation) && !torpilBypassCreditScore(this.torpil)) return 0
     const cap = maxLoan(this.totalEarned, this.financeNetWorth())
     return Math.max(0, cap - this.bank.loan)
   }
@@ -2751,6 +3005,15 @@ export class GameState {
     this.money -= cost
     this.managers[producerId] = true
     this.managerDiscountActive = false
+    this.pendingUndo = {
+      id: `mgr_${producerId}_${Date.now()}`,
+      kind: 'manager_hire',
+      label: `${def.name} yöneticisini geri al`,
+      cost: Math.max(500, Math.floor(cost * 0.25)),
+      expiresAt: Date.now() + 60_000,
+      producerId,
+    }
+    this.emit({ type: 'undo_available', label: this.pendingUndo.label, cost: this.pendingUndo.cost, undoId: this.pendingUndo.id })
     this.emit({ type: 'manager_hired', producerId })
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
@@ -2988,9 +3251,22 @@ export class GameState {
       if (this.victoriesUnlocked.includes(id)) continue
       this.victoriesUnlocked.push(id)
       const def = victoryDef(id)
-      this.recordChronicle('victory', def.emoji, `${def.name} kazanıldı!`)
+      const unlock = mechanicForVictory(id)
+      if (!this.victoryMechanics.includes(unlock.mechanic)) {
+        this.victoryMechanics.push(unlock.mechanic)
+      }
+      this.recordChronicle('victory', def.emoji, `${def.name} — ${unlock.title} açıldı`)
+      this.addGazette(`${this.playerName.trim() || 'Baron'} ${def.name} yolunu tamamladı — ${unlock.title}`, 'player')
       this.emit({ type: 'victory_unlocked', victoryId: id, name: def.name, emoji: def.emoji })
+      this.emit({
+        type: 'victory_mechanic_unlocked',
+        victoryId: id,
+        title: unlock.title,
+        description: unlock.description,
+        emoji: unlock.emoji,
+      })
     }
+    this.refreshPlayerTitle()
   }
 
   checkWorldStage(): void {
@@ -3021,9 +3297,23 @@ export class GameState {
   private tickRivalFamilies(day: number): void {
     if (day === this.lastRivalTickDay) return
     this.lastRivalTickDay = day
-    const events = tickRivals(this.rivals, this.financeNetWorth(), this.producers)
+    const { events, allianceOffer } = tickRivals(
+      this.rivals,
+      this.financeNetWorth(),
+      this.producers,
+      this.reputation,
+      this.playerName,
+    )
     for (const ev of events) {
+      this.addGazette(ev.headline, ev.kind === 'alliance' ? 'rival' : 'rival')
       this.emit({ type: 'rival_action', rivalId: ev.rivalId, headline: ev.headline })
+    }
+    if (allianceOffer && !this.pendingRivalOffer) {
+      this.pendingRivalOffer = allianceOffer
+      this.emit({ type: 'rival_alliance_offer', offer: allianceOffer })
+    }
+    if (this.pendingRivalOffer && Date.now() > this.pendingRivalOffer.expiresAt) {
+      this.pendingRivalOffer = null
     }
     this.checkWorldStage()
     this.checkVictoryConditions()
@@ -3037,9 +3327,15 @@ export class GameState {
     )
     if (eligible.length === 0) return
     const child = eligible[Math.floor(Math.random() * eligible.length)]!
-    const types = ['gambler', 'illegal', 'scandal'] as const
-    const type = types[Math.floor(Math.random() * types.length)]!
+    const typeMap: Record<string, 'gambler' | 'illegal' | 'scandal'> = {
+      gambler: 'gambler',
+      illegal: 'illegal',
+      scandal: 'scandal',
+      low: 'gambler',
+    }
+    const type = typeMap[child.riskProfile] ?? 'gambler'
     this.childCrises.push({ childId: child.id, type })
+    this.baronLifeChildCrises++
     const messages = {
       gambler: `${child.name} kumar borçları biriktiriyor!`,
       illegal: `${child.name} illegal işlere bulaştı — heat artıyor!`,
@@ -3074,10 +3370,11 @@ export class GameState {
   rivalLobby(rivalId: string): boolean {
     const rival = rivalById(this.rivals, rivalId)
     if (!rival || rival.relation === 'merged') return false
-    const cost = Math.max(5000, this.incomePerDay() * 0.2)
+    const global = hasMechanic(this.victoryMechanics, 'global_lobby')
+    const cost = Math.max(5000, this.incomePerDay() * (global ? 0.14 : 0.2))
     if (!this.canAfford(cost)) return false
     this.money -= cost
-    lobbyAgainstRival(rival, cost)
+    lobbyAgainstRival(rival, cost, global)
     this.addReputation(reputationFromLobby())
     this.recordChronicle('rival', '🏛️', `${rival.name}'a karşı lobi yaptın`)
     this.emit({ type: 'money_changed' })
@@ -3112,6 +3409,584 @@ export class GameState {
 
   skylineTierCount(): number {
     return this.ownedBusinessTiers() + this.legacyMonuments.length
+  }
+
+  ownedProducerIds(): string[] {
+    return PRODUCERS.filter((p) => (this.producers[p.id] ?? 0) > 0).map((p) => p.id)
+  }
+
+  skylineWorldStageId(): WorldStageId {
+    return currentWorldStage(this.financeNetWorth()).id
+  }
+
+  addGazette(headline: string, category: GazetteCategory): void {
+    const day = gameDay(this.gameTimeMs)
+    this.gazetteEntries = pushGazette(this.gazetteEntries, headline, day, category)
+    this.emit({ type: 'gazette_headline', headline, category })
+  }
+
+  latestGazetteHeadlines(limit = 5): GazetteEntry[] {
+    return this.gazetteEntries.slice(0, limit)
+  }
+
+  refreshPlayerTitle(): PlayerTitleDef {
+    let illegalTypes = 0
+    for (const p of PRODUCERS) {
+      if (p.illegal && (this.producers[p.id] ?? 0) > 0) illegalTypes++
+    }
+    const title = computePlayerTitle({
+      reputation: this.reputation,
+      illegalHeat: this.illegalHeat,
+      illegalTypesOwned: illegalTypes,
+      politicsLevel: this.empire.politics.level,
+      bankruptcyCount: this.bankruptcyCount,
+      totalRaidsCaught: this.totalRaidsCaught,
+      lifetimeTotalEarned: this.lifetimeTotalEarned,
+    })
+    if (title.id !== this.playerTitleId) {
+      this.playerTitleId = title.id
+      this.emit({ type: 'player_title', title })
+    }
+    return title
+  }
+
+  playerTitle(): PlayerTitleDef {
+    return computePlayerTitle({
+      reputation: this.reputation,
+      illegalHeat: this.illegalHeat,
+      illegalTypesOwned: PRODUCERS.filter((p) => p.illegal && (this.producers[p.id] ?? 0) > 0).length,
+      politicsLevel: this.empire.politics.level,
+      bankruptcyCount: this.bankruptcyCount,
+      totalRaidsCaught: this.totalRaidsCaught,
+      lifetimeTotalEarned: this.lifetimeTotalEarned,
+    })
+  }
+
+  private tickMetaSystems(): void {
+    const day = gameDay(this.gameTimeMs)
+    this.tickCalendarEvents()
+    this.tickInsurance(day)
+    this.tickCommodities()
+    this.tickInvestmentOffers(day)
+    this.tickPendingInvestments(day)
+    this.maybeSpawnCrisis(day)
+    this.tickCrisisExpiry()
+    this.tickTorpilGifts(day)
+    this.maybeNaturalDisaster(day)
+    this.tickUndoExpiry()
+    if (day % 7 === 0 && day !== this.advisorTipDay) {
+      this.advisorTipDay = day
+      this.advisorTip = rollAdvisorTip(this.stock.marketFear, day)
+    }
+    if (day % 30 === 0 && day > 0) {
+      const rival = this.rivals.find((r) => r.relation !== 'merged')
+      const amt = formatMoney(this.incomePerDay() * 30)
+      this.addGazette(
+        headlineMonthlyIncome(this.playerName, amt, rival?.name),
+        'player',
+      )
+    }
+  }
+
+  private tickCalendarEvents(): void {
+    const dayKey = localDayKey()
+    if (this.lastCalendarEmitDay === dayKey) return
+    for (const ev of activeCalendarEvents()) {
+      this.addGazette(ev.headline, 'calendar')
+      this.emit({ type: 'calendar_event', headline: ev.headline, emoji: ev.emoji })
+    }
+    this.lastCalendarEmitDay = dayKey
+  }
+
+  private tickInsurance(day: number): void {
+    if (day === this.lastInsuranceChargeDay) return
+    this.lastInsuranceChargeDay = day
+    const cost = insuranceDailyCost(this.insurance)
+    if (cost > 0 && this.money >= cost) {
+      this.money -= cost
+      this.emit({ type: 'money_changed' })
+    }
+  }
+
+  private tickCommodities(): void {
+    if (Date.now() - this.lastCommodityTick < 8000) return
+    this.lastCommodityTick = Date.now()
+    tickCommodityPrices(this.commodities)
+  }
+
+  private tickInvestmentOffers(day: number): void {
+    if (this.investmentOffer && Date.now() > this.investmentOffer.expiresAt) {
+      this.investmentOffer = null
+    }
+    if (day - this.lastInvestmentOfferDay < 5) return
+    if (this.investmentOffer) return
+    this.lastInvestmentOfferDay = day
+    const offer = createStartupOffer(this.incomePerDay(), day)
+    this.investmentOffer = offer
+    this.emit({ type: 'investment_offer', offer })
+  }
+
+  private tickPendingInvestments(day: number): void {
+    const resolved: PendingInvestment[] = []
+    for (const inv of this.pendingInvestments) {
+      if (day < inv.resolveGameDay) continue
+      const roll = inv.minReturn + Math.random() * (inv.maxReturn - inv.minReturn)
+      const payout = Math.floor(inv.cost * roll)
+      this.addMoney(payout)
+      this.addGazette(`${this.playerName.trim() || 'Baron'} startup yatırımından ${formatMoney(payout)} aldı`, 'market')
+      resolved.push(inv)
+    }
+    if (resolved.length > 0) {
+      this.pendingInvestments = this.pendingInvestments.filter((i) => !resolved.includes(i))
+    }
+  }
+
+  private maybeSpawnCrisis(day: number): void {
+    if (this.activeCrisis && !this.activeCrisis.resolved) return
+    if (day - this.lastCrisisGameDay < 15) return
+    if (Math.random() > 0.08) return
+    const id = pickRandomCrisis()
+    const def = crisisDef(id)
+    this.activeCrisis = {
+      crisisId: id,
+      startedAt: Date.now(),
+      expiresAt: Date.now() + def.durationMs,
+      resolved: false,
+    }
+    this.lastCrisisGameDay = day
+    this.addGazette(headlineCrisis(this.playerName, def.title), 'crisis')
+    this.emit({ type: 'crisis_started', crisisId: id, title: def.title })
+  }
+
+  private tickCrisisExpiry(): void {
+    if (!this.activeCrisis || this.activeCrisis.resolved) return
+    if (Date.now() <= this.activeCrisis.expiresAt) return
+    this.resolveCrisis('timeout')
+  }
+
+  resolveCrisis(choiceId: string): boolean {
+    if (!this.activeCrisis || this.activeCrisis.resolved) return false
+    const id = this.activeCrisis.crisisId
+    const def = crisisDef(id)
+    let summary = ''
+    this.activeCrisis.resolved = true
+
+    if (id === 'economic') {
+      if (choiceId === 'sell') {
+        this.crisisIncomeMult = 0.8
+        summary = 'Erken çıktın — gelir geçici -%20'
+        window.setTimeout(() => { this.crisisIncomeMult = 1 }, 60_000)
+      } else if (choiceId === 'hold') {
+        this.crisisIncomeMult = 0.6
+        this.crisisHoldBonusUntil = Date.now() + 90_000
+        summary = 'Tut ve bekle — kriz sonrası +%40 bonus şansı'
+        window.setTimeout(() => { this.crisisIncomeMult = 1 }, 90_000)
+      } else if (choiceId === 'buy') {
+        const loan = Math.min(this.maxAvailableLoan(), Math.floor(this.incomePerDay() * 5))
+        if (loan > 0) this.bankTakeLoan(loan)
+        this.crisisHoldBonusUntil = Date.now() + 120_000
+        summary = 'Ucuza aldın — büyük fırsat penceresi açık'
+      } else {
+        this.crisisIncomeMult = 0.6
+        summary = 'Kararsız kaldın — gelir baskı altında'
+        window.setTimeout(() => { this.crisisIncomeMult = 1 }, 60_000)
+      }
+    } else if (id === 'scandal') {
+      if (choiceId === 'lobby') {
+        const cost = Math.max(8000, this.incomePerDay() * 0.25)
+        if (this.canAfford(cost)) {
+          this.money -= cost
+          this.addReputation(reputationFromLobby())
+          summary = 'Lobi yaptın — itibar korundu'
+        } else summary = 'Lobi için para yetmedi — itibar düştü'
+      } else if (choiceId === 'pay') {
+        const fine = Math.max(5000, this.incomePerDay() * 0.15)
+        if (this.canAfford(fine)) this.money -= fine
+        this.addReputation(-5)
+        summary = 'Para cezası ödendi'
+      } else {
+        this.addReputation(reputationFromScandal())
+        summary = 'Reddettin — medya saldırıyor'
+      }
+    } else if (id === 'rival_attack') {
+      const rival = this.rivals.find((r) => r.relation !== 'merged')
+      if (choiceId === 'pricewar') {
+        this.crisisIncomeMult = 0.75
+        if (rival) rival.attitude = Math.max(-100, rival.attitude - 5)
+        summary = 'Fiyat savaşı — gelir geçici -%25'
+        window.setTimeout(() => { this.crisisIncomeMult = 1 }, 75_000)
+      } else if (choiceId === 'retreat') {
+        this.crisisIncomeMult = 0.85
+        summary = 'Sektörden çekildin — 3 gün düşük gelir'
+        window.setTimeout(() => { this.crisisIncomeMult = 1 }, 90_000)
+      } else if (rival) {
+        const cost = mergeRivalCost(rival) * 0.15
+        if (this.canAfford(cost)) {
+          this.money -= cost
+          cooperateWithRival(rival)
+          summary = `${rival.name} ile masaya oturdun`
+        } else summary = 'Birleşme masası için para yetmedi'
+      }
+    }
+
+    this.addGazette(`${this.playerName.trim() || 'Baron'}: ${def.title} — ${summary}`, 'crisis')
+    this.emit({ type: 'crisis_resolved', crisisId: id, choiceId, summary })
+    this.activeCrisis = null
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  toggleInsurance(kind: keyof InsuranceState): void {
+    this.insurance[kind] = !this.insurance[kind]
+  }
+
+  buyCommodity(id: CommodityId, units: number): boolean {
+    const price = this.commodities.prices[id] ?? 0
+    const cost = Math.floor(price * units)
+    if (cost <= 0 || !this.canAfford(cost)) return false
+    this.money -= cost
+    const prev = this.commodities.holdings[id] ?? 0
+    const prevAvg = this.commodities.avgBuy[id] ?? 0
+    this.commodities.holdings[id] = prev + units
+    this.commodities.avgBuy[id] = prev > 0 ? (prevAvg * prev + price * units) / (prev + units) : price
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  sellCommodity(id: CommodityId, units: number): boolean {
+    const held = this.commodities.holdings[id] ?? 0
+    if (units <= 0 || units > held) return false
+    const price = this.commodities.prices[id] ?? 0
+    this.commodities.holdings[id] = held - units
+    this.addMoney(Math.floor(price * units))
+    return true
+  }
+
+  acceptInvestmentOffer(): boolean {
+    if (!this.investmentOffer) return false
+    const offer = this.investmentOffer
+    if (!this.canAfford(offer.cost)) return false
+    this.money -= offer.cost
+    this.pendingInvestments.push({
+      offerId: offer.id,
+      cost: offer.cost,
+      resolveGameDay: offer.resolveGameDay,
+      minReturn: offer.minReturn,
+      maxReturn: offer.maxReturn,
+    })
+    this.investmentOffer = null
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  dismissInvestmentOffer(): void {
+    this.investmentOffer = null
+  }
+
+  canOpenFranchise(producerId: string): boolean {
+    return (this.producers[producerId] ?? 0) >= FRANCHISE_UNLOCK_COUNT
+  }
+
+  openFranchise(producerId: string, city: FranchiseCity): boolean {
+    if (!this.canOpenFranchise(producerId)) return false
+    const cityDef = FRANCHISE_CITIES.find((c) => c.id === city)
+    if (!cityDef || this.reputation < cityDef.repReq) {
+      this.emit({ type: 'loan_denied', reason: `${cityDef?.label ?? city} franchise için itibar yetersiz (min ${cityDef?.repReq ?? FRANCHISE_REPUTATION_MIN})` })
+      return false
+    }
+    if (!this.canAfford(FRANCHISE_COST)) return false
+    if (this.franchises.some((f) => f.producerId === producerId && f.city === city)) return false
+    this.money -= FRANCHISE_COST
+    this.franchises.push({
+      producerId,
+      city,
+      openedGameDay: gameDay(this.gameTimeMs),
+      incomeMult: 0.08,
+    })
+    const p = PRODUCERS.find((x) => x.id === producerId)
+    this.addGazette(`${this.playerName.trim() || 'Baron'} ${cityDef.label}'de ${p?.name ?? 'işletme'} franchise açtı`, 'player')
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  hireNamedManager(id: NamedManagerId): boolean {
+    if (this.namedManagers.some((m) => m.id === id)) return false
+    const def = namedManagerDef(id)
+    if (!def || !this.canAfford(def.hireCost)) return false
+    this.money -= def.hireCost
+    this.namedManagers.push({ id, hiredGameDay: gameDay(this.gameTimeMs) })
+    this.pendingUndo = {
+      id: `nm_${id}_${Date.now()}`,
+      kind: 'named_manager',
+      label: `${def.name} işe alımını geri al`,
+      cost: Math.max(1000, Math.floor(def.hireCost * 0.2)),
+      expiresAt: Date.now() + 60_000,
+      namedManagerId: id,
+    }
+    this.emit({ type: 'undo_available', label: this.pendingUndo.label, cost: this.pendingUndo.cost, undoId: this.pendingUndo.id })
+    this.addGazette(`${def.name} ${this.playerName.trim() || 'Baron'}'un ekibine katıldı`, 'player')
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  acceptRivalAllianceOffer(): boolean {
+    if (!this.pendingRivalOffer) return false
+    const rival = rivalById(this.rivals, this.pendingRivalOffer.rivalId)
+    if (!rival) return false
+    acceptRivalAlliance(rival)
+    this.addGazette(`${rival.name} ile sektör paylaşım anlaşması imzalandı`, 'rival')
+    this.pendingRivalOffer = null
+    return true
+  }
+
+  declineRivalAlliance(): void {
+    this.pendingRivalOffer = null
+  }
+
+  toggleUndergroundMarket(action: UndergroundMarketAction): boolean {
+    if (!hasMechanic(this.victoryMechanics, 'shadow_network') && action === 'intel_leak') return false
+    const idx = this.undergroundMarketActive.indexOf(action)
+    if (idx >= 0) {
+      this.undergroundMarketActive.splice(idx, 1)
+      return true
+    }
+    const def = undergroundActionDef(action)
+    if (!this.canAfford(def.dailyCost)) return false
+    this.undergroundMarketActive.push(action)
+    this.illegalHeat = Math.min(100, this.illegalHeat + def.heatGain)
+    this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
+    return true
+  }
+
+  payAdvisorTip(): AdvisorTip | null {
+    if (!this.advisorTip || !this.canAfford(ADVISOR_FEE)) return null
+    this.money -= ADVISOR_FEE
+    this.emit({ type: 'money_changed' })
+    return this.advisorTip
+  }
+
+  hasVictoryMechanic(m: VictoryMechanic): boolean {
+    return hasMechanic(this.victoryMechanics, m)
+  }
+
+  dynastyAcademyActive(): boolean {
+    return hasMechanic(this.victoryMechanics, 'dynasty_academy')
+  }
+
+  progressPath(): ProgressPathSnapshot {
+    return progressPathSnapshot(this.totalEarned)
+  }
+
+  baronDynastySummary(): ReturnType<typeof dynastyHistorySummary> {
+    return dynastyHistorySummary(this.baronHistory)
+  }
+
+  activeCityId(): CityId {
+    return this.cities.activeCity
+  }
+
+  private finalizeBaronOnDeath(causeLabel: string, causeEmoji: string, causeId: DeathCauseId): BaronRecord {
+    const birthYear = gameCalendarDate((this.currentBaronStartedGameDay - 1) * MS_PER_GAME_DAY).getUTCFullYear()
+    const deathYear = gameYear(this.gameTimeMs)
+    const club = this.empire.football.find((c) => (this.producers[c.clubId] ?? 0) > 0)
+    const stage = currentWorldStage(this.baronLifePeakNetWorth)
+    const snapshot: BaronLifeSnapshot = {
+      playerName: this.playerName,
+      birthYear,
+      deathYear,
+      age: this.playerAge(),
+      startedGameDay: this.currentBaronStartedGameDay,
+      deathGameDay: gameDay(this.gameTimeMs),
+      causeId,
+      causeLabel,
+      causeEmoji,
+      peakNetWorth: this.baronLifePeakNetWorth,
+      totalEarnedLife: Math.max(0, this.totalEarned - this.baronLifeEarnedStart),
+      generation: this.dynasty.generation,
+      politicsLevel: this.empire.politics.level,
+      hasFootballClub: !!club,
+      footballLeague: club ? leagueName(club.leagueLevel) : '',
+      childCrisisCount: this.baronLifeChildCrises,
+      raidsWithoutInsurance: this.baronLifeRaidsUninsured,
+      hadInsurance: this.insurance.business || this.insurance.illegal || this.insurance.dynasty,
+      factoriesLostToRaid: this.baronLifeFactoryRaidDamage,
+      nearPresidency: this.empire.politics.level === 'bakan' && this.presidentSeasons >= 2,
+      victoriesCount: this.victoriesUnlocked.length,
+      reachedForbes: stage.id === 'forbes' || stage.id === 'endgame',
+      baronNumber: this.baronCounter,
+    }
+    const record = buildBaronRecord(snapshot)
+    this.baronHistory = [record, ...this.baronHistory].slice(0, 50)
+    this.baronCounter++
+    return record
+  }
+
+  private resetBaronLifeTracking(): void {
+    this.currentBaronStartedGameDay = gameDay(this.gameTimeMs)
+    this.baronLifePeakNetWorth = this.financeNetWorth()
+    this.baronLifeEarnedStart = this.totalEarned
+    this.baronLifeRaidsUninsured = 0
+    this.baronLifeChildCrises = 0
+    this.baronLifeFactoryRaidDamage = 0
+    this.dynasty.pendingDeath = null
+  }
+
+  sellProducer(id: string, count = 1): boolean {
+    const owned = this.producers[id] ?? 0
+    if (count <= 0 || count > owned) return false
+    const def = PRODUCERS.find((p) => p.id === id)
+    if (!def) return false
+    const refund = Math.floor(this.producerCostFor(def, owned - count, count) * 0.55)
+    this.producers[id] = owned - count
+    if (hasManager(this.managers, id) && (this.producers[id] ?? 0) <= 0) {
+      this.managers[id] = false
+    }
+    syncEmpireFromProducers(this.empire, this.producers)
+    this.addMoney(refund)
+    this.pendingUndo = {
+      id: `sell_${id}_${Date.now()}`,
+      kind: 'sell_producer',
+      label: `${def.name} satışını geri al`,
+      cost: Math.max(200, Math.floor(refund * 0.12)),
+      expiresAt: Date.now() + 10_000,
+      producerId: id,
+      soldCount: count,
+      soldCost: refund,
+    }
+    this.emit({ type: 'undo_available', label: this.pendingUndo.label, cost: this.pendingUndo.cost, undoId: this.pendingUndo.id })
+    this.emit({ type: 'purchase' })
+    return true
+  }
+
+  executeUndo(): boolean {
+    const u = this.pendingUndo
+    if (!u || Date.now() > u.expiresAt) return false
+    if (!this.canAfford(u.cost)) return false
+    this.money -= u.cost
+    if (u.kind === 'manager_hire' && u.producerId) {
+      this.managers[u.producerId] = false
+    } else if (u.kind === 'named_manager' && u.namedManagerId) {
+      this.namedManagers = this.namedManagers.filter((m) => m.id !== u.namedManagerId)
+    } else if (u.kind === 'sell_producer' && u.producerId && u.soldCount) {
+      this.producers[u.producerId] = (this.producers[u.producerId] ?? 0) + u.soldCount
+      if (u.soldCost) this.money = Math.max(0, this.money - u.soldCost)
+      syncEmpireFromProducers(this.empire, this.producers)
+    }
+    this.pendingUndo = null
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  dismissUndo(): void {
+    this.pendingUndo = null
+  }
+
+  private tickUndoExpiry(): void {
+    if (this.pendingUndo && Date.now() > this.pendingUndo.expiresAt) {
+      this.pendingUndo = null
+    }
+  }
+
+  unlockCity(id: CityId): boolean {
+    const check = canUnlockCity(id, this.cities, this.money, this.reputation, this.ipoCount)
+    if (!check.ok) return false
+    const def = cityDef(id)
+    this.money -= def.unlockCost
+    this.cities.unlocked.push(id)
+    this.cities.cityReputation[id] = Math.max(def.repReq, 40)
+    this.addGazette(`${this.playerName.trim() || 'Baron'} ${def.label}'yi fethetti`, 'player')
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  setActiveCity(id: CityId): boolean {
+    if (!this.cities.unlocked.includes(id)) return false
+    this.cities.activeCity = id
+    return true
+  }
+
+  hireTorpil(id: TorpilId): boolean {
+    const contact = this.torpil.find((t) => t.id === id)
+    const def = torpilDef(id)
+    if (!contact || contact.active || !this.canAfford(def.hireCost)) return false
+    this.money -= def.hireCost
+    contact.active = true
+    contact.lastGiftGameDay = gameDay(this.gameTimeMs)
+    this.addGazette(`${def.name} torpil ağına katıldı`, 'player')
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  payTorpilGift(id: TorpilId): boolean {
+    const contact = this.torpil.find((t) => t.id === id)
+    const def = torpilDef(id)
+    if (!contact?.active || !contact.giftDue || !this.canAfford(def.giftCost)) return false
+    this.money -= def.giftCost
+    contact.giftDue = false
+    contact.lastGiftGameDay = gameDay(this.gameTimeMs)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  private tickTorpilGifts(day: number): void {
+    for (const t of this.torpil) {
+      if (!t.active) continue
+      const def = torpilDef(t.id)
+      if (day - t.lastGiftGameDay >= def.giftIntervalDays) {
+        t.giftDue = true
+      }
+    }
+  }
+
+  modernizeProducer(id: string): boolean {
+    const def = PRODUCERS.find((p) => p.id === id)
+    if (!def || (this.producers[id] ?? 0) <= 0) return false
+    if (this.producerModernized[id]) return false
+    const cost = modernizeCost(def.tier, this.producers[id] ?? 0)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.producerModernized[id] = true
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  obsolescenceLabel(producerId: string): string | null {
+    const def = PRODUCERS.find((p) => p.id === producerId)
+    if (!def || this.ipoCount <= 0 || this.producerModernized[producerId]) return null
+    const mult = obsolescenceMult(def.tier, this.ipoCount)
+    if (mult >= 0.98) return null
+    return `Teknoloji eskidi — gelir ${Math.round(mult * 100)}%`
+  }
+
+  private maybeNaturalDisaster(day: number): void {
+    if (day - this.lastDisasterGameDay < 20) return
+    if (Math.random() > 0.04) return
+    const disaster = pickDisaster(this.cities.activeCity)
+    if (!disaster) return
+    this.lastDisasterGameDay = day
+    const insured = this.insurance.business
+    const damage = disasterDamage(disaster.baseDamage, this.incomePerDay(), insured)
+    if (damage > 0) {
+      this.money = Math.max(0, this.money - damage)
+      this.emit({ type: 'money_changed' })
+    }
+    const cityLabel = cityDef(this.cities.activeCity).label
+    this.addGazette(
+      `${disaster.emoji} ${disaster.title} — ${cityLabel}'i etkiledi${insured ? ' (sigorta devrede)' : ` — ${formatMoney(damage)} zarar`}`,
+      'crisis',
+    )
+    this.emit({
+      type: 'disaster_hit',
+      title: disaster.title,
+      emoji: disaster.emoji,
+      city: cityLabel,
+      damage,
+      insured,
+    })
+  }
+
+  isCrisisActive(): boolean {
+    return this.activeCrisis !== null && !this.activeCrisis.resolved
   }
 
   private checkAchievements(): void {
@@ -3267,6 +4142,42 @@ export class GameState {
       presidentSinceSeasonKey: this.presidentSinceSeasonKey,
       lastWorldStageId: this.lastWorldStageId,
       childCrises: this.childCrises.map((c) => ({ ...c })),
+      gazetteEntries: this.gazetteEntries.map((e) => ({ ...e })),
+      activeCrisis: this.activeCrisis ? { ...this.activeCrisis } : null,
+      crisisIncomeMult: this.crisisIncomeMult,
+      crisisHoldBonusUntil: this.crisisHoldBonusUntil,
+      victoryMechanics: [...this.victoryMechanics],
+      bankruptcyCount: this.bankruptcyCount,
+      insurance: { ...this.insurance },
+      commodities: structuredClone(this.commodities),
+      investmentOffer: this.investmentOffer ? { ...this.investmentOffer } : null,
+      pendingInvestments: this.pendingInvestments.map((i) => ({ ...i })),
+      franchises: this.franchises.map((f) => ({ ...f })),
+      namedManagers: this.namedManagers.map((m) => ({ ...m })),
+      pendingRivalOffer: this.pendingRivalOffer ? { ...this.pendingRivalOffer } : null,
+      undergroundMarketActive: [...this.undergroundMarketActive],
+      advisorTip: this.advisorTip ? { ...this.advisorTip } : null,
+      advisorTipDay: this.advisorTipDay,
+      calendarPurchaseDay: this.calendarPurchaseDay,
+      lastCrisisGameDay: this.lastCrisisGameDay,
+      lastInvestmentOfferDay: this.lastInvestmentOfferDay,
+      playerTitleId: this.playerTitleId,
+      baronHistory: this.baronHistory.map((b) => ({ ...b, achievements: [...b.achievements], weaknesses: [...b.weaknesses] })),
+      baronCounter: this.baronCounter,
+      currentBaronStartedGameDay: this.currentBaronStartedGameDay,
+      baronLifePeakNetWorth: this.baronLifePeakNetWorth,
+      baronLifeEarnedStart: this.baronLifeEarnedStart,
+      baronLifeRaidsUninsured: this.baronLifeRaidsUninsured,
+      baronLifeChildCrises: this.baronLifeChildCrises,
+      cities: {
+        unlocked: [...this.cities.unlocked],
+        activeCity: this.cities.activeCity,
+        cityReputation: { ...this.cities.cityReputation },
+      },
+      torpil: this.torpil.map((t) => ({ ...t })),
+      producerModernized: { ...this.producerModernized },
+      pendingUndo: this.pendingUndo ? { ...this.pendingUndo } : null,
+      lastDisasterGameDay: this.lastDisasterGameDay,
     }
   }
 
@@ -3422,9 +4333,7 @@ export class GameState {
     this.surpriseInvestorUntil = 0
     syncEmpireFromProducers(this.empire, this.producers)
     if (this.dynasty.children.length > 0) {
-      for (const c of this.dynasty.children) {
-        if (c.educationXp === undefined) c.educationXp = 0
-      }
+      this.dynasty.children = this.dynasty.children.map((c) => migrateChildRecord(c))
     }
     if (this.dynasty.playerBornGameDay === undefined) this.dynasty.playerBornGameDay = 1
     if (this.dynasty.playerStartAge === undefined) this.dynasty.playerStartAge = 18
@@ -3436,15 +4345,60 @@ export class GameState {
     this.lastBankruptcyAt = data.lastBankruptcyAt ?? 0
     this.bankruptcyCashGraceSince = data.bankruptcyCashGraceSince ?? 0
     this.reputation = data.reputation ?? REPUTATION_START
-    this.rivals = data.rivals?.length ? data.rivals.map((r) => ({ ...r, sectorFocus: [...r.sectorFocus] })) : createRivalsState()
+    this.rivals = data.rivals?.length
+      ? data.rivals.map((r) => ({
+          ...r,
+          sectorFocus: [...r.sectorFocus],
+          personality: r.personality ?? rivalDef(r.id)?.personality ?? 'conservative',
+          copiedSector: r.copiedSector ?? null,
+        }))
+      : createRivalsState()
     this.chronicle = data.chronicle ?? []
     this.legacyMonuments = data.legacyMonuments ?? []
     this.victoriesUnlocked = data.victoriesUnlocked ?? []
+    this.victoryMechanics = data.victoryMechanics ?? []
+    for (const vid of this.victoriesUnlocked) {
+      const unlock = mechanicForVictory(vid)
+      if (!this.victoryMechanics.includes(unlock.mechanic)) {
+        this.victoryMechanics.push(unlock.mechanic)
+      }
+    }
     this.totalRaidsCaught = data.totalRaidsCaught ?? 0
     this.presidentSeasons = data.presidentSeasons ?? 0
     this.presidentSinceSeasonKey = data.presidentSinceSeasonKey ?? null
     this.lastWorldStageId = data.lastWorldStageId ?? currentWorldStage(netWorth(this.money, portfolioValue(this.stock), this.bank)).id
     this.childCrises = data.childCrises ?? []
+    this.gazetteEntries = data.gazetteEntries ?? []
+    this.activeCrisis = data.activeCrisis ?? null
+    this.crisisIncomeMult = data.crisisIncomeMult ?? 1
+    this.crisisHoldBonusUntil = data.crisisHoldBonusUntil ?? 0
+    this.bankruptcyCount = data.bankruptcyCount ?? 0
+    this.insurance = data.insurance ? { ...createInsuranceState(), ...data.insurance } : createInsuranceState()
+    this.commodities = data.commodities ?? createCommodityMarket()
+    this.investmentOffer = data.investmentOffer ?? null
+    this.pendingInvestments = data.pendingInvestments ?? []
+    this.franchises = data.franchises ?? []
+    this.namedManagers = data.namedManagers ?? []
+    this.pendingRivalOffer = data.pendingRivalOffer ?? null
+    this.undergroundMarketActive = data.undergroundMarketActive ?? []
+    this.advisorTip = data.advisorTip ?? null
+    this.advisorTipDay = data.advisorTipDay ?? 0
+    this.calendarPurchaseDay = data.calendarPurchaseDay ?? ''
+    this.lastCrisisGameDay = data.lastCrisisGameDay ?? 0
+    this.lastInvestmentOfferDay = data.lastInvestmentOfferDay ?? 0
+    this.playerTitleId = data.playerTitleId ?? 'tycoon'
+    this.baronHistory = data.baronHistory ?? []
+    this.baronCounter = data.baronCounter ?? 1
+    this.currentBaronStartedGameDay = data.currentBaronStartedGameDay ?? 1
+    this.baronLifePeakNetWorth = data.baronLifePeakNetWorth ?? this.financeNetWorth()
+    this.baronLifeEarnedStart = data.baronLifeEarnedStart ?? 0
+    this.baronLifeRaidsUninsured = data.baronLifeRaidsUninsured ?? 0
+    this.baronLifeChildCrises = data.baronLifeChildCrises ?? 0
+    this.cities = data.cities ?? createCityState()
+    this.torpil = data.torpil?.length ? data.torpil.map((t) => ({ ...t })) : createTorpilState()
+    this.producerModernized = data.producerModernized ?? {}
+    this.pendingUndo = data.pendingUndo ?? null
+    this.lastDisasterGameDay = data.lastDisasterGameDay ?? 0
     this.lastSaveTime = data.lastSaveTime
     this.isNight = isGameNight(this.gameTimeMs)
     this.ensureDailyGoal()

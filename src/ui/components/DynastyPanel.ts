@@ -176,6 +176,7 @@ export class DynastyPanel {
       <div>
         <strong>${c.name}</strong>
         <small>${TRAIT_LABEL[c.trait]}</small>
+        <small class="child-risk-warn">${c.riskLabel ?? ''}</small>
         <small>Gün ${c.bornGameDay}'de doğdu · Eğitim ${Math.floor(c.educationXp ?? 0)}%</small>
       </div>
     `

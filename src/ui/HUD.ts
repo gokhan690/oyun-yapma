@@ -3,8 +3,13 @@ import type { AdManager } from '../ads/AdManager'
 import type { SoundManager } from '../audio/SoundManager'
 import type { SaveManager } from '../security/SaveManager'
 import { formatMoney, formatIncomeRate, PRODUCERS, earlyUnlockCost, scaledUnlockAt, isProducerUnlocked } from '../game/Economy'
+import { formatGazetteDate } from '../game/BaronGazette'
+import { crisisDef } from '../game/CrisisEvents'
+import { buildSkylineBuildings } from './Skyline'
+import { cityDef } from '../game/ExpansionMap'
+import { formatProgressLine } from '../game/ProgressPath'
+import type { BaronRecord } from '../game/BaronLegacy'
 import { assetUrl } from '../utils/assetUrl'
-import type { DeathCauseId } from '../game/Mortality'
 import { currentRank, rankProgress } from '../game/PlayerRank'
 import { dayBonusExtra, nightBonusExtra } from '../game/PrestigeTree'
 import { StatsBar } from './components/StatsBar'
@@ -34,7 +39,7 @@ import { EventDirector } from '../game/EventDirector'
 import type { GameEventDef } from '../game/Events'
 import { activeTicker } from '../game/StockMarket'
 import { iapManager } from '../monetization/IAPManager'
-import { hapticLight, hapticHeavy } from '../utils/haptics'
+import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
 import { navLockReason, isShopHubLocked, shopHubLockReason } from '../game/ProgressiveUnlock'
 
 export class HUD {
@@ -57,6 +62,8 @@ export class HUD {
   private sessionPassiveIncome!: HTMLElement
   private profileChip!: HTMLButtonElement
   private worldMetaChip!: HTMLElement
+  private gazetteBanner!: HTMLElement
+  private progressPathWidget!: HTMLElement
   private heatMeterFill!: HTMLElement
   private heatMeterLabel!: HTMLElement
   private heatMeterRow!: HTMLElement
@@ -133,6 +140,11 @@ export class HUD {
     this.tutorial.setTabHandler((tab) => this.shop.setTab(tab, this.state))
     this.build()
     this.skyline = new Skyline(this.tapArea.parentElement!)
+    this.skyline.setBuildingClickHandler((producerId) => {
+      const p = PRODUCERS.find((x) => x.id === producerId)
+      const income = this.state.producerIncome(p!)
+      this.modals.showToast(this.root, `${p?.emoji ?? ''} ${p?.name ?? producerId}: ${formatIncomeRate(income)}`)
+    })
     this.particles = new ParticleSystem(this.tapArea.parentElement!)
     this.bindEvents()
     this.renderAll()
@@ -245,7 +257,12 @@ export class HUD {
     this.profileChip.dataset.id = 'profile'
     this.worldMetaChip = document.createElement('div')
     this.worldMetaChip.className = 'world-meta-chip'
-    header.append(titleRow, this.worldMetaChip, this.profileChip, this.statsBar.root)
+    this.gazetteBanner = document.createElement('div')
+    this.gazetteBanner.className = 'gazette-banner'
+    this.gazetteBanner.hidden = true
+    this.progressPathWidget = document.createElement('div')
+    this.progressPathWidget.className = 'progress-path-widget'
+    header.append(titleRow, this.worldMetaChip, this.gazetteBanner, this.progressPathWidget, this.profileChip, this.statsBar.root)
 
     const main = document.createElement('main')
     main.className = 'game-main'
@@ -600,7 +617,12 @@ export class HUD {
         this.shop.render(this.state, true)
       }
       if (ev.type === 'click') {
-        this.sound.playClick(ev.critical)
+        this.sound.playClick(ev.critical, ev.combo)
+        this.sound.playCombo(ev.combo)
+        if (this.state.hapticsEnabled) {
+          void hapticLight()
+          if (ev.combo >= 10 && ev.combo % 5 === 0) void hapticCombo10()
+        }
         if (ev.critical) {
           this.particles.spawnCritical(ev.x, ev.y)
           void hapticHeavy()
@@ -612,10 +634,19 @@ export class HUD {
           this.particles.spawnCoins(ev.x, ev.y)
         }
         this.spawnFloat(ev.amount, ev.x, ev.y, ev.critical)
+        this.renderCombo(ev.combo, this.state.comboMultiplier)
+        if (ev.combo >= 25) {
+          this.tapWrap.classList.add('combo-fire')
+          window.setTimeout(() => this.tapWrap.classList.remove('combo-fire'), 400)
+        } else if (ev.combo >= 10) {
+          this.tapWrap.classList.add('combo-heat')
+          window.setTimeout(() => this.tapWrap.classList.remove('combo-heat'), 300)
+        }
       }
       if (ev.type === 'combo_changed') this.renderCombo(ev.combo, ev.multiplier)
       if (ev.type === 'purchase' || ev.type === 'manager_hired' || ev.type === 'auto_buy') {
         this.sound.playPurchase()
+        if (this.state.hapticsEnabled) void hapticPurchase()
         this.particles.spawnPurchasePulse()
         if (ev.type === 'purchase') {
           this.particles.spawnMoneyToHeader()
@@ -624,11 +655,12 @@ export class HUD {
         }
         this.statsBar.updateMeta()
         this.refreshShop(true)
-        this.skyline.update(this.state.skylineTierCount(), this.state.gameTimeMs, this.state.legacyMonuments)
+        this.refreshSkyline()
       }
       if (ev.type === 'prestige') {
         this.sound.playPrestige()
-        void hapticHeavy()
+        if (this.state.hapticsEnabled) void hapticIpo()
+        this.sound.setAmbient('day')
         this.skyline.flashUpgrade()
         this.showIpoAnimation(ev.points)
         this.renderAll()
@@ -681,6 +713,7 @@ export class HUD {
         if (ev.type === 'day_night') {
           this.renderMarketNewsBanner()
           this.statsBar.updateMeta()
+          this.sound.setAmbient(ev.isNight ? 'night' : 'day')
           this.refreshShop(true)
         } else {
           this.statsBar.tickBoostTimers()
@@ -703,6 +736,53 @@ export class HUD {
         this.renderWorldMetaChip()
         if (ev.delta < -3) this.modals.showToast(this.root, `⭐ İtibar ${ev.reputation} (${ev.delta})`)
       }
+      if (ev.type === 'loan_denied') {
+        this.modals.showToast(this.root, `🏦 ${ev.reason}`)
+      }
+      if (ev.type === 'gazette_headline') {
+        this.renderGazetteBanner()
+      }
+      if (ev.type === 'crisis_started') {
+        this.sound.setAmbient('crisis')
+        this.showCrisisModal(ev.crisisId, ev.title)
+      }
+      if (ev.type === 'crisis_resolved') {
+        this.sound.setAmbient(this.state.isNight ? 'night' : 'day')
+        this.modals.showToast(this.root, `📰 ${ev.summary}`)
+        this.modals.close()
+      }
+      if (ev.type === 'victory_mechanic_unlocked') {
+        this.eventDirector.enqueue({
+          id: `mechanic-${ev.victoryId}`,
+          priority: 1,
+          run: () => {
+            this.modals.show(
+              `${ev.emoji} Yeni kapı açıldı!`,
+              `${ev.title} — ${ev.description}\n\nOyun devam ediyor; yeni stratejiler deneyebilirsin.`,
+              [(() => {
+                const b = document.createElement('button')
+                b.type = 'button'
+                b.className = 'btn-primary'
+                b.dataset.action = 'close-modal'
+                b.textContent = 'Keşfet!'
+                return b
+              })()],
+            )
+          },
+        })
+      }
+      if (ev.type === 'rival_alliance_offer') {
+        this.showRivalAllianceModal(ev.offer)
+      }
+      if (ev.type === 'investment_offer') {
+        this.modals.showToast(this.root, `⏰ Startup fırsatı: ${ev.offer.title} — Piyasa → Fırsatlar`)
+      }
+      if (ev.type === 'calendar_event') {
+        this.modals.showToast(this.root, `${ev.emoji} ${ev.headline}`)
+      }
+      if (ev.type === 'player_title') {
+        this.renderProfileChip()
+      }
       if (ev.type === 'world_stage') {
         this.modals.showToast(this.root, `${ev.name} aşamasına ulaştın!`)
         this.renderWorldMetaChip()
@@ -717,14 +797,14 @@ export class HUD {
           priority: 1,
           run: () => {
             this.modals.show(
-              `${ev.emoji} Zafer!`,
-              `${ev.name} yolunu tamamladın. Stratejin işe yaradı!`,
+              `${ev.emoji} Zafer yolu tamamlandı!`,
+              `${ev.name} — yeni mekanik açıldı, oyun devam ediyor.`,
               [(() => {
                 const b = document.createElement('button')
                 b.type = 'button'
                 b.className = 'btn-primary'
                 b.dataset.action = 'close-modal'
-                b.textContent = 'Harika!'
+                b.textContent = 'Devam!'
                 return b
               })()],
             )
@@ -737,7 +817,20 @@ export class HUD {
         if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
       }
       if (ev.type === 'player_death') {
-        this.showDeathModal(ev)
+        // Özet baron_eulogy ile gösterilir
+      }
+      if (ev.type === 'baron_eulogy') {
+        this.sound.playDeath()
+        if (this.state.hapticsEnabled) void hapticDeath()
+        this.showBaronEulogy(ev.record, ev.hasHeir)
+      }
+      if (ev.type === 'disaster_hit') {
+        this.sound.playDisaster()
+        if (this.state.hapticsEnabled) void hapticDisaster()
+        this.showDisasterModal(ev)
+      }
+      if (ev.type === 'undo_available') {
+        this.showUndoPrompt(ev.label, ev.cost, ev.undoId)
       }
       if (ev.type === 'season_updated' || ev.type === 'season_claimed') {
         this.eventsPanel.render(this.state)
@@ -782,6 +875,9 @@ export class HUD {
       }
       if (ev.type === 'story_beat') {
         this.modals.showToast(this.root, ev.text)
+      }
+      if (ev.type === 'chest_opened' && ev.loot?.rarity === 'legendary') {
+        this.sound.playLegendaryChest()
       }
       if (ev.type === 'near_miss') {
         this.modals.showToast(this.root, ev.message)
@@ -1518,6 +1614,120 @@ export class HUD {
           this.modals.showToast(this.root, 'Satın alma başarısız — yeterli para yok')
         }
         break
+      case 'crisis-choice':
+        if (id) this.state.resolveCrisis(id)
+        break
+      case 'rival-alliance-accept':
+        if (this.state.acceptRivalAllianceOffer()) {
+          this.modals.showToast(this.root, '🤝 Sektör anlaşması imzalandı')
+          this.modals.close()
+        }
+        break
+      case 'rival-alliance-decline':
+        this.state.declineRivalAlliance()
+        this.modals.close()
+        break
+      case 'insurance-toggle':
+        if (id === 'business' || id === 'illegal' || id === 'dynasty') {
+          this.state.toggleInsurance(id)
+          this.refreshShop(true)
+        }
+        break
+      case 'commodity-buy':
+        if (id) this.state.buyCommodity(id as import('../game/Commodities').CommodityId, 1)
+        this.refreshShop(true)
+        break
+      case 'commodity-sell':
+        if (id) this.state.sellCommodity(id as import('../game/Commodities').CommodityId, 1)
+        this.refreshShop(true)
+        break
+      case 'investment-accept':
+        if (this.state.acceptInvestmentOffer()) {
+          this.modals.showToast(this.root, '💡 Yatırım yapıldı — 7 gün bekle')
+        }
+        this.refreshShop(true)
+        break
+      case 'investment-dismiss':
+        this.state.dismissInvestmentOffer()
+        this.refreshShop(true)
+        break
+      case 'hire-named-manager':
+        if (id && this.state.hireNamedManager(id as import('../game/NamedManagers').NamedManagerId)) {
+          this.modals.showToast(this.root, '👔 Yönetici işe alındı')
+          this.refreshShop(true)
+        }
+        break
+      case 'underground-market-toggle':
+        if (id) {
+          this.state.toggleUndergroundMarket(id as import('../game/UndergroundMarket').UndergroundMarketAction)
+          this.refreshShop(true)
+        }
+        break
+      case 'advisor-pay':
+        {
+          const tip = this.state.payAdvisorTip()
+          if (tip) this.modals.showToast(this.root, `👨‍💼 Kemal: ${tip.headline}`)
+          else this.modals.showToast(this.root, 'Danışman ücreti ödenemedi')
+        }
+        break
+      case 'eulogy-succession':
+        this.modals.close()
+        this.showSuccessionPicker(true)
+        break
+      case 'eulogy-continue':
+        this.modals.close()
+        if (this.state.hasPendingDeath()) this.state.resolveDeathWithoutHeir()
+        this.renderProfileChip()
+        break
+      case 'undo-exec':
+        if (this.state.executeUndo()) {
+          this.modals.showToast(this.root, '↩️ Geri alındı')
+          this.modals.close()
+          this.refreshShop(true)
+        } else {
+          this.modals.showToast(this.root, 'Geri alınamadı')
+        }
+        break
+      case 'undo-dismiss':
+        this.state.dismissUndo()
+        this.modals.close()
+        break
+      case 'unlock-city':
+        if (id && this.state.unlockCity(id as import('../game/ExpansionMap').CityId)) {
+          this.modals.showToast(this.root, '🗺️ Yeni şehir açıldı!')
+          this.refreshSkyline()
+          this.refreshShop(true)
+        }
+        break
+      case 'set-active-city':
+        if (id && this.state.setActiveCity(id as import('../game/ExpansionMap').CityId)) {
+          this.refreshSkyline()
+          this.modals.showToast(this.root, `📍 ${id} aktif`)
+        }
+        break
+      case 'hire-torpil':
+        if (id && this.state.hireTorpil(id as import('../game/TorpilNetwork').TorpilId)) {
+          this.modals.showToast(this.root, '🤝 Torpil ağına katıldı')
+          this.refreshShop(true)
+        }
+        break
+      case 'pay-torpil-gift':
+        if (id && this.state.payTorpilGift(id as import('../game/TorpilNetwork').TorpilId)) {
+          this.modals.showToast(this.root, '🎁 Hediye verildi')
+          this.refreshShop(true)
+        }
+        break
+      case 'sell-producer':
+        if (id && this.state.sellProducer(id)) {
+          this.refreshShop(true)
+        }
+        break
+      case 'modernize-producer':
+        if (id && this.state.modernizeProducer(id)) {
+          this.modals.showToast(this.root, '🔧 İşletme modernize edildi')
+          this.refreshShop(true)
+        }
+        break
       default:
         break
     }
@@ -1529,6 +1739,7 @@ export class HUD {
     this.comboMultEl.hidden = combo <= 0
     this.comboFill.style.width = `${Math.min(100, (combo / 30) * 100)}%`
     this.tapWrap.classList.toggle('combo-glow', combo >= 10)
+    this.tapWrap.classList.toggle('combo-max', combo >= 25)
     if (combo >= 30) {
       this.comboFill.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)'
       this.comboFill.classList.add('combo-pulse')
@@ -1593,6 +1804,19 @@ export class HUD {
     this.renderProfileChip()
     this.renderHeatMeter()
     this.renderWorldMetaChip()
+    this.renderProgressPathWidget()
+  }
+
+  private renderProgressPathWidget(): void {
+    const p = this.state.progressPath()
+    this.progressPathWidget.innerHTML = `
+      <div class="progress-path-row">
+        <span class="progress-path-current">${p.currentEmoji} ${p.currentRank}</span>
+        <span class="progress-path-ipo">IPO ${p.ipoPct.toFixed(1)}%</span>
+      </div>
+      <div class="progress-path-bar"><div class="progress-path-fill" style="width:${p.rankPct}%"></div></div>
+      <small class="progress-path-next">${formatProgressLine(p)}</small>
+    `
   }
 
   private renderWorldMetaChip(): void {
@@ -1607,11 +1831,62 @@ export class HUD {
 
   private renderProfileChip(): void {
     const name = this.state.playerName.trim() || 'Baron'
+    const title = this.state.playerTitle()
     const age = this.state.playerAge()
     const estYears = this.state.estimatedYearsRemaining()
     const ageText = estYears < 99 ? `${age} yaş · ~${estYears} yıl` : `${age} yaş`
-    this.profileChip.innerHTML = `<span class="profile-chip-name">${name}</span><span class="profile-chip-age">${ageText}</span>`
+    this.profileChip.innerHTML = `<span class="profile-chip-name">${title.emoji} ${name}</span><span class="profile-chip-age">${title.label} · ${ageText}</span>`
     this.profileChip.title = `Nesil ${this.state.dynasty.generation} · Tahmini kalan ömür`
+  }
+
+  private refreshSkyline(): void {
+    const buildings = buildSkylineBuildings(this.state.producers, (id) => {
+      const p = PRODUCERS.find((x) => x.id === id)
+      return p ? this.state.producerIncome(p) : 0
+    })
+    this.skyline.update(buildings, this.state.skylineWorldStageId(), this.state.gameTimeMs, this.state.legacyMonuments, cityDef(this.state.activeCityId()).skylineClass)
+  }
+
+  private renderGazetteBanner(): void {
+    const latest = this.state.latestGazetteHeadlines(1)[0]
+    if (!latest) {
+      this.gazetteBanner.hidden = true
+      return
+    }
+    this.gazetteBanner.hidden = false
+    this.gazetteBanner.innerHTML = `<span class="gazette-label">📰 Baron Gazetesi · ${formatGazetteDate(this.state.gameTimeMs)}</span><span class="gazette-headline">${latest.headline}</span>`
+  }
+
+  private showCrisisModal(crisisId: import('../game/CrisisEvents').CrisisId, title: string): void {
+    const def = crisisDef(crisisId)
+    const buttons = def.choices.map((c) => {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'btn-secondary crisis-choice-btn'
+      b.dataset.action = 'crisis-choice'
+      b.dataset.id = c.id
+      b.innerHTML = `<strong>${c.label}</strong><small>${c.description}</small>`
+      return b
+    })
+    this.eventDirector.enqueue({
+      id: `crisis-${crisisId}`,
+      priority: 1,
+      run: () => this.modals.show(`${def.emoji} ${title}`, def.description, buttons),
+    })
+  }
+
+  private showRivalAllianceModal(offer: import('../game/Rivals').RivalAllianceOffer): void {
+    const accept = document.createElement('button')
+    accept.type = 'button'
+    accept.className = 'btn-primary'
+    accept.dataset.action = 'rival-alliance-accept'
+    accept.textContent = 'Kabul et'
+    const decline = document.createElement('button')
+    decline.type = 'button'
+    decline.className = 'btn-secondary'
+    decline.dataset.action = 'rival-alliance-decline'
+    decline.textContent = 'Reddet'
+    this.modals.show('🤝 İttifak Teklifi', offer.message, [accept, decline])
   }
 
   private renderHeatMeter(): void {
@@ -1815,61 +2090,72 @@ export class HUD {
     }
   }
 
-  private showDeathModal(ev: {
-    age: number
-    causeId: DeathCauseId
-    emoji: string
-    label: string
-    message: string
-    hasHeir: boolean
-  }): void {
-    if (ev.hasHeir && this.state.dynasty.children.length > 1) {
-      const body = document.createElement('div')
-      body.className = 'death-modal-body death-modal-dramatic'
-      body.innerHTML = `
-        <div class="death-vignette">💀</div>
-        <p class="death-age-line">${ev.age} yaşında vefat</p>
-        <p class="death-cause-line">${ev.emoji} <strong>${ev.label}</strong></p>
-        <p class="death-message">${ev.message}</p>
-        <p class="death-succession-hint">Bir varis seçerek imparatorluğa devam et.</p>
-      `
-      this.showSuccessionPicker(true, body)
-      return
-    }
-
+  private showBaronEulogy(record: BaronRecord, hasHeir: boolean): void {
+    const ach = record.achievements.map((a) => `<li>${a}</li>`).join('')
+    const weak = record.weaknesses.length > 0
+      ? record.weaknesses.map((w) => `<li>${w}</li>`).join('')
+      : '<li>Büyük zayıflık kaydedilmedi</li>'
     const body = document.createElement('div')
-    body.className = 'death-modal-body death-modal-dramatic'
-    if (ev.hasHeir && this.state.dynasty.children.length === 1) {
-      body.innerHTML = `
-        <div class="death-vignette">💀</div>
-        <p class="death-age-line">${ev.age} yaşında vefat</p>
-        <p class="death-cause-line">${ev.emoji} <strong>${ev.label}</strong></p>
-        <p class="death-message">${ev.message}</p>
-        <p><strong>${this.state.playerName}</strong> imparatorluğu devraldı. Yeni nesille devam ediyorsun.</p>
-      `
-    } else if (!ev.hasHeir) {
-      body.innerHTML = `
-        <div class="death-vignette">💀</div>
-        <p class="death-age-line">${ev.age} yaşında vefat</p>
-        <p class="death-cause-line">${ev.emoji} <strong>${ev.label}</strong></p>
-        <p class="death-message">${ev.message}</p>
-        <p class="death-no-heir-warn">Mirasçın yoktu. Aile avukatları imparatorluğu kurtaracak — cüzdanının ~%15'i gidecek ve biraz gençleşerek devam edeceksin.</p>
-      `
-    } else {
-      body.innerHTML = `
-        <div class="death-vignette">💀</div>
-        <p class="death-age-line">${ev.age} yaşında vefat</p>
-        <p class="death-cause-line">${ev.emoji} <strong>${ev.label}</strong></p>
-        <p class="death-message">${ev.message}</p>
-      `
-    }
+    body.className = 'baron-eulogy-body'
+    body.innerHTML = `
+      <div class="baron-eulogy-header">
+        <span class="baron-eulogy-scroll">📜</span>
+        <h2>BARON #${record.baronNumber} — ${record.name.toUpperCase()}</h2>
+        <p class="baron-eulogy-years">${record.birthYear} - ${record.deathYear} · ${record.yearsRuled} yıl · ${record.ageAtDeath} yaş</p>
+        <p class="baron-eulogy-cause">${record.causeEmoji} ${record.causeLabel}</p>
+      </div>
+      <div class="baron-eulogy-section">
+        <h3>🏆 Başarıları</h3>
+        <ul>${ach}</ul>
+      </div>
+      <div class="baron-eulogy-section baron-eulogy-weak">
+        <h3>💀 Zayıf Noktası</h3>
+        <ul>${weak}</ul>
+      </div>
+      <blockquote class="baron-eulogy-quote">"${record.epitaph}"</blockquote>
+    `
+    const cont = document.createElement('button')
+    cont.type = 'button'
+    cont.className = 'btn-primary'
+    cont.dataset.action = hasHeir ? 'eulogy-succession' : 'eulogy-continue'
+    cont.textContent = hasHeir ? 'Varis seç →' : 'Devam et'
+    this.eventDirector.enqueue({
+      id: 'baron-eulogy',
+      priority: 1,
+      run: () => this.modals.showContent('📜 Baron Özeti', body, [cont]),
+    })
+  }
 
-    const close = document.createElement('button')
-    close.type = 'button'
-    close.className = 'btn-primary'
-    close.dataset.action = ev.hasHeir ? 'close-modal' : 'death-continue-no-heir'
-    close.textContent = ev.hasHeir ? 'Tamam' : 'Devam Et'
-    this.modals.showContent(`${ev.emoji} Hanedan`, body, [close])
+  private showDisasterModal(ev: { title: string; emoji: string; city: string; damage: number; insured: boolean }): void {
+    const body = document.createElement('div')
+    body.className = 'disaster-modal-body'
+    body.innerHTML = `
+      <h2>${ev.emoji} ${ev.title.toUpperCase()} — ${ev.city}'i etkiledi!</h2>
+      <p>Fabrika ve işletmelere hasar:</p>
+      <ul>
+        <li>${ev.insured ? 'Sigortalı → Zarar karşılandı ✅' : `Sigortalı değil → ${formatMoney(ev.damage)} zarar`}</li>
+      </ul>
+    `
+    const ok = document.createElement('button')
+    ok.type = 'button'
+    ok.className = 'btn-primary'
+    ok.dataset.action = 'close-modal'
+    ok.textContent = 'Devam'
+    this.modals.showContent('Doğal Afet', body, [ok])
+  }
+
+  private showUndoPrompt(label: string, cost: number, _undoId: string): void {
+    const undo = document.createElement('button')
+    undo.type = 'button'
+    undo.className = 'btn-secondary'
+    undo.dataset.action = 'undo-exec'
+    undo.textContent = `Geri Al — ${formatMoney(cost)}`
+    const keep = document.createElement('button')
+    keep.type = 'button'
+    keep.className = 'btn-primary'
+    keep.dataset.action = 'undo-dismiss'
+    keep.textContent = 'Kabul Et'
+    this.modals.show('↩️ Geri al?', `${label}\n\nTazminat: ${formatMoney(cost)}`, [undo, keep])
   }
 
   private showSuccessionPicker(urgent = false, deathIntro?: HTMLElement): void {
@@ -2303,7 +2589,8 @@ export class HUD {
     } else {
       this.patchShopAffordability()
     }
-    this.skyline.update(this.state.skylineTierCount(), this.state.gameTimeMs, this.state.legacyMonuments)
+    this.refreshSkyline()
+    this.renderGazetteBanner()
     this.goalsSheet.render(this.state)
     if (this.bottomNav.getActive() === 'events') {
       this.eventsPanel.render(this.state)

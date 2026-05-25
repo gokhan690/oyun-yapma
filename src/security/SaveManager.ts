@@ -9,6 +9,10 @@ import { createDynastyState } from '../game/Dynasty'
 import { createEmpireState } from '../game/Empire'
 import { createRivalsState } from '../game/Rivals'
 import { REPUTATION_START } from '../game/Reputation'
+import { createInsuranceState } from '../game/Insurance'
+import { createCommodityMarket } from '../game/Commodities'
+import { createCityState } from '../game/ExpansionMap'
+import { createTorpilState } from '../game/TorpilNetwork'
 import { PRODUCERS } from '../game/Economy'
 import { RESEARCH_NODES } from '../game/Research'
 
@@ -606,6 +610,38 @@ function applyV9Defaults(state: SerializableState): SerializableState {
     presidentSinceSeasonKey: state.presidentSinceSeasonKey ?? null,
     lastWorldStageId: state.lastWorldStageId ?? 'local',
     childCrises: state.childCrises ?? [],
+    gazetteEntries: state.gazetteEntries ?? [],
+    activeCrisis: state.activeCrisis ?? null,
+    crisisIncomeMult: state.crisisIncomeMult ?? 1,
+    crisisHoldBonusUntil: state.crisisHoldBonusUntil ?? 0,
+    victoryMechanics: state.victoryMechanics ?? [],
+    bankruptcyCount: state.bankruptcyCount ?? 0,
+    insurance: state.insurance ?? createInsuranceState(),
+    commodities: state.commodities ?? createCommodityMarket(),
+    investmentOffer: state.investmentOffer ?? null,
+    pendingInvestments: state.pendingInvestments ?? [],
+    franchises: state.franchises ?? [],
+    namedManagers: state.namedManagers ?? [],
+    pendingRivalOffer: state.pendingRivalOffer ?? null,
+    undergroundMarketActive: state.undergroundMarketActive ?? [],
+    advisorTip: state.advisorTip ?? null,
+    advisorTipDay: state.advisorTipDay ?? 0,
+    calendarPurchaseDay: state.calendarPurchaseDay ?? '',
+    lastCrisisGameDay: state.lastCrisisGameDay ?? 0,
+    lastInvestmentOfferDay: state.lastInvestmentOfferDay ?? 0,
+    playerTitleId: state.playerTitleId ?? 'tycoon',
+    baronHistory: state.baronHistory ?? [],
+    baronCounter: state.baronCounter ?? 1,
+    currentBaronStartedGameDay: state.currentBaronStartedGameDay ?? 1,
+    baronLifePeakNetWorth: state.baronLifePeakNetWorth ?? 0,
+    baronLifeEarnedStart: state.baronLifeEarnedStart ?? 0,
+    baronLifeRaidsUninsured: state.baronLifeRaidsUninsured ?? 0,
+    baronLifeChildCrises: state.baronLifeChildCrises ?? 0,
+    cities: state.cities ?? createCityState(),
+    torpil: state.torpil ?? createTorpilState(),
+    producerModernized: state.producerModernized ?? {},
+    pendingUndo: state.pendingUndo ?? null,
+    lastDisasterGameDay: state.lastDisasterGameDay ?? 0,
   }
 }
 

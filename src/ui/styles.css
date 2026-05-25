@@ -5422,3 +5422,90 @@ html.theme-galactic {
   font-size: 0.85rem;
 }
 .dynasty-crisis-banner ul { margin: 6px 0 0; padding-left: 18px; }
+
+/* Baron Gazette */
+.gazette-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  margin: 4px 0 8px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(30, 58, 95, 0.5), rgba(15, 23, 42, 0.6));
+  border-left: 3px solid #d4af37;
+  animation: gazetteSlide 0.4s ease;
+}
+.gazette-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.gazette-headline { font-size: 0.82rem; font-weight: 600; line-height: 1.3; }
+@keyframes gazetteSlide { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+/* Hero money tiers */
+.money-tier-green { color: #34d399; }
+.money-tier-gold { color: #fbbf24; font-weight: 800; }
+.money-tier-platinum { color: #e2e8f0; font-weight: 800; text-shadow: 0 0 12px rgba(251, 191, 36, 0.35); }
+.stats-hero-value { font-size: 1.65rem; font-weight: 800; letter-spacing: -0.02em; }
+
+/* Tap combo FX */
+.tap-wrap.combo-heat { filter: saturate(1.2); }
+.tap-wrap.combo-fire { animation: comboFire 0.4s ease; box-shadow: 0 0 24px rgba(239, 68, 68, 0.35); }
+.tap-wrap.combo-max .combo-fill { animation: comboPulse 0.5s ease infinite; }
+@keyframes comboFire { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+
+/* Skyline stages */
+.skyline-stage-local .skyline-back { opacity: 0.35; filter: blur(1px); }
+.skyline-stage-national .skyline-buildings { transform: scale(1.05); }
+.skyline-stage-forbes .skyline-buildings { filter: saturate(1.2) brightness(1.08); }
+.skyline-stage-endgame .skyline-buildings { filter: saturate(1.35) brightness(1.12); }
+.skyline-building-new { animation: buildingRise 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.skyline-building { cursor: pointer; border: none; background: transparent; padding: 0; }
+.skyline-placeholder { font-size: 2rem; opacity: 0.4; align-self: flex-end; }
+@keyframes buildingRise { from { transform: translateY(100%) scaleY(0); opacity: 0; } to { transform: none; opacity: 1; } }
+.skyline-night .skyline-building { box-shadow: 0 0 8px rgba(251, 191, 36, 0.25); }
+
+.crisis-choice-btn { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 4px; margin-bottom: 8px; width: 100%; }
+.advisor-card { padding: 12px; border-radius: 12px; background: rgba(59, 130, 246, 0.1); margin-bottom: 12px; }
+.shop-section-title { font-size: 0.9rem; margin: 16px 0 8px; color: var(--muted); }
+.child-risk-warn { color: #fb923c; font-size: 0.78rem; display: block; margin-top: 4px; }
+.gazette-list { margin: 8px 0 0; padding-left: 18px; font-size: 0.82rem; line-height: 1.45; }
+.gazette-list li { margin-bottom: 6px; }
+
+.progress-path-widget {
+  margin: 6px 0 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.progress-path-row { display: flex; justify-content: space-between; font-size: 0.82rem; font-weight: 600; }
+.progress-path-bar { height: 6px; border-radius: 999px; background: rgba(255,255,255,0.08); margin: 6px 0; overflow: hidden; }
+.progress-path-fill { height: 100%; background: linear-gradient(90deg, #34d399, #fbbf24); border-radius: 999px; }
+.progress-path-next { font-size: 0.72rem; color: var(--muted); }
+
+.baron-eulogy-body { text-align: left; max-width: 420px; }
+.baron-eulogy-header { text-align: center; margin-bottom: 16px; }
+.baron-eulogy-scroll { font-size: 2rem; }
+.baron-eulogy-years, .baron-eulogy-cause { color: var(--muted); font-size: 0.85rem; }
+.baron-eulogy-section ul { margin: 8px 0; padding-left: 20px; font-size: 0.88rem; }
+.baron-eulogy-weak { color: #fb923c; }
+.baron-eulogy-quote { font-style: italic; text-align: center; margin-top: 16px; color: #d4af37; border-left: none; }
+
+.baron-history-scroll { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.baron-history-card { padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.04); font-size: 0.82rem; }
+.baron-history-card p { margin: 4px 0 0; color: var(--muted); font-style: italic; }
+
+.expansion-city-list { display: flex; flex-direction: column; gap: 8px; }
+.expansion-city-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.03); font-size: 0.82rem; }
+.expansion-city-row.active { border: 1px solid rgba(52, 211, 153, 0.4); }
+
+.torpil-card { padding: 10px; margin-bottom: 8px; border-radius: 10px; background: rgba(255,255,255,0.04); font-size: 0.82rem; }
+.torpil-card p { margin: 4px 0 8px; color: var(--muted); }
+.torpil-active { color: #34d399; font-size: 0.78rem; }
+
+.skyline.city-dubai .skyline-buildings { filter: sepia(0.2) saturate(1.2); }
+.skyline.city-london .skyline-buildings { filter: hue-rotate(10deg) brightness(0.95); }
+.skyline.city-izmir .skyline-buildings { filter: saturate(1.1) hue-rotate(-5deg); }
+
+.disaster-modal-body h2 { font-size: 1rem; margin-bottom: 8px; }
+.biz-obsolete-badge { display: block; font-size: 0.72rem; color: #fb923c; margin-top: 4px; }
+.biz-action-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.biz-action-row button { flex: 1; min-width: 0; font-size: 0.75rem; padding: 6px 8px; }

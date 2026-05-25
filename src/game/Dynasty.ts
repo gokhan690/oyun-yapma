@@ -19,12 +19,16 @@ export interface SpouseOption {
   producerBonusPct?: number
 }
 
+export type ChildRiskProfile = 'low' | 'gambler' | 'illegal' | 'scandal'
+
 export interface ChildRecord {
   id: string
   name: string
   trait: ChildTrait
   bornGameDay: number
   educationXp: number
+  riskProfile: ChildRiskProfile
+  riskLabel: string
 }
 
 export const PLAYER_START_AGE = 18
@@ -199,6 +203,32 @@ export function pickChildName(existing: ChildRecord[]): string {
 
 export function randomChildTrait(): ChildTrait {
   return CHILD_TRAITS[Math.floor(Math.random() * CHILD_TRAITS.length)]!
+}
+
+const RISK_PROFILES: { profile: ChildRiskProfile; label: string; weight: number }[] = [
+  { profile: 'low', label: 'Düşük risk — sakin ve hesaplı', weight: 55 },
+  { profile: 'gambler', label: '⚠️ Risk alma eğilimi yüksek — kumar borçlarına dikkat', weight: 20 },
+  { profile: 'illegal', label: '⚠️ Illegal işlere meyilli — heat artabilir', weight: 15 },
+  { profile: 'scandal', label: '⚠️ Skandal riski — medya ve itibar tehdidi', weight: 10 },
+]
+
+export function pickChildRiskProfile(): { riskProfile: ChildRiskProfile; riskLabel: string } {
+  const total = RISK_PROFILES.reduce((s, r) => s + r.weight, 0)
+  let roll = Math.random() * total
+  for (const r of RISK_PROFILES) {
+    roll -= r.weight
+    if (roll <= 0) return { riskProfile: r.profile, riskLabel: r.label }
+  }
+  const last = RISK_PROFILES[0]!
+  return { riskProfile: last.profile, riskLabel: last.label }
+}
+
+export function migrateChildRecord(c: Partial<ChildRecord> & Pick<ChildRecord, 'id' | 'name' | 'trait' | 'bornGameDay' | 'educationXp'>): ChildRecord {
+  if (c.riskProfile && c.riskLabel) {
+    return c as ChildRecord
+  }
+  const picked = pickChildRiskProfile()
+  return { ...c, riskProfile: picked.riskProfile, riskLabel: picked.riskLabel }
 }
 
 export function activeDynastyTrait(d: DynastyState): SpouseTrait | ChildTrait | null {

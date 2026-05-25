@@ -358,6 +358,21 @@ export function formatMoney(value: number): string {
   return `${(v / 1_000_000_000_000).toFixed(1)}T`
 }
 
+/** HUD ana para — büyük, kısa format */
+export function formatMoneyHero(value: number): string {
+  const v = Math.max(0, value)
+  if (v < 10_000) return `${Math.floor(v).toLocaleString('tr-TR')}₺`
+  if (v < 1_000_000) return `${(v / 1000).toFixed(2)}K₺`
+  if (v < 1_000_000_000) return `${(v / 1_000_000).toFixed(2)}M₺`
+  return `${(v / 1_000_000_000).toFixed(2)}B₺`
+}
+
+export function moneyHeroTier(value: number): 'green' | 'gold' | 'platinum' {
+  if (value >= 100_000_000) return 'platinum'
+  if (value >= 1_000_000) return 'gold'
+  return 'green'
+}
+
 /** Pasif gelir hızı — oyun günü bazlı (5 gerçek sn = 1 gün) */
 export function formatIncomeRate(value: number): string {
   const v = Math.max(0, value)

@@ -1,5 +1,5 @@
 import type { GameState } from '../../game/GameState'
-import { formatMoney, formatIncomeRate } from '../../game/Economy'
+import { formatMoney, formatIncomeRate, formatMoneyHero, moneyHeroTier } from '../../game/Economy'
 import { prestigeMultiplier } from '../../game/Prestige'
 
 export class StatsBar {
@@ -59,10 +59,12 @@ export class StatsBar {
 
   /** Cüzdan anında güncellenir; chip'ler sadece updateMeta=true iken yenilenir */
   render(updateMeta = true): void {
-    const formatted = formatMoney(this.state.money)
+    const formatted = formatMoneyHero(this.state.money)
     if (this.moneyEl.textContent !== formatted) {
       this.moneyEl.textContent = formatted
     }
+    this.moneyEl.classList.remove('money-tier-green', 'money-tier-gold', 'money-tier-platinum')
+    this.moneyEl.classList.add(`money-tier-${moneyHeroTier(this.state.money)}`)
     if (updateMeta) this.updateMeta()
   }
 
