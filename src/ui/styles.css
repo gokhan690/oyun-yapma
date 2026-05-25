@@ -5794,6 +5794,16 @@ html.theme-galactic {
   flex-direction: column;
   gap: 12px;
   padding: 0 10px 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.tier-band-body button,
+.tier-band-body input {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .tier-band-empty { font-size: 0.8rem; color: var(--muted); margin: 0; }
