@@ -3867,10 +3867,8 @@ html.theme-galactic {
 }
 [data-view="shop"] .header-profile-btn,
 [data-view="shop"] .progress-path-widget,
-[data-view="shop"] .stats-bar,
 [data-view="market"] .header-profile-btn,
-[data-view="market"] .progress-path-widget,
-[data-view="market"] .stats-bar {
+[data-view="market"] .progress-path-widget {
   display: none;
 }
 
