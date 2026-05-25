@@ -1,6 +1,6 @@
 import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, type ProducerDef, type UpgradeDef } from './Economy'
 import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, ipoThreshold, prestigeMultiplier } from './Prestige'
-import { globalSynergyBonus, producerSynergyBonus } from './Synergies'
+import { getActiveSynergies, globalSynergyBonus, producerSynergyBonus } from './Synergies'
 import {
   RESEARCH_NODES,
   researchCost,
@@ -259,7 +259,7 @@ import {
   type CommodityMarketState,
 } from './Commodities'
 import {
-  createStartupOffer,
+  createInvestmentOffer,
   type InvestmentOffer,
   type PendingInvestment,
 } from './InvestmentOffers'
@@ -1427,6 +1427,28 @@ export class GameState {
     }
     if (this.prestigePoints > 0) {
       chips.push({ emoji: '📈', label: 'IPO çarpanı', detail: `x${prestigeMultiplier(this.prestigePoints).toFixed(2)}` })
+    }
+    const torpilDisc = torpilBusinessDiscount(this.torpil)
+    if (torpilDisc > 0) {
+      chips.push({ emoji: '🤝', label: 'Torpil ağı', detail: `İşletme alımında %${Math.round(torpilDisc * 100)} indirim` })
+    }
+    if (this.franchises.length > 0) {
+      const fb = franchiseIncomeBonus(this.franchises)
+      chips.push({ emoji: '🏪', label: 'Franchise', detail: `${this.franchises.length} şube · +%${Math.round(fb * 100)} pasif` })
+    }
+    const synActive = getActiveSynergies(this.producers).filter((s) => s.active).length
+    if (synActive > 0) {
+      chips.push({ emoji: '⚡', label: 'Sinerji', detail: `${synActive} aktif kombinasyon bonusu` })
+    }
+    if (this.ipoCount > 0) {
+      let obsolete = 0
+      for (const p of PRODUCERS) {
+        if ((this.producers[p.id] ?? 0) <= 0) continue
+        if (obsolescenceMult(p.tier, this.ipoCount) < 0.98 && !this.producerModernized[p.id]) obsolete++
+      }
+      if (obsolete > 0) {
+        chips.push({ emoji: '🔧', label: 'Teknoloji eskidi', detail: `${obsolete} işletme modernize bekliyor — İş sekmesi` })
+      }
     }
     return chips
   }
@@ -3521,7 +3543,7 @@ export class GameState {
     if (day - this.lastInvestmentOfferDay < 5) return
     if (this.investmentOffer) return
     this.lastInvestmentOfferDay = day
-    const offer = createStartupOffer(this.incomePerDay(), day)
+    const offer = createInvestmentOffer(this.incomePerDay(), day)
     this.investmentOffer = offer
     this.emit({ type: 'investment_offer', offer })
   }

@@ -7,6 +7,9 @@ import { CodexPanel } from './CodexPanel'
 import { DynastyPanel } from './DynastyPanel'
 import { WorldMetaPanel } from './WorldMetaPanel'
 import { BADGES, badgeDef } from '../../game/Badges'
+import { SYNERGIES } from '../../game/Synergies'
+import type { BaronSection } from './BaronSections'
+import { BARON_SECTION_TITLES } from './BaronSections'
 
 export class StatsScreen {
   readonly layer: HTMLElement
@@ -16,6 +19,7 @@ export class StatsScreen {
   private codex: CodexPanel
   private dynasty: DynastyPanel
   private worldMeta: WorldMetaPanel
+  private activeSection: Exclude<BaronSection, 'events'> = 'profile'
 
   constructor(state: GameState, leaderboard: Leaderboard) {
     this.state = state
@@ -50,22 +54,102 @@ export class StatsScreen {
     this.layer.append(header, this.content)
   }
 
-  render(): void {
+  renderSection(section: Exclude<BaronSection, 'events'> = this.activeSection): void {
+    this.activeSection = section
     this.content.replaceChildren()
+    const title = this.layer.querySelector('.panel-header h2')
+    if (title) title.textContent = BARON_SECTION_TITLES[section]
+
+    if (section === 'profile') {
+      this.renderProfileHero()
+      this.renderStats()
+      this.renderAchievements()
+      this.renderBadges()
+      this.renderSynergyGuide()
+      this.codex.render(this.state)
+      this.content.appendChild(this.codex.root)
+      this.renderIncomeSources()
+      this.renderHistoryChart()
+      this.renderFriendsSection()
+      this.renderSubmitSection()
+      void this.renderOnlineLeaderboard()
+      return
+    }
+
+    if (section === 'dynasty') {
+      this.dynasty.render()
+      this.content.appendChild(this.dynasty.root)
+      return
+    }
+
     this.worldMeta.render()
     this.content.appendChild(this.worldMeta.root)
-    this.dynasty.render()
-    this.content.appendChild(this.dynasty.root)
-    this.renderStats()
-    this.renderAchievements()
-    this.renderBadges()
-    this.codex.render(this.state)
-    this.content.appendChild(this.codex.root)
-    this.renderIncomeSources()
-    this.renderHistoryChart()
-    this.renderFriendsSection()
-    this.renderSubmitSection()
-    void this.renderOnlineLeaderboard()
+  }
+
+  render(): void {
+    this.renderSection(this.activeSection)
+  }
+
+  private renderProfileHero(): void {
+    const rank = currentRank(this.state.lifetimeTotalEarned)
+    const title = this.state.playerTitle()
+    const hero = document.createElement('div')
+    hero.className = 'baron-profile-hero'
+    hero.innerHTML = `
+      <div class="baron-profile-hero-top">
+        <span class="baron-profile-hero-emoji">${title.emoji}</span>
+        <div>
+          <strong>${this.state.playerName.trim() || 'Baron'}</strong>
+          <small>${title.label} · ${rank.emoji} ${rank.name}</small>
+        </div>
+      </div>
+      <p class="baron-profile-hero-meta">Nesil ${this.state.dynasty.generation} · ${this.state.playerAge()} yaş · IPO ${this.state.ipoCount}</p>
+    `
+    const actions = document.createElement('div')
+    actions.className = 'baron-profile-hero-actions'
+    const editBtn = document.createElement('button')
+    editBtn.type = 'button'
+    editBtn.className = 'btn-secondary btn-sm'
+    editBtn.dataset.action = 'open-settings'
+    editBtn.textContent = '✏️ İsim & ayarlar'
+    const dynastyBtn = document.createElement('button')
+    dynastyBtn.type = 'button'
+    dynastyBtn.className = 'btn-secondary btn-sm'
+    dynastyBtn.dataset.action = 'baron-tab'
+    dynastyBtn.dataset.id = 'dynasty'
+    dynastyBtn.textContent = '👑 Hanedan'
+    actions.append(editBtn, dynastyBtn)
+    hero.appendChild(actions)
+    this.content.appendChild(hero)
+  }
+
+  private renderSynergyGuide(): void {
+    const section = document.createElement('div')
+    section.className = 'stats-section synergy-guide-section'
+    const h = document.createElement('h3')
+    h.textContent = '⚡ Sinerji Rehberi'
+    section.appendChild(h)
+    const active = SYNERGIES.filter((s) => s.requires.every((id) => (this.state.producers[id] ?? 0) > 0))
+    const meta = document.createElement('p')
+    meta.className = 'meta-hint'
+    meta.textContent = `${active.length}/${SYNERGIES.length} sinerji aktif — iki işletme birlikte bonus verir`
+    section.appendChild(meta)
+    const list = document.createElement('div')
+    list.className = 'synergy-guide-list'
+    for (const s of SYNERGIES) {
+      const ok = s.requires.every((id) => (this.state.producers[id] ?? 0) > 0)
+      const row = document.createElement('div')
+      row.className = `synergy-guide-row${ok ? ' synergy-active' : ''}`
+      const names = s.requires.map((id) => {
+        const p = PRODUCERS.find((x) => x.id === id)
+        const owned = (this.state.producers[id] ?? 0) > 0
+        return `${owned ? '✓' : '○'} ${p?.emoji ?? ''} ${p?.name ?? id}`
+      }).join(' + ')
+      row.innerHTML = `<strong>${s.name}</strong><small>${names}</small><span>+${Math.round(s.bonus * 100)}%</span>`
+      list.appendChild(row)
+    }
+    section.appendChild(list)
+    this.content.appendChild(section)
   }
 
   private renderBadges(): void {
@@ -490,8 +574,9 @@ export class StatsScreen {
     return this.embedded
   }
 
-  show(): void {
-    this.render()
+  show(section?: Exclude<BaronSection, 'events'>): void {
+    if (section) this.activeSection = section
+    this.renderSection(this.activeSection)
     if (this.embedded) {
       this.layer.hidden = false
     } else {

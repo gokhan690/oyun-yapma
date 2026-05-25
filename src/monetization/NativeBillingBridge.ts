@@ -48,6 +48,27 @@ export async function nativePurchaseProduct(productId: IAPProductId): Promise<bo
   }
 }
 
+export async function fetchNativeStorePrices(): Promise<Partial<Record<IAPProductId, string>>> {
+  if (!isNativePlatform()) return {}
+  try {
+    const { NativePurchases, PURCHASE_TYPE } = await import('@capgo/native-purchases')
+    if (!(await initNativeBilling())) return {}
+    const skus = Object.values(PLAY_PRODUCT_SKUS)
+    const { products } = await NativePurchases.getProducts({
+      productIdentifiers: skus,
+      productType: PURCHASE_TYPE.INAPP,
+    })
+    const out: Partial<Record<IAPProductId, string>> = {}
+    for (const p of products ?? []) {
+      if (p.identifier === PLAY_PRODUCT_SKUS.season_premium) out.season_premium = p.priceString
+      if (p.identifier === PLAY_PRODUCT_SKUS.chest_pack_5) out.chest_pack_5 = p.priceString
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
 export async function nativeRestorePurchases(): Promise<IAPProductId[]> {
   if (!isNativePlatform()) return []
   try {

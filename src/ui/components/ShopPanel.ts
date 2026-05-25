@@ -44,6 +44,7 @@ import {
 import { UNDERGROUND_TREE_NODES, treeNodeCost } from '../../game/UndergroundTree'
 import { modernizeCost } from '../../game/TechObsolescence'
 import { appendFranchiseSection, franchiseNearCount, franchiseReadyCount } from './shop/FranchiseBlock'
+import { ADVISOR_FEE } from '../../game/AdvisorNPC'
 
 export type BuyMode = 1 | 10 | 'max'
 export type ShopHub = 'growth' | 'powerup' | 'finance' | 'empire'
@@ -574,11 +575,11 @@ export class ShopPanel {
     if (!torpilActive && state.money >= 15_000) {
       hints.push({
         emoji: '🤝',
-        text: 'Torpil ağı — indirim & kredi (Baron > Profil)',
-        action: 'open-profile',
+        text: 'Torpil ağı — indirim & kredi (Baron > Dünya)',
+        action: 'open-torpil',
       })
     } else if (state.torpil.some((t) => t.giftDue)) {
-      hints.push({ emoji: '🎁', text: 'Torpil hediyesi bekliyor', action: 'open-profile' })
+      hints.push({ emoji: '🎁', text: 'Torpil hediyesi bekliyor', action: 'open-torpil' })
     }
     const ready = franchiseReadyCount(state)
     const near = franchiseNearCount(state)
@@ -1946,6 +1947,20 @@ export class ShopPanel {
       <div class="stock-portfolio-stat"><small>Toplam K/Z</small><strong class="${portfolioPlClass}">${formatMoney(summary.totalPl)}</strong></div>
     `
     panel.appendChild(portfolioEl)
+
+    if (state.advisorTip) {
+      const adv = document.createElement('div')
+      adv.className = 'advisor-card'
+      const acc = Math.round(state.advisorTip.accuracy * 100)
+      adv.innerHTML = `<strong>👨‍💼 Danışman Kemal</strong><p>${state.advisorTip.headline}</p><small>Tahmini doğruluk ~%${acc}</small>`
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'btn-secondary'
+      btn.dataset.action = 'advisor-pay'
+      btn.textContent = `Dinle → ${formatMoney(ADVISOR_FEE)}`
+      adv.appendChild(btn)
+      panel.appendChild(adv)
+    }
 
     const boardTitle = document.createElement('h3')
     boardTitle.className = 'stock-board-title'

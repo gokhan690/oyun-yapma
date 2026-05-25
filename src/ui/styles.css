@@ -263,7 +263,7 @@ html.theme-night .tap-wrap {
 
 .skyline-buildings {
   position: absolute;
-  bottom: 52px;
+  bottom: 8px;
   left: 0;
   right: 0;
   display: flex;
@@ -271,7 +271,7 @@ html.theme-night .tap-wrap {
   justify-content: center;
   gap: 4px;
   padding: 0 8px;
-  min-height: 72px;
+  min-height: 96px;
 }
 
 .skyline-building {
@@ -397,11 +397,9 @@ html.theme-night .tap-wrap {
 }
 
 .combo-wrap {
-  position: absolute;
-  bottom: 8px;
-  left: 10px;
-  right: 10px;
-  z-index: 4;
+  position: relative;
+  z-index: 3;
+  margin: 0 10px 8px;
   pointer-events: none;
   height: 36px;
 }
@@ -5600,8 +5598,8 @@ html.theme-galactic {
 
 .bottom-nav-four { grid-template-columns: repeat(4, 1fr); }
 .baron-view { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-.baron-subnav { display: flex; gap: 8px; padding: 10px 12px 0; flex-shrink: 0; }
-.baron-subnav-btn { flex: 1; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 10px; padding: 10px; font-size: 0.85rem; }
+.baron-subnav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px 8px 0; flex-shrink: 0; }
+.baron-subnav-btn { border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 10px; padding: 8px 4px; font-size: 0.72rem; line-height: 1.2; }
 .baron-subnav-btn.active { background: var(--accent); color: #111; border-color: transparent; font-weight: 600; }
 .baron-view .events-panel, .baron-view .stats-embedded { flex: 1; overflow: auto; position: relative; inset: auto; transform: none; max-height: none; }
 .slide-panel.stats-embedded {
@@ -5666,8 +5664,8 @@ html.theme-galactic {
 }
 
 .skyline-tower {
-  width: 26px;
-  min-width: 22px;
+  width: 34px;
+  min-width: 28px;
   border-radius: 4px 4px 0 0;
   position: relative;
   display: flex;
@@ -5885,3 +5883,93 @@ html.theme-galactic {
 
 .biz-hero-extra { display: flex; gap: 8px; flex-wrap: wrap; }
 .biz-hero-extra button { flex: 1; min-height: 40px; }
+
+/* v2.8 — Baron IA, skyline, keşfedilebilirlik */
+.baron-profile-hero {
+  padding: 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(251,191,36,0.12), rgba(59,130,246,0.08));
+  border: 1px solid rgba(251,191,36,0.25);
+  margin-bottom: 12px;
+}
+.baron-profile-hero-top { display: flex; gap: 12px; align-items: center; }
+.baron-profile-hero-emoji { font-size: 2rem; line-height: 1; }
+.baron-profile-hero-top strong { display: block; font-size: 1.05rem; }
+.baron-profile-hero-top small { color: var(--muted); font-size: 0.78rem; }
+.baron-profile-hero-meta { margin: 8px 0 0; font-size: 0.78rem; color: var(--muted); }
+.baron-profile-hero-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+.synergy-guide-list { display: flex; flex-direction: column; gap: 6px; }
+.synergy-guide-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  font-size: 0.78rem;
+}
+.synergy-guide-row small { grid-column: 1 / -1; color: var(--muted); font-size: 0.72rem; }
+.synergy-guide-row.synergy-active { border-color: rgba(52,211,153,0.45); background: rgba(52,211,153,0.08); }
+.synergy-guide-row span { color: var(--accent); font-weight: 700; }
+
+.earn-modifiers-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 12px 8px;
+}
+.earn-mod-chip {
+  font-size: 0.68rem;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  white-space: nowrap;
+}
+
+.skyline-silhouette {
+  position: absolute;
+  bottom: 22px;
+  left: 0;
+  right: 0;
+  height: 48px;
+  opacity: 0.45;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(15,23,42,0.5));
+}
+.skyline.city-istanbul .skyline-silhouette {
+  background-image: linear-gradient(180deg, transparent 0%, rgba(15,23,42,0.4) 100%),
+    repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(148,163,184,0.25) 8px, rgba(148,163,184,0.25) 12px);
+  background-size: auto, 24px 100%;
+  background-position: center bottom;
+}
+.skyline.city-dubai .skyline-silhouette {
+  background: linear-gradient(180deg, transparent, rgba(180,83,9,0.25)),
+    radial-gradient(ellipse 8px 40px at 50% 100%, rgba(251,191,36,0.5), transparent 70%);
+}
+.skyline.city-london .skyline-silhouette {
+  background: linear-gradient(180deg, transparent, rgba(30,58,95,0.35)),
+    repeating-linear-gradient(90deg, transparent 0, transparent 14px, rgba(148,163,184,0.2) 14px, rgba(148,163,184,0.2) 18px);
+}
+.skyline.city-ankara .skyline-silhouette,
+.skyline.city-izmir .skyline-silhouette {
+  background: linear-gradient(180deg, transparent, rgba(30,58,95,0.3)),
+    repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(96,165,250,0.15) 10px, rgba(96,165,250,0.15) 14px);
+}
+
+.baron-history-card-head { margin-bottom: 6px; }
+.baron-history-peak { font-size: 0.78rem; color: var(--accent); margin: 0 0 6px; }
+.baron-history-quote { font-style: italic; font-size: 0.82rem; margin: 0 0 8px; color: var(--muted); }
+.baron-history-ach, .baron-history-weak-list { margin: 0; padding-left: 16px; font-size: 0.75rem; line-height: 1.4; }
+.baron-history-scroll { max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.baron-history-card { padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
+
+.skyline-placeholder strong { display: block; font-size: 0.78rem; margin-top: 4px; }
+.skyline-placeholder small { font-size: 0.68rem; opacity: 0.85; }
+
+.tap-wrap { min-height: 220px; }
+.skyline { z-index: 1; }
+.skyline-buildings { z-index: 2; }
+.skyline-ground { z-index: 1; height: 22px; background: linear-gradient(180deg, #1a2d4a, #0a1525); }

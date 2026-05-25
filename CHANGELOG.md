@@ -4,6 +4,19 @@ GitHub commit / release notu olarak kopyalayabilirsin.
 
 ---
 
+## [2.8.0] — 2026-05-23
+
+### Özet
+- **Baron IA:** 4 alt sekme — Profil | Hanedan | Dünya | Etkinlik
+- **Profil hero:** İsim, lakap, ayarlara kısayol; sinerji rehberi (15 kombinasyon)
+- **Skyline:** Combo dışarı taşındı, kuleler büyütüldü, şehir silüetleri (İstanbul/Dubai/Londra)
+- **Keşfedilebilirlik:** Şehir şeridinde afet/sigorta, Şehir sekmesinde gelir chip'leri (torpil, franchise, obsolescence)
+- **Yatırım:** 8 farklı startup teklifi; danışman Kemal aksiyon yönlendirmesi
+- **Baron galerisi:** Geçmiş baron kartları zenginleştirildi
+- **IAP:** Mağaza fiyatları native'den çekiliyor; Android sürüm 2.8.0
+
+---
+
 ## [2.7.0] — 2026-05-23
 
 ### Özet

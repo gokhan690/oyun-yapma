@@ -44,6 +44,7 @@ export class EventsPanel {
   }
 
   render(state: GameState): void {
+    void iapManager.refreshStorePrices()
     state.ensureSeason()
     state.ensureWeekly()
     state.ensureDailyGoal()

@@ -12,6 +12,7 @@ import {
   isNativePlatform,
   nativePurchaseProduct,
   nativeRestorePurchases,
+  fetchNativeStorePrices,
 } from './NativeBillingBridge'
 
 const PRODUCTS: Record<IAPProductId, IAPProduct> = {
@@ -98,6 +99,12 @@ export class IAPManager {
 
   hasReceipt(productId: IAPProductId): boolean {
     return loadReceipts().includes(productId)
+  }
+
+  async refreshStorePrices(): Promise<void> {
+    const prices = await fetchNativeStorePrices()
+    if (prices.season_premium) PRODUCTS.season_premium.priceLabel = prices.season_premium
+    if (prices.chest_pack_5) PRODUCTS.chest_pack_5.priceLabel = prices.chest_pack_5
   }
 
   private grantReceipt(productId: IAPProductId): void {

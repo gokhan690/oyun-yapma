@@ -6,7 +6,7 @@ import type { WorldStageId } from '../game/WorldStage'
 const MAX_BUILDINGS = 16
 
 const TIER_HEIGHTS: Record<number, number> = {
-  1: 28, 2: 36, 3: 42, 4: 48, 5: 56, 6: 64, 7: 72, 8: 80, 9: 88, 10: 96, 11: 104,
+  1: 36, 2: 44, 3: 52, 4: 58, 5: 68, 6: 76, 7: 84, 8: 92, 9: 100, 10: 108, 11: 116,
 }
 
 const TIER_COLORS: Record<number, [string, string]> = {
@@ -38,6 +38,7 @@ export interface SkylineBuilding {
 export class Skyline {
   private el: HTMLElement
   private buildingsEl: HTMLElement
+  private silhouetteEl: HTMLElement
   private starsEl: HTMLElement
   private layerBack: HTMLElement
   private layerFront: HTMLElement
@@ -73,13 +74,17 @@ export class Skyline {
     this.buildingsEl = document.createElement('div')
     this.buildingsEl.className = 'skyline-buildings'
 
+    this.silhouetteEl = document.createElement('div')
+    this.silhouetteEl.className = 'skyline-silhouette'
+    this.silhouetteEl.setAttribute('aria-hidden', 'true')
+
     this.layerFront = document.createElement('div')
     this.layerFront.className = 'skyline-layer skyline-front'
 
     const ground = document.createElement('div')
     ground.className = 'skyline-ground'
 
-    this.el.append(this.layerBack, this.skyEl, this.starsEl, this.buildingsEl, this.layerFront, ground)
+    this.el.append(this.layerBack, this.skyEl, this.starsEl, this.silhouetteEl, this.buildingsEl, this.layerFront, ground)
     container.prepend(this.el)
     this.animateParallax()
   }
@@ -176,7 +181,7 @@ export class Skyline {
     if (visible.length === 0 && monuments.length === 0) {
       const placeholder = document.createElement('div')
       placeholder.className = 'skyline-placeholder'
-      placeholder.innerHTML = `<span>${worldStageId === 'local' ? '🏘️' : '🌆'}</span><small>İşletme al — şehir yükselsin</small>`
+      placeholder.innerHTML = `<span>${worldStageId === 'local' ? '🏘️' : '🌆'}</span><strong>Şehir silüeti</strong><small>İşletme al — kuleler yükselsin</small>`
       this.buildingsEl.appendChild(placeholder)
     }
 
