@@ -293,6 +293,13 @@ export class LifestylePanel {
         active.className = 'lifestyle-owned-badge'
         active.textContent = `✅ Aktif (${activeUntil - currentDay} gün kaldı)`
         card.appendChild(active)
+        const adBtn = document.createElement('button')
+        adBtn.type = 'button'
+        adBtn.className = 'btn-secondary btn-sm lifestyle-ad-boost-btn'
+        adBtn.dataset.action = 'wellbeing-ad-boost'
+        adBtn.dataset.id = act.id
+        adBtn.innerHTML = '📺 Reklam İzle → <strong>-10 Stres Şimdi</strong>'
+        card.appendChild(adBtn)
       } else {
         const btn = document.createElement('button')
         btn.type = 'button'

@@ -1612,6 +1612,16 @@ export class HUD {
         })
         break
       }
+      case 'wellbeing-ad-boost': {
+        const adBoostBtn = document.querySelector(`[data-action="wellbeing-ad-boost"][data-id="${id}"]`) as HTMLButtonElement | null
+        if (adBoostBtn) { adBoostBtn.disabled = true; adBoostBtn.textContent = '📺 Reklam yükleniyor...' }
+        window.setTimeout(() => {
+          this.state.lifestyle.stress = Math.max(0, this.state.lifestyle.stress - 10)
+          this.modals.showToast(this.root, '📺 Reklam izlendi! Stres -10 düştü 🧘')
+          this.lifestylePanel.render(this.state)
+        }, 1500)
+        break
+      }
       case 'buy-residence': {
         const ok = id ? this.state.buyResidence(id as import('../game/Lifestyle').ResidenceId) : false
         if (ok) { this.modals.showToast(this.root, '🏠 Konut değiştirildi!'); this.lifestylePanel.render(this.state) }

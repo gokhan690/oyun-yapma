@@ -159,26 +159,48 @@ export class ModalManager {
     spinBtn.className = 'btn-primary'
     spinBtn.textContent = '🎡 Çarkı Çevir!'
     let spun = false
-    spinBtn.addEventListener('click', () => {
+    let claimedResult: { emoji: string; label: string } | null = null
+    const doSpin = (isPremium: boolean) => {
       if (spun) return
       spun = true
       spinBtn.disabled = true
-      const deg = 720 + Math.floor(Math.random() * 1080)
+      if (premiumBtn) premiumBtn.disabled = true
+      inner.classList.remove('spinning')
+      void inner.offsetWidth
+      const deg = 720 + Math.floor(Math.random() * 1080) + (isPremium ? 180 : 0)
       inner.style.setProperty('--spin-deg', `${deg}deg`)
       inner.classList.add('spinning')
       window.setTimeout(() => {
-        const segIdx = Math.floor(Math.random() * segData.length)
-        const won = segData[segIdx]!
-        resultEl.textContent = `${won.emoji} ${won.label} kazandın!`
-        spinBtn.textContent = 'Topla!'
+        const pool = isPremium
+          ? [segData[1]!, segData[2]!, segData[3]!, segData[3]!]
+          : segData
+        claimedResult = pool[Math.floor(Math.random() * pool.length)]!
+        resultEl.textContent = `${claimedResult.emoji} ${claimedResult.label} kazandın!`
+        spinBtn.textContent = '✅ Topla!'
         spinBtn.disabled = false
+        if (premiumBtn) premiumBtn.hidden = true
         spinBtn.addEventListener('click', () => {
           onClaim()
           this.close()
         }, { once: true })
       }, 3100)
-    })
+    }
+    spinBtn.addEventListener('click', () => doSpin(false))
     modal.appendChild(spinBtn)
+
+    const premiumBtn = document.createElement('button')
+    premiumBtn.type = 'button'
+    premiumBtn.className = 'btn-secondary spin-premium-btn'
+    premiumBtn.innerHTML = '📺 Reklam İzle → <strong>Premium Çark</strong> (2x Ödül!)'
+    premiumBtn.addEventListener('click', () => {
+      premiumBtn.disabled = true
+      premiumBtn.textContent = '📺 Reklam yükleniyor...'
+      window.setTimeout(() => {
+        doSpin(true)
+      }, 1500)
+    })
+    modal.appendChild(premiumBtn)
+
     this.layer.append(scrim, modal)
     this.openLayer()
   }

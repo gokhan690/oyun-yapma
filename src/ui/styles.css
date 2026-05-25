@@ -7229,3 +7229,7 @@ html.theme-galactic {
 .life-event-choice-btn { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; text-align: left; }
 .life-event-choice-btn strong { font-size: 0.9rem; }
 .life-event-choice-btn small { font-size: 0.75rem; color: var(--text-muted); }
+
+/* Premium spin & ad boost */
+.spin-premium-btn { width: 100%; margin-top: 8px; font-size: 0.82rem; padding: 10px 14px; border: 1px dashed var(--accent2, #f59e0b); }
+.lifestyle-ad-boost-btn { font-size: 0.75rem; padding: 6px 12px; margin-top: 4px; border: 1px dashed #f59e0b; color: #f59e0b; }
