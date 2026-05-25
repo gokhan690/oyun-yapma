@@ -1,7 +1,7 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
-import { DAILY_GOAL_TARGET } from '../../game/DailyGoal'
-import { PRESTIGE_THRESHOLD } from '../../game/GameState'
+import { dailyGoalProgress } from '../../game/DailyGoal'
+import { daysUntilWeekReset } from '../../game/dateUtils'
 
 export class GoalsSheet {
   readonly scrim: HTMLElement
@@ -67,17 +67,23 @@ export class GoalsSheet {
   render(state: GameState): void {
     this.content.replaceChildren()
     state.ensureDailyGoal()
+    const target = state.dailyGoalTarget()
 
     this.content.append(
-      this.block('🎯 Günlük Hedef', `${formatMoney(state.dailyGoalEarned)} / ${formatMoney(DAILY_GOAL_TARGET)}`, (state.dailyGoalEarned / DAILY_GOAL_TARGET) * 100),
-      this.block('📈 IPO', state.ipoProgress().ready ? 'Hazır!' : `${formatMoney(state.totalEarned)} / ${formatMoney(PRESTIGE_THRESHOLD)}`, state.ipoProgress().pct),
+      this.block('🎯 Günlük Hedef', `${formatMoney(state.dailyGoalEarned)} / ${formatMoney(target)}`, dailyGoalProgress(state.dailyGoalEarned, target)),
+      this.block('📈 IPO', state.ipoProgress().ready ? 'Hazır!' : `${formatMoney(state.totalEarned)} / ${formatMoney(state.ipoProgress().target)}`, state.ipoProgress().pct),
     )
 
     const def = state.getWeeklyEventDef()
     const w = state.weekly
-    this.content.append(this.block(`🗓️ ${def.name}`, `${Math.floor(w.progress)}/${w.target}`, (w.progress / w.target) * 100))
+    const wPct = w.target > 0 ? (w.progress / w.target) * 100 : 0
+    this.content.append(this.block(
+      `🗓️ ${def.name}`,
+      `${formatMoney(w.progress)} / ${formatMoney(w.target)} · ${daysUntilWeekReset()} gün kaldı`,
+      wPct,
+    ))
 
-    if (state.dailyGoalEarned >= DAILY_GOAL_TARGET && !state.dailyGoalClaimed) {
+    if (state.dailyGoalEarned >= target && !state.dailyGoalClaimed) {
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = 'btn-primary'
@@ -85,30 +91,19 @@ export class GoalsSheet {
       btn.textContent = 'Günlük hedef ödülünü topla'
       this.content.appendChild(btn)
     }
-    if (w.progress >= w.target && !w.claimed) {
-      const btn = document.createElement('button')
-      btn.type = 'button'
-      btn.className = 'btn-primary'
-      btn.dataset.action = 'claim-weekly'
-      btn.textContent = 'Haftalık etkinlik ödülünü topla'
-      this.content.appendChild(btn)
-    }
   }
 
-  private block(title: string, val: string, pct: number): HTMLElement {
+  private block(title: string, sub: string, pct: number): HTMLElement {
     const el = document.createElement('div')
-    el.className = 'goal-block'
-    const h = document.createElement('strong')
-    h.textContent = title
-    const v = document.createElement('span')
-    v.textContent = val
-    const track = document.createElement('div')
-    track.className = 'goal-track'
+    el.className = 'goals-block'
+    el.innerHTML = `<strong>${title}</strong><span>${sub}</span>`
+    const bar = document.createElement('div')
+    bar.className = 'progress-bar'
     const fill = document.createElement('div')
-    fill.className = 'goal-fill'
+    fill.className = 'progress-fill'
     fill.style.width = `${Math.min(100, pct)}%`
-    track.appendChild(fill)
-    el.append(h, v, track)
+    bar.appendChild(fill)
+    el.appendChild(bar)
     return el
   }
 }

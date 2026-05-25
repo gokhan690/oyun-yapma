@@ -1,17 +1,28 @@
 import type { GameState } from '../../game/GameState'
 import { ACHIEVEMENTS } from '../../game/Achievements'
+import { currentRank } from '../../game/PlayerRank'
 import { PRODUCERS, formatMoney } from '../../game/Economy'
 import type { Leaderboard } from '../../game/Leaderboard'
+import { CodexPanel } from './CodexPanel'
+import { DynastyPanel } from './DynastyPanel'
+import { WorldMetaPanel } from './WorldMetaPanel'
+import { BADGES, badgeDef } from '../../game/Badges'
 
 export class StatsScreen {
   readonly layer: HTMLElement
   private state: GameState
   private leaderboard: Leaderboard
   private content!: HTMLElement
+  private codex: CodexPanel
+  private dynasty: DynastyPanel
+  private worldMeta: WorldMetaPanel
 
   constructor(state: GameState, leaderboard: Leaderboard) {
     this.state = state
     this.leaderboard = leaderboard
+    this.codex = new CodexPanel()
+    this.dynasty = new DynastyPanel(state)
+    this.worldMeta = new WorldMetaPanel(state)
     this.layer = document.createElement('div')
     this.layer.className = 'slide-panel stats-panel'
     this.build()
@@ -41,16 +52,56 @@ export class StatsScreen {
 
   render(): void {
     this.content.replaceChildren()
+    this.worldMeta.render()
+    this.content.appendChild(this.worldMeta.root)
+    this.dynasty.render()
+    this.content.appendChild(this.dynasty.root)
     this.renderStats()
+    this.renderAchievements()
+    this.renderBadges()
+    this.codex.render(this.state)
+    this.content.appendChild(this.codex.root)
     this.renderIncomeSources()
     this.renderHistoryChart()
+    this.renderFriendsSection()
     this.renderSubmitSection()
     void this.renderOnlineLeaderboard()
   }
 
+  private renderBadges(): void {
+    const section = document.createElement('div')
+    section.className = 'stats-section badges-section'
+    const title = document.createElement('h3')
+    title.textContent = 'Rozetler'
+    section.appendChild(title)
+    const grid = document.createElement('div')
+    grid.className = 'badges-grid'
+    for (const b of BADGES) {
+      const earned = this.state.earnedBadges.has(b.id)
+      const cell = document.createElement('div')
+      cell.className = `badge-cell${earned ? ' earned' : ''}`
+      cell.title = b.description
+      cell.innerHTML = `<span class="badge-emoji">${earned ? b.emoji : '🔒'}</span><small>${earned ? b.name : '???'}</small>`
+      grid.appendChild(cell)
+    }
+    section.appendChild(grid)
+    const earnedCount = [...this.state.earnedBadges].filter((id) => badgeDef(id)).length
+    const meta = document.createElement('p')
+    meta.className = 'badges-meta'
+    meta.textContent = `${earnedCount}/${BADGES.length} rozet`
+    section.appendChild(meta)
+    this.content.appendChild(section)
+  }
+
   private renderStats(): void {
     const lb = this.leaderboard.getData()
+    const rank = currentRank(this.state.lifetimeTotalEarned)
+    const age = this.state.playerAge()
     const rows: [string, string][] = [
+      ['Baron', this.state.playerName || 'Baron'],
+      ['Yaş', `${age} · ~${this.state.estimatedYearsRemaining()} yıl`],
+      ['Rütbe', `${rank.emoji} ${rank.name}`],
+      ['Cüzdan', formatMoney(this.state.money)],
       ['Toplam kazanç (run)', formatMoney(this.state.totalEarned)],
       ['Yaşam boyu kazanç', formatMoney(this.state.lifetimeTotalEarned)],
       ['Tıklama', this.state.totalClicks.toLocaleString('tr-TR')],
@@ -86,8 +137,32 @@ export class StatsScreen {
     this.content.appendChild(section)
   }
 
+  private renderAchievements(): void {
+    const section = document.createElement('div')
+    section.className = 'stats-section achievements-section'
+    const title = document.createElement('h3')
+    title.textContent = 'Başarımlar'
+    section.appendChild(title)
+    const grid = document.createElement('div')
+    grid.className = 'achieve-grid profile-achieve-grid'
+    for (const a of ACHIEVEMENTS) {
+      const done = this.state.achievements.has(a.id)
+      const cell = document.createElement('div')
+      cell.className = `achieve-cell achieve-cell-profile${done ? ' done' : ''}`
+      cell.title = `${a.name}: ${a.description}${done ? ` · Ödül: ${formatMoney(a.reward)}` : ''}`
+      cell.innerHTML = `
+        <span class="achieve-cell-emoji">${done ? a.emoji : '🔒'}</span>
+        <span class="achieve-cell-name">${done ? a.name : 'Gizli'}</span>
+        <small class="achieve-cell-desc">${done ? a.description : '???'}</small>
+      `
+      grid.appendChild(cell)
+    }
+    section.appendChild(grid)
+    this.content.appendChild(section)
+  }
+
   private renderIncomeSources(): void {
-    const total = this.state.incomePerSecond()
+    const total = this.state.incomePerDay()
     if (total <= 0) return
 
     const section = document.createElement('div')
@@ -198,6 +273,94 @@ export class StatsScreen {
     this.content.appendChild(section)
   }
 
+  private renderFriendsSection(): void {
+    const section = document.createElement('div')
+    section.className = 'stats-section stats-friends-section'
+
+    const title = document.createElement('div')
+    title.className = 'stats-section-title'
+    title.textContent = '👥 Arkadaş Sıralaması'
+
+    const codeRow = document.createElement('div')
+    codeRow.className = 'stats-friend-code-row'
+    codeRow.innerHTML = `
+      <div><small>Senin kodun</small><strong>${this.leaderboard.getFriendCode()}</strong></div>
+      <button type="button" class="btn-secondary btn-sm" data-copy-friend-code>Kopyala</button>
+    `
+    codeRow.querySelector('[data-copy-friend-code]')?.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(this.leaderboard.getFriendCode())
+      } catch {
+        // ignore
+      }
+    })
+
+    const addRow = document.createElement('div')
+    addRow.className = 'stats-submit-row'
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.maxLength = 8
+    input.placeholder = 'Arkadaş kodu'
+    input.className = 'stats-name-input'
+    const addBtn = document.createElement('button')
+    addBtn.type = 'button'
+    addBtn.className = 'btn-primary stats-submit-btn'
+    addBtn.textContent = 'Ekle'
+    addBtn.addEventListener('click', async () => {
+      const code = input.value.trim()
+      if (!code) return
+      const lookup = await this.leaderboard.lookupFriendCode(code)
+      const result = this.leaderboard.addFriendByCode(code)
+      addBtn.textContent = result.ok ? '✓' : '✗'
+      if (result.ok && lookup) {
+        input.value = ''
+        const list = section.querySelector('.stats-friends-list')
+        if (list) list.remove()
+        void this.renderFriendsList(section)
+      }
+      window.setTimeout(() => { addBtn.textContent = 'Ekle' }, 1200)
+    })
+    addRow.append(input, addBtn)
+
+    section.append(title, codeRow, addRow)
+    this.content.appendChild(section)
+    void this.renderFriendsList(section)
+  }
+
+  private async renderFriendsList(section: HTMLElement): Promise<void> {
+    section.querySelector('.stats-friends-list')?.remove()
+    const friends = this.leaderboard.getFriends()
+    const list = document.createElement('div')
+    list.className = 'stats-friends-list'
+
+    if (friends.length === 0) {
+      list.innerHTML = '<p class="stats-empty">Arkadaş kodu ekle — birlikte yarışın!</p>'
+      section.appendChild(list)
+      return
+    }
+
+    const scores = await this.leaderboard.fetchFriendScores()
+    const scoreMap = new Map(scores.map((s) => [s.friend_code?.toUpperCase(), s]))
+
+    for (const code of friends) {
+      const row = document.createElement('div')
+      row.className = 'lb-row'
+      const score = scoreMap.get(code.toUpperCase())
+      row.innerHTML = `
+        <span class="lb-rank">👤</span>
+        <span class="lb-name">${score?.player_name ?? code}</span>
+        <span class="lb-val">${score ? formatMoney(score.lifetime_earned) : '—'}</span>
+        <button type="button" class="icon-btn btn-sm" data-remove-friend="${code}">✕</button>
+      `
+      row.querySelector('[data-remove-friend]')?.addEventListener('click', () => {
+        this.leaderboard.removeFriend(code)
+        void this.renderFriendsList(section)
+      })
+      list.appendChild(row)
+    }
+    section.appendChild(list)
+  }
+
   private renderSubmitSection(): void {
     const section = document.createElement('div')
     section.className = 'stats-section stats-submit-section'
@@ -305,13 +468,43 @@ export class StatsScreen {
     }
   }
 
+  private embedded = false
+
+  embedIn(parent: HTMLElement): void {
+    this.embedded = true
+    this.layer.classList.add('stats-embedded')
+    parent.appendChild(this.layer)
+    const title = this.layer.querySelector('.panel-header h2')
+    if (title) title.textContent = 'Baron Profili'
+    const close = this.layer.querySelector('[data-action="nav-view"]') as HTMLButtonElement | null
+    if (close) close.hidden = true
+  }
+
+  setEmbeddedVisible(visible: boolean): void {
+    if (!this.embedded) return
+    this.layer.hidden = !visible
+    if (visible) this.layer.classList.remove('is-open')
+  }
+
+  isEmbedded(): boolean {
+    return this.embedded
+  }
+
   show(): void {
     this.render()
-    this.layer.classList.add('is-open')
+    if (this.embedded) {
+      this.layer.hidden = false
+    } else {
+      this.layer.classList.add('is-open')
+    }
   }
 
   hide(): void {
-    this.layer.classList.remove('is-open')
+    if (this.embedded) {
+      this.layer.hidden = true
+    } else {
+      this.layer.classList.remove('is-open')
+    }
   }
 
   toggle(): void {

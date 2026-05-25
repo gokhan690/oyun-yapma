@@ -1,0 +1,19 @@
+# Render Static Site — https://render.com/docs/static-sites
+services:
+  - type: web
+    name: is-imparatorlugu
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_OWNER_PIN
+        sync: false
+      - key: VITE_OWNER_ACCESS_CODE
+        sync: false
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable

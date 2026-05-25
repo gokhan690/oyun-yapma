@@ -1,25 +1,62 @@
 import type { GameState } from '../game/GameState'
+import type { NavView } from './components/BottomNav'
 
 export interface TutorialStep {
   target: string
   title: string
   text: string
   tab?: string
+  view?: NavView
+  mandatory?: boolean
+  waitFor?: 'tap' | 'purchase'
 }
 
-const STEPS: TutorialStep[] = [
-  { target: '.tap-area', title: 'Kazan', text: 'Buraya tıklayarak para kazan. Hızlı tıkla = combo bonusu!' },
-  { target: '[data-tab="businesses"]', title: 'İşletme Al', text: 'İşletmeler saniyede otomatik gelir sağlar.', tab: 'businesses' },
-  { target: '.combo-wrap', title: 'Combo', text: '2 saniye içinde art arda tıkla — combo çarpanı artar.' },
-  { target: '[data-tab="missions"]', title: 'Görevler', text: 'Günlük görevleri tamamla, bonus kazan.', tab: 'missions' },
-  { target: '[data-tab="ipo"]', title: 'IPO', text: '500K kazanınca borsaya çık — kalıcı hisse senedi kazan.', tab: 'ipo' },
+const MANDATORY_STEPS: TutorialStep[] = [
+  {
+    target: '.tap-area',
+    title: 'Tıkla & Kazan',
+    text: 'Buraya tıkla — para kazanmaya başla!',
+    view: 'earn',
+    mandatory: true,
+    waitFor: 'tap',
+  },
+  {
+    target: '[data-id="shop"]',
+    title: 'İlk işletmen',
+    text: 'İşletme sekmesine git — limonata veya berber ile başla.',
+    view: 'shop',
+    mandatory: true,
+  },
+  {
+    target: '.shop-advisor-card, .biz-card:not(.biz-card-locked-preview)',
+    title: 'Satın al',
+    text: 'Bir işletme seç — pasif gelir kazanmaya başlarsın.',
+    tab: 'growth',
+    view: 'shop',
+    mandatory: true,
+    waitFor: 'purchase',
+  },
 ]
+
+const OPTIONAL_STEPS: TutorialStep[] = [
+  { target: '.combo-wrap', title: 'Combo', text: 'Hızlı tıkla — combo çarpanı artar.', view: 'earn' },
+  { target: '[data-id="events"]', title: 'Etkinlikler', text: 'Günlük hedef, bonus envanteri ve görevler.' },
+  { target: '.btn-daily', title: 'Günlük ödül', text: 'Her gün giriş yap, streak bonusu topla!' },
+  { target: '[data-id="market"]', title: 'Borsa', text: 'Hisse, banka ve run birleşmesi burada.', view: 'market' },
+]
+
+function allSteps(): TutorialStep[] {
+  return [...MANDATORY_STEPS, ...OPTIONAL_STEPS]
+}
 
 export class Tutorial {
   private overlay: HTMLElement | null = null
   private stepIndex = 0
+  private pendingStepTimer: number | null = null
   private onTab: ((tab: string) => void) | null = null
   private state: GameState
+  private currentView: NavView = 'earn'
+  private mandatoryComplete = false
 
   constructor(state: GameState) {
     this.state = state
@@ -33,81 +70,177 @@ export class Tutorial {
     return !this.state.tutorialDone
   }
 
+  isMandatoryPhase(): boolean {
+    return !this.mandatoryComplete && !this.state.onboardingComplete
+  }
+
+  onPurchaseMade(): void {
+    if (!this.shouldShow()) return
+    const step = allSteps()[this.stepIndex]
+    if (step?.waitFor === 'purchase') {
+      this.mandatoryComplete = true
+      this.state.onboardingComplete = true
+      this.stepIndex++
+      this.showStep()
+    }
+  }
+
+  onTapMade(): void {
+    if (!this.shouldShow()) return
+    const step = allSteps()[this.stepIndex]
+    if (step?.waitFor === 'tap') {
+      this.stepIndex++
+      this.showStep()
+    }
+  }
+
+  onViewChange(view: NavView): void {
+    this.currentView = view
+    if (this.state.tutorialDone) {
+      this.cleanup()
+      return
+    }
+    this.cleanup()
+    if (this.stepIndex >= allSteps().length) return
+    const step = allSteps()[this.stepIndex]!
+    if (!step.view || step.view === view) {
+      window.setTimeout(() => this.showStep(), 120)
+    }
+  }
+
+  dismiss(): void {
+    this.cleanup()
+  }
+
   start(): void {
     if (!this.shouldShow()) return
-    this.stepIndex = 0
+    this.mandatoryComplete = this.state.onboardingComplete
+    if (this.mandatoryComplete) {
+      this.stepIndex = MANDATORY_STEPS.length
+    } else {
+      this.stepIndex = 0
+    }
     this.showStep()
   }
 
   restart(): void {
     this.state.tutorialDone = false
+    this.state.onboardingComplete = false
+    this.mandatoryComplete = false
     this.stepIndex = 0
     this.showStep()
   }
 
   private showStep(): void {
     this.cleanup()
-    if (this.stepIndex >= STEPS.length) {
+    const steps = allSteps()
+    if (this.stepIndex >= steps.length) {
       this.state.tutorialDone = true
+      this.state.onboardingComplete = true
       return
     }
-    const step = STEPS[this.stepIndex]!
+    const step = steps[this.stepIndex]!
+    if (step.view && step.view !== this.currentView) return
+
     if (step.tab && this.onTab) this.onTab(step.tab)
 
-    window.setTimeout(() => {
-      const target = document.querySelector(step.target) as HTMLElement | null
+    const delay = step.tab ? 400 : 100
+    this.pendingStepTimer = window.setTimeout(() => {
+      this.pendingStepTimer = null
+      if (this.state.tutorialDone || this.stepIndex >= steps.length) return
+      const current = steps[this.stepIndex]!
+      if (current.view && current.view !== this.currentView) return
+      if (current.waitFor === 'tap' || current.waitFor === 'purchase') {
+        // Overlay göster; ilerleme olayla gelir
+      }
+
+      const target = document.querySelector(current.target) as HTMLElement | null
+      if (!this.isTargetVisible(target)) return
+
+      const rect = target!.getBoundingClientRect()
+
       this.overlay = document.createElement('div')
       this.overlay.className = 'tutorial-overlay'
 
       const card = document.createElement('div')
       card.className = 'tutorial-card'
       const h = document.createElement('h3')
-      h.textContent = step.title
+      h.textContent = current.title
       const p = document.createElement('p')
-      p.textContent = step.text
+      p.textContent = current.text
       const row = document.createElement('div')
       row.className = 'tutorial-actions'
-      const skip = document.createElement('button')
-      skip.type = 'button'
-      skip.className = 'btn-secondary'
-      skip.textContent = 'Atla'
-      skip.addEventListener('click', () => {
-        this.state.tutorialDone = true
-        this.cleanup()
-      })
-      const next = document.createElement('button')
-      next.type = 'button'
-      next.className = 'btn-primary'
-      next.textContent = this.stepIndex === STEPS.length - 1 ? 'Başla!' : 'İleri'
-      next.addEventListener('click', () => {
-        this.stepIndex++
-        this.showStep()
-      })
-      row.append(skip, next)
-      card.append(h, p, row)
 
-      if (target) {
-        const rect = target.getBoundingClientRect()
-        const spot = document.createElement('div')
-        spot.className = 'tutorial-spotlight'
-        spot.style.top = `${rect.top - 6}px`
-        spot.style.left = `${rect.left - 6}px`
-        spot.style.width = `${rect.width + 12}px`
-        spot.style.height = `${rect.height + 12}px`
-        document.body.appendChild(spot)
-        this.overlay.dataset.spotlight = '1'
-        ;(this.overlay as HTMLElement & { _spot?: HTMLElement })._spot = spot
+      const isMandatory = !!current.mandatory && !this.mandatoryComplete
+      if (!isMandatory) {
+        const skip = document.createElement('button')
+        skip.type = 'button'
+        skip.className = 'btn-secondary'
+        skip.textContent = 'Atla'
+        skip.addEventListener('click', () => {
+          this.state.tutorialDone = true
+          this.state.onboardingComplete = true
+          this.cleanup()
+        })
+        row.appendChild(skip)
       }
 
+      if (!current.waitFor) {
+        const next = document.createElement('button')
+        next.type = 'button'
+        next.className = 'btn-primary'
+        next.textContent = this.stepIndex >= steps.length - 1 ? 'Bitir' : 'Devam'
+        next.addEventListener('click', () => {
+          this.stepIndex++
+          if (this.stepIndex >= MANDATORY_STEPS.length) {
+            this.mandatoryComplete = true
+            this.state.onboardingComplete = true
+          }
+          this.showStep()
+        })
+        row.appendChild(next)
+      } else {
+        const hint = document.createElement('span')
+        hint.className = 'tutorial-wait-hint'
+        hint.textContent = current.waitFor === 'tap' ? 'Tıkla ve devam et →' : 'Satın al ve devam et →'
+        row.appendChild(hint)
+      }
+
+      card.append(h, p, row)
       this.overlay.appendChild(card)
+
+      const highlight = document.createElement('div')
+      highlight.className = 'tutorial-highlight'
+      highlight.style.top = `${rect.top - 6}px`
+      highlight.style.left = `${rect.left - 6}px`
+      highlight.style.width = `${rect.width + 12}px`
+      highlight.style.height = `${rect.height + 12}px`
+      this.overlay.appendChild(highlight)
+      card.style.top = `${Math.min(rect.bottom + 12, window.innerHeight - 180)}px`
+
       document.body.appendChild(this.overlay)
-    }, step.tab ? 200 : 0)
+    }, delay)
+  }
+
+  private isTargetVisible(target: HTMLElement | null): boolean {
+    if (!target) return false
+    let el: HTMLElement | null = target
+    while (el) {
+      if (el.hidden) return false
+      el = el.parentElement
+    }
+    const rect = target.getBoundingClientRect()
+    if (rect.width < 1 || rect.height < 1) return false
+    const style = window.getComputedStyle(target)
+    return style.display !== 'none' && style.visibility !== 'hidden'
   }
 
   private cleanup(): void {
-    const overlay = this.overlay as (HTMLElement & { _spot?: HTMLElement }) | null
-    overlay?._spot?.remove()
-    overlay?.remove()
+    if (this.pendingStepTimer !== null) {
+      window.clearTimeout(this.pendingStepTimer)
+      this.pendingStepTimer = null
+    }
+    this.overlay?.remove()
     this.overlay = null
   }
 }

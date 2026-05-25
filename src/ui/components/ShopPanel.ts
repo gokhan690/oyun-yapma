@@ -1,36 +1,147 @@
 import type { GameState } from '../../game/GameState'
-import { PRODUCERS, formatMoney, producerIconPath, type ProducerDef } from '../../game/Economy'
-import { RESEARCH_NODES, researchCost } from '../../game/Research'
-import { ACHIEVEMENTS } from '../../game/Achievements'
-import { getActiveSynergies } from '../../game/Synergies'
-import { PRESTIGE_THRESHOLD } from '../../game/GameState'
-import { calcPrestigePoints, prestigeMultiplier } from '../../game/Prestige'
+import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, producerIconPath, earlyUnlockCost, isProducerUnlocked, scaledUnlockAt, scaledBaseIncome, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
+import { RESEARCH_NODES, researchCost, researchNodesByBranch, type ResearchBranch } from '../../game/Research'
+import { reputationLoanBlocked } from '../../game/Reputation'
+import { NAMED_MANAGERS } from '../../game/NamedManagers'
+import { getActiveSynergies, getNearSynergies } from '../../game/Synergies'
+import {
+  isShopHubLocked,
+  shopHubLockReason,
+  type ShopHubLock,
+} from '../../game/ProgressiveUnlock'
+import { PRESTIGE_THRESHOLD, ipoThreshold } from '../../game/Prestige'
+import {
+  renderCommoditiesPanel,
+  renderInsurancePanel,
+  renderOpportunitiesPanel,
+  renderUndergroundMarketPanel,
+} from './shop/ShopAltFinancePanels'
+import {
+  BIZ_TIER_BANDS,
+  activeTierBandId,
+  bandUnlocked,
+  createHeroBusinessCard,
+  filterProducersForShop,
+  producersInBand,
+  renderLockedPreviewCard,
+  updateHeroBusinessCard,
+} from './shop/ShopBusinessTierView'
+import { prestigeMultiplier } from '../../game/Prestige'
 import { managerCost, hasManager } from '../../game/Managers'
-import { profitLoss, sparklinePath, STOCK_DEFS } from '../../game/StockMarket'
+import { profitLoss, priceChangePct, portfolioSummary, sparklinePath, STOCK_DEFS, fearLabel, isBankruptTicker } from '../../game/StockMarket'
+import { depositRate, bondRate, loanRate, projectInterestTick, interestTickCountdownMs, INTEREST_TICK_MS } from '../../game/FinanceBank'
 import { PRESTIGE_TREE_NODES, canBuyNode, hasNode } from '../../game/PrestigeTree'
+import { dailyGoalProgress, scaledDailyGoalTarget } from '../../game/DailyGoal'
+import { assetUrl } from '../../utils/assetUrl'
+import {
+  getBestRecommendation,
+  sortProducers,
+  formatRoi,
+  producerRoiSeconds,
+  formatRecommendationSummary,
+  type BizSortOrder,
+} from '../../game/ShopAdvisor'
+import { UNDERGROUND_TREE_NODES, treeNodeCost } from '../../game/UndergroundTree'
+import { modernizeCost } from '../../game/TechObsolescence'
 
 export type BuyMode = 1 | 10 | 'max'
+export type ShopHub = 'growth' | 'powerup' | 'finance' | 'empire'
+export type GrowthSub = 'businesses' | 'management'
+export type PowerupSub = 'upgrades' | 'research'
+export type EmpireSub = 'sport' | 'politics' | 'dark' | 'luxury' | 'finance' | 'science'
+export type IpoSubTab = 'stock' | 'bank' | 'prestige' | 'ipo' | 'insurance' | 'commodities' | 'opportunities' | 'underground_market'
+export type UpgradeFilter = 'all' | 'click' | 'global' | 'producer'
+export type BizTypeFilter = 'all' | 'legal' | 'illegal' | 'sport' | 'politics' | 'dark' | 'luxury' | 'finance' | 'science'
+
+const HUB_SUBTITLES: Record<ShopHub, string> = {
+  growth: 'İşletme satın al, yönetici işe al',
+  powerup: 'Yükseltme ve Ar-Ge',
+  finance: 'Borsa, banka, prestij ve IPO',
+  empire: 'Spor, siyaset ve yeraltı yatırımları',
+}
+
+const HUB_ICONS: Record<ShopHub, string> = {
+  growth: assetUrl('icons/nav/shop.svg'),
+  powerup: assetUrl('icons/businesses/ai.svg'),
+  finance: assetUrl('icons/businesses/tuzaq.svg'),
+  empire: assetUrl('icons/nav/empire.svg'),
+}
+
+const MILESTONES = [1, 10, 25, 50, 100]
 
 export class ShopPanel {
   readonly root: HTMLElement
   private buyMode: BuyMode = 1
-  private activeTab = 'businesses'
+  private activeHub: ShopHub = 'growth'
+  private growthSub: GrowthSub = 'businesses'
+  private powerupSub: PowerupSub = 'upgrades'
   private panels: Record<string, HTMLElement> = {}
   private tabButtons: HTMLButtonElement[] = []
+  private subTabButtons: HTMLButtonElement[] = []
   private buyModesEl!: HTMLElement
+  private shopSubEl!: HTMLElement
+  private shopHubEl!: HTMLElement
+  private advisorEl!: HTMLElement
+  private subTabsEl!: HTMLElement
   private businessCards = new Map<string, HTMLDivElement>()
+  private expandedBands = new Set<string>(['starter'])
+  private tierBandsInit = false
   private synergyEl: HTMLElement | null = null
+  private ipoSubTab: IpoSubTab = 'stock'
+  private upgradeFilter: UpgradeFilter = 'all'
+  private researchBranch: ResearchBranch | 'all' = 'all'
+  private bizTypeFilter: BizTypeFilter = 'all'
+  private empireSub: EmpireSub = 'sport'
+  private empireCards = new Map<string, HTMLDivElement>()
+  private bizSortOrder: BizSortOrder = 'profit'
+  private viewContext: 'shop' | 'market' = 'shop'
+  private titleEl!: HTMLElement
+
+  private matchesBizFilter(p: ProducerDef, filter: BizTypeFilter): boolean {
+    const cat = producerCategory(p)
+    if (filter === 'all') return !p.category
+    if (filter === 'legal') return cat === 'legal'
+    if (filter === 'illegal') return cat === 'illegal'
+    return p.category === filter
+  }
 
   constructor() {
     this.root = document.createElement('section')
-    this.root.className = 'shop-panel'
+    this.root.className = 'shop-panel shop-hub-growth'
     this.build()
+  }
+
+  private resolveTab(id: string): { hub: ShopHub; growthSub?: GrowthSub; powerupSub?: PowerupSub; empireSub?: EmpireSub; ipoSub?: IpoSubTab } {
+    if (id === 'growth' || id === 'powerup' || id === 'finance' || id === 'empire') return { hub: id }
+    if (id === 'businesses' || id === 'management') return { hub: 'growth', growthSub: id }
+    if (id === 'upgrades' || id === 'research') return { hub: 'powerup', powerupSub: id }
+    if (id === 'sport' || id === 'politics' || id === 'dark' || id === 'luxury' || id === 'finance' || id === 'science') {
+      return { hub: 'empire', empireSub: id }
+    }
+    if (id === 'ipo' || id === 'stock' || id === 'bank' || id === 'prestige' || id === 'insurance' || id === 'commodities' || id === 'opportunities' || id === 'underground_market') {
+      return { hub: 'finance', ipoSub: (['stock', 'bank', 'prestige', 'insurance', 'commodities', 'opportunities', 'underground_market'].includes(id) ? id : this.ipoSubTab) as IpoSubTab }
+    }
+    return { hub: 'growth', growthSub: 'businesses' }
+  }
+
+  private activePanelId(): string {
+    if (this.activeHub === 'growth') return this.growthSub
+    if (this.activeHub === 'powerup') return this.powerupSub
+    if (this.activeHub === 'empire') return `empire_${this.empireSub}`
+    return 'ipo'
   }
 
   private build(): void {
     const header = document.createElement('div')
     header.className = 'shop-header'
-    header.innerHTML = '<span class="shop-title">Mağaza</span><span class="shop-sub">İşletme & yükseltme</span>'
+    const title = document.createElement('span')
+    title.className = 'shop-title'
+    title.textContent = 'İşletmeler'
+    this.titleEl = title
+    this.shopSubEl = document.createElement('span')
+    this.shopSubEl.className = 'shop-sub'
+    this.shopSubEl.textContent = HUB_SUBTITLES.growth
+    header.append(title, this.shopSubEl)
 
     const buyModes = document.createElement('div')
     buyModes.className = 'buy-modes'
@@ -41,36 +152,45 @@ export class ShopPanel {
       btn.className = 'buy-mode-btn'
       btn.dataset.action = 'buy-mode'
       btn.dataset.count = mode
-      btn.textContent = mode === 'max' ? 'Max' : `x${mode}`
+      btn.textContent = mode === 'max' ? 'Hepsi' : mode
       if (mode === '1') btn.classList.add('active')
       buyModes.appendChild(btn)
     }
 
+    this.advisorEl = document.createElement('div')
+    this.advisorEl.className = 'shop-advisor-strip'
+
+    this.subTabsEl = document.createElement('div')
+    this.subTabsEl.className = 'shop-sub-tabs'
+
     const tabs = document.createElement('div')
-    tabs.className = 'shop-tabs-pill'
-    const tabDefs = [
-      { id: 'businesses', label: 'İşletme', icon: '🏢' },
-      { id: 'management', label: 'Yönetim', icon: '👔' },
-      { id: 'upgrades', label: 'Yükselt', icon: '⬆️' },
-      { id: 'research', label: 'Ar-Ge', icon: '🔬' },
-      { id: 'missions', label: 'Görev', icon: '📋' },
-      { id: 'achievements', label: 'Başarım', icon: '🏆' },
-      { id: 'ipo', label: 'Borsa', icon: '📈' },
+    tabs.className = 'shop-tabs-pill shop-hub-tabs'
+    const hubDefs: { id: ShopHub; label: string; shopOnly?: boolean }[] = [
+      { id: 'growth', label: 'Büyüme' },
+      { id: 'powerup', label: 'Güçlendir' },
+      { id: 'empire', label: 'İmparatorluk' },
     ]
-    for (const t of tabDefs) {
+    for (const t of hubDefs) {
       const btn = document.createElement('button')
       btn.type = 'button'
-      btn.className = 'tab-btn'
+      btn.className = 'tab-btn shop-hub-btn'
       btn.dataset.action = 'shop-tab'
       btn.dataset.id = t.id
       btn.dataset.tab = t.id
-      btn.innerHTML = `<span>${t.icon}</span> ${t.label}`
-      if (t.id === 'businesses') btn.classList.add('active')
+      const img = document.createElement('img')
+      img.src = HUB_ICONS[t.id]
+      img.alt = ''
+      img.width = 18
+      img.height = 18
+      const label = document.createElement('span')
+      label.textContent = t.label
+      btn.append(img, label)
+      if (t.id === 'growth') btn.classList.add('active')
       this.tabButtons.push(btn)
       tabs.appendChild(btn)
     }
 
-    for (const id of tabDefs.map((t) => t.id)) {
+    for (const id of ['businesses', 'management', 'upgrades', 'research', 'ipo', 'empire_sport', 'empire_politics', 'empire_dark', 'empire_luxury', 'empire_finance', 'empire_science']) {
       const panel = document.createElement('div')
       panel.className = 'tab-panel'
       panel.dataset.panel = id
@@ -78,34 +198,304 @@ export class ShopPanel {
       this.panels[id] = panel
     }
 
-    this.root.append(header, buyModes, tabs, ...Object.values(this.panels))
+    const tabsWrap = document.createElement('div')
+    tabsWrap.className = 'shop-tabs-wrap'
+    tabsWrap.appendChild(tabs)
+
+    const chrome = document.createElement('div')
+    chrome.className = 'shop-chrome'
+    this.shopHubEl = document.createElement('div')
+    this.shopHubEl.className = 'shop-hub-strip'
+    chrome.append(header, this.shopHubEl, this.advisorEl, buyModes, this.subTabsEl, tabsWrap)
+    this.renderSubTabs()
+
+    const body = document.createElement('div')
+    body.className = 'shop-body'
+    for (const panel of Object.values(this.panels)) {
+      body.appendChild(panel)
+    }
+
+    this.root.append(chrome, body)
   }
 
-  setTab(id: string): void {
-    this.activeTab = id
+  setViewContext(ctx: 'shop' | 'market', state?: GameState): void {
+    this.viewContext = ctx
+    if (ctx === 'market') {
+      this.activeHub = 'finance'
+      this.ipoSubTab = 'stock'
+    } else if (this.activeHub === 'finance') {
+      this.activeHub = 'growth'
+      this.growthSub = 'businesses'
+    }
+    this.applyViewChrome(state)
+    const panelId = this.activePanelId()
+    for (const [pid, panel] of Object.entries(this.panels)) {
+      panel.hidden = pid !== panelId
+    }
+  }
+
+  private shopContextClass(): 'market' | 'business' {
+    return this.viewContext === 'market' ? 'market' : 'business'
+  }
+
+  private applyRootClasses(hub: ShopHub = this.activeHub): void {
+    this.root.className = `shop-panel shop-hub-${hub} shop-context-${this.shopContextClass()}`
+  }
+
+  private applyViewChrome(state?: GameState): void {
+    const isMarket = this.viewContext === 'market'
+    this.applyRootClasses()
+    this.titleEl.textContent = isMarket ? '📈 Borsa & Finans' : '🏢 İşletmeler'
+    this.shopSubEl.textContent = isMarket
+      ? 'Hisse al/sat · banka · prestij · run birleşmesi'
+      : HUB_SUBTITLES[this.activeHub === 'finance' ? 'growth' : this.activeHub]
+    this.buyModesEl.classList.toggle('is-hidden', isMarket)
+    this.advisorEl.classList.toggle('is-hidden', isMarket)
+    const hubTabs = this.root.querySelector('.shop-hub-tabs') as HTMLElement | null
+    const tabsWrap = this.root.querySelector('.shop-tabs-wrap') as HTMLElement | null
+    if (hubTabs) hubTabs.hidden = isMarket
+    if (tabsWrap) tabsWrap.hidden = isMarket
+    this.shopHubEl.hidden = isMarket
+    const modEl = this.root.querySelector('.finance-modifiers') as HTMLElement | null
+    if (modEl) modEl.hidden = isMarket || this.viewContext === 'shop'
+    if (state) {
+      this.renderSubTabs(state)
+      this.updateTabBadges(state)
+      this.applyProgressiveLocks(state)
+    }
+  }
+
+  private applyProgressiveLocks(state: GameState): void {
+    const hubMap: Partial<Record<ShopHub, ShopHubLock>> = {
+      powerup: 'powerup',
+      empire: 'empire',
+    }
+    if (isShopHubLocked('management', state.producers, state.totalEarned) && this.growthSub === 'management') {
+      this.growthSub = 'businesses'
+    }
+    if (isShopHubLocked('powerup', state.producers, state.totalEarned) && this.activeHub === 'powerup') {
+      this.activeHub = 'growth'
+    }
+    if (isShopHubLocked('empire', state.producers, state.totalEarned) && this.activeHub === 'empire') {
+      this.activeHub = 'growth'
+    }
     for (const btn of this.tabButtons) {
-      btn.classList.toggle('active', btn.dataset.tab === id)
+      const hub = btn.dataset.tab as ShopHub
+      const lockKey = hubMap[hub]
+      if (!lockKey) {
+        btn.classList.remove('shop-hub-locked')
+        btn.removeAttribute('title')
+        continue
+      }
+      const locked = isShopHubLocked(lockKey, state.producers, state.totalEarned)
+      btn.classList.toggle('shop-hub-locked', locked)
+      btn.title = locked ? shopHubLockReason(lockKey, state.producers, state.totalEarned) ?? '' : ''
+    }
+    for (const btn of this.subTabButtons) {
+      if (btn.dataset.id !== 'management') continue
+      const locked = isShopHubLocked('management', state.producers, state.totalEarned)
+      btn.classList.toggle('shop-hub-locked', locked)
+      btn.title = locked ? shopHubLockReason('management', state.producers, state.totalEarned) ?? '' : ''
+    }
+  }
+
+  getViewContext(): 'shop' | 'market' {
+    return this.viewContext
+  }
+
+  setTab(id: string, state?: GameState): void {
+    const resolved = this.resolveTab(id)
+    this.activeHub = resolved.hub
+    if (resolved.growthSub) this.growthSub = resolved.growthSub
+    if (resolved.powerupSub) this.powerupSub = resolved.powerupSub
+    if (resolved.ipoSub) this.ipoSubTab = resolved.ipoSub
+    if (resolved.empireSub) this.empireSub = resolved.empireSub
+    const panelId = this.activePanelId()
+    this.applyRootClasses()
+    for (const btn of this.tabButtons) {
+      btn.classList.toggle('active', btn.dataset.tab === this.activeHub)
+      btn.hidden = this.viewContext === 'market'
     }
     for (const [pid, panel] of Object.entries(this.panels)) {
-      panel.hidden = pid !== id
+      const show = pid === panelId
+      panel.hidden = !show
+      if (show) {
+        panel.scrollTop = 0
+        panel.classList.remove('tab-fade-in')
+        void panel.offsetWidth
+        panel.classList.add('tab-fade-in')
+      }
     }
-    this.buyModesEl.hidden = id !== 'businesses'
+    this.renderSubTabs(state)
+    const showBuy = (this.activeHub === 'growth' && this.growthSub === 'businesses')
+      || (this.activeHub === 'empire')
+    this.buyModesEl.hidden = !showBuy
+    this.buyModesEl.classList.toggle('is-hidden', !showBuy)
+    this.shopSubEl.textContent = HUB_SUBTITLES[this.activeHub]
+    this.applyViewChrome(state)
+    const activeBtn = this.tabButtons.find((b) => b.dataset.tab === this.activeHub)
+    activeBtn?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+  }
+
+  setGrowthSub(sub: GrowthSub): void {
+    this.growthSub = sub
+    this.setTab(sub)
+  }
+
+  setPowerupSub(sub: PowerupSub): void {
+    this.powerupSub = sub
+    this.setTab(sub)
+  }
+
+  goToFinanceStock(tickerId?: string): void {
+    this.viewContext = 'market'
+    this.ipoSubTab = 'stock'
+    this.activeHub = 'finance'
+    if (tickerId) this.highlightStockTicker = tickerId
+  }
+
+  private highlightStockTicker: string | null = null
+
+  getIpoSubTab(): IpoSubTab {
+    return this.ipoSubTab
+  }
+
+  private renderSubTabs(state?: GameState): void {
+    this.subTabsEl.replaceChildren()
+    this.subTabButtons = []
+    if (this.viewContext === 'market' || this.activeHub === 'finance') {
+      for (const [id, label] of [
+        ['stock', 'Borsa'], ['bank', 'Banka'], ['insurance', 'Sigorta'],
+        ['commodities', 'Emtia'], ['opportunities', 'Fırsatlar'],
+        ['underground_market', 'Kara'], ['prestige', 'Prestij'], ['ipo', 'Birleşme'],
+      ] as const) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = `shop-sub-tab ipo-nav-tab${this.ipoSubTab === id ? ' active' : ''}`
+        btn.dataset.action = 'ipo-sub-tab'
+        btn.dataset.id = id
+        btn.textContent = label
+        if (id === 'ipo' && state?.prestigeEligible()) {
+          const badge = document.createElement('span')
+          badge.className = 'tab-badge tab-badge-inline'
+          badge.title = 'Birleşme hazır'
+          btn.appendChild(badge)
+        }
+        this.subTabButtons.push(btn)
+        this.subTabsEl.appendChild(btn)
+      }
+      return
+    }
+    if (this.activeHub === 'growth') {
+      for (const [id, label] of [['businesses', 'İşletme'], ['management', 'Yönetim']] as const) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = `shop-sub-tab${this.growthSub === id ? ' active' : ''}`
+        btn.dataset.action = 'shop-sub-tab'
+        btn.dataset.id = id
+        btn.textContent = label
+        this.subTabButtons.push(btn)
+        this.subTabsEl.appendChild(btn)
+      }
+    } else if (this.activeHub === 'powerup') {
+      for (const [id, label] of [['upgrades', 'Yükseltme'], ['research', 'Ar-Ge']] as const) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = `shop-sub-tab${this.powerupSub === id ? ' active' : ''}`
+        btn.dataset.action = 'shop-sub-tab'
+        btn.dataset.id = id
+        btn.textContent = label
+        this.subTabButtons.push(btn)
+        this.subTabsEl.appendChild(btn)
+      }
+    } else if (this.activeHub === 'empire') {
+      for (const [id, label] of [
+        ['sport', 'Spor'], ['politics', 'Siyaset'], ['dark', 'Yeraltı'],
+        ['luxury', 'Lüks'], ['finance', 'Finans'], ['science', 'Bilim'],
+      ] as const) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = `shop-sub-tab${this.empireSub === id ? ' active' : ''}`
+        btn.dataset.action = 'shop-sub-tab'
+        btn.dataset.id = id
+        btn.textContent = label
+        this.subTabButtons.push(btn)
+        this.subTabsEl.appendChild(btn)
+      }
+      const manageBtn = document.createElement('button')
+      manageBtn.type = 'button'
+      manageBtn.className = 'shop-sub-tab shop-sub-tab-manage'
+      manageBtn.dataset.action = 'open-empire-manage'
+      manageBtn.textContent = '⚔️ Yönet'
+      manageBtn.title = 'Satın aldığın varlıkları yönet'
+      this.subTabsEl.appendChild(manageBtn)
+    }
+  }
+
+  setEmpireSub(sub: EmpireSub): void {
+    this.empireSub = sub
+    this.activeHub = 'empire'
+    const panelId = this.activePanelId()
+    this.applyRootClasses('empire')
+    for (const [pid, panel] of Object.entries(this.panels)) {
+      panel.hidden = pid !== panelId
+    }
+    for (const btn of this.tabButtons) {
+      btn.classList.toggle('active', btn.dataset.tab === 'empire')
+      btn.hidden = this.viewContext === 'market'
+    }
+    this.buyModesEl.hidden = false
+    this.buyModesEl.classList.remove('is-hidden')
+    this.applyViewChrome()
+  }
+
+  setIpoSubTab(tab: IpoSubTab): void {
+    this.ipoSubTab = tab
+  }
+
+  setUpgradeFilter(filter: UpgradeFilter): void {
+    this.upgradeFilter = filter
+  }
+
+  setResearchBranch(branch: ResearchBranch | 'all'): void {
+    this.researchBranch = branch
+  }
+
+  setBizTypeFilter(filter: BizTypeFilter): void {
+    this.bizTypeFilter = filter
   }
 
   hasShopBadge(state: GameState): boolean {
     state.ensureMissions()
-    const missionReady = state.missions.some((m) => m.progress >= m.target && !m.claimed)
-    const ipoReady = state.prestigeEligible()
-    return missionReady || ipoReady
+    const upgradeReady = state.availableUpgrades().some((u) => state.canAfford(state.upgradeCostFor(u)))
+    const earlyUnlock = PRODUCERS.some((p) => {
+      if (isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks)) return false
+      return state.canAfford(earlyUnlockCost(p))
+    })
+    return upgradeReady || earlyUnlock
+  }
+
+  hasMarketBadge(state: GameState): boolean {
+    return state.prestigeEligible()
+      || !!state.investmentOffer
+      || state.pendingInvestments.length > 0
   }
 
   updateTabBadges(state: GameState): void {
     state.ensureMissions()
     for (const btn of this.tabButtons) {
-      const tab = btn.dataset.tab
+      const hub = btn.dataset.tab as ShopHub
       let show = false
-      if (tab === 'missions') show = state.missions.some((m) => m.progress >= m.target && !m.claimed)
-      if (tab === 'ipo') show = state.prestigeEligible()
+      if (hub === 'finance') show = state.prestigeEligible()
+      if (hub === 'powerup') {
+        show = state.availableUpgrades().some((u) => state.canAfford(state.upgradeCostFor(u)))
+      }
+      if (hub === 'growth') {
+        show = PRODUCERS.some((p) => {
+          if (isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks)) return false
+          return state.canAfford(earlyUnlockCost(p))
+        })
+      }
       let badge = btn.querySelector('.tab-badge') as HTMLElement | null
       if (show && !badge) {
         badge = document.createElement('span')
@@ -117,7 +507,7 @@ export class ShopPanel {
   }
 
   getActiveTab(): string {
-    return this.activeTab
+    return this.activeHub
   }
 
   getBuyMode(): BuyMode {
@@ -125,12 +515,23 @@ export class ShopPanel {
   }
 
   render(state: GameState, onlyActiveTab = false, patch = false): void {
-    if (patch && this.activeTab === 'businesses') {
+    this.applyViewChrome(state)
+    if (this.viewContext === 'shop') {
+      this.shopHubEl.hidden = true
+      this.shopHubEl.replaceChildren()
+      this.renderAdvisorStrip(state)
+    } else {
+      this.renderShopHub(state)
+    }
+    this.renderSubTabs(state)
+    const panelId = this.activePanelId()
+    if (patch && panelId === 'businesses') {
       this.renderBusinesses(state, true)
       return
     }
     if (onlyActiveTab) {
-      this.renderTab(state, this.activeTab)
+      this.renderTab(state, panelId)
+      this.renderSubTabs(state)
       this.updateTabBadges(state)
       return
     }
@@ -138,15 +539,72 @@ export class ShopPanel {
     this.renderManagement(state)
     this.renderUpgrades(state)
     this.renderResearch(state)
-    this.renderMissions(state)
-    this.renderAchievements(state)
     this.renderIpo(state)
+    for (const sub of ['sport', 'politics', 'dark', 'luxury', 'finance', 'science'] as const) {
+      if (this.activeHub === 'empire' && this.empireSub === sub) {
+        this.renderEmpireCategory(state, sub)
+      }
+    }
     this.updateTabBadges(state)
   }
 
-  /** Sadece fiyat/alınabilirlik güncelle — DOM yeniden oluşturma yok */
   patchAffordability(state: GameState): void {
-    if (this.activeTab === 'businesses') this.renderBusinesses(state, true)
+    const panelId = this.activePanelId()
+    if (panelId === 'businesses') this.renderBusinesses(state, true)
+    else if (panelId.startsWith('empire_')) this.patchEmpireLockedCards(state)
+    this.renderAdvisorStrip(state)
+  }
+
+  private patchLockedCards(state: GameState, root: ParentNode): void {
+    root.querySelectorAll<HTMLElement>('.biz-card-locked-preview[data-producer-id]').forEach((card) => {
+      const id = card.dataset.producerId
+      if (!id) return
+      const def = PRODUCERS.find((p) => p.id === id)
+      if (!def) return
+      this.patchEarlyUnlockFooter(card, def, state, scaledUnlockAt(def))
+    })
+  }
+
+  private patchEmpireLockedCards(state: GameState): void {
+    const panelId = this.activePanelId()
+    const panel = this.panels[panelId]
+    if (!panel) return
+    this.patchLockedCards(state, panel)
+  }
+
+  private renderAdvisorStrip(state: GameState): void {
+    const rec = getBestRecommendation(state)
+    this.advisorEl.replaceChildren()
+    if (!rec) {
+      this.advisorEl.hidden = true
+      return
+    }
+    this.advisorEl.hidden = false
+    const card = document.createElement('div')
+    card.className = `shop-advisor-card${rec.affordable ? '' : ' shop-advisor-locked'}`
+    const text = document.createElement('div')
+    text.className = 'shop-advisor-text'
+    text.innerHTML = `<strong>Şimdi al</strong><span>${formatRecommendationSummary(rec)}</span><small>${rec.reason}</small>`
+    const actions = document.createElement('div')
+    actions.className = 'shop-advisor-actions'
+    const buyBtn = document.createElement('button')
+    buyBtn.type = 'button'
+    buyBtn.className = 'btn-primary btn-sm'
+    buyBtn.dataset.action = 'advisor-buy'
+    buyBtn.dataset.id = `${rec.kind}:${rec.id}`
+    buyBtn.textContent = rec.affordable ? 'Satın al' : `Eksik: ${formatMoney(Math.max(0, rec.cost - state.money))}`
+    buyBtn.disabled = !rec.affordable
+    actions.appendChild(buyBtn)
+    if (!rec.affordable && state.pendingOfflineEarnings > 0) {
+      const adBtn = document.createElement('button')
+      adBtn.type = 'button'
+      adBtn.className = 'btn-ad btn-sm'
+      adBtn.dataset.action = 'ad-offline'
+      adBtn.textContent = '📺 Offline topla'
+      actions.appendChild(adBtn)
+    }
+    card.append(text, actions)
+    this.advisorEl.appendChild(card)
   }
 
   private renderTab(state: GameState, tab: string): void {
@@ -155,10 +613,20 @@ export class ShopPanel {
       case 'management': this.renderManagement(state); break
       case 'upgrades': this.renderUpgrades(state); break
       case 'research': this.renderResearch(state); break
-      case 'missions': this.renderMissions(state); break
-      case 'achievements': this.renderAchievements(state); break
+      case 'empire_sport':
+      case 'empire_politics':
+      case 'empire_dark':
+      case 'empire_luxury':
+      case 'empire_finance':
+      case 'empire_science':
+        this.renderEmpireCategory(state, tab.replace('empire_', '') as EmpireSub)
+        break
       case 'ipo': this.renderIpo(state); break
     }
+  }
+
+  setBizSortOrder(order: BizSortOrder): void {
+    this.bizSortOrder = order
   }
 
   setBuyMode(mode: BuyMode): void {
@@ -181,42 +649,597 @@ export class ShopPanel {
     window.setTimeout(() => card.classList.remove('just-bought'), 450)
   }
 
+  toggleTierBand(bandId: string): void {
+    if (this.expandedBands.has(bandId)) this.expandedBands.delete(bandId)
+    else this.expandedBands.add(bandId)
+  }
+
+  private renderShopHub(state: GameState): void {
+    if (this.viewContext !== 'market') {
+      this.shopHubEl.hidden = true
+      return
+    }
+    this.shopHubEl.hidden = false
+    const ipd = state.incomePerDay()
+    const click = state.clickIncomePerTap()
+    const illegalIpd = state.illegalIncomePerDay()
+    const ownedBiz = PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0).length
+    const nextUnlock = PRODUCERS.find((p) => !isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks))
+    const goalPct = Math.floor(dailyGoalProgress(state.dailyGoalEarned, scaledDailyGoalTarget(state.incomePerDay())))
+    const nextText = nextUnlock ? `${nextUnlock.emoji} ${nextUnlock.name}` : 'Hepsi açık'
+    const hasIllegal = illegalIpd > 0
+    const heatPct = Math.round(state.illegalHeat)
+    const illegalStat = hasIllegal
+      ? `<span class="hub-stat hub-stat-illegal"><strong>${formatIncomeRate(illegalIpd)}</strong><small>Illegal pasif</small></span>
+         <span class="hub-stat hub-stat-heat"><strong>${state.illegalRiskLabel()}</strong><small>Radar ${heatPct}%</small></span>`
+      : ''
+    this.shopHubEl.innerHTML = `
+      <span class="hub-stat hub-stat-wallet"><strong>${formatMoney(state.money)}</strong><small>Cüzdan</small></span>
+      <span class="hub-stat"><strong>${formatMoney(state.totalEarned)}</strong><small>Toplam kazanç</small></span>
+      <span class="hub-stat"><strong>${formatIncomeRate(ipd)}</strong><small>Pasif / sn</small></span>
+      <span class="hub-stat"><strong>${formatMoney(click)}</strong><small>Tık / vuruş</small></span>
+      ${illegalStat}
+      <span class="hub-stat"><strong>${ownedBiz}</strong><small>İşletme</small></span>
+      <span class="hub-stat"><strong>${nextText}</strong><small>Sıradaki kilit</small></span>
+      <span class="hub-stat"><strong>${goalPct}%</strong><small>Günlük hedef</small></span>
+      <span class="hub-stat hub-stat-note"><small>Cüzdan harcanır · Toplam kazanç kilit/rütbe için (düşmez)</small></span>
+    `
+    this.renderFinanceModifiers(state)
+  }
+
+  private renderFinanceModifiers(state: GameState): void {
+    let modEl = this.root.querySelector('.finance-modifiers') as HTMLElement | null
+    if (!modEl) {
+      modEl = document.createElement('div')
+      modEl.className = 'finance-modifiers'
+      this.shopHubEl.after(modEl)
+    }
+    const chips = state.incomeModifierChips()
+    if (chips.length === 0) {
+      modEl.hidden = true
+      return
+    }
+    modEl.hidden = false
+    modEl.replaceChildren()
+    const label = document.createElement('span')
+    label.className = 'finance-modifiers-label'
+    label.textContent = 'Aktif etkiler:'
+    modEl.appendChild(label)
+    for (const c of chips) {
+      const chip = document.createElement('span')
+      chip.className = 'finance-mod-chip'
+      chip.title = c.detail
+      chip.textContent = `${c.emoji} ${c.label}`
+      modEl.appendChild(chip)
+    }
+  }
+
+  private createFilterPills(
+    filters: { id: string; label: string }[],
+    activeId: string,
+    action: string,
+  ): HTMLElement {
+    const wrap = document.createElement('div')
+    wrap.className = 'shop-filter-pills'
+    for (const f of filters) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `filter-pill${f.id === activeId ? ' active' : ''}`
+      btn.dataset.action = action
+      btn.dataset.id = f.id
+      btn.textContent = f.label
+      wrap.appendChild(btn)
+    }
+    return wrap
+  }
+
+  private createRevenueDistribution(state: GameState): HTMLElement | null {
+    const entries = PRODUCERS
+      .map((p) => ({ p, income: state.producerIncome(p) }))
+      .filter((e) => e.income > 0)
+      .sort((a, b) => b.income - a.income)
+    if (entries.length === 0) return null
+    const total = entries.reduce((s, e) => s + e.income, 0)
+    const top3 = entries.slice(0, 3)
+    const el = document.createElement('div')
+    el.className = 'revenue-distribution revenue-distribution-compact'
+    const title = document.createElement('strong')
+    title.textContent = 'Gelir'
+    el.appendChild(title)
+    const bar = document.createElement('div')
+    bar.className = 'revenue-bar'
+    const colors = ['var(--accent)', 'var(--green)', 'var(--blue)']
+    top3.forEach((e, i) => {
+      const seg = document.createElement('span')
+      seg.className = 'revenue-seg'
+      seg.style.flex = String(e.income / total)
+      seg.style.background = colors[i] ?? 'var(--muted)'
+      seg.title = `${e.p.name}: ${formatIncomeRate(e.income)}`
+      bar.appendChild(seg)
+    })
+    el.appendChild(bar)
+    const legend = document.createElement('div')
+    legend.className = 'revenue-legend'
+    for (const e of top3) {
+      const item = document.createElement('span')
+      item.textContent = `${e.p.emoji} ${Math.round((e.income / total) * 100)}%`
+      legend.appendChild(item)
+    }
+    el.appendChild(legend)
+    return el
+  }
+
+  private patchEarlyUnlockFooter(
+    card: HTMLElement,
+    def: ProducerDef,
+    state: GameState,
+    unlockAt: number,
+  ): void {
+    const earlyBtn = card.querySelector('.btn-early-unlock') as HTMLButtonElement | null
+    const earlyHint = card.querySelector('.btn-early-unlock-hint') as HTMLElement | null
+    if (!earlyBtn) return
+    const cost = earlyUnlockCost(def)
+    const canAfford = state.canAfford(cost)
+    earlyBtn.textContent = canAfford
+      ? `Erken aç · ${formatMoney(cost)}`
+      : `Erken aç · ${formatMoney(cost)} / ${formatMoney(state.money)}`
+    earlyBtn.disabled = false
+    earlyBtn.classList.toggle('btn-early-unlock-ready', canAfford)
+    earlyBtn.title = canAfford
+      ? `Cüzdandan ödenir · Normal açılış: ${formatMoney(unlockAt)} toplam kazanç`
+      : `Gerekli: ${formatMoney(cost)} · Cüzdan: ${formatMoney(state.money)} · Eksik: ${formatMoney(Math.max(0, cost - state.money))}`
+    if (earlyHint) {
+      earlyHint.textContent = canAfford ? 'Cüzdandan ödenir' : `Eksik: ${formatMoney(Math.max(0, cost - state.money))}`
+      earlyHint.hidden = false
+      earlyHint.classList.toggle('hint-ready', canAfford)
+    }
+  }
+
+  private createSectionHeader(title: string, subtitle?: string): HTMLElement {
+    const el = document.createElement('div')
+    el.className = 'shop-section-header'
+    const strong = document.createElement('strong')
+    strong.textContent = title
+    el.appendChild(strong)
+    if (subtitle) {
+      const small = document.createElement('small')
+      small.textContent = subtitle
+      el.appendChild(small)
+    }
+    return el
+  }
+
+  private createFinanceDash(state: GameState): HTMLElement {
+    const bank = state.bank
+    const portfolio = portfolioSummary(state.stock)
+    const plClass = portfolio.totalPl >= 0 ? 'pl-positive' : 'pl-negative'
+    const el = document.createElement('div')
+    el.className = 'finance-dash'
+    el.innerHTML = `
+      <div class="finance-dash-hero">
+        <small>Net değer</small>
+        <strong>${formatMoney(state.financeNetWorth())}</strong>
+        <span class="finance-dash-sub">Nakit + portföy + mevduat + tahvil − borç</span>
+      </div>
+      <div class="finance-dash-grid">
+        <span><small>Nakit</small><strong>${formatMoney(state.money)}</strong></span>
+        <span><small>Portföy</small><strong>${formatMoney(portfolio.totalValue)}</strong></span>
+        <span><small>Mevduat</small><strong>${formatMoney(bank.deposit)}</strong></span>
+        <span><small>Tahvil</small><strong>${formatMoney(bank.bonds)}</strong></span>
+        <span class="${bank.loan > 0 ? 'finance-dash-debt' : ''}"><small>Borç</small><strong>${formatMoney(bank.loan)}</strong></span>
+        <span><small>Portföy K/Z</small><strong class="${plClass}">${formatMoney(portfolio.totalPl)}</strong></span>
+      </div>
+    `
+    return el
+  }
+
+  private createFinanceMacroBar(state: GameState): HTMLElement {
+    const macro = document.createElement('div')
+    macro.className = 'finance-macro-bar'
+    const ratePct = (state.stock.centralBankRate * 100).toFixed(1)
+    const fear = state.stock.marketFear
+    macro.innerHTML = `
+      <div class="finance-macro-stat"><small>Merkez faiz</small><strong>%${ratePct}</strong></div>
+      <div class="finance-macro-stat"><small>Piyasa korkusu</small><strong class="${fear >= 60 ? 'pl-negative' : fear <= 35 ? 'pl-positive' : ''}">${Math.round(fear)} · ${fearLabel(fear)}</strong></div>
+      <div class="finance-macro-stat"><small>Prestij hissesi</small><strong>${Math.floor(state.prestigePoints)}</strong></div>
+    `
+    if (state.stock.macroHeadline) {
+      const headline = document.createElement('p')
+      headline.className = 'finance-macro-headline'
+      headline.textContent = state.stock.macroHeadline
+      macro.appendChild(headline)
+    }
+    return macro
+  }
+
+  private createBankActions(
+    title: string,
+    hint: string,
+    btns: [string, string, string][],
+  ): HTMLElement {
+    const wrap = document.createElement('div')
+    wrap.className = 'finance-action-panel'
+    const head = document.createElement('div')
+    head.className = 'finance-action-head'
+    head.innerHTML = `<strong>${title}</strong><small>${hint}</small>`
+    wrap.appendChild(head)
+    const row = document.createElement('div')
+    row.className = 'finance-action-row'
+    for (const [action, label, count] of btns) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = action === 'bank-loan' ? 'btn-buy-stock btn-sm' : 'btn-secondary btn-sm'
+      btn.dataset.action = action
+      btn.dataset.count = count
+      btn.textContent = label
+      row.appendChild(btn)
+    }
+    wrap.appendChild(row)
+    return wrap
+  }
+
+  private createTabHero(icon: string, title: string, subtitle: string, stat?: string): HTMLElement {
+    const el = document.createElement('div')
+    el.className = 'shop-tab-hero'
+    const iconEl = document.createElement('span')
+    iconEl.className = 'shop-tab-hero-icon'
+    iconEl.textContent = icon
+    const text = document.createElement('div')
+    text.className = 'shop-tab-hero-text'
+    const h = document.createElement('strong')
+    h.textContent = title
+    const sub = document.createElement('small')
+    sub.textContent = subtitle
+    text.append(h, sub)
+    el.append(iconEl, text)
+    if (stat) {
+      const statEl = document.createElement('span')
+      statEl.className = 'shop-tab-hero-stat'
+      statEl.textContent = stat
+      el.appendChild(statEl)
+    }
+    return el
+  }
+
+  private createEmptyState(icon: string, text: string, hint?: string): HTMLElement {
+    const el = document.createElement('div')
+    el.className = 'empty-state'
+    const iconEl = document.createElement('span')
+    iconEl.className = 'empty-state-icon'
+    iconEl.textContent = icon
+    const p = document.createElement('p')
+    p.textContent = text
+    el.append(iconEl, p)
+    if (hint) {
+      const small = document.createElement('small')
+      small.textContent = hint
+      el.appendChild(small)
+    }
+    return el
+  }
+
+  private upgradeEffectLabel(u: UpgradeDef): string {
+    if (u.effect === 'click_mult') return 'Tıklama'
+    if (u.effect === 'global_mult') return 'Global'
+    return 'İşletme'
+  }
+
+  private upgradeEffectIcon(u: UpgradeDef): string {
+    if (u.effect === 'click_mult') return '👆'
+    if (u.effect === 'global_mult') return '🌍'
+    return '🏢'
+  }
+
+  private getCardsGrid(panel: HTMLElement): HTMLElement {
+    let grid = panel.querySelector('.biz-cards-grid') as HTMLElement | null
+    if (!grid) {
+      grid = document.createElement('div')
+      grid.className = 'biz-cards-grid'
+      panel.appendChild(grid)
+    }
+    return grid
+  }
+
+  private renderEmpireCategory(state: GameState, category: EmpireSub): void {
+    const panel = this.panels[`empire_${category}`]!
+    panel.querySelector('.empire-shop-hero')?.remove()
+    const hero = document.createElement('div')
+    hero.className = 'shop-tab-hero empire-shop-hero'
+    const titles: Record<EmpireSub, { icon: string; title: string; desc: string }> = {
+      sport: { icon: '⚽', title: 'Futbol İmparatorluğu', desc: 'Kulüp satın al, İmparatorluk sekmesinden yönet.' },
+      politics: { icon: '🏛️', title: 'Siyasi Kariyer', desc: 'Meclisten küresel lobi gücüne.' },
+      dark: { icon: '🏭', title: 'Siyah Endüstri', desc: 'Yüksek gelir, yüksek radar riski.' },
+      luxury: { icon: '💎', title: 'Lüks İmparatorluk', desc: 'Yat, F1, casino — milyarder oyuncakları.' },
+      finance: { icon: '📈', title: 'Finans Gücü', desc: 'Fon, banka, PE — sermaye ile hükmet.' },
+      science: { icon: '🔬', title: 'Bilim & Uzay', desc: 'Ar-Ge, uzay istasyonu, biyotek.' },
+    }
+    const t = titles[category]
+    hero.innerHTML = `<span class="shop-tab-hero-icon">${t.icon}</span><div class="shop-tab-hero-text"><strong>${t.title}</strong><small>${t.desc}</small></div>`
+    panel.prepend(hero)
+
+    const grid = this.getCardsGrid(panel)
+    const visibleIds = new Set<string>()
+    const list = sortProducers(
+      PRODUCERS.filter((p) => p.category === category),
+      this.bizSortOrder,
+      state,
+    )
+
+    for (const p of list) {
+      const unlocked = isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks)
+      const key = `${category}:${p.id}`
+      visibleIds.add(p.id)
+
+      if (unlocked) {
+        const owned = state.producers[p.id] ?? 0
+        let count = this.buyMode === 'max' ? state.countMaxAffordable(p.id) : this.buyMode
+        if (count < 1) count = 1
+        let card = this.empireCards.get(key)
+        if (!card) {
+          card = this.createBusinessCard(p)
+          this.empireCards.set(key, card)
+          grid.appendChild(card)
+        }
+        card.hidden = false
+        card.classList.remove('biz-card-locked-preview')
+        card.classList.toggle('biz-card-illegal', !!p.illegal)
+        const buyCount = this.buyMode === 'max' ? Math.max(1, state.countMaxAffordable(p.id)) : count
+        this.updateBusinessCard(card, p, state, owned, buyCount)
+      } else {
+        let card = this.empireCards.get(key)
+        if (!card) {
+          card = document.createElement('div')
+          card.className = 'biz-card biz-card-locked-preview'
+          card.dataset.producerId = p.id
+          this.empireCards.set(key, card)
+          grid.appendChild(card)
+        }
+        card.hidden = false
+        const unlockAt = scaledUnlockAt(p)
+        card.replaceChildren()
+        const inner = document.createElement('div')
+        inner.className = 'biz-locked-inner'
+        inner.innerHTML = `
+          <span class="biz-emoji-display">${p.emoji}</span>
+          <div class="biz-locked-info">
+            <strong>🔒 ${p.name}</strong>
+            <small>${formatMoney(unlockAt)} kazançta açılır</small>
+            <small class="biz-locked-tier">Tier ${p.tier} · +${formatIncomeRate(scaledBaseIncome(p.baseIncome, p))}</small>
+          </div>
+        `
+        const overlay = document.createElement('div')
+        overlay.className = 'biz-locked-overlay biz-locked-overlay-compact'
+        overlay.innerHTML = `<span class="biz-locked-icon">${p.illegal ? '🕶️' : '🔒'}</span>`
+        const footer = document.createElement('div')
+        footer.className = 'biz-card-locked-footer'
+        const earlyBtn = document.createElement('button')
+        earlyBtn.type = 'button'
+        earlyBtn.className = 'btn-early-unlock'
+        earlyBtn.dataset.action = 'early-unlock'
+        earlyBtn.dataset.id = p.id
+        const earlyHint = document.createElement('small')
+        earlyHint.className = 'btn-early-unlock-hint'
+        footer.append(earlyBtn, earlyHint)
+        card.append(inner, overlay, footer)
+        this.patchEarlyUnlockFooter(card, p, state, unlockAt)
+      }
+    }
+
+    for (const [key, card] of this.empireCards) {
+      if (!key.startsWith(`${category}:`) || !visibleIds.has(key.split(':')[1]!)) {
+        if (key.startsWith(`${category}:`)) {
+          card.remove()
+          this.empireCards.delete(key)
+        }
+      }
+    }
+
+    panel.querySelector('.biz-card-locked-preview:not([data-producer-id])')?.remove()
+
+    if (category === 'dark' && state.illegalIncomePerDay() > 0) {
+      this.renderUndergroundTree(state, panel)
+    }
+  }
+
+  private renderUndergroundTree(state: GameState, panel: HTMLElement): void {
+    panel.querySelector('.underground-tree-section')?.remove()
+    const section = document.createElement('div')
+    section.className = 'underground-tree-section'
+    section.appendChild(this.createSectionHeader('Underground Ağacı', 'Gelir · Risk · Gizlilik'))
+    const grid = document.createElement('div')
+    grid.className = 'underground-tree-grid'
+    for (const node of UNDERGROUND_TREE_NODES) {
+      const level = state.undergroundTree[node.id] ?? 0
+      const maxed = level >= node.maxLevel
+      const cost = treeNodeCost(node, level)
+      const card = document.createElement('button')
+      card.type = 'button'
+      card.className = `shop-card underground-tree-node${maxed ? ' research-maxed' : ''}`
+      card.dataset.action = 'buy-underground-node'
+      card.dataset.id = node.id
+      card.disabled = maxed || !state.canAfford(cost)
+      card.innerHTML = `<span class="shop-card-icon">${node.emoji}</span><div class="shop-card-body"><strong>${node.name}</strong><small>${node.description}</small><span class="shop-level-label">${level}/${node.maxLevel}</span></div><span class="shop-card-price">${maxed ? 'Tamam' : formatMoney(cost)}</span>`
+      grid.appendChild(card)
+    }
+    section.appendChild(grid)
+    panel.appendChild(section)
+  }
+
+  private getTierList(panel: HTMLElement): HTMLElement {
+    panel.querySelector('.biz-cards-grid')?.remove()
+    let list = panel.querySelector('.biz-tier-list') as HTMLElement | null
+    if (!list) {
+      list = document.createElement('div')
+      list.className = 'biz-tier-list'
+      panel.appendChild(list)
+    }
+    return list
+  }
+
   private renderBusinesses(state: GameState, patchOnly = false): void {
     const panel = this.panels.businesses!
+    const near = getNearSynergies(state.producers)
     const synergies = getActiveSynergies(state.producers).filter((s) => s.active)
-    const synergyText = synergies.length > 0
-      ? `Sinerji aktif: ${synergies.map((s) => s.def.name).join(', ')}`
-      : ''
 
-    if (synergyText) {
+    if (synergies.length > 0 || near.length > 0) {
       if (!this.synergyEl) {
         this.synergyEl = document.createElement('div')
-        this.synergyEl.className = 'synergy-bar'
+        this.synergyEl.className = 'synergy-bar synergy-card'
         panel.prepend(this.synergyEl)
       }
-      if (this.synergyEl.textContent !== synergyText) this.synergyEl.textContent = synergyText
+      const activeDetail = synergies.map((s) => `${s.def.name} (+${Math.round(s.def.bonus * 100)}%)`).join(' · ')
+      const nearDetail = near.slice(0, 3).map((n) => {
+        const missingName = PRODUCERS.find((p) => p.id === n.missing[0])?.name ?? n.missing[0]
+        return `${n.def.name} → ${missingName}`
+      }).join(' · ')
+      this.synergyEl.innerHTML = [
+        synergies.length > 0 ? `<strong>⚡ Sinerji aktif</strong><span>${activeDetail}</span>` : '',
+        near.length > 0 ? `<div class="synergy-near-preview"><strong>Yakında:</strong> ${nearDetail}</div>` : '',
+      ].filter(Boolean).join('')
       this.synergyEl.hidden = false
     } else if (this.synergyEl) {
       this.synergyEl.hidden = true
     }
 
-    const visibleIds = new Set<string>()
-    for (const p of state.unlockedProducers()) {
-      const owned = state.producers[p.id] ?? 0
-      let count = this.buyMode === 'max' ? state.countMaxAffordable(p.id) : this.buyMode
-      if (count < 1) count = 1
-      visibleIds.add(p.id)
+    if (!patchOnly) {
+      let heroEl = panel.querySelector('.growth-tab-hero') as HTMLElement | null
+      const ownedCount = PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0 && !p.category).length
+      const hero = this.createTabHero('🏢', 'İşletmeler', 'Yasal ve illegal işletmeler — pasif gelir kaynağın', `${ownedCount} aktif`)
+      hero.classList.add('growth-tab-hero')
+      if (heroEl) heroEl.replaceWith(hero)
+      else panel.prepend(hero)
+      heroEl = hero
 
-      let card = this.businessCards.get(p.id)
-      if (!card) {
-        card = this.createBusinessCard(p)
-        this.businessCards.set(p.id, card)
-        panel.appendChild(card)
+      let filterBar = panel.querySelector('.biz-type-filters') as HTMLElement | null
+      if (!filterBar) {
+        const wrap = document.createElement('div')
+        wrap.className = 'biz-filter-row'
+        filterBar = this.createFilterPills([
+          { id: 'all', label: 'Tümü' },
+          { id: 'legal', label: 'Yasal' },
+          { id: 'illegal', label: 'Illegal' },
+        ], this.bizTypeFilter, 'biz-filter')
+        filterBar.classList.add('biz-type-filters')
+        const sortBar = this.createFilterPills([
+          { id: 'profit', label: 'En karlı' },
+          { id: 'cheap', label: 'En ucuz' },
+          { id: 'name', label: 'A-Z' },
+          { id: 'unlockable', label: 'Kilit' },
+        ], this.bizSortOrder, 'biz-sort')
+        sortBar.classList.add('biz-sort-filters')
+        wrap.append(filterBar, sortBar)
+        panel.prepend(wrap)
+      } else {
+        filterBar.querySelectorAll('.filter-pill').forEach((node) => {
+          const btn = node as HTMLButtonElement
+          if (btn.closest('.biz-type-filters')) {
+            btn.classList.toggle('active', btn.dataset.id === this.bizTypeFilter)
+          }
+        })
+        panel.querySelector('.biz-sort-filters')?.querySelectorAll('.filter-pill').forEach((node) => {
+          const btn = node as HTMLButtonElement
+          btn.classList.toggle('active', btn.dataset.id === this.bizSortOrder)
+        })
       }
-      card.hidden = false
-      const buyCount = this.buyMode === 'max' ? Math.max(1, state.countMaxAffordable(p.id)) : count
-      this.updateBusinessCard(card, p, state, owned, buyCount)
+
+      const revDist = this.createRevenueDistribution(state)
+      let revEl = panel.querySelector('.revenue-distribution') as HTMLElement | null
+      if (revDist) {
+        if (revEl) revEl.replaceWith(revDist)
+        else panel.prepend(revDist)
+      } else {
+        revEl?.remove()
+      }
+
+      panel.querySelector('.finance-summary')?.remove()
     }
+
+    if (!this.tierBandsInit) {
+      this.expandedBands.add(activeTierBandId(state))
+      this.tierBandsInit = true
+    }
+
+    const tierList = this.getTierList(panel)
+    const visibleIds = new Set<string>()
+    const allFiltered = filterProducersForShop(state, this.bizTypeFilter, this.bizSortOrder, (p, f) => this.matchesBizFilter(p, f))
+
+    if (!patchOnly) tierList.replaceChildren()
+
+    for (const band of BIZ_TIER_BANDS) {
+      const unlocked = bandUnlocked(band, state.totalEarned)
+      const expanded = unlocked && this.expandedBands.has(band.id)
+      const bandProducers = producersInBand(band).filter((p) => allFiltered.some((x) => x.id === p.id))
+      const ownedInBand = bandProducers.filter((p) => (state.producers[p.id] ?? 0) > 0).length
+
+      let section = tierList.querySelector(`[data-tier-band="${band.id}"]`) as HTMLElement | null
+      if (!section) {
+        section = document.createElement('section')
+        section.className = 'tier-band'
+        section.dataset.tierBand = band.id
+        tierList.appendChild(section)
+      }
+
+      section.classList.toggle('tier-band-locked', !unlocked)
+      section.classList.toggle('tier-band-active', band.id === activeTierBandId(state))
+      section.classList.toggle('tier-band-open', expanded)
+
+      let header = section.querySelector('.tier-band-header') as HTMLButtonElement | null
+      if (!header) {
+        header = document.createElement('button')
+        header.type = 'button'
+        header.className = 'tier-band-header'
+        header.dataset.action = 'toggle-tier-band'
+        section.prepend(header)
+      }
+      header.dataset.id = band.id
+      const lockHint = unlocked ? '' : ` · 🔒 ${formatMoney(band.unlockAt)}`
+      header.innerHTML = `
+        <span class="tier-band-chevron">${expanded ? '▼' : '▶'}</span>
+        <span class="tier-band-label">${band.emoji} ${band.label}</span>
+        <span class="tier-band-meta">T${band.minTier}–${band.maxTier}${ownedInBand > 0 ? ` · ${ownedInBand} aktif` : ''}${lockHint}</span>
+      `
+      header.disabled = !unlocked
+
+      let body = section.querySelector('.tier-band-body') as HTMLElement | null
+      if (!body) {
+        body = document.createElement('div')
+        body.className = 'tier-band-body'
+        section.appendChild(body)
+      }
+      body.hidden = !expanded
+      if (!expanded) continue
+      if (!patchOnly) body.replaceChildren()
+
+      for (const p of bandProducers) {
+        visibleIds.add(p.id)
+        let card = this.businessCards.get(p.id)
+        if (!card) {
+          card = createHeroBusinessCard(p)
+          this.businessCards.set(p.id, card)
+        }
+        updateHeroBusinessCard(card, p, state, this.buyMode)
+        body.appendChild(card)
+      }
+
+      const lockedPreview = producersInBand(band).filter(
+        (p) => !isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks)
+          && this.matchesBizFilter(p, this.bizTypeFilter),
+      ).slice(0, 2)
+
+      if (bandProducers.length === 0 && lockedPreview.length === 0 && unlocked) {
+        const empty = document.createElement('p')
+        empty.className = 'tier-band-empty'
+        empty.textContent = 'Bu grupta henüz açık işletme yok.'
+        body.appendChild(empty)
+      }
+
+      for (const p of lockedPreview) {
+        if (bandProducers.some((x) => x.id === p.id)) continue
+        body.appendChild(renderLockedPreviewCard(p, state))
+      }
+    }
+
+    panel.querySelector('.biz-card-locked-preview')?.remove()
 
     for (const [id, card] of this.businessCards) {
       if (!visibleIds.has(id)) {
@@ -225,52 +1248,14 @@ export class ShopPanel {
       }
     }
 
-    if (!patchOnly) {
-      const nextLockedDef = PRODUCERS.find(p => !visibleIds.has(p.id))
-      if (nextLockedDef) {
-        let lockedCard = panel.querySelector('.biz-card-locked-preview') as HTMLElement | null
-        if (!lockedCard) {
-          lockedCard = document.createElement('div')
-          lockedCard.className = 'biz-card biz-card-locked-preview'
-          const inner = document.createElement('div')
-          inner.className = 'biz-card-locked-inner'
-          const emojiEl = document.createElement('span')
-          emojiEl.className = 'biz-emoji'
-          emojiEl.textContent = nextLockedDef.emoji
-          const infoEl = document.createElement('div')
-          const nameEl = document.createElement('strong')
-          nameEl.textContent = nextLockedDef.name
-          const descEl = document.createElement('small')
-          descEl.textContent = nextLockedDef.description
-          infoEl.append(nameEl, descEl)
-          inner.append(emojiEl, infoEl)
-          const overlay = document.createElement('div')
-          overlay.className = 'biz-locked-overlay'
-          const lockIcon = document.createElement('span')
-          lockIcon.className = 'biz-locked-icon'
-          lockIcon.textContent = '🔒'
-          const lockText = document.createElement('span')
-          lockText.className = 'biz-locked-text'
-          lockText.textContent = `${formatMoney(nextLockedDef.unlockAt)} kazan, açılır`
-          overlay.append(lockIcon, lockText)
-          lockedCard.append(inner, overlay)
-          panel.appendChild(lockedCard)
-        }
-      } else {
-        panel.querySelector('.biz-card-locked-preview')?.remove()
-      }
-    }
-
-    if (!patchOnly && panel.querySelectorAll('.biz-card:not([hidden])').length === 0 && visibleIds.size === 0) {
-      let empty = panel.querySelector('.empty-msg') as HTMLElement | null
+    if (!patchOnly && visibleIds.size === 0) {
+      let empty = panel.querySelector('.empty-state') as HTMLElement | null
       if (!empty) {
-        empty = document.createElement('p')
-        empty.className = 'empty-msg'
-        empty.textContent = 'Daha fazla kazan — yeni işletmeler açılacak.'
+        empty = this.createEmptyState('🏢', 'Daha fazla kazan', 'Yeni işletmeler açılacak')
         panel.appendChild(empty)
       }
     } else {
-      panel.querySelector('.empty-msg')?.remove()
+      panel.querySelector('.empty-state')?.remove()
     }
   }
 
@@ -297,27 +1282,40 @@ export class ShopPanel {
     top.className = 'biz-top'
     const left = document.createElement('div')
     left.className = 'biz-left'
+    const iconWrap = document.createElement('div')
+    iconWrap.className = 'biz-icon-wrap'
     const emoji = document.createElement('span')
-    emoji.className = 'biz-emoji'
+    emoji.className = 'biz-emoji-display'
+    emoji.textContent = p.emoji
+    iconWrap.appendChild(emoji)
     const icon = document.createElement('img')
     icon.className = 'biz-icon'
     icon.src = producerIconPath(p.id)
     icon.alt = ''
-    icon.onerror = () => {
-      icon.remove()
-      emoji.textContent = p.emoji
-    }
-    emoji.appendChild(icon)
+    icon.loading = 'lazy'
+    icon.onerror = () => { icon.remove() }
+    icon.onload = () => { iconWrap.appendChild(icon) }
     const info = document.createElement('div')
+    info.className = 'biz-info-block'
     const name = document.createElement('strong')
     name.textContent = p.name
     const desc = document.createElement('small')
     desc.textContent = p.description
     info.append(name, desc)
-    left.append(emoji, info)
+    left.append(iconWrap, info)
     const countEl = document.createElement('span')
     countEl.className = 'biz-owned'
-    top.append(left, countEl, infoBtn)
+    top.append(left, countEl)
+
+    const milestoneDots = document.createElement('div')
+    milestoneDots.className = 'biz-milestone-dots'
+    for (const ms of MILESTONES) {
+      const dot = document.createElement('span')
+      dot.className = 'biz-milestone-dot'
+      dot.dataset.milestone = String(ms)
+      dot.title = `${ms} adet`
+      milestoneDots.appendChild(dot)
+    }
 
     const bottom = document.createElement('div')
     bottom.className = 'biz-bottom'
@@ -327,14 +1325,20 @@ export class ShopPanel {
     inc.className = 'biz-income'
     bottom.append(costEl, inc)
 
-    buyBtn.append(top, bottom)
-    card.append(buyBtn)
+    buyBtn.append(top, milestoneDots, bottom)
+    card.append(buyBtn, infoBtn)
 
-    // Tier badge (absolute positioned, appended after buyBtn)
     const tierBadge = document.createElement('div')
     tierBadge.className = `biz-tier-badge biz-tier-${p.tier}`
     tierBadge.textContent = `T${p.tier}`
     card.appendChild(tierBadge)
+
+    if (p.illegal) {
+      const riskBadge = document.createElement('span')
+      riskBadge.className = 'biz-risk-badge'
+      riskBadge.textContent = '🕶️ Risk'
+      card.appendChild(riskBadge)
+    }
 
     return card
   }
@@ -349,7 +1353,6 @@ export class ShopPanel {
     const affordableCount = this.buyMode === 'max' ? state.countMaxAffordable(p.id) : count
     const buyCount = this.buyMode === 'max' ? Math.max(1, affordableCount) : count
     const cost = state.producerCostFor(p, owned, buyCount)
-    const income = state.producerIncome(p)
     const affordable = affordableCount >= 1 && state.canAfford(cost)
 
     const buyBtn = card.querySelector('.biz-buy-btn') as HTMLButtonElement
@@ -362,38 +1365,222 @@ export class ShopPanel {
     const ownedEl = card.querySelector('.biz-owned')
     const costEl = card.querySelector('.biz-cost')
     const incEl = card.querySelector('.biz-income')
-    const ownedText = `x${owned}`
+    const ownedText = owned > 0 ? `${owned} adet` : 'Yeni'
     const costText = this.buyMode === 'max' && affordableCount > 1
-      ? `${formatMoney(cost)} (x${affordableCount})`
+      ? `${formatMoney(cost)} (${affordableCount} adet)`
       : formatMoney(cost)
-    const incText = owned > 0 ? `${formatMoney(income)}/sn` : `+${formatMoney(p.baseIncome)}/sn`
+    const batchIncome = state.marginalProducerIncome(p, buyCount)
+    const incText = buyCount > 1
+      ? `+${formatIncomeRate(batchIncome)} (${buyCount} ad.)`
+      : `+${formatIncomeRate(batchIncome)}`
+    const effectiveBuy = affordableCount >= 1 ? Math.min(buyCount, affordableCount) : buyCount
+    const roiSec = affordableCount >= 1 ? producerRoiSeconds(state, p, effectiveBuy) : Infinity
+    const roiText = `ROI ~${formatRoi(roiSec)}`
 
     if (ownedEl && ownedEl.textContent !== ownedText) ownedEl.textContent = ownedText
     if (costEl && costEl.textContent !== costText) costEl.textContent = costText
     if (incEl && incEl.textContent !== incText) incEl.textContent = incText
+
+    let roiEl = card.querySelector('.biz-roi') as HTMLElement | null
+    if (!roiEl) {
+      roiEl = document.createElement('span')
+      roiEl.className = 'biz-roi'
+      card.querySelector('.biz-bottom')?.appendChild(roiEl)
+    }
+    if (roiEl.textContent !== roiText) roiEl.textContent = roiText
+
+    const activeSyns = getActiveSynergies(state.producers).filter(
+      (s) => s.active && (s.def.requires.includes(p.id) || s.def.targetProducer === p.id),
+    )
+    let synBadge = card.querySelector('.biz-synergy-badge') as HTMLElement | null
+    if (activeSyns.length > 0) {
+      const s = activeSyns[0]!
+      if (!synBadge) {
+        synBadge = document.createElement('span')
+        synBadge.className = 'biz-synergy-badge'
+        card.appendChild(synBadge)
+      }
+      synBadge.textContent = `⚡ +${Math.round(s.def.bonus * 100)}% ${s.def.name}`
+      synBadge.title = 'Aktif sinerji bonusu'
+      synBadge.hidden = false
+    } else if (synBadge) synBadge.hidden = true
+
+    const nearForProd = getNearSynergies(state.producers).filter((n) => n.missing.includes(p.id))
+    let nearBadge = card.querySelector('.biz-synergy-near') as HTMLElement | null
+    if (nearForProd.length > 0 && (!synBadge || synBadge.hidden)) {
+      const n = nearForProd[0]!
+      if (!nearBadge) {
+        nearBadge = document.createElement('span')
+        nearBadge.className = 'biz-synergy-near'
+        card.appendChild(nearBadge)
+      }
+      nearBadge.textContent = `⚡ ${n.def.name}`
+      nearBadge.title = `Sinerji için ${n.def.name} — 1 işletme eksik`
+      nearBadge.hidden = false
+    } else if (nearBadge) nearBadge.hidden = true
+
+    const obsLabel = state.obsolescenceLabel(p.id)
+    let obsBadge = card.querySelector('.biz-obsolete-badge') as HTMLElement | null
+    if (obsLabel && owned > 0) {
+      if (!obsBadge) {
+        obsBadge = document.createElement('span')
+        obsBadge.className = 'biz-obsolete-badge'
+        card.appendChild(obsBadge)
+      }
+      obsBadge.textContent = obsLabel
+      obsBadge.hidden = false
+    } else if (obsBadge) obsBadge.hidden = true
+
+    card.querySelectorAll('.biz-milestone-dot').forEach((dot) => {
+      const ms = Number((dot as HTMLElement).dataset.milestone)
+      dot.classList.toggle('reached', owned >= ms)
+    })
+
+    if (p.illegal && p.riskChance) {
+      const riskBadge = card.querySelector('.biz-risk-badge')
+      const chancePct = Math.round(p.riskChance * 100 * (1 + state.illegalHeat / 100))
+      if (riskBadge) riskBadge.textContent = `🕶️ Baskın ~${chancePct}%/dk`
+    }
+
+    let actionRow = card.querySelector('.biz-action-row') as HTMLElement | null
+    const showSell = owned > 0
+    const showModernize = owned > 0 && !!obsLabel && !state.producerModernized[p.id]
+    if (showSell || showModernize) {
+      if (!actionRow) {
+        actionRow = document.createElement('div')
+        actionRow.className = 'biz-action-row'
+        card.appendChild(actionRow)
+      }
+      actionRow.replaceChildren()
+      if (showSell) {
+        const sellBtn = document.createElement('button')
+        sellBtn.type = 'button'
+        sellBtn.className = 'btn-secondary biz-sell-btn'
+        sellBtn.dataset.action = 'sell-producer'
+        sellBtn.dataset.id = p.id
+        sellBtn.textContent = 'Sat (1)'
+        actionRow.appendChild(sellBtn)
+      }
+      if (showModernize) {
+        const modCost = modernizeCost(p.tier, owned)
+        const modBtn = document.createElement('button')
+        modBtn.type = 'button'
+        modBtn.className = 'btn-primary biz-modernize-btn'
+        modBtn.dataset.action = 'modernize-producer'
+        modBtn.dataset.id = p.id
+        modBtn.textContent = `Modernize · ${formatMoney(modCost)}`
+        modBtn.disabled = !state.canAfford(modCost)
+        actionRow.appendChild(modBtn)
+      }
+      actionRow.hidden = false
+    } else if (actionRow) {
+      actionRow.hidden = true
+    }
   }
 
   private renderManagement(state: GameState): void {
     const panel = this.panels.management!
     panel.replaceChildren()
-    for (const p of PRODUCERS) {
+
+    const ownedProducers = PRODUCERS
+      .filter((p) => (state.producers[p.id] ?? 0) > 0)
+      .sort((a, b) => state.producerIncome(b) - state.producerIncome(a))
+    const hiredCount = ownedProducers.filter((p) => hasManager(state.managers, p.id)).length
+    const ownedCount = ownedProducers.length
+    const missing = ownedCount - hiredCount
+    panel.appendChild(this.createTabHero('👔', 'Yönetim Merkezi', 'Yöneticiler geliri artırır; yokken biriken kazancı yükseltir (reklamla toplanır)', `${hiredCount}/${ownedCount} aktif`))
+
+    const namedTitle = document.createElement('h3')
+    namedTitle.className = 'shop-section-title'
+    namedTitle.textContent = '⭐ Özel Yöneticiler'
+    panel.appendChild(namedTitle)
+    for (const m of NAMED_MANAGERS) {
+      const hired = state.namedManagers.some((h) => h.id === m.id)
+      const card = document.createElement('div')
+      card.className = `shop-card manager-card${hired ? ' manager-active' : ''}`
+      card.innerHTML = `<strong>${m.emoji} ${m.name}</strong><p>${m.specialty}</p><span>Maaş: ${formatMoney(m.dailySalary)}/gün</span>`
+      if (!hired) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = 'btn-primary'
+        btn.dataset.action = 'hire-named-manager'
+        btn.dataset.id = m.id
+        btn.textContent = `İşe al · ${formatMoney(m.hireCost)}`
+        btn.disabled = !state.canAfford(m.hireCost)
+        card.appendChild(btn)
+      } else {
+        const ok = document.createElement('span')
+        ok.className = 'manager-status-ok'
+        ok.textContent = '✅ Aktif'
+        card.appendChild(ok)
+      }
+      panel.appendChild(card)
+    }
+
+    const bizTitle = document.createElement('h3')
+    bizTitle.className = 'shop-section-title'
+    bizTitle.textContent = 'İşletme Yöneticileri'
+    panel.appendChild(bizTitle)
+
+    if (missing > 0) {
+      const summary = document.createElement('div')
+      summary.className = 'manager-summary-banner'
+      summary.textContent = `${missing} işletmede yönetici eksik — toplu işe almayı düşün`
+      panel.appendChild(summary)
+    }
+
+    for (const p of ownedProducers) {
       const owned = state.producers[p.id] ?? 0
-      if (owned <= 0) continue
       const hired = hasManager(state.managers, p.id)
       const cost = managerCost(p.baseIncome, owned)
+      const autoOn = state.managerAutoBuy[p.id]
+      const income = state.producerIncome(p)
+
       const card = document.createElement('div')
-      card.className = 'manager-card'
+      card.className = `shop-card manager-card${hired ? ' manager-active' : ''}`
+
       const portrait = document.createElement('div')
       portrait.className = 'manager-portrait'
       portrait.textContent = p.emoji
+
       const info = document.createElement('div')
       info.className = 'manager-info'
       const name = document.createElement('strong')
       name.textContent = p.name
       const desc = document.createElement('small')
-      desc.textContent = hired ? 'Yönetici aktif (+25% gelir, offline +50%)' : 'Yönetici işe al'
-      info.append(name, desc)
-      card.append(portrait, info)
+      desc.textContent = hired ? 'Yönetici aktif (+25% gelir, yokken +50% birikim)' : 'Yönetici işe al — pasif gelir artar'
+      const incomeChip = document.createElement('span')
+      incomeChip.className = 'manager-income-chip'
+      incomeChip.textContent = formatIncomeRate(income)
+      info.append(name, desc, incomeChip)
+
+      const badges = document.createElement('div')
+      badges.className = 'manager-badges'
+      if (hired) {
+        const statusBadge = document.createElement('span')
+        statusBadge.className = 'manager-status-badge active'
+        statusBadge.textContent = 'Aktif'
+        badges.appendChild(statusBadge)
+        if (autoOn) {
+          const autoBadge = document.createElement('span')
+          autoBadge.className = 'manager-status-badge auto'
+          autoBadge.textContent = 'Auto'
+          badges.appendChild(autoBadge)
+        }
+      } else {
+        const chip = document.createElement('span')
+        chip.className = 'manager-bonus-chip'
+        chip.textContent = '+25% gelir'
+        badges.appendChild(chip)
+      }
+
+      const body = document.createElement('div')
+      body.className = 'shop-card-body'
+      body.append(info, badges)
+
+      const actions = document.createElement('div')
+      actions.className = 'shop-card-actions'
+
       if (!hired) {
         const btn = document.createElement('button')
         btn.type = 'button'
@@ -402,68 +1589,190 @@ export class ShopPanel {
         btn.dataset.id = p.id
         btn.textContent = `İşe al — ${formatMoney(state.managerDiscountActive ? cost * 0.5 : cost)}`
         btn.disabled = !state.canAfford(state.managerDiscountActive ? cost * 0.5 : cost)
-        card.appendChild(btn)
+        actions.appendChild(btn)
         const adBtn = document.createElement('button')
         adBtn.type = 'button'
         adBtn.className = 'btn-ad'
         adBtn.dataset.action = 'ad-manager-discount'
         adBtn.dataset.id = p.id
         adBtn.textContent = '📺 %50 indirim'
-        card.appendChild(adBtn)
+        actions.appendChild(adBtn)
       } else {
         const autoBtn = document.createElement('button')
         autoBtn.type = 'button'
         autoBtn.className = 'btn-secondary auto-buy-btn'
         autoBtn.dataset.action = 'toggle-autobuy'
         autoBtn.dataset.id = p.id
-        autoBtn.textContent = state.managerAutoBuy[p.id] ? '🤖 Auto: Açık' : '🤖 Auto: Kapalı'
-        card.appendChild(autoBtn)
+        autoBtn.textContent = autoOn ? '🤖 Auto: Açık' : '🤖 Auto: Kapalı'
+        actions.appendChild(autoBtn)
       }
+
+      card.append(portrait, body, actions)
       panel.appendChild(card)
     }
-    if (panel.childElementCount === 0) {
-      const empty = document.createElement('p')
-      empty.className = 'empty-msg'
-      empty.textContent = 'Önce işletme satın al.'
-      panel.appendChild(empty)
+
+    if (panel.querySelectorAll('.manager-card').length === 0) {
+      panel.appendChild(this.createEmptyState('👔', 'Henüz yönetici yok', 'Önce işletme satın al'))
     }
   }
 
   private renderUpgrades(state: GameState): void {
     const panel = this.panels.upgrades!
     panel.replaceChildren()
-    const list = state.availableUpgrades()
-    if (list.length === 0) {
-      const p = document.createElement('p')
-      p.className = 'empty-msg'
-      p.textContent = 'Tüm yükseltmeler alındı!'
-      panel.appendChild(p)
+    const allAvailable = state.availableUpgrades()
+    const filterMap: Record<UpgradeFilter, (u: UpgradeDef) => boolean> = {
+      all: () => true,
+      click: (u) => u.effect === 'click_mult',
+      global: (u) => u.effect === 'global_mult',
+      producer: (u) => u.effect === 'producer_mult',
+    }
+    const list = allAvailable.filter(filterMap[this.upgradeFilter])
+    const purchased = UPGRADES.filter((u) => state.purchasedUpgrades.has(u.id))
+
+    panel.appendChild(this.createTabHero('⬆️', 'Yükseltmeler', 'Kalıcı güç artışları — stratejik seçimler yap', `${list.length} mevcut`))
+    panel.appendChild(this.createFilterPills([
+      { id: 'all', label: 'Tümü' },
+      { id: 'click', label: 'Tıklama' },
+      { id: 'global', label: 'Global' },
+      { id: 'producer', label: 'İşletme' },
+    ], this.upgradeFilter, 'upgrade-filter'))
+
+    const upgradeGrid = document.createElement('div')
+    upgradeGrid.className = 'upgrade-cards-grid'
+
+    if (list.length === 0 && purchased.length === 0) {
+      panel.appendChild(this.createEmptyState('⬆️', 'Tüm yükseltmeler alındı!', 'IPO sonrası yeni bonuslar açılabilir'))
       return
     }
+
+    if (list.length === 0) {
+      panel.appendChild(this.createEmptyState('⬆️', 'Bu kategoride yükseltme yok', 'Başka filtre dene'))
+    }
+
     for (const u of list) {
-      const upgradeCost = Math.floor(u.cost * (1 - (hasNode(state.prestigeTree, 'upgrade_10') ? 0.1 : 0)))
+      const upgradeCost = state.upgradeCostFor(u)
+      const affordable = state.canAfford(upgradeCost)
+
       const card = document.createElement('button')
       card.type = 'button'
-      card.className = 'biz-card'
-      if (state.canAfford(upgradeCost)) card.classList.add('affordable')
+      card.className = `shop-card shop-card-upgrade${affordable ? ' affordable' : ''}`
       card.dataset.action = 'buy-upgrade'
       card.dataset.id = u.id
-      card.disabled = !state.canAfford(upgradeCost)
+      card.disabled = !affordable
+
+      const icon = document.createElement('span')
+      icon.className = 'shop-card-icon'
+      icon.textContent = this.upgradeEffectIcon(u)
+
+      const body = document.createElement('div')
+      body.className = 'shop-card-body'
       const name = document.createElement('strong')
       name.textContent = u.name
       const desc = document.createElement('small')
       desc.textContent = u.description
-      const costEl = document.createElement('span')
-      costEl.textContent = formatMoney(upgradeCost)
-      card.append(name, desc, costEl)
-      panel.appendChild(card)
+      const tag = document.createElement('span')
+      tag.className = 'shop-effect-tag'
+      tag.textContent = this.upgradeEffectLabel(u)
+      body.append(name, desc, tag)
+
+      const price = document.createElement('span')
+      price.className = 'shop-card-price'
+      price.textContent = formatMoney(upgradeCost)
+
+      card.append(icon, body, price)
+      upgradeGrid.appendChild(card)
     }
+    panel.appendChild(upgradeGrid)
+
+    if (purchased.length > 0) {
+      const details = document.createElement('details')
+      details.className = 'purchased-upgrades-section'
+      const summary = document.createElement('summary')
+      summary.textContent = `Satın alınanlar (${purchased.length})`
+      details.appendChild(summary)
+      for (const u of purchased) {
+        const row = document.createElement('div')
+        row.className = 'purchased-upgrade-row'
+        row.innerHTML = `<span>${this.upgradeEffectIcon(u)} ${u.name}</span><small>${this.upgradeEffectLabel(u)}</small>`
+        details.appendChild(row)
+      }
+      panel.appendChild(details)
+    }
+
+    this.renderPowerupAdCards(state, panel)
+  }
+
+  private renderPowerupAdCards(state: GameState, panel: HTMLElement): void {
+    let ads = panel.querySelector('.shop-ad-cards') as HTMLElement | null
+    if (!ads) {
+      ads = document.createElement('div')
+      ads.className = 'shop-ad-cards'
+      panel.appendChild(ads)
+    }
+    ads.replaceChildren()
+    const boost = document.createElement('button')
+    boost.type = 'button'
+    boost.className = 'shop-ad-card'
+    boost.dataset.action = 'ad-shop-boost'
+    boost.innerHTML = '<span>📺</span><div><strong>15 dk +50% gelir</strong><small>Reklam izle</small></div>'
+    boost.disabled = state.isShopBoostActive()
+    const disc = document.createElement('button')
+    disc.type = 'button'
+    disc.className = 'shop-ad-card'
+    disc.dataset.action = 'ad-upgrade-discount'
+    disc.innerHTML = '<span>📺</span><div><strong>Sonraki yükseltme −30%</strong><small>Tek kullanım</small></div>'
+    disc.disabled = state.upgradeDiscountActive
+    ads.append(boost, disc)
   }
 
   private renderResearch(state: GameState): void {
     const panel = this.panels.research!
     panel.replaceChildren()
-    for (const node of RESEARCH_NODES) {
+    const nodes = this.researchBranch === 'all'
+      ? RESEARCH_NODES
+      : researchNodesByBranch(this.researchBranch)
+    const totalLevels = nodes.reduce((s, n) => s + (state.research[n.id] ?? 0), 0)
+    const maxLevels = nodes.reduce((s, n) => s + n.maxLevel, 0)
+    panel.appendChild(this.createTabHero('🔬', 'Ar-Ge Laboratuvarı', 'Uzun vadeli bonuslar — dal seçerek ilerle', `${totalLevels}/${maxLevels} seviye`))
+
+    const branchLabels: Record<ResearchBranch | 'all', string> = {
+      all: 'Tümü',
+      operasyon: 'Operasyon',
+      finans: 'Finans',
+      imparatorluk: 'İmparatorluk',
+    }
+    panel.appendChild(this.createFilterPills(
+      (['all', 'operasyon', 'finans', 'imparatorluk'] as const).map((id) => ({
+        id,
+        label: branchLabels[id],
+      })),
+      this.researchBranch,
+      'research-branch',
+    ))
+
+    const treeGrid = document.createElement('div')
+    treeGrid.className = 'research-tree-visual'
+
+    const treeBranchLabels: Record<ResearchBranch, string> = {
+      operasyon: 'Operasyon',
+      finans: 'Finans',
+      imparatorluk: 'İmparatorluk',
+    }
+    const branches = this.researchBranch === 'all'
+      ? (['operasyon', 'finans', 'imparatorluk'] as ResearchBranch[])
+      : [this.researchBranch]
+
+    for (const branch of branches) {
+      const col = document.createElement('div')
+      col.className = 'research-tree-branch-col'
+      const head = document.createElement('h4')
+      head.className = 'research-tree-branch-head'
+      head.textContent = treeBranchLabels[branch]
+      col.appendChild(head)
+      const chain = document.createElement('div')
+      chain.className = 'research-tree-chain'
+
+      for (const node of nodes.filter((n) => n.branch === branch)) {
       const level = state.research[node.id] ?? 0
       const maxed = level >= node.maxLevel
       const cost = state.researchCostWithWeekly(researchCost(node, level))
@@ -471,156 +1780,204 @@ export class ShopPanel {
 
       const card = document.createElement('button')
       card.type = 'button'
-      card.className = 'biz-card'
-      if (canBuy) card.classList.add('affordable')
+      card.className = `shop-card shop-card-research research-tree-node${canBuy ? ' affordable' : ''}${maxed ? ' research-maxed' : ''}${node.currency === 'prestige' ? ' research-prestige' : ' research-money'}`
       card.dataset.action = 'buy-research'
       card.dataset.id = node.id
       card.disabled = !canBuy
 
+      const icon = document.createElement('span')
+      icon.className = 'shop-card-icon'
+      icon.textContent = '🔬'
+
+      const body = document.createElement('div')
+      body.className = 'shop-card-body'
       const name = document.createElement('strong')
-      name.textContent = `${node.name} (${level}/${node.maxLevel})`
+      name.textContent = node.name
+      const branchTag = document.createElement('span')
+      branchTag.className = 'research-branch-tag'
+      branchTag.textContent = node.branch
       const desc = document.createElement('small')
       desc.textContent = node.description
-      const costEl = document.createElement('span')
-      costEl.textContent = maxed ? 'MAX' : node.currency === 'money' ? formatMoney(cost) : `${cost} hisse`
-      card.append(name, desc, costEl)
-      panel.appendChild(card)
-    }
-  }
-
-  private renderMissions(state: GameState): void {
-    const panel = this.panels.missions!
-    panel.replaceChildren()
-    state.ensureMissions()
-    for (const m of state.missions) {
-      const card = document.createElement('div')
-      card.className = 'mission-card'
-      const label = document.createElement('p')
-      label.textContent = m.label
-      const bar = document.createElement('div')
-      bar.className = 'progress-bar'
-      const fill = document.createElement('div')
-      fill.className = 'progress-fill'
-      fill.style.width = `${(m.progress / m.target) * 100}%`
-      bar.appendChild(fill)
-      const status = document.createElement('span')
-      status.textContent = `${Math.floor(m.progress)}/${m.target}`
-      const reward = document.createElement('small')
-      reward.textContent = m.rewardMoney > 0 ? `Ödül: ${formatMoney(m.rewardMoney)}` : `Ödül: ${m.rewardBoostMinutes}dk 2x`
-
-      if (m.progress >= m.target && !m.claimed) {
-        const claimBtn = document.createElement('button')
-        claimBtn.type = 'button'
-        claimBtn.className = 'btn-primary'
-        claimBtn.dataset.action = 'claim-mission'
-        claimBtn.dataset.id = m.id
-        claimBtn.textContent = 'Topla'
-        const adBtn = document.createElement('button')
-        adBtn.type = 'button'
-        adBtn.className = 'btn-ad'
-        adBtn.dataset.action = 'claim-mission-ad'
-        adBtn.dataset.id = m.id
-        adBtn.textContent = '📺 x2'
-        card.append(label, bar, status, reward, claimBtn, adBtn)
-      } else {
-        card.append(label, bar, status, reward)
-        if (m.claimed) {
-          const done = document.createElement('span')
-          done.className = 'mission-done'
-          done.textContent = 'Tamamlandı'
-          card.appendChild(done)
-        }
+      const dots = document.createElement('div')
+      dots.className = 'research-level-dots'
+      for (let i = 0; i < node.maxLevel; i++) {
+        const dot = document.createElement('span')
+        dot.className = `research-level-dot${i < level ? ' filled' : ''}`
+        dots.appendChild(dot)
       }
-      panel.appendChild(card)
-    }
-  }
+      const levelLabel = document.createElement('span')
+      levelLabel.className = 'shop-level-label'
+      levelLabel.textContent = `${level}/${node.maxLevel}`
+      body.append(name, branchTag, desc, dots, levelLabel)
 
-  private renderAchievements(state: GameState): void {
-    const panel = this.panels.achievements!
-    panel.replaceChildren()
-    const progress = document.createElement('p')
-    progress.className = 'achieve-progress'
-    progress.textContent = `${state.achievements.size}/${ACHIEVEMENTS.length} başarım`
-    panel.appendChild(progress)
+      const price = document.createElement('span')
+      price.className = `shop-card-price${node.currency === 'prestige' ? ' price-prestige' : ''}`
+      price.textContent = maxed ? 'Tamam' : node.currency === 'money' ? formatMoney(cost) : `${cost} hisse`
 
-    const grid = document.createElement('div')
-    grid.className = 'achieve-grid'
-    for (const a of ACHIEVEMENTS) {
-      const done = state.achievements.has(a.id)
-      const cell = document.createElement('div')
-      cell.className = `achieve-cell${done ? ' done' : ''}`
-      cell.title = `${a.name}: ${a.description} (+${formatMoney(a.reward)})`
-      const emoji = document.createElement('span')
-      emoji.className = 'achieve-cell-emoji'
-      emoji.textContent = done ? a.emoji : '🔒'
-      cell.appendChild(emoji)
-      grid.appendChild(cell)
+      card.append(icon, body, price)
+      chain.appendChild(card)
+      }
+      col.appendChild(chain)
+      treeGrid.appendChild(col)
     }
-    panel.appendChild(grid)
+    panel.appendChild(treeGrid)
   }
 
   private renderIpo(state: GameState): void {
     const panel = this.panels.ipo!
     panel.replaceChildren()
 
-    const tickerTabs = document.createElement('div')
-    tickerTabs.className = 'ticker-tabs'
-    for (const def of STOCK_DEFS) {
-      const btn = document.createElement('button')
-      btn.type = 'button'
-      btn.className = 'ticker-tab'
-      btn.dataset.action = 'stock-ticker'
-      btn.dataset.id = def.id
-      if (state.stock.activeTickerId === def.id) btn.classList.add('active')
-      btn.textContent = `${def.emoji} ${def.name}`
-      tickerTabs.appendChild(btn)
+    panel.appendChild(this.createFinanceDash(state))
+    panel.appendChild(this.createFinanceMacroBar(state))
+
+    const subHint = document.createElement('p')
+    subHint.className = 'finance-sub-hint'
+    const hints: Record<IpoSubTab, string> = {
+      stock: '7 sektör hissesi — al/sat, grafik izle, portföyünü büyüt',
+      bank: 'Paranı güvene al veya kredi çek — faiz her dakika işler',
+      prestige: 'Kalıcı prestij puanlarıyla run gücünü artır',
+      ipo: 'Run sonu birleşmesi — kalıcı prestij hissesi kazan (oyun bitirmez, reset)',
+      insurance: 'Risk al — sigortasız oyna veya güvenlik için öde',
+      commodities: 'Altın, petrol, buğday, kahve — haberlerle al/sat',
+      opportunities: 'Süreli startup yatırımları — yüksek getiri, garantisiz',
+      underground_market: 'Kara borsa — heat artırır ama gelir çok yüksek',
     }
-    panel.appendChild(tickerTabs)
+    subHint.textContent = hints[this.ipoSubTab]
+    panel.appendChild(subHint)
+
+    if (this.ipoSubTab === 'stock') this.renderIpoStock(state, panel)
+    else if (this.ipoSubTab === 'bank') this.renderIpoBank(state, panel)
+    else if (this.ipoSubTab === 'prestige') this.renderIpoPrestige(state, panel)
+    else if (this.ipoSubTab === 'insurance') renderInsurancePanel(state, panel, (a, b, c, d) => this.createTabHero(a, b, c, d))
+    else if (this.ipoSubTab === 'commodities') renderCommoditiesPanel(state, panel, (a, b, c, d) => this.createTabHero(a, b, c, d))
+    else if (this.ipoSubTab === 'opportunities') renderOpportunitiesPanel(state, panel, (a, b, c, d) => this.createTabHero(a, b, c, d))
+    else if (this.ipoSubTab === 'underground_market') renderUndergroundMarketPanel(state, panel, (a, b, c, d) => this.createTabHero(a, b, c, d))
+    else this.renderIpoMerge(state, panel)
+  }
+
+  private renderIpoStock(state: GameState, panel: HTMLElement): void {
+    const summary = portfolioSummary(state.stock)
+    const portfolioPlClass = summary.totalPl >= 0 ? 'pl-positive' : 'pl-negative'
+
+    if (Date.now() < state.stock.marketEventUntil) {
+      const ev = document.createElement('div')
+      ev.className = 'market-event-banner market-event-banner-top'
+      ev.textContent = state.stock.marketEventMult < 0 ? '📉 Piyasa çöküşü — fiyatlar baskı altında!' : '📈 Piyasa rallisi — fırsat penceresi!'
+      panel.appendChild(ev)
+    }
+
+    const portfolioEl = document.createElement('div')
+    portfolioEl.className = 'stock-portfolio-summary stock-portfolio-hero'
+    portfolioEl.innerHTML = `
+      <div class="stock-portfolio-stat"><small>Portföy değeri</small><strong>${formatMoney(summary.totalValue)}</strong></div>
+      <div class="stock-portfolio-stat"><small>Nakit (cüzdan)</small><strong>${formatMoney(state.money)}</strong></div>
+      <div class="stock-portfolio-stat"><small>Açık pozisyon</small><strong>${summary.holdings}/${STOCK_DEFS.length}</strong></div>
+      <div class="stock-portfolio-stat"><small>Toplam K/Z</small><strong class="${portfolioPlClass}">${formatMoney(summary.totalPl)}</strong></div>
+    `
+    panel.appendChild(portfolioEl)
+
+    const boardTitle = document.createElement('h3')
+    boardTitle.className = 'stock-board-title'
+    boardTitle.textContent = 'Piyasa tahtası'
+    panel.appendChild(boardTitle)
+
+    const board = document.createElement('div')
+    board.className = 'stock-market-board'
+    for (const def of STOCK_DEFS) {
+      const t = state.stock.tickers[def.id]!
+      const tPl = profitLoss(t)
+      const tChg = priceChangePct(t)
+      const tPlClass = tPl >= 0 ? 'pl-positive' : 'pl-negative'
+      const chgClass = tChg >= 0 ? 'pl-positive' : 'pl-negative'
+      const isActive = state.stock.activeTickerId === def.id
+      const spark = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      spark.setAttribute('class', 'stock-board-spark')
+      spark.setAttribute('viewBox', '0 0 80 28')
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+      path.setAttribute('d', sparklinePath(t.history, 80, 28))
+      path.setAttribute('fill', 'none')
+      path.setAttribute('stroke', tChg >= 0 ? '#34d399' : '#f87171')
+      path.setAttribute('stroke-width', '2')
+      spark.appendChild(path)
+
+      const card = document.createElement('button')
+      card.type = 'button'
+      card.className = `stock-board-card${isActive ? ' active' : ''}${isBankruptTicker(state.stock, def.id) ? ' stock-bankrupt' : ''}`
+      card.dataset.action = 'stock-ticker'
+      card.dataset.id = def.id
+      card.innerHTML = `
+        <div class="stock-board-head">
+          <span class="stock-board-emoji">${def.emoji}</span>
+          <div class="stock-board-names">
+            <strong>${def.name}</strong>
+            <small>${t.shares > 0 ? `${t.shares} lot · ${formatMoney(tPl)}` : 'Pozisyon yok'}</small>
+          </div>
+          <span class="stock-change ${chgClass}">${tChg >= 0 ? '+' : ''}${tChg.toFixed(1)}%</span>
+        </div>
+        <div class="stock-board-price-row">
+          <strong>${formatMoney(t.price)}</strong>
+          <small class="${tPlClass}">${t.shares > 0 ? formatMoney(tPl) : '—'}</small>
+        </div>
+      `
+      card.appendChild(spark)
+      board.appendChild(card)
+    }
+    panel.appendChild(board)
 
     const ticker = state.stock.tickers[state.stock.activeTickerId]!
     const pl = profitLoss(ticker)
     const plClass = pl >= 0 ? 'pl-positive' : 'pl-negative'
+    const chg = priceChangePct(ticker)
+    const chgClass = chg >= 0 ? 'pl-positive' : 'pl-negative'
+    const trend = state.stock.trendDirection === 'up' ? '↑ Yükseliş' : state.stock.trendDirection === 'down' ? '↓ Düşüş' : '→ Yatay'
 
-    const stockTitle = document.createElement('h3')
-    stockTitle.textContent = `${ticker.emoji} ${ticker.name}`
-    const priceRow = document.createElement('div')
-    priceRow.className = 'stock-price-row'
-    const trend = state.stock.trendDirection === 'up' ? '↑' : state.stock.trendDirection === 'down' ? '↓' : '→'
-    priceRow.innerHTML = `<strong>${formatMoney(ticker.price)}</strong> <span class="stock-trend">${trend}</span>`
+    const tradePanel = document.createElement('div')
+    tradePanel.className = 'stock-trade-panel'
+    tradePanel.innerHTML = `
+      <div class="stock-trade-head">
+        <span class="stock-trade-emoji">${ticker.emoji}</span>
+        <div>
+          <h3>${ticker.name}</h3>
+          <small>Sektör: ${ticker.sector} · Volatilite ${Math.round(ticker.volatility * 100)}%</small>
+        </div>
+        <div class="stock-trade-price">
+          <strong>${formatMoney(ticker.price)}</strong>
+          <span class="stock-change ${chgClass}">${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%</span>
+        </div>
+      </div>
+    `
 
-    const spark = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-    spark.setAttribute('class', 'stock-sparkline')
-    spark.setAttribute('viewBox', '0 0 120 32')
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-    path.setAttribute('d', sparklinePath(ticker.history, 120, 32))
-    path.setAttribute('fill', 'none')
-    const trendColor = state.stock.trendDirection === 'up' ? '#34d399' : state.stock.trendDirection === 'down' ? '#f87171' : '#60a5fa'
-    path.setAttribute('stroke', trendColor)
-    path.setAttribute('stroke-width', '2')
-    spark.appendChild(path)
+    const detailGrid = document.createElement('div')
+    detailGrid.className = 'stock-detail-grid stock-detail-grid-lg'
+    detailGrid.innerHTML = `
+      <span><small>Lot</small><strong>${ticker.shares}</strong></span>
+      <span><small>Ort. maliyet</small><strong>${ticker.shares > 0 ? formatMoney(ticker.avgBuyPrice) : '—'}</strong></span>
+      <span><small>Pozisyon değeri</small><strong>${formatMoney(ticker.shares * ticker.price)}</strong></span>
+      <span><small>K/Z</small><strong class="${plClass}">${formatMoney(pl)}</strong></span>
+      <span><small>Trend</small><strong>${trend}</strong></span>
+      <span><small>Alım maliyeti (1 lot)</small><strong>${formatMoney(ticker.price)}</strong></span>
+    `
+    tradePanel.appendChild(detailGrid)
 
-    const stockInfo = document.createElement('p')
-    stockInfo.innerHTML = `${ticker.shares} lot | Değer: ${formatMoney(ticker.shares * ticker.price)} | K/Z: <span class="${plClass}">${formatMoney(pl)}</span>`
-
-    if (Date.now() < state.stock.trendHintUntil) {
-      const hint = document.createElement('p')
-      hint.className = 'stock-hint'
-      hint.textContent = `Piyasa ipucu: trend ${state.stock.trendDirection === 'up' ? 'YUKARI' : state.stock.trendDirection === 'down' ? 'AŞAĞI' : 'YATAY'}`
-      panel.appendChild(hint)
-    }
-    if (Date.now() < state.stock.marketEventUntil) {
-      const ev = document.createElement('p')
-      ev.className = 'market-event-banner'
-      ev.textContent = state.stock.marketEventMult < 0 ? '📉 Piyasa çöküşü!' : '📈 Piyasa rallisi!'
-      panel.appendChild(ev)
-    }
+    const sparkLg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    sparkLg.setAttribute('class', 'stock-sparkline stock-sparkline-xl')
+    sparkLg.setAttribute('viewBox', '0 0 320 80')
+    const pathLg = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    pathLg.setAttribute('d', sparklinePath(ticker.history, 320, 80))
+    pathLg.setAttribute('fill', 'none')
+    pathLg.setAttribute('stroke', chg >= 0 ? '#34d399' : '#f87171')
+    pathLg.setAttribute('stroke-width', '2.5')
+    sparkLg.appendChild(pathLg)
+    tradePanel.appendChild(sparkLg)
 
     const stockActions = document.createElement('div')
-    stockActions.className = 'stock-actions'
+    stockActions.className = 'stock-actions finance-trade-bar stock-trade-actions'
     for (const [action, label, count] of [
       ['stock-buy', 'Al 1', '1'],
       ['stock-buy', 'Al 10', '10'],
+      ['stock-buy', 'Al 50', '50'],
       ['stock-sell', 'Sat 1', '1'],
+      ['stock-sell', 'Sat 10', '10'],
       ['stock-sell', 'Sat hepsi', 'max'],
     ] as const) {
       const btn = document.createElement('button')
@@ -631,52 +1988,232 @@ export class ShopPanel {
       btn.textContent = label
       stockActions.appendChild(btn)
     }
+    tradePanel.appendChild(stockActions)
+    panel.appendChild(tradePanel)
+
+    if (Date.now() < state.stock.trendHintUntil) {
+      const hint = document.createElement('p')
+      hint.className = 'stock-hint stock-hint-box'
+      hint.textContent = `📊 Piyasa ipucu: kısa vadede trend ${state.stock.trendDirection === 'up' ? 'YUKARI' : state.stock.trendDirection === 'down' ? 'AŞAĞI' : 'YATAY'}`
+      panel.appendChild(hint)
+    }
+
     const hintAd = document.createElement('button')
     hintAd.type = 'button'
-    hintAd.className = 'btn-ad'
+    hintAd.className = 'btn-ad stock-hint-btn'
     hintAd.dataset.action = 'ad-stock-hint'
-    hintAd.textContent = state.isStockHintFree() ? '📊 Ücretsiz ipucu' : '📺 Piyasa ipucu (1 saat)'
-    panel.append(stockTitle, priceRow, spark, stockInfo, stockActions, hintAd)
+    hintAd.textContent = state.isStockHintFree() ? '📊 Ücretsiz piyasa analizi (1 saat)' : '📺 Detaylı piyasa analizi — reklam izle'
+    panel.appendChild(hintAd)
 
-    const divider = document.createElement('hr')
-    divider.className = 'panel-divider'
-    panel.appendChild(divider)
-
-    const treeTitle = document.createElement('h3')
-    treeTitle.textContent = '🌳 Prestij Ağacı'
-    const treeInfo = document.createElement('p')
-    treeInfo.textContent = `${state.prestigePoints} harcanabilir hisse puanı`
-    panel.append(treeTitle, treeInfo)
-
-    const treeGrid = document.createElement('div')
-    treeGrid.className = 'prestige-tree-grid'
-    for (const node of PRESTIGE_TREE_NODES) {
-      const owned = hasNode(state.prestigeTree, node.id)
-      const canBuy = canBuyNode(state.prestigeTree, node, state.prestigePoints)
-      const card = document.createElement('button')
-      card.type = 'button'
-      card.className = `tree-node ${owned ? 'owned' : canBuy ? 'available' : 'locked'}`
-      card.dataset.action = owned ? '' : 'buy-tree-node'
-      card.dataset.id = node.id
-      card.disabled = owned || !canBuy
-      card.innerHTML = `<strong>${node.name}</strong><small>${node.description}</small><span>${owned ? '✓' : `${node.cost} puan`}</span>`
-      treeGrid.appendChild(card)
+    if (this.highlightStockTicker) {
+      board.querySelectorAll('.stock-board-card').forEach((el) => {
+        el.classList.toggle('ticker-highlight', (el as HTMLElement).dataset.id === this.highlightStockTicker)
+      })
+      this.highlightStockTicker = null
     }
-    panel.appendChild(treeGrid)
+  }
 
-    const divider2 = document.createElement('hr')
-    divider2.className = 'panel-divider'
-    panel.appendChild(divider2)
+  private renderIpoBank(state: GameState, panel: HTMLElement): void {
+    const bank = state.bank
+    const rate = state.stock.centralBankRate
+    const dRate = (depositRate(rate) * 100).toFixed(2)
+    const bRate = (bondRate(rate) * 100).toFixed(2)
+    const lRate = (loanRate(rate, bank.creditScore) * 100).toFixed(2)
+    const maxLoan = state.maxAvailableLoan()
+    const score = Math.round(bank.creditScore)
 
-    const title = document.createElement('h3')
-    title.textContent = 'Şirket Birleşmesi & IPO'
+    const rateStrip = document.createElement('div')
+    rateStrip.className = 'finance-rate-strip'
+    rateStrip.innerHTML = `
+      <span><small>Mevduat (yıllık)</small><strong>%${dRate}</strong></span>
+      <span><small>Tahvil (yıllık)</small><strong>%${bRate}</strong></span>
+      <span><small>Kredi (yıllık)</small><strong>%${lRate}</strong></span>
+      <span><small>Skor</small><strong>${score}/100</strong></span>
+    `
+    panel.appendChild(rateStrip)
+
+    if (reputationLoanBlocked(state.reputation)) {
+      const repWarn = document.createElement('p')
+      repWarn.className = 'bank-reputation-warn'
+      repWarn.textContent = `⭐ İtibar çok düşük (${state.reputation}) — banka kredi vermiyor. Yasal işletmelerle itibarını yükselt.`
+      panel.appendChild(repWarn)
+    }
+
+    const now = Date.now()
+    const countdownSec = Math.ceil(interestTickCountdownMs(bank, now) / 1000)
+    const last = bank.lastInterestSnapshot
+    const projected = projectInterestTick(bank, rate)
+    const netClass = projected.net >= 0 ? 'pl-positive' : 'pl-negative'
+
+    const interestSummary = document.createElement('div')
+    interestSummary.className = 'bank-interest-summary'
+    interestSummary.innerHTML = `
+      <div class="bank-interest-summary-head">
+        <strong>Faiz özeti</strong>
+        <small>Sonraki tick: ${countdownSec} sn · Her ${INTEREST_TICK_MS / 1000} sn gerçek zaman</small>
+      </div>
+      <div class="bank-interest-last">
+        <small>Son tick</small>
+        <span>${last
+          ? `+${formatMoney(last.depositGain)} mevduat · +${formatMoney(last.bondGain)} tahvil · −${formatMoney(last.loanCost)} kredi = <strong class="${last.net >= 0 ? 'pl-positive' : 'pl-negative'}">${last.net >= 0 ? '+' : ''}${formatMoney(last.net)}</strong> net`
+          : 'Henüz faiz işlenmedi'}
+        </span>
+      </div>
+      <div class="bank-interest-projected">
+        <small>Tahmini sonraki tick</small>
+        <span>+${formatMoney(projected.depositGain)} · +${formatMoney(projected.bondGain)} · −${formatMoney(projected.loanCost)} = <strong class="${netClass}">${projected.net >= 0 ? '+' : ''}${formatMoney(projected.net)}</strong></span>
+      </div>
+      <p class="bank-interest-hint">Kredi skoru düştükçe faiz artar (30–100 arası). Mevduat/tahvil bakiyene göre kazanç; kredi borcuna faiz eklenir.</p>
+    `
+    panel.appendChild(interestSummary)
+
+    const accounts = document.createElement('div')
+    accounts.className = 'bank-accounts finance-account-grid'
+    accounts.innerHTML = `
+      <div class="bank-account-card">
+        <h4>💰 Mevduat</h4>
+        <strong>${formatMoney(bank.deposit)}</strong>
+        <small>Güvenli · anında çekilir · faiz kazanır</small>
+      </div>
+      <div class="bank-account-card">
+        <h4>📜 Tahvil</h4>
+        <strong>${formatMoney(bank.bonds)}</strong>
+        <small>Daha yüksek getiri · düşük risk</small>
+      </div>
+      <div class="bank-account-card${bank.loan > 0 ? ' bank-debt' : ''}">
+        <h4>🏦 Kredi</h4>
+        <strong>${formatMoney(bank.loan)}</strong>
+        <small>Kalan limit: ${formatMoney(maxLoan)}</small>
+      </div>
+    `
+    panel.appendChild(accounts)
+
+    const warn = document.createElement('p')
+    warn.className = 'bank-warn'
+    warn.textContent = bank.loan > state.financeNetWorth() * 0.5
+      ? '⚠️ Borç yüksek — net değer negatife inerse iflas tetiklenir, işletmelere el konulabilir.'
+      : 'Faiz her 60 sn gerçek zamanda işler (duraklatınca durur). Net değer sıfırın altına düşerse iflas riski vardır.'
+    panel.appendChild(warn)
+
+    panel.appendChild(this.createBankActions('Mevduat işlemleri', 'Nakitten yatır veya çek', [
+      ['bank-deposit', 'Yatır 1K', '1000'],
+      ['bank-deposit', 'Yatır 10K', '10000'],
+      ['bank-deposit', 'Yatır max', 'max'],
+      ['bank-withdraw', 'Çek 1K', '1000'],
+      ['bank-withdraw', 'Çek max', 'max'],
+    ]))
+    panel.appendChild(this.createBankActions('Tahvil işlemleri', 'Uzun vadeli getiri', [
+      ['bank-buy-bonds', 'Al 5K', '5000'],
+      ['bank-buy-bonds', 'Al max', 'max'],
+      ['bank-sell-bonds', 'Sat max', 'max'],
+    ]))
+    panel.appendChild(this.createBankActions('Kredi işlemleri', 'Limit skora ve net değere bağlı', [
+      ['bank-loan', 'Çek 25K', '25000'],
+      ['bank-loan', 'Çek max', 'max'],
+      ['bank-repay', 'Öde 10K', '10000'],
+      ['bank-repay', 'Öde max', 'max'],
+    ]))
+  }
+
+  private renderIpoPrestige(state: GameState, panel: HTMLElement): void {
+    panel.appendChild(this.createSectionHeader(
+      'Prestij Ağacı',
+      `${state.prestigePoints} harcanabilir puan · kalıcı run güçlendirme`,
+    ))
+
+    const branchLabels: Record<string, string> = {
+      income: '💰 Gelir',
+      economy: '📉 Ekonomi',
+      meta: '⚙️ Meta',
+    }
+    const wrap = document.createElement('div')
+    wrap.className = 'prestige-tree-visual'
+
+    for (const branch of ['income', 'economy', 'meta'] as const) {
+      const col = document.createElement('div')
+      col.className = 'prestige-branch-col'
+      const head = document.createElement('h4')
+      head.className = 'prestige-branch-head'
+      head.textContent = branchLabels[branch] ?? branch
+      col.appendChild(head)
+
+      const chain = document.createElement('div')
+      chain.className = 'prestige-branch-chain'
+      for (const node of PRESTIGE_TREE_NODES.filter((n) => n.branch === branch)) {
+        const owned = hasNode(state.prestigeTree, node.id)
+        const canBuy = canBuyNode(state.prestigeTree, node, state.prestigePoints)
+        if (node.requires) {
+          const reqNode = PRESTIGE_TREE_NODES.find((n) => n.id === node.requires)
+          const reqLine = document.createElement('div')
+          reqLine.className = 'prestige-requires-line'
+          reqLine.textContent = reqNode ? `↑ ${reqNode.name}` : '↑ ön koşul'
+          chain.appendChild(reqLine)
+        }
+        const card = document.createElement('button')
+        card.type = 'button'
+        card.className = `tree-node prestige-tree-node ${owned ? 'owned' : canBuy ? 'available' : 'locked'}`
+        card.dataset.action = owned ? '' : 'buy-tree-node'
+        card.dataset.id = node.id
+        card.disabled = owned || !canBuy
+        card.innerHTML = `<strong>${node.name}</strong><small>${node.description}</small><span class="tree-node-cost">${owned ? '✓ Alındı' : `${node.cost} puan`}</span>`
+        chain.appendChild(card)
+      }
+      col.appendChild(chain)
+      wrap.appendChild(col)
+    }
+    panel.appendChild(wrap)
+  }
+
+  private renderIpoMerge(state: GameState, panel: HTMLElement): void {
+    const explain = document.createElement('div')
+    explain.className = 'ipo-explain-box'
+    explain.innerHTML = `
+      <strong>Run Birleşmesi (IPO) nedir?</strong>
+      <p>Oyunu silmez — imparatorluğunu <em>kalıcı güçlendirerek</em> yeni tura başlatırsın.</p>
+      <ul>
+        <li><strong>${formatMoney(PRESTIGE_THRESHOLD)}+ toplam kazanç</strong> ile birleşme açılır — her IPO'da eşik katlanır</li>
+        <li>Borsa & banka varlıkların nakde çevrilir, run sıfırlanır</li>
+        <li><strong>Kalıcı prestij hissesi</strong> kazanırsın → tüm gelirlerin kalıcı çarpanı artar</li>
+        <li>Prestij ağacı, hanedan, sezon ve imparatorluk yönetimi <strong>korunur</strong></li>
+      </ul>
+    `
+    panel.appendChild(explain)
+    panel.appendChild(this.createSectionHeader('Şirket Birleşmesi'))
+
+    const preview = state.ipoPreview()
+    const ipoCard = document.createElement('div')
+    ipoCard.className = 'shop-card ipo-card'
+    const currentMult = prestigeMultiplier(state.prestigePoints)
+    const threshold = ipoThreshold(state.ipoCount)
+    const remaining = Math.max(0, threshold - state.totalEarned)
+
+    const stats = document.createElement('div')
+    stats.className = 'ipo-stats-grid'
+    stats.innerHTML = `
+      <span><small>Mevcut hisse</small><strong>${Math.floor(state.prestigePoints)}</strong></span>
+      <span><small>Kalıcı çarpan</small><strong>x${currentMult.toFixed(2)}</strong></span>
+      <span><small>IPO sayısı</small><strong>${state.ipoCount}</strong></span>
+      <span><small>Başlangıç sermayesi</small><strong>${formatMoney(preview.startingCash)}</strong></span>
+    `
+    ipoCard.appendChild(stats)
+
+    const steps = document.createElement('ol')
+    steps.className = 'ipo-steps'
+    steps.innerHTML = `
+      <li>Borsa ve mevduatın nakde çevrilir (kredi kapanır)</li>
+      <li>Run sıfırlanır — işletmeler, yükseltmeler, yöneticiler gider</li>
+      <li>Kalıcı prestij hissesi + ${formatMoney(preview.startingCash)} ile yeni tur başlar</li>
+      <li>Prestij ağacı, Ar-Ge, hanedan ve imparatorluk korunur</li>
+    `
+    ipoCard.appendChild(steps)
+
     const info = document.createElement('p')
-    const pending = calcPrestigePoints(state.totalEarned)
-    info.textContent = pending > 0
-      ? `${pending} hisse senedi kazanacaksın. Kalıcı çarpan: x${prestigeMultiplier(state.prestigePoints + pending).toFixed(2)}`
-      : `IPO için enaz ${formatMoney(PRESTIGE_THRESHOLD)} toplam kazanç gerekir.`
+    info.className = 'ipo-info-text'
+    info.textContent = preview.pointsToEarn > 0
+      ? `Hazırsın: +${preview.pointsToEarn} kalıcı hisse · çarpan x${currentMult.toFixed(2)} → x${preview.newMultiplier.toFixed(2)} · portföy ${formatMoney(preview.portfolioValue)} satılacak`
+      : `IPO #${state.ipoCount + 1} için ${formatMoney(threshold)} toplam kazanç gerekir. Şu an ${formatMoney(state.totalEarned)} — ${formatMoney(remaining)} kaldı.`
 
-    const ipoPct = Math.min(100, (state.totalEarned / PRESTIGE_THRESHOLD) * 100)
+    const ipoPct = Math.min(100, (state.totalEarned / threshold) * 100)
     const bar = document.createElement('div')
     bar.className = 'progress-bar ipo-progress-bar'
     const fill = document.createElement('div')
@@ -694,9 +2231,12 @@ export class ShopPanel {
     btn.type = 'button'
     btn.className = 'btn-prestige'
     btn.dataset.action = 'ipo'
-    btn.textContent = 'Borsaya Çık (IPO)'
+    btn.textContent = state.prestigeEligible()
+      ? `🚀 IPO Yap · ${formatMoney(preview.startingCash)} ile başla`
+      : `IPO için ${formatMoney(remaining)} kaldı`
     btn.disabled = !state.prestigeEligible()
 
-    panel.append(title, info, bar, btn)
+    ipoCard.append(info, bar, btn)
+    panel.appendChild(ipoCard)
   }
 }

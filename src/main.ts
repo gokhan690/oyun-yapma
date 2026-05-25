@@ -1,65 +1,101 @@
+import './ui/tokens.css'
 import './ui/styles.css'
+import './ui/responsive.css'
 import { GameState } from './game/GameState'
 import { SaveManager } from './security/SaveManager'
 import { AdManager } from './ads/AdManager'
 import { SoundManager } from './audio/SoundManager'
 import { HUD } from './ui/HUD'
-import { scheduleDailyReminder } from './notifications/NotificationManager'
+import { scheduleDailyReminder, registerServiceWorker } from './notifications/NotificationManager'
+import { applyDocumentTheme } from './utils/themeApply'
+
+declare global {
+  interface Window {
+    __II_MARK_BOOTED__?: () => void
+    __II_SHOW_BOOT_ERROR__?: (message: string, opts?: { resetSave?: boolean }) => void
+  }
+}
+
+function showBootFailure(message: string, resetSave = true): void {
+  if (typeof window.__II_SHOW_BOOT_ERROR__ === 'function') {
+    window.__II_SHOW_BOOT_ERROR__(message, { resetSave })
+    return
+  }
+  const bootErr = document.querySelector<HTMLDivElement>('#boot-error')
+  if (bootErr) {
+    bootErr.style.display = 'block'
+    bootErr.textContent = message
+  }
+}
 
 function bootstrap(): void {
   const app = document.querySelector<HTMLDivElement>('#app')
   if (!app) return
 
-  const state = new GameState()
-  const saveManager = new SaveManager()
-  const ads = new AdManager()
-  const sound = new SoundManager()
-
-  let ok = false
-  let lastSaveTime = Date.now()
-  let saveCorrupted = false
   try {
-    const loaded = saveManager.load(state)
-    ok = loaded.ok
-    lastSaveTime = loaded.lastSaveTime
-  } catch (err) {
-    console.warn('Kayıt yüklenemedi, yeni oyun başlatılıyor.', err)
-    saveCorrupted = true
-    saveManager.clear()
-  }
-  ads.syncRewardedCount(state.rewardedAdsToday, state.rewardedAdsDay)
+    const state = new GameState()
+    const saveManager = new SaveManager()
+    const ads = new AdManager()
+    const sound = new SoundManager()
 
-  const hud = new HUD(state, ads, sound, saveManager, app)
-
-  if (saveCorrupted) {
-    window.setTimeout(() => {
-      hud.showCorruptedSaveNotice()
-    }, 500)
-  }
-
-  if (ok) {
-    const offlineBefore = state.money
-    state.applyOfflineEarnings(lastSaveTime)
-    const offlineAmount = state.money - offlineBefore
-    if (offlineAmount > 0) {
-      hud.showOfflinePopup(offlineAmount)
+    let loaded
+    try {
+      loaded = saveManager.load(state)
+    } catch (loadErr) {
+      console.error('Kayıt yükleme çökmesi:', loadErr)
+      loaded = { ok: false, lastSaveTime: Date.now(), reason: 'load_crash' }
     }
+    const saveLoaded = loaded.ok
+    const lastSaveTime = loaded.lastSaveTime
+
+    if (!saveLoaded) {
+      console.warn('Kayıt yüklenemedi:', loaded.reason)
+    }
+
+    ads.syncRewardedCount(state.rewardedAdsToday, state.rewardedAdsDay)
+    applyDocumentTheme(state.activeTheme)
+
+    const hud = new HUD(state, ads, sound, saveManager, app)
+
+    if (saveLoaded) {
+      if (loaded.source === 'backup') {
+        window.setTimeout(() => hud.toast('Yedek kayıttan geri yüklendi ✓'), 400)
+      }
+      const pendingOffline = state.applyOfflineEarnings(lastSaveTime)
+      if (pendingOffline > 0) {
+        hud.showOfflinePopup(pendingOffline)
+      }
+      if (state.hasPendingComeback()) {
+        window.setTimeout(() => hud.showComebackPopup(), 1200)
+      }
+      window.setTimeout(() => hud.showDailyRewardIfAvailable(), 900)
+      saveManager.startAutoSave(state)
+    } else {
+      window.setTimeout(() => {
+        if (saveManager.hasBackup()) {
+          hud.toast('Kayıt açılamadı — Profil → Ayarlar → “Yedekten geri yükle” dene')
+        } else {
+          hud.toast('Yeni oyun başladı')
+        }
+      }, 600)
+      saveManager.startAutoSave(state)
+    }
+
+    state.startTick()
+    state.startEventLoop()
+    hud.renderAll()
+
+    document.addEventListener('click', () => sound.resume(), { once: true })
+    void scheduleDailyReminder(state.notificationPrefs)
+    void registerServiceWorker()
+    window.__II_MARK_BOOTED__?.()
+  } catch (err) {
+    console.error('Bootstrap hatası:', err)
+    showBootFailure(
+      'Oyun başlatılamadı. Sayfayı yenile; sorun sürerse kaydı sıfırlayıp tekrar dene.',
+      true,
+    )
   }
-
-  if (state.canClaimDaily()) {
-    window.setTimeout(() => {
-      const amount = state.claimDailyReward()
-      if (amount > 0) hud.renderAll()
-    }, 800)
-  }
-
-  state.startTick()
-  state.startEventLoop()
-  saveManager.startAutoSave(state)
-  hud.renderAll()
-
-  document.addEventListener('click', () => sound.resume(), { once: true })
-  void scheduleDailyReminder()
 }
 
 bootstrap()

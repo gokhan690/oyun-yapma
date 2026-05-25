@@ -2,22 +2,30 @@
 <html lang="tr">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/icon-512.svg" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="apple-touch-icon" href="icon-512.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://googleads.g.doubleclick.net https://pagead2.googlesyndication.com; frame-src https://googleads.g.doubleclick.net;"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co https://googleads.g.doubleclick.net https://pagead2.googlesyndication.com; frame-src https://googleads.g.doubleclick.net;"
     />
     <meta name="theme-color" content="#0a1628" />
     <meta name="description" content="İş İmparatorluğu — işletme kur, birleş, borsaya çık!" />
     <title>İş İmparatorluğu</title>
+    <style>
+      html, body { margin: 0; min-height: 100%; background: #0a1628; color: #f1f5f9; }
+      #app:empty { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; }
+      #app:empty::after { content: 'Yükleniyor…'; font-family: system-ui, sans-serif; color: #fbbf24; font-weight: 700; }
+      #boot-error { display: none; padding: 24px; max-width: 420px; margin: 0 auto; font-family: system-ui, sans-serif; color: #fecaca; text-align: center; line-height: 1.5; }
+    </style>
   </head>
   <body>
     <div id="app"></div>
+    <div id="boot-error"></div>
+    <script src="./boot.js"></script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

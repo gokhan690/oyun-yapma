@@ -1,5 +1,5 @@
-import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, formatMoney, type ProducerDef, type UpgradeDef } from './Economy'
-import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, prestigeMultiplier } from './Prestige'
+import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, type ProducerDef, type UpgradeDef } from './Economy'
+import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, ipoThreshold, prestigeMultiplier } from './Prestige'
 import { globalSynergyBonus, producerSynergyBonus } from './Synergies'
 import {
   RESEARCH_NODES,
@@ -9,31 +9,70 @@ import {
   researchOfflineBonusMs,
   researchSynergyMultiplier,
   researchEfficiencyBonus,
+  researchFootballBonus,
+  researchHeatGainReduction,
 } from './Research'
-import { pickRandomEvent, nextEventDelayMs, type GameEventDef } from './Events'
+import { pickRandomEvent, type GameEventDef } from './Events'
+import { computeGoldenEventDelay, EVENT_PREVIEW_LEAD_MS, NEAR_MISS_COOLDOWN_MS } from './EventDirector'
 import { checkNewAchievements, type AchievementDef } from './Achievements'
 import { generateDailyMissions, type MissionProgress } from './Missions'
 import { managerCost, managerMultiplier, hasManager } from './Managers'
 import {
   createStockState,
   tickStockPrice,
+  tickMacro,
   buyShares,
   sellShares,
   startMarketEvent,
+  liquidatePortfolio,
+  portfolioValue,
   totalShares,
   ownedTickerCount,
   migrateLegacyStock,
+  migrateStockState,
   STOCK_TICK_MS,
   type StockState,
 } from './StockMarket'
 import {
+  createBankState,
+  tickBankInterest,
+  calcIpoStartingCash,
+  maxLoan,
+  netWorth,
+  type BankState,
+  type IpoPreviewData,
+} from './FinanceBank'
+import {
+  BANKRUPTCY_CASH_GRACE_MS,
+  BANKRUPTCY_COOLDOWN_MS,
+  BANKRUPTCY_RECOVERY_BASE_RATE,
+  restoreSeizedBusinesses,
+  seizeBusinesses,
+  type SeizedBusiness,
+} from './Bankruptcy'
+import {
   createSeasonState,
   currentTier,
   rewardForTier,
-  hasClaimableTier,
+  hasClaimableSeasonReward,
   seasonWeekKey,
+  tierProgress,
+  SEASON_MAX_TIER,
+  xpForTier,
+  isLegacyGameSeasonKey,
   type SeasonState,
+  type SeasonTrack,
 } from './SeasonPass'
+import { rollChestLoot, shouldResetPity, type ChestLootResult } from './ChestLoot'
+import {
+  createCampaignState,
+  currentCampaignStep,
+  campaignStepSnapshot,
+  hasClaimableCampaignStep,
+  chapterById,
+  isChapterUnlocked,
+  type CampaignState,
+} from './Campaign'
 import {
   PRESTIGE_TREE_NODES,
   canBuyNode,
@@ -50,15 +89,232 @@ import {
   autoBuyCooldownMs,
   prestigeMultBonus,
   ownedNodeCount,
+  heatDecayBonus,
+  hasRaidInsurance,
+  hasNode,
 } from './PrestigeTree'
-import { localDayKey, yesterdayLocalKey, isNightHour } from './dateUtils'
+import { localDayKey, yesterdayLocalKey, calendarWeekKey } from './dateUtils'
+import { gameDay, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSecondsToGameMs, gameCalendarDate } from './GameClock'
+import {
+  createEmpireState,
+  syncEmpireFromProducers,
+  tickEmpireDaily,
+  empireFootballIncomeMult,
+  empirePoliticsCostDiscount,
+  empirePoliticsHeatReduction,
+  empireDarkProductionMult,
+  boostDarkProduction,
+  reduceDarkHeat,
+  stadiumUpgradeCost,
+  leagueUpgradeCost,
+  lobbyCost,
+  donateCampaign,
+  canUpgradeLeague,
+  leagueName,
+  type EmpireState,
+} from './Empire'
+import {
+  createDynastyState,
+  activeDynastyTrait,
+  pickChildName,
+  randomChildTrait,
+  spouseOption,
+  spouseProducerBonus,
+  traitClickMult,
+  traitCostMult,
+  traitIllegalMult,
+  traitPassiveMult,
+  educationXpPerGameDay,
+  playerGameAge,
+  SUCCESSION_START_AGE,
+  PLAYER_START_AGE,
+  CHILD_EDUCATION_MAX,
+  type DynastyState,
+  type PlayerGender,
+  pickChildRiskProfile,
+  migrateChildRecord,
+} from './Dynasty'
+import {
+  rollDailyMortality,
+  totalDailyMortalityRisk,
+  estimatedYearsRemaining,
+  mortalityRiskDisplay,
+  type MortalityContext,
+  type MortalityRiskDisplay,
+  type DeathCauseId,
+} from './Mortality'
+import { FOOTBALL_CLUB_IDS } from './Empire'
+import {
+  createUndergroundTreeState,
+  treeNodeDef,
+  treeNodeCost,
+  illegalIncomeBonus,
+  raidFineReduction,
+  raidChanceReduction,
+  heatDecayBonus as ugHeatDecayBonus,
+  heatGainReduction,
+} from './UndergroundTree'
+import {
+  type ActiveMarketNews,
+  newsDef,
+  newsDurationMs,
+  pickMarketNews,
+  type MarketNewsDef,
+} from './MarketNews'
 import {
   createWeeklyState,
   getWeeklyDef,
-  weekKey,
+  isLegacyGameWeekKey,
+  weeklyRewardCash,
+  WEEKLY_EARN_MIN,
   type WeeklyEventState,
 } from './WeeklyEvent'
-import { DAILY_GOAL_TARGET, dailyGoalDayKey } from './DailyGoal'
+import { dailyGoalDayKey, scaledDailyGoalTarget, calcDailyLoginReward, streakMilestoneBonus, DAILY_GOAL_MIN } from './DailyGoal'
+import {
+  LAWYER_PROTECTION_MS,
+  LAUNDER_DURATION_MS,
+  HEAT_SHIELD_DURATION_MS,
+  type UndergroundActionId,
+} from './Underground'
+import { themeForTier, type ThemeId } from './Themes'
+import { storyBeat } from './StoryBeats'
+import { loadOwnerFlags, type OwnerFlags } from '../owner/FeatureFlags'
+import { createPendingBoost, type PendingBoostItem } from './BoostInventory'
+import {
+  clampReputation,
+  REPUTATION_START,
+  reputationCostMult,
+  reputationFromIllegalBusiness,
+  reputationFromLegalBusiness,
+  reputationFromLobby,
+  reputationFromRaid,
+  reputationFromScandal,
+  reputationLoanBlocked,
+  reputationPoliticsBlocked,
+  carryReputationAfterIpo,
+} from './Reputation'
+import { currentWorldStage, type WorldStageId } from './WorldStage'
+import {
+  createRivalsState,
+  tickRivals,
+  rivalById,
+  lobbyAgainstRival,
+  cooperateWithRival,
+  mergeRival,
+  mergeRivalCost,
+  acceptRivalAlliance,
+  rivalDef,
+  type RivalFamilyState,
+} from './Rivals'
+import {
+  checkNewVictories,
+  type VictoryId,
+  type VictoryContext,
+  victoryDef,
+} from './VictoryConditions'
+import {
+  appendChronicle,
+  createChronicleEntry,
+  createMonument,
+  type ChronicleEntry,
+  type LegacyMonument,
+} from './Chronicle'
+import { gameSeasonKey } from './GameClock'
+import {
+  pushGazette,
+  headlinePurchase,
+  headlineLoanDenied,
+  headlineCrisis,
+  headlineMonthlyIncome,
+  type GazetteEntry,
+  type GazetteCategory,
+} from './BaronGazette'
+import {
+  type ActiveCrisis,
+  type CrisisId,
+  crisisDef,
+  pickRandomCrisis,
+} from './CrisisEvents'
+import { computePlayerTitle, type PlayerTitleDef } from './PlayerTitle'
+import {
+  activeCalendarEvents,
+  calendarPassiveMult,
+  calendarClickMult,
+} from './CalendarEvents'
+import {
+  mechanicForVictory,
+  hasMechanic,
+  type VictoryMechanic,
+} from './VictoryUnlocks'
+import {
+  createInsuranceState,
+  insuranceDailyCost,
+  raidFineMult,
+  type InsuranceState,
+} from './Insurance'
+import {
+  createCommodityMarket,
+  tickCommodityPrices,
+  type CommodityId,
+  type CommodityMarketState,
+} from './Commodities'
+import {
+  createStartupOffer,
+  type InvestmentOffer,
+  type PendingInvestment,
+} from './InvestmentOffers'
+import {
+  FRANCHISE_COST,
+  FRANCHISE_UNLOCK_COUNT,
+  FRANCHISE_REPUTATION_MIN,
+  FRANCHISE_CITIES,
+  franchiseIncomeBonus,
+  type FranchiseBranch,
+  type FranchiseCity,
+} from './Franchise'
+import {
+  namedManagerDef,
+  type HiredNamedManager,
+  type NamedManagerId,
+} from './NamedManagers'
+import {
+  undergroundActionDef,
+  type UndergroundMarketAction,
+} from './UndergroundMarket'
+import { rollAdvisorTip, ADVISOR_FEE, type AdvisorTip } from './AdvisorNPC'
+import type { RivalAllianceOffer } from './Rivals'
+import { buildBaronRecord, dynastyHistorySummary, type BaronRecord, type BaronLifeSnapshot } from './BaronLegacy'
+import {
+  createCityState,
+  canUnlockCity,
+  cityDef,
+  type CityState,
+  type CityId,
+} from './ExpansionMap'
+import {
+  createTorpilState,
+  torpilDef,
+  torpilBusinessDiscount,
+  torpilBypassCreditScore,
+  torpilRaidWarning,
+  type TorpilContactState,
+  type TorpilId,
+} from './TorpilNetwork'
+import { obsolescenceMult, modernizeCost } from './TechObsolescence'
+import { pickDisaster, disasterDamage } from './NaturalDisasters'
+import { progressPathSnapshot, type ProgressPathSnapshot } from './ProgressPath'
+
+export interface PendingUndo {
+  id: string
+  kind: 'manager_hire' | 'named_manager' | 'sell_producer'
+  label: string
+  cost: number
+  expiresAt: number
+  producerId?: string
+  namedManagerId?: NamedManagerId
+  soldCount?: number
+  soldCost?: number
+}
 
 export interface SerializableState {
   money: number
@@ -86,23 +342,115 @@ export interface SerializableState {
   upgradesBoughtSession: number
   eventBoostUntil: number
   playTimeMs: number
+  gameTimeMs: number
+  gamePaused?: boolean
   tutorialDone: boolean
+  onboardingComplete?: boolean
   ipoCount: number
   lifetimeTotalEarned: number
   managers: Record<string, boolean>
   stock: StockState
+  bank: BankState
   weekly: WeeklyEventState
   milestonesReached: number[]
   managerDiscountActive: boolean
   dailyGoalEarned: number
   dailyGoalDay: string
   dailyGoalClaimed: boolean
+  dailyGoalTargetSnapshot: number
+  dailyGoalRewardSnapshot: number
   season: SeasonState
   prestigeTree: Record<string, boolean>
   managerAutoBuy: Record<string, boolean>
   nightEarningsSession: number
   hapticsEnabled: boolean
   reducedMotion: boolean
+  playerName: string
+  birthYear: number
+  playerGender: PlayerGender
+  forcedUnlocks: string[]
+  illegalHeat: number
+  unlockedThemes: string[]
+  activeTheme: ThemeId
+  codexUnlockDates: Record<string, string>
+  undergroundCooldowns: Record<string, number>
+  heatShieldUntil: number
+  heatProtectionUntil: number
+  launderingUntil: number
+  lastActiveAt: number
+  comebackClaimedDay: string | null
+  comebackPending: number
+  notificationPrefs: { dailyReward: boolean; passiveIncome: boolean; goalNear: boolean; webPush: boolean }
+  surpriseInvestorUntil: number
+  surpriseInvestorDay: string
+  seenStoryBeats: string[]
+  earnedBadges: string[]
+  raidsToday: number
+  raidsDay: string
+  heatWasCritical: boolean
+  heatSurvived: boolean
+  undergroundLawyerUsed: boolean
+  comebackClaimed: boolean
+  streakMilestonesClaimed: number[]
+  dynasty: DynastyState
+  activeMarketNews: ActiveMarketNews | null
+  shopBoostUntil: number
+  upgradeDiscountActive: boolean
+  undergroundTree: Record<string, number>
+  advisorBuys: number
+  empire: EmpireState
+  gameStartYear: number
+  pendingBoosts: PendingBoostItem[]
+  chestPityCounter: number
+  chestTickets: number
+  campaign: CampaignState
+  bankruptcyRecoveryPool?: number
+  bankruptcyRecoveryClaimed?: boolean
+  bankruptcySeizedSnapshot?: SeizedBusiness[]
+  lastBankruptcyAt?: number
+  bankruptcyCashGraceSince?: number
+  reputation?: number
+  rivals?: RivalFamilyState[]
+  chronicle?: ChronicleEntry[]
+  legacyMonuments?: LegacyMonument[]
+  victoriesUnlocked?: VictoryId[]
+  totalRaidsCaught?: number
+  presidentSeasons?: number
+  presidentSinceSeasonKey?: string | null
+  lastWorldStageId?: WorldStageId
+  childCrises?: { childId: string; type: 'gambler' | 'illegal' | 'scandal' }[]
+  gazetteEntries?: GazetteEntry[]
+  activeCrisis?: ActiveCrisis | null
+  crisisIncomeMult?: number
+  crisisHoldBonusUntil?: number
+  victoryMechanics?: VictoryMechanic[]
+  bankruptcyCount?: number
+  insurance?: InsuranceState
+  commodities?: CommodityMarketState
+  investmentOffer?: InvestmentOffer | null
+  pendingInvestments?: PendingInvestment[]
+  franchises?: FranchiseBranch[]
+  namedManagers?: HiredNamedManager[]
+  pendingRivalOffer?: RivalAllianceOffer | null
+  undergroundMarketActive?: UndergroundMarketAction[]
+  advisorTip?: AdvisorTip | null
+  advisorTipDay?: number
+  calendarPurchaseDay?: string
+  lastCrisisGameDay?: number
+  lastInvestmentOfferDay?: number
+  playerTitleId?: string
+  baronHistory?: BaronRecord[]
+  baronCounter?: number
+  currentBaronStartedGameDay?: number
+  baronLifePeakNetWorth?: number
+  baronLifeEarnedStart?: number
+  baronLifeRaidsUninsured?: number
+  baronLifeChildCrises?: number
+  cities?: CityState
+  torpil?: TorpilContactState[]
+  producerModernized?: Record<string, boolean>
+  pendingUndo?: PendingUndo | null
+  lastDisasterGameDay?: number
 }
 
 export interface ProducerBreakdown {
@@ -110,7 +458,7 @@ export interface ProducerBreakdown {
   owned: number
   basePerUnit: number
   lines: { label: string; value: string }[]
-  totalPerSec: number
+  totalPerDay: number
 }
 
 export type GameEvent =
@@ -119,13 +467,14 @@ export type GameEvent =
   | { type: 'stock_tick' }
   | { type: 'click'; amount: number; critical: boolean; x: number; y: number; combo: number }
   | { type: 'purchase' }
-  | { type: 'prestige'; points: number }
+  | { type: 'prestige'; points: number; startingCash?: number }
   | { type: 'offline_earnings'; amount: number }
   | { type: 'daily_reward'; amount: number; streak: number }
   | { type: 'ad_boost'; until: number }
-  | { type: 'chest_opened'; amount: number }
+  | { type: 'chest_opened'; amount?: number; loot?: ChestLootResult }
   | { type: 'combo_changed'; combo: number; multiplier: number }
   | { type: 'golden_event'; event: GameEventDef; expiresAt: number }
+  | { type: 'golden_event_preview'; hint: string; arrivesInMs: number }
   | { type: 'event_claimed'; event: GameEventDef; reward: number }
   | { type: 'event_missed'; event: GameEventDef }
   | { type: 'achievement'; def: AchievementDef }
@@ -137,20 +486,65 @@ export type GameEvent =
   | { type: 'weekly_updated'; progress: number; target: number }
   | { type: 'daily_goal_updated'; earned: number; target: number }
   | { type: 'day_night'; isNight: boolean }
+  | { type: 'game_time' }
+  | { type: 'game_pause'; paused: boolean }
   | { type: 'season_updated'; xp: number; tier: number }
-  | { type: 'season_claimed'; tier: number; reward: string }
+  | { type: 'season_claimed'; tier: number; reward: string; track?: SeasonTrack }
+  | { type: 'campaign_step'; chapterId: number; stepId: string; reward: string }
+  | { type: 'premium_season_unlocked' }
   | { type: 'prestige_tree'; nodeId: string }
   | { type: 'market_event'; crash: boolean }
+  | { type: 'macro_event'; headline: string; crash?: boolean }
+  | { type: 'finance_tick'; headline?: string; snapshot?: import('./FinanceBank').BankInterestSnapshot }
+  | { type: 'bankruptcy'; loss: number; reason: string; recoveryPool: number; seizedBusinesses: string[] }
   | { type: 'auto_buy'; producerId: string }
   | { type: 'nav_changed'; view: string }
-  | { type: 'purchase_juice'; x: number; y: number; amount: number }
+  | { type: 'illegal_raid'; fine: number; producerId: string }
+  | { type: 'producer_unlocked'; producerId: string }
+  | { type: 'illegal_heat'; heat: number }
+  | { type: 'underground_action'; actionId: string }
+  | { type: 'story_beat'; beatId: string; text: string }
+  | { type: 'comeback_ready'; amount: number }
+  | { type: 'surprise_investor'; until: number }
+  | { type: 'pending_boost_added'; label: string }
+  | { type: 'boost_activated'; label: string }
+  | { type: 'near_miss'; kind: string; message: string }
+  | { type: 'match_result'; clubId: string; clubName: string; won: boolean; score: string; fanGain: number; bonus: number }
+  | { type: 'theme_unlocked'; themeId: ThemeId }
+  | { type: 'badge_earned'; badgeId: string }
+  | { type: 'market_news'; headline: string; active: boolean }
+  | { type: 'dynasty_update'; kind: string; name?: string }
+  | { type: 'player_death'; age: number; causeId: DeathCauseId; emoji: string; label: string; message: string; hasHeir: boolean }
+  | { type: 'baron_eulogy'; record: BaronRecord; hasHeir: boolean }
+  | { type: 'disaster_hit'; title: string; emoji: string; city: string; damage: number; insured: boolean }
+  | { type: 'undo_available'; label: string; cost: number; undoId: string }
+  | { type: 'reputation_changed'; reputation: number; delta: number }
+  | { type: 'world_stage'; stageId: WorldStageId; name: string }
+  | { type: 'rival_action'; rivalId: string; headline: string }
+  | { type: 'victory_unlocked'; victoryId: VictoryId; name: string; emoji: string }
+  | { type: 'child_crisis'; childName: string; crisisType: string; message: string }
+  | { type: 'gazette_headline'; headline: string; category: GazetteCategory }
+  | { type: 'crisis_started'; crisisId: CrisisId; title: string }
+  | { type: 'crisis_resolved'; crisisId: CrisisId; choiceId: string; summary: string }
+  | { type: 'loan_denied'; reason: string }
+  | { type: 'victory_mechanic_unlocked'; victoryId: VictoryId; title: string; description: string; emoji: string }
+  | { type: 'rival_alliance_offer'; offer: RivalAllianceOffer }
+  | { type: 'investment_offer'; offer: InvestmentOffer }
+  | { type: 'player_title'; title: PlayerTitleDef }
+  | { type: 'calendar_event'; headline: string; emoji: string }
+  | { type: 'skyline_building_click'; producerId: string; income: number; name: string }
 
 const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
-const CRIT_MULT = 10
-const BASE_CLICK = 1
-const BASE_OFFLINE_CAP_MS = 8 * 60 * 60 * 1000
+const CRIT_MULT = 5
+const BASE_CLICK = 5
+/** Sekme arka plana düşünce tek karede işlenecek max pasif süre (sn) */
+const PASSIVE_TICK_DT_CAP = 30
+const BASE_OFFLINE_CAP_GAME_DAYS = 365
+const BASE_OFFLINE_CAP_MS = BASE_OFFLINE_CAP_GAME_DAYS * MS_PER_GAME_DAY
 const AD_BOOST_DURATION_MS = 5 * 60 * 1000
+const COMEBACK_MIN_AWAY_MS = 24 * 60 * 60 * 1000
+const STREAK_MILESTONES = [7, 14, 30]
 const COMBO_WINDOW_MS = 1500
 
 export class GameState {
@@ -165,6 +559,12 @@ export class GameState {
   dailyLastClaim: string | null = null
   dailyStreak = 0
   adIncomeBoostUntil = 0
+  adBoostLabel = ''
+  adBoostEmoji = '📺'
+  eventBoostLabel = ''
+  eventBoostEmoji = '✨'
+  shopBoostLabel = ''
+  shopBoostEmoji = '🛒'
   rewardedAdsToday = 0
   rewardedAdsDay = todayKey()
   luckyChestReady = false
@@ -179,24 +579,126 @@ export class GameState {
   upgradesBoughtSession = 0
   eventBoostUntil = 0
   playTimeMs = 0
+  gameTimeMs = 0
+  gamePaused = false
   tutorialDone = false
+  onboardingComplete = false
   ipoCount = 0
   lifetimeTotalEarned = 0
   managers: Record<string, boolean> = {}
   stock = createStockState()
+  bank = createBankState()
   weekly = createWeeklyState()
   milestonesReached: number[] = []
   managerDiscountActive = false
   dailyGoalEarned = 0
   dailyGoalDay = dailyGoalDayKey()
   dailyGoalClaimed = false
+  dailyGoalTargetSnapshot = DAILY_GOAL_MIN
+  dailyGoalRewardSnapshot = 200
   season = createSeasonState()
   prestigeTree: Record<string, boolean> = {}
   managerAutoBuy: Record<string, boolean> = {}
   nightEarningsSession = 0
   hapticsEnabled = true
   reducedMotion = false
-  isNight = isNightHour(new Date().getHours())
+  isNight = isGameNight(0)
+  playerName = 'Baron'
+  birthYear = 0
+  playerGender: PlayerGender = 'male'
+  forcedUnlocks = new Set<string>()
+  illegalHeat = 0
+  unlockedThemes = new Set<string>(['default'])
+  activeTheme: ThemeId = 'default'
+  codexUnlockDates: Record<string, string> = {}
+  undergroundCooldowns: Record<string, number> = {}
+  heatShieldUntil = 0
+  heatProtectionUntil = 0
+  launderingUntil = 0
+  lastActiveAt = Date.now()
+  comebackClaimedDay: string | null = null
+  comebackPending = 0
+  notificationPrefs = { dailyReward: true, passiveIncome: true, goalNear: true, webPush: false }
+  chestPityCounter = 0
+  chestTickets = 0
+  campaign = createCampaignState()
+  surpriseInvestorUntil = 0
+  surpriseInvestorDay = ''
+  seenStoryBeats = new Set<string>()
+  earnedBadges = new Set<string>()
+  raidsToday = 0
+  raidsDay = todayKey()
+  heatWasCritical = false
+  heatSurvived = false
+  undergroundLawyerUsed = false
+  advisorBuys = 0
+  comebackClaimed = false
+  streakMilestonesClaimed: number[] = []
+  dynasty = createDynastyState()
+  activeMarketNews: ActiveMarketNews | null = null
+  shopBoostUntil = 0
+  upgradeDiscountActive = false
+  undergroundTree = createUndergroundTreeState()
+  empire = createEmpireState()
+  gameStartYear = 2026
+  reputation = REPUTATION_START
+  rivals = createRivalsState()
+  chronicle: ChronicleEntry[] = []
+  legacyMonuments: LegacyMonument[] = []
+  victoriesUnlocked: VictoryId[] = []
+  totalRaidsCaught = 0
+  presidentSeasons = 0
+  presidentSinceSeasonKey: string | null = null
+  lastWorldStageId: WorldStageId = 'local'
+  childCrises: { childId: string; type: 'gambler' | 'illegal' | 'scandal' }[] = []
+  gazetteEntries: GazetteEntry[] = []
+  activeCrisis: ActiveCrisis | null = null
+  crisisIncomeMult = 1
+  crisisHoldBonusUntil = 0
+  victoryMechanics: VictoryMechanic[] = []
+  bankruptcyCount = 0
+  insurance = createInsuranceState()
+  commodities = createCommodityMarket()
+  investmentOffer: InvestmentOffer | null = null
+  pendingInvestments: PendingInvestment[] = []
+  franchises: FranchiseBranch[] = []
+  namedManagers: HiredNamedManager[] = []
+  pendingRivalOffer: RivalAllianceOffer | null = null
+  undergroundMarketActive: UndergroundMarketAction[] = []
+  advisorTip: AdvisorTip | null = null
+  advisorTipDay = 0
+  calendarPurchaseDay = ''
+  lastCrisisGameDay = 0
+  lastInvestmentOfferDay = 0
+  playerTitleId = 'tycoon'
+  baronHistory: BaronRecord[] = []
+  baronCounter = 1
+  currentBaronStartedGameDay = 1
+  baronLifePeakNetWorth = 0
+  baronLifeEarnedStart = 0
+  baronLifeRaidsUninsured = 0
+  baronLifeChildCrises = 0
+  baronLifeFactoryRaidDamage = 0
+  cities = createCityState()
+  torpil = createTorpilState()
+  producerModernized: Record<string, boolean> = {}
+  pendingUndo: PendingUndo | null = null
+  lastDisasterGameDay = 0
+  private lastCalendarEmitDay = ''
+  private lastCommodityTick = Date.now()
+  private lastInsuranceChargeDay = 0
+  pendingBoosts: PendingBoostItem[] = []
+  private lastRivalTickDay = 0
+  private lastIllegalRiskCheck = 0
+  private lastHeatTick = 0
+  private nudgeFlags = new Set<string>()
+  /** Yokken biriken — sadece reklamla toplanır */
+  pendingOfflineEarnings = 0
+  bankruptcyRecoveryPool = 0
+  bankruptcyRecoveryClaimed = false
+  bankruptcySeizedSnapshot: SeizedBusiness[] = []
+  lastBankruptcyAt = 0
+  bankruptcyCashGraceSince = 0
 
   comboCount = 0
   comboMultiplier = 1
@@ -206,13 +708,25 @@ export class GameState {
   private missedEvent: GameEventDef | null = null
   private eventTimer: number | null = null
   private eventExpireTimer: number | null = null
+  private nextEventAt = 0
+  private eventExpireAt = 0
+  private eventScheduleRemainingMs = 0
+  private eventExpireRemainingMs = 0
+  private eventPreviewTimer: number | null = null
+  private lastNearMissToastAt = 0
   private lastStockTick = Date.now()
   private lastAutoBuyTick = 0
   private lastDayNightCheck = 0
   private lastMarketEventCheck = 0
+  private passiveAccrued = 0
+  private passiveRecent: { at: number; amount: number }[] = []
+  private lastGameClockEmit = 0
+  private lastDynastyGameDay = 0
+  private lastMarketNewsGameDay = 0
 
   private listeners = new Set<(event: GameEvent) => void>()
   private tickHandle: number | null = null
+  private ownerFlags: OwnerFlags = {}
 
   constructor() {
     for (const p of PRODUCERS) this.producers[p.id] = 0
@@ -220,19 +734,39 @@ export class GameState {
     for (const p of PRODUCERS) this.managers[p.id] = false
     for (const p of PRODUCERS) this.managerAutoBuy[p.id] = false
     this.ensureMissions()
-    this.ensureWeekly()
+    this.applyOwnerFlags(loadOwnerFlags())
+  }
+
+  applyOwnerFlags(flags: OwnerFlags): void {
+    this.ownerFlags = { ...flags }
+    if (this.ownerFlags.free_boost) {
+      this.adIncomeBoostUntil = Date.now() + 365 * 24 * 60 * 60_000
+    }
+  }
+
+  private ownerFlag(id: string): boolean {
+    return this.ownerFlags[id] === true
   }
 
   ensureSeason(): void {
     const key = seasonWeekKey()
+    if (isLegacyGameSeasonKey(this.season.weekKey)) {
+      this.season.weekKey = key
+      return
+    }
     if (this.season.weekKey !== key) {
       this.season = createSeasonState()
     }
   }
 
   ensureWeekly(): void {
-    if (this.weekly.weekKey !== weekKey()) {
-      this.weekly = createWeeklyState()
+    const key = calendarWeekKey()
+    if (this.weekly.weekKey !== key || isLegacyGameWeekKey(this.weekly.weekKey)) {
+      this.weekly = createWeeklyState(this.incomePerDay())
+      return
+    }
+    if (this.weekly.rewardCash === undefined || this.weekly.rewardCash <= 0) {
+      this.weekly.rewardCash = weeklyRewardCash(this.incomePerDay())
     }
   }
 
@@ -252,21 +786,41 @@ export class GameState {
     const loop = (now: number) => {
       const dt = (now - last) / 1000
       last = now
-      this.playTimeMs += dt * 1000
+      if (!this.gamePaused) {
+        this.playTimeMs += dt * 1000
+      }
+      const gameDt = !this.gamePaused && dt > 0 && dt < 2 ? dt : 0
+      const passiveDt = !this.gamePaused && dt > 0 ? Math.min(dt, PASSIVE_TICK_DT_CAP) : 0
+      if (gameDt > 0) {
+        this.gameTimeMs += realSecondsToGameMs(gameDt)
+        this.tickChildEducation(realSecondsToGameMs(gameDt))
+      }
       this.updateComboDecay(now)
-      this.tickStock(now)
-      this.tickDayNight(now)
-      this.tickAutoBuy(now)
-      if (dt > 0 && dt < 1) {
-        const income = this.incomePerSecond() * dt
-        if (income > 0) {
-          this.money += income
-          if (this.isNight) this.nightEarningsSession += income
-          if (now - lastPassiveEmit > 120) {
-            lastPassiveEmit = now
-            this.emit({ type: 'passive_income' })
-          }
-        }
+      if (!this.gamePaused) {
+        this.tickStock(now)
+        this.tickDayNight(now)
+        this.tickAutoBuy(now)
+        this.tickIllegalRisk(now)
+        this.tickIllegalHeat(now)
+        this.tickNearMiss(now)
+      }
+      if (passiveDt > 0) {
+        const gameDaysDelta = realSecondsToGameMs(passiveDt) / MS_PER_GAME_DAY
+        const income = this.incomePerDay() * gameDaysDelta
+        if (income > 0) this.passiveAccrued += income
+      }
+      if (now - lastPassiveEmit > 250 && this.passiveAccrued >= 0.01) {
+        lastPassiveEmit = now
+        const batch = this.passiveAccrued
+        this.passiveAccrued = 0
+        this.addMoney(batch, true)
+      }
+      if (!this.gamePaused && now - this.lastGameClockEmit > 1000) {
+        this.lastGameClockEmit = now
+        this.tickMarketNews()
+        this.tickDynasty()
+        this.tickMetaSystems()
+        this.emit({ type: 'game_time' })
       }
       this.tickHandle = requestAnimationFrame(loop)
     }
@@ -279,8 +833,65 @@ export class GameState {
       cancelAnimationFrame(this.tickHandle)
       this.tickHandle = null
     }
-    if (this.eventTimer !== null) clearTimeout(this.eventTimer)
-    if (this.eventExpireTimer !== null) clearTimeout(this.eventExpireTimer)
+    this.freezeEventTimers()
+  }
+
+  isPaused(): boolean {
+    return this.gamePaused
+  }
+
+  togglePause(): boolean {
+    this.gamePaused = !this.gamePaused
+    if (this.gamePaused) {
+      this.freezeEventTimers()
+    } else {
+      this.resumeEventTimers()
+    }
+    this.emit({ type: 'game_pause', paused: this.gamePaused })
+    if (!this.gamePaused) this.emit({ type: 'game_time' })
+    return this.gamePaused
+  }
+
+  private freezeEventTimers(): void {
+    const now = Date.now()
+    if (this.eventPreviewTimer !== null) {
+      clearTimeout(this.eventPreviewTimer)
+      this.eventPreviewTimer = null
+    }
+    if (this.eventTimer !== null) {
+      clearTimeout(this.eventTimer)
+      this.eventTimer = null
+      this.eventScheduleRemainingMs = Math.max(0, this.nextEventAt - now)
+    }
+    if (this.eventExpireTimer !== null) {
+      clearTimeout(this.eventExpireTimer)
+      this.eventExpireTimer = null
+      this.eventExpireRemainingMs = Math.max(0, this.eventExpireAt - now)
+    }
+  }
+
+  private resumeEventTimers(): void {
+    if (this.activeEvent && this.eventExpireRemainingMs > 0) {
+      this.eventExpireAt = Date.now() + this.eventExpireRemainingMs
+      this.activeEventExpires = this.eventExpireAt
+      this.eventExpireTimer = window.setTimeout(() => {
+        const event = this.activeEvent
+        if (event) {
+          this.missedEvent = event
+          this.activeEvent = null
+          this.emit({ type: 'event_missed', event })
+        }
+        this.scheduleNextEvent()
+      }, this.eventExpireRemainingMs)
+      this.eventExpireRemainingMs = 0
+    } else if (!this.activeEvent) {
+      const delay = this.eventScheduleRemainingMs > 0
+        ? this.eventScheduleRemainingMs
+        : computeGoldenEventDelay(this.eventsSeen, this.playTimeMs)
+      this.eventScheduleRemainingMs = 0
+      this.nextEventAt = Date.now() + delay
+      this.eventTimer = window.setTimeout(() => this.spawnGoldenEvent(), delay)
+    }
   }
 
   startEventLoop(): void {
@@ -289,10 +900,41 @@ export class GameState {
 
   private scheduleNextEvent(): void {
     if (this.eventTimer !== null) clearTimeout(this.eventTimer)
-    this.eventTimer = window.setTimeout(() => this.spawnGoldenEvent(), nextEventDelayMs())
+    if (this.eventPreviewTimer !== null) clearTimeout(this.eventPreviewTimer)
+    if (this.gamePaused) {
+      this.eventScheduleRemainingMs = computeGoldenEventDelay(this.eventsSeen, this.playTimeMs)
+      this.nextEventAt = Date.now() + this.eventScheduleRemainingMs
+      return
+    }
+    const delay = computeGoldenEventDelay(this.eventsSeen, this.playTimeMs)
+    this.nextEventAt = Date.now() + delay
+    this.eventScheduleRemainingMs = 0
+    const previewDelay = Math.max(0, delay - EVENT_PREVIEW_LEAD_MS)
+    if (previewDelay > 0) {
+      this.eventPreviewTimer = window.setTimeout(() => {
+        this.eventPreviewTimer = null
+        if (!this.gamePaused && !this.activeEvent) {
+          this.emit({
+            type: 'golden_event_preview',
+            hint: 'Yatırımcı, vergi iadesi veya viral reklam fırsatı geliyor…',
+            arrivesInMs: EVENT_PREVIEW_LEAD_MS,
+          })
+        }
+      }, previewDelay)
+    }
+    this.eventTimer = window.setTimeout(() => this.spawnGoldenEvent(), delay)
+  }
+
+  getNextGoldenEventInMs(): number {
+    if (this.activeEvent) return 0
+    return Math.max(0, this.nextEventAt - Date.now())
   }
 
   private spawnGoldenEvent(): void {
+    if (this.gamePaused) {
+      this.eventScheduleRemainingMs = computeGoldenEventDelay(this.eventsSeen, this.playTimeMs)
+      return
+    }
     if (this.activeEvent) {
       this.scheduleNextEvent()
       return
@@ -300,10 +942,12 @@ export class GameState {
     const event = pickRandomEvent()
     this.activeEvent = event
     this.activeEventExpires = Date.now() + event.durationMs
+    this.eventExpireAt = this.activeEventExpires
     this.eventsSeen++
     this.emit({ type: 'golden_event', event, expiresAt: this.activeEventExpires })
 
     if (this.eventExpireTimer !== null) clearTimeout(this.eventExpireTimer)
+    this.eventExpireRemainingMs = 0
     this.eventExpireTimer = window.setTimeout(() => {
       if (this.activeEvent?.id === event.id) {
         this.missedEvent = event
@@ -320,15 +964,14 @@ export class GameState {
     this.activeEvent = null
     if (this.eventExpireTimer !== null) clearTimeout(this.eventExpireTimer)
 
-    let reward = 0
-    if (event.rewardType === 'instant_cash') {
-      reward = Math.max(500, this.incomePerSecond() * 60 * event.rewardValue)
-      this.addMoney(reward)
-    } else {
-      this.eventBoostUntil = Date.now() + (event.boostDurationMs ?? 30_000)
-      reward = event.rewardValue
-    }
-    this.emit({ type: 'event_claimed', event, reward })
+    this.grantPendingBoost(
+      event.boostKind,
+      event.boostDurationMs,
+      event.pendingLabel,
+      event.emoji,
+    )
+    this.emit({ type: 'event_claimed', event, reward: 0 })
+    this.emit({ type: 'pending_boost_added', label: event.pendingLabel })
     this.scheduleNextEvent()
     return true
   }
@@ -372,11 +1015,18 @@ export class GameState {
     }
   }
 
+  private lastBankruptcyCheck = 0
+
   private tickStock(now: number): void {
     if (now - this.lastStockTick >= STOCK_TICK_MS) {
       tickStockPrice(this.stock)
       this.lastStockTick = now
       this.emit({ type: 'stock_tick' })
+    }
+    const macro = tickMacro(this.stock, now)
+    if (macro) {
+      this.emit({ type: 'macro_event', headline: macro.headline, crash: macro.crash })
+      if (macro.crash) this.emit({ type: 'market_event', crash: true })
     }
     if (now - this.lastMarketEventCheck > 300_000 && Math.random() < 0.05) {
       this.lastMarketEventCheck = now
@@ -384,15 +1034,213 @@ export class GameState {
       startMarketEvent(this.stock, crash)
       this.emit({ type: 'market_event', crash })
     }
+    const interest = tickBankInterest(this.bank, this.stock.centralBankRate, now)
+    if (interest) {
+      const snap = this.bank.lastInterestSnapshot
+      if (snap && Math.abs(snap.net) >= 500_000) {
+        this.emit({ type: 'finance_tick', headline: interest.headline, snapshot: snap })
+      } else {
+        this.emit({ type: 'finance_tick', snapshot: snap })
+      }
+      if (interest.bankrupt && now > this.bank.bankruptcyCooldownUntil) {
+        this.resolveBankruptcy('Kredi faizi ödenemedi — iflas koruması devreye girdi')
+      }
+    }
+    if (
+      this.bank.loan > 0
+      && netWorth(this.money, portfolioValue(this.stock), this.bank) < this.bank.loan * 0.35
+      && now > this.bank.bankruptcyCooldownUntil
+      && now - this.lastBankruptcyCheck > 30_000
+    ) {
+      this.lastBankruptcyCheck = now
+      this.resolveBankruptcy('Net değer borcun altına düştü')
+    }
+    this.checkBankruptcyTriggers(now)
+  }
+
+  private checkBankruptcyTriggers(now: number): void {
+    if (now <= this.bank.bankruptcyCooldownUntil) return
+    if (now - this.lastBankruptcyAt < BANKRUPTCY_COOLDOWN_MS) return
+
+    if (this.financeNetWorth() <= 0 && now - this.lastBankruptcyCheck > 30_000) {
+      this.lastBankruptcyCheck = now
+      this.resolveBankruptcy('Net değer sıfırın altına düştü — tam iflas')
+      return
+    }
+
+    if (this.money <= 0 && this.bank.loan > 0) {
+      if (this.bankruptcyCashGraceSince === 0) this.bankruptcyCashGraceSince = now
+      const graceElapsed = now - this.bankruptcyCashGraceSince
+      const passive = this.incomePerDay()
+      const canServiceDebt = passive >= this.bank.loan * 0.002
+      if (graceElapsed >= BANKRUPTCY_CASH_GRACE_MS && !canServiceDebt) {
+        this.resolveBankruptcy('Nakit tükendi — borç ödenemiyor')
+      }
+    } else {
+      this.bankruptcyCashGraceSince = 0
+    }
+  }
+
+  private maybeBankruptcyAfterFinancialShock(reason: string): void {
+    const now = Date.now()
+    if (now <= this.bank.bankruptcyCooldownUntil) return
+    if (now - this.lastBankruptcyAt < BANKRUPTCY_COOLDOWN_MS) return
+    if (this.financeNetWorth() <= 0) {
+      this.resolveBankruptcy(reason)
+    }
   }
 
   private tickDayNight(now: number): void {
-    if (now - this.lastDayNightCheck < 30_000) return
+    if (now - this.lastDayNightCheck < 1000) return
     this.lastDayNightCheck = now
-    const night = isNightHour(new Date().getHours())
-    if (night !== this.isNight) {
-      this.isNight = night
-      this.emit({ type: 'day_night', isNight: night })
+    const weekend = isGameWeekend(this.gameTimeMs)
+    if (weekend !== this.isNight) {
+      this.isNight = weekend
+      this.emit({ type: 'day_night', isNight: weekend })
+    }
+  }
+
+  private tickIllegalHeat(now: number): void {
+    if (this.ownerFlag('no_heat')) return
+    if (now - this.lastHeatTick < 15_000) return
+    this.lastHeatTick = now
+    if (Date.now() < this.heatShieldUntil) return
+
+    const prev = this.illegalHeat
+    if (this.illegalHeat >= 80) this.heatWasCritical = true
+
+    if (Date.now() < this.launderingUntil) {
+      this.illegalHeat = Math.max(0, this.illegalHeat - 15)
+    }
+
+    const target = this.targetIllegalHeat()
+    const decayMult = (1 + heatDecayBonus(this.prestigeTree)) * ugHeatDecayBonus(this.undergroundTree)
+    if (Math.abs(target - this.illegalHeat) < 0.5) {
+      this.illegalHeat = target
+    } else if (target > this.illegalHeat) {
+      const heatReduce = researchHeatGainReduction(this.research)
+      this.illegalHeat += (target - this.illegalHeat) * 0.15 * (1 - heatReduce)
+    } else {
+      this.illegalHeat += (target - this.illegalHeat) * 0.15 * decayMult
+    }
+    if (target <= 0) this.illegalHeat = Math.max(0, this.illegalHeat - 2 * decayMult)
+
+    if (this.heatWasCritical && this.illegalHeat < 55) {
+      this.heatSurvived = true
+      this.heatWasCritical = false
+      this.checkAchievements()
+    }
+
+    if (this.illegalHeat >= 80 && !this.seenStoryBeats.has('heat_critical')) {
+      this.triggerStoryBeat('heat_critical')
+    } else if (this.illegalHeat >= 55 && !this.seenStoryBeats.has('heat_high')) {
+      this.triggerStoryBeat('heat_high')
+    }
+
+    if (Math.round(prev) !== Math.round(this.illegalHeat)) {
+      this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
+    }
+  }
+
+  private targetIllegalHeat(): number {
+    let owned = 0
+    let types = 0
+    for (const p of PRODUCERS) {
+      if (!p.illegal) continue
+      const n = this.producers[p.id] ?? 0
+      if (n > 0) {
+        types++
+        owned += n
+      }
+    }
+    if (types === 0) return 0
+    let heat = Math.min(100, types * 12 + owned * 4)
+    if (this.purchasedUpgrades.has('offshore_laundry')) heat *= 0.8
+    if (this.hasCodexLegalComplete()) heat = Math.min(100, heat * 0.9)
+    heat *= heatGainReduction(this.undergroundTree)
+    heat *= 1 - empirePoliticsHeatReduction(this.empire.politics)
+    heat += this.empire.darkIndustry.heatBonus
+    return Math.max(0, heat)
+  }
+
+  illegalRiskLabel(): string {
+    if (this.illegalHeat < 25) return 'Düşük'
+    if (this.illegalHeat < 55) return 'Orta'
+    if (this.illegalHeat < 80) return 'Yüksek'
+    return 'Kritik'
+  }
+
+  illegalIncomePerDay(): number {
+    return PRODUCERS.filter((p) => p.illegal).reduce((s, p) => s + this.producerIncome(p), 0)
+  }
+
+  legalIncomePerDay(): number {
+    return this.incomePerDay() - this.illegalIncomePerDay()
+  }
+
+  /** @deprecated use incomePerDay — saniye başına pasif gelir */
+  incomePerSecond(): number {
+    return this.incomePerDay()
+  }
+
+  /** @deprecated use illegalIncomePerDay */
+  illegalIncomePerSecond(): number {
+    return this.illegalIncomePerDay()
+  }
+
+  /** @deprecated use legalIncomePerDay */
+  legalIncomePerSecond(): number {
+    return this.legalIncomePerDay()
+  }
+
+  private tickIllegalRisk(now: number): void {
+    if (this.ownerFlag('no_heat')) return
+    if (now - this.lastIllegalRiskCheck < 60_000) return
+    this.lastIllegalRiskCheck = now
+    if (Date.now() < this.heatProtectionUntil) return
+
+    const today = todayKey()
+    if (this.raidsDay !== today) {
+      this.raidsDay = today
+      this.raidsToday = 0
+    }
+
+    const heatMult = 1 + this.illegalHeat / 100
+    for (const p of PRODUCERS) {
+      if (!p.illegal || !p.riskChance) continue
+      const owned = this.producers[p.id] ?? 0
+      if (owned <= 0) continue
+      const chance = Math.min(0.35, p.riskChance * heatMult * (1 - raidChanceReduction(this.undergroundTree)))
+      if (torpilRaidWarning(this.torpil) && Math.random() < 0.35) {
+        this.addGazette('🎖️ Torpil ağı uyarı verdi — baskın engellendi', 'player')
+        break
+      }
+      if (Math.random() > chance) continue
+      let finePct = (p.riskFinePct ?? 0.15) * (0.8 + this.illegalHeat / 200)
+      finePct *= 1 - raidFineReduction(this.undergroundTree)
+      if (hasRaidInsurance(this.prestigeTree) && this.raidsToday === 0) finePct *= 0.5
+      if (this.insurance.illegal && this.raidsToday === 0) {
+        this.raidsToday++
+        this.addGazette(`${this.playerName.trim() || 'Baron'} — illegal koruma devreye girdi, baskın engellendi`, 'player')
+        break
+      }
+      finePct *= raidFineMult(this.insurance, this.raidsToday === 0)
+      const fine = Math.floor(this.money * finePct)
+      if (fine <= 0) continue
+      this.money = Math.max(0, this.money - fine)
+      this.illegalHeat = Math.min(100, this.illegalHeat + 20)
+      this.raidsToday++
+      this.totalRaidsCaught++
+      if (!this.insurance.business && !this.insurance.illegal) {
+        this.baronLifeRaidsUninsured++
+        if (p.tier >= 4) this.baronLifeFactoryRaidDamage = (this.baronLifeFactoryRaidDamage ?? 0) + 1
+      }
+      this.addReputation(reputationFromRaid())
+      this.emit({ type: 'illegal_raid', fine, producerId: p.id })
+      this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
+      this.emit({ type: 'money_changed' })
+      this.maybeBankruptcyAfterFinancialShock('Illegal baskın sonrası iflas')
+      break
     }
   }
 
@@ -402,7 +1250,7 @@ export class GameState {
     this.lastAutoBuyTick = now
     for (const p of PRODUCERS) {
       if (!this.managerAutoBuy[p.id] || !hasManager(this.managers, p.id)) continue
-      if (!isProducerUnlocked(p, this.totalEarned)) continue
+      if (!isProducerUnlocked(p, this.totalEarned, this.forcedUnlocks)) continue
       if (this.buyProducer(p.id, 1)) {
         this.emit({ type: 'auto_buy', producerId: p.id })
         break
@@ -412,12 +1260,12 @@ export class GameState {
 
   dayNightClickBonus(): number {
     if (this.isNight) return 0
-    return 0.1 + dayBonusExtra(this.prestigeTree)
+    return 0.07 + dayBonusExtra(this.prestigeTree)
   }
 
   dayNightPassiveBonus(): number {
     if (!this.isNight) return 0
-    return 0.15 + nightBonusExtra(this.prestigeTree)
+    return 0.1 + nightBonusExtra(this.prestigeTree)
   }
 
   weeklyProducerBonus(producerId: string): number {
@@ -463,6 +1311,10 @@ export class GameState {
     return BASE_OFFLINE_CAP_MS + researchOfflineBonusMs(this.research) + offlineBonusMs(this.prestigeTree)
   }
 
+  offlineCapGameDays(): number {
+    return Math.floor(this.offlineCapMs() / MS_PER_GAME_DAY)
+  }
+
   globalMultiplier(): number {
     let mult = prestigeMultiplier(this.prestigePoints) * (1 + prestigeMultBonus(this.prestigeTree))
     for (const id of this.purchasedUpgrades) {
@@ -470,9 +1322,32 @@ export class GameState {
       if (u?.effect === 'global_mult') mult *= u.value
     }
     if (Date.now() < this.adIncomeBoostUntil) mult *= 2
+    if (Date.now() < this.shopBoostUntil) mult *= 1.5
     if (this.getEventBoostActive()) mult *= 3
     mult *= 1 + globalSynergyBonus(this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
     mult *= 1 + passiveBonus(this.prestigeTree)
+    if (this.hasCodexLegalComplete()) mult *= 1.05
+    if (this.ownerFlag('income_x2')) mult *= 2
+    mult *= this.marketNewsGlobalMult()
+    const trait = activeDynastyTrait(this.dynasty)
+    mult *= traitPassiveMult(trait)
+    if (hasNode(this.prestigeTree, 'dynasty_1')) {
+      const t = activeDynastyTrait(this.dynasty)
+      if (t === 'merchant' || t === 'diplomat') mult *= 1.05
+    }
+    mult *= 1 + this.legacyMonuments.length * 0.004
+    mult *= this.crisisIncomeMult
+    if (Date.now() < this.crisisHoldBonusUntil) mult *= 1.4
+    mult *= calendarPassiveMult()
+    mult *= 1 + franchiseIncomeBonus(this.franchises)
+    for (const hm of this.namedManagers) {
+      const def = namedManagerDef(hm.id)
+      if (def?.globalPassiveMult) mult *= 1 + def.globalPassiveMult
+    }
+    for (const act of this.undergroundMarketActive) {
+      const def = undergroundActionDef(act)
+      if (def.incomeMult) mult *= 1 + def.incomeMult
+    }
     return mult
   }
 
@@ -491,6 +1366,9 @@ export class GameState {
     mult *= this.comboMultiplier
     mult *= 1 + clickBonus(this.prestigeTree)
     mult *= 1 + this.dayNightClickBonus()
+    mult *= traitClickMult(activeDynastyTrait(this.dynasty))
+    mult *= this.marketNewsClickMult()
+    mult *= calendarClickMult()
     return mult
   }
 
@@ -505,15 +1383,407 @@ export class GameState {
     mult *= 1 + producerSynergyBonus(def.id, this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
     mult *= managerMultiplier(this.managers, def.id)
     mult *= this.weeklyProducerBonus(def.id)
-    return def.baseIncome * owned * mult * this.passiveMultiplier()
+    if (def.illegal) mult *= traitIllegalMult(activeDynastyTrait(this.dynasty))
+    mult *= this.marketNewsProducerMult(def.id)
+    mult *= spouseProducerBonus(this.dynasty, def.id, hasNode(this.prestigeTree, 'dynasty_1'))
+    if (def.illegal) mult *= illegalIncomeBonus(this.undergroundTree)
+    if (def.category === 'dark') {
+      mult *= empireDarkProductionMult(this.empire.darkIndustry, this.gameTimeMs)
+    }
+    if (def.category === 'sport') {
+      const club = this.empire.football.find((c) => c.clubId === def.id)
+      if (club) mult *= empireFootballIncomeMult(club)
+      mult *= researchFootballBonus(this.research)
+    }
+    for (const hm of this.namedManagers) {
+      const mdef = namedManagerDef(hm.id)
+      if (mdef?.producerMult?.[def.id]) mult *= 1 + mdef.producerMult[def.id]!
+      if (def.illegal && mdef?.illegalHeatReduce) mult *= 1 + 0.05
+    }
+    if (!this.producerModernized[def.id]) {
+      mult *= obsolescenceMult(def.tier, this.ipoCount)
+    }
+    return scaledBaseIncome(def.baseIncome, def) * owned * mult * this.passiveMultiplier()
   }
 
-  incomePerSecond(): number {
+  /** Aktif gelir çarpanları — UI'da dalgalanma açıklaması için */
+  incomeModifierChips(): { emoji: string; label: string; detail: string }[] {
+    const chips: { emoji: string; label: string; detail: string }[] = []
+    if (this.isNight) {
+      chips.push({ emoji: '📅', label: 'Hafta sonu', detail: `Pasif +${Math.round(this.dayNightPassiveBonus() * 100)}%` })
+    } else {
+      chips.push({ emoji: '📅', label: 'Hafta içi', detail: `Tıklama +${Math.round(this.dayNightClickBonus() * 100)}%` })
+    }
+    const news = this.activeMarketNewsDef()
+    if (news) {
+      chips.push({ emoji: '📰', label: 'Piyasa haberi', detail: news.headline })
+    }
+    if (Date.now() < this.adIncomeBoostUntil) chips.push({ emoji: '📺', label: 'Reklam boost', detail: 'Gelir x2' })
+    if (Date.now() < this.shopBoostUntil) chips.push({ emoji: '🛒', label: 'Mağaza boost', detail: 'Gelir x1.5' })
+    if (this.getEventBoostActive()) chips.push({ emoji: '✨', label: 'Altın etkinlik', detail: 'Gelir x3' })
+    const weekly = getWeeklyDef(this.weekly)
+    if (weekly.bonus) {
+      chips.push({ emoji: '🗓️', label: weekly.name, detail: `+${Math.round(weekly.bonus * 100)}% bonus` })
+    }
+    if (this.prestigePoints > 0) {
+      chips.push({ emoji: '📈', label: 'IPO çarpanı', detail: `x${prestigeMultiplier(this.prestigePoints).toFixed(2)}` })
+    }
+    return chips
+  }
+
+  activeMarketNewsDef(): MarketNewsDef | null {
+    if (!this.activeMarketNews) return null
+    if (this.gameTimeMs >= this.activeMarketNews.expiresGameTimeMs) {
+      this.activeMarketNews = null
+      return null
+    }
+    return newsDef(this.activeMarketNews.defId) ?? null
+  }
+
+  currentMarketHeadline(): string | null {
+    return this.activeMarketNewsDef()?.headline ?? null
+  }
+
+  private marketNewsGlobalMult(): number {
+    const n = this.activeMarketNewsDef()
+    if (!n) return 1
+    if (n.effect === 'global_up') return 1 + n.value
+    if (n.effect === 'global_down') return 1 - n.value
+    if (n.effect === 'synergy_up') return 1 + n.value * 0.5
+    return 1
+  }
+
+  private marketNewsClickMult(): number {
+    const n = this.activeMarketNewsDef()
+    if (n?.effect === 'click_up') return 1 + n.value
+    return 1
+  }
+
+  private marketNewsProducerMult(producerId: string): number {
+    const n = this.activeMarketNewsDef()
+    if (n?.effect === 'producer_up' && n.producerId === producerId) return 1 + n.value
+    return 1
+  }
+
+  private tickMarketNews(): void {
+    if (this.activeMarketNews && this.gameTimeMs >= this.activeMarketNews.expiresGameTimeMs) {
+      this.activeMarketNews = null
+      this.emit({ type: 'market_news', headline: '', active: false })
+    }
+    const day = gameDay(this.gameTimeMs)
+    if (day === this.lastMarketNewsGameDay || this.activeMarketNews) return
+    if (day % 4 !== 0) return
+    this.lastMarketNewsGameDay = day
+    const def = pickMarketNews(day)
+    this.activeMarketNews = {
+      defId: def.id,
+      expiresGameTimeMs: this.gameTimeMs + newsDurationMs(def),
+    }
+    this.emit({ type: 'market_news', headline: def.headline, active: true })
+  }
+
+  private tickDynasty(): void {
+    const day = gameDay(this.gameTimeMs)
+    if (day === this.lastDynastyGameDay) return
+    this.lastDynastyGameDay = day
+    syncEmpireFromProducers(this.empire, this.producers)
+    const { matchBonus, election, matches } = tickEmpireDaily(this.empire, this.producers, this.gameTimeMs, gameYear(this.gameTimeMs))
+    if (matchBonus > 0) this.addMoney(matchBonus)
+    for (const m of matches) {
+      this.emit({ type: 'match_result', ...m })
+    }
+    if (election) this.triggerStoryBeat('election_year')
+    this.tickPresidentSeasons()
+    this.tickRivalFamilies(day)
+    this.tickChildCrises()
+    this.maybeSpawnChildCrisis()
+    if (gameYear(this.gameTimeMs) === 2027 && !this.seenStoryBeats.has('year_2027')) {
+      this.triggerStoryBeat('year_2027')
+    }
+    this.tickMortality()
+    if (!this.dynasty.spouseName || this.dynasty.children.length >= 3) return
+    const married = this.dynasty.marriedGameDay ?? day
+    if (day - married < 5) return
+    if (Math.random() > 0.4) return
+    const child = {
+      id: `c${day}_${this.dynasty.children.length}`,
+      name: pickChildName(this.dynasty.children),
+      trait: randomChildTrait(),
+      bornGameDay: day,
+      educationXp: 0,
+      ...pickChildRiskProfile(),
+    }
+    this.dynasty.children.push(child)
+    this.addGazette(`👶 ${this.playerName.trim() || 'Baron'} ailesine ${child.name} doğdu — ${child.riskLabel}`, 'player')
+    this.emit({ type: 'dynasty_update', kind: 'child_born', name: child.name })
+  }
+
+  private tickChildEducation(gameMsDelta: number): void {
+    if (this.dynasty.children.length === 0) return
+    const days = gameMsDelta / MS_PER_GAME_DAY
+    const academyMult = this.dynastyAcademyActive() ? 2 : 1
+    const gain = educationXpPerGameDay() * days * academyMult
+    if (gain <= 0) return
+    for (const child of this.dynasty.children) {
+      if (child.educationXp >= CHILD_EDUCATION_MAX) continue
+      child.educationXp = Math.min(CHILD_EDUCATION_MAX, child.educationXp + gain)
+    }
+  }
+
+  marrySpouse(spouseId: string): boolean {
+    if (this.dynasty.spouseName) return false
+    const s = spouseOption(spouseId)
+    if (!s || !this.canAfford(s.cost)) return false
+    const allowed = s.gender === (this.playerGender === 'male' ? 'female' : 'male')
+    if (!allowed) return false
+    this.money -= s.cost
+    this.dynasty.spouseId = s.id
+    this.dynasty.spouseName = s.name
+    this.dynasty.spouseTrait = s.trait
+    this.dynasty.marriedGameDay = gameDay(this.gameTimeMs)
+    this.emit({ type: 'dynasty_update', kind: 'married', name: s.name })
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  successionToChild(childId: string): boolean {
+    const child = this.dynasty.children.find((c) => c.id === childId)
+    if (!child) return false
+    const prevName = this.playerName
+    this.playerName = child.name
+    this.dynasty.activeHeirId = child.id
+    this.dynasty.dynastyBonusId = child.id
+    this.dynasty.generation++
+    this.dynasty.playerBornGameDay = gameDay(this.gameTimeMs)
+    this.dynasty.playerStartAge = SUCCESSION_START_AGE
+    this.dynasty.lifespanNotified = false
+    this.dynasty.pendingDeath = null
+    this.recordChronicle('dynasty', '👑', `${child.name} imparatorluğu devraldı — ${this.dynasty.generation}. nesil`)
+    this.triggerStoryBeat('succession')
+    this.resetBaronLifeTracking()
+    this.emit({ type: 'dynasty_update', kind: 'succession', name: child.name })
+    this.emit({ type: 'story_beat', beatId: 'succession', text: `${prevName} emekli oldu. ${child.name} (${SUCCESSION_START_AGE} yaş) imparatorluğu devraldı.` })
+    return true
+  }
+
+  playerAge(): number {
+    return playerGameAge(this.gameTimeMs, this.dynasty)
+  }
+
+  hasPendingDeath(): boolean {
+    return this.dynasty.pendingDeath !== null
+  }
+
+  needsSuccession(): boolean {
+    return this.dynasty.pendingDeath !== null && this.dynasty.children.length > 0
+  }
+
+  canSuccessionNow(): boolean {
+    return this.dynasty.children.length > 0
+  }
+
+  mortalityContext(): MortalityContext {
+    const ipd = this.incomePerDay()
+    const illegalIpd = this.illegalIncomePerDay()
+    return {
+      age: this.playerAge(),
+      playerName: this.playerName,
+      illegalHeat: this.illegalHeat,
+      politicsLevel: this.empire.politics.level,
+      illegalIncomeShare: ipd > 0 ? illegalIpd / ipd : 0,
+      ownedBusinessCount: this.ownedBusinessTiers(),
+      hasFootballClub: FOOTBALL_CLUB_IDS.some((id) => (this.producers[id] ?? 0) > 0),
+      hasLab: (this.producers.ilac ?? 0) > 0 || (this.producers.nano ?? 0) > 0,
+      hasLuxury: (this.producers.otel ?? 0) > 0 || (this.producers.uzay ?? 0) > 0,
+      trait: activeDynastyTrait(this.dynasty),
+      totalEarned: this.totalEarned,
+    }
+  }
+
+  estimatedYearsRemaining(): number {
+    return estimatedYearsRemaining(this.mortalityContext())
+  }
+
+  activeMortalityRisks(): MortalityRiskDisplay[] {
+    return mortalityRiskDisplay(this.mortalityContext())
+  }
+
+  private tickMortality(): void {
+    if (this.dynasty.pendingDeath) return
+
+    const ctx = this.mortalityContext()
+    const age = ctx.age
+
+    if (age >= 50 && !this.seenStoryBeats.has('mortality_midlife')) {
+      this.triggerStoryBeat('mortality_midlife')
+    }
+    if (age >= 70 && !this.seenStoryBeats.has('mortality_senior')) {
+      this.triggerStoryBeat('mortality_senior')
+    }
+    if (totalDailyMortalityRisk(ctx) >= 0.002 && !this.seenStoryBeats.has('mortality_high_risk')) {
+      this.triggerStoryBeat('mortality_high_risk')
+    }
+
+    const outcome = rollDailyMortality(ctx)
+    if (!outcome) return
+
+    this.dynasty.pendingDeath = {
+      causeId: outcome.causeId,
+      age: outcome.age,
+      message: outcome.message,
+    }
+
+    const record = this.finalizeBaronOnDeath(outcome.label, outcome.emoji, outcome.causeId)
+    this.emit({ type: 'baron_eulogy', record, hasHeir: this.dynasty.children.length > 0 })
+    this.emit({
+      type: 'player_death',
+      age: outcome.age,
+      causeId: outcome.causeId,
+      emoji: outcome.emoji,
+      label: outcome.label,
+      message: outcome.message,
+      hasHeir: this.dynasty.children.length > 0,
+    })
+  }
+
+  resolveDeathWithoutHeir(): boolean {
+    const death = this.dynasty.pendingDeath
+    if (!death) return false
+    const penalty = Math.floor(this.money * 0.15)
+    this.money = Math.max(0, this.money - penalty)
+    this.dynasty.pendingDeath = null
+    this.dynasty.playerBornGameDay = gameDay(this.gameTimeMs)
+    this.dynasty.playerStartAge = Math.max(PLAYER_START_AGE, death.age - 8)
+    this.resetBaronLifeTracking()
+    this.emit({
+      type: 'story_beat',
+      beatId: 'death_no_heir',
+      text: `Mirasçı yoktu — aile avukatları imparatorluğu kurtardı.${penalty > 0 ? ` ${formatMoney(penalty)} harcandı.` : ''} ${this.dynasty.playerStartAge} yaşında yeniden yönetime geçtin.`,
+    })
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  dynastyCostMult(): number {
+    return traitCostMult(activeDynastyTrait(this.dynasty)) * (1 - empirePoliticsCostDiscount(this.empire.politics))
+  }
+
+  incomePerDay(): number {
     return PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0)
   }
 
+  /** Saniye başına pasif gelir — incomePerDay ile aynı (1 sn = 1 oyun günü) */
+  passiveIncomePerSecond(): number {
+    return this.incomePerDay()
+  }
+
+  /** Bir adet daha alınca eklenecek pasif gelir (kart/ROI için) */
+  marginalProducerIncome(def: ProducerDef, count = 1): number {
+    const owned = this.producers[def.id] ?? 0
+    if (owned > 0) {
+      return (this.producerIncome(def) / owned) * count
+    }
+    let mult = 1
+    for (const uid of this.purchasedUpgrades) {
+      const u = UPGRADES.find((x) => x.id === uid)
+      if (u?.effect === 'producer_mult' && u.producerId === def.id) mult *= u.value
+    }
+    mult *= 1 + producerSynergyBonus(def.id, this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
+    mult *= this.weeklyProducerBonus(def.id)
+    if (def.illegal) mult *= traitIllegalMult(activeDynastyTrait(this.dynasty))
+    mult *= this.marketNewsProducerMult(def.id)
+    mult *= spouseProducerBonus(this.dynasty, def.id, hasNode(this.prestigeTree, 'dynasty_1'))
+    if (def.illegal) mult *= illegalIncomeBonus(this.undergroundTree)
+    if (def.category === 'dark') {
+      mult *= empireDarkProductionMult(this.empire.darkIndustry, this.gameTimeMs)
+    }
+    if (def.category === 'sport') {
+      const club = this.empire.football.find((c) => c.clubId === def.id)
+      if (club) mult *= empireFootballIncomeMult(club)
+      mult *= researchFootballBonus(this.research)
+    }
+    return scaledBaseIncome(def.baseIncome, def) * count * mult * this.passiveMultiplier()
+  }
+
+  /** Ortalama tıklama başına kazanç (combo/krit hariç) */
+  clickIncomePerTap(): number {
+    return BASE_CLICK * this.clickMultiplier()
+  }
+
+  /** HUD chip — combo hariç sabit tıklama geliri */
+  baseClickIncomePerTap(): number {
+    let mult = 1
+    for (const id of this.purchasedUpgrades) {
+      const u = UPGRADES.find((x) => x.id === id)
+      if (u?.effect === 'click_mult') mult *= u.value
+    }
+    mult *= this.globalMultiplier()
+    mult *= researchClickBonus(this.research)
+    mult *= 1 + clickBonus(this.prestigeTree)
+    mult *= 1 + this.dayNightClickBonus()
+    mult *= traitClickMult(activeDynastyTrait(this.dynasty))
+    mult *= this.marketNewsClickMult()
+    return BASE_CLICK * mult
+  }
+
+  /** HUD için yuvarlanmış pasif hız — format titremesini önler */
+  displayPassiveIncomePerSecond(): number {
+    const v = this.passiveIncomePerSecond()
+    if (v <= 0) return 0
+    if (v < 100) return Math.round(v * 10) / 10
+    if (v < 10_000) return Math.round(v)
+    if (v < 1_000_000) return Math.round(v / 100) * 100
+    if (v < 1_000_000_000) return Math.round(v / 10_000) * 10_000
+    return Math.round(v / 1_000_000) * 1_000_000
+  }
+
+  /** HUD için yuvarlanmış tıklama geliri */
+  displayClickIncomePerTap(): number {
+    const v = this.baseClickIncomePerTap()
+    if (v <= 0) return 0
+    if (v < 100) return Math.round(v * 10) / 10
+    if (v < 10_000) return Math.round(v)
+    return Math.round(v / 100) * 100
+  }
+
+  /** Son penceredeki gerçek pasif hız — teorik ile karşılaştırma için */
+  measuredPassivePerSecond(): number {
+    const now = performance.now()
+    const windowMs = 3000
+    this.passiveRecent = this.passiveRecent.filter((x) => now - x.at < windowMs)
+    if (this.passiveRecent.length === 0) return this.incomePerDay()
+    const oldest = this.passiveRecent[0]!.at
+    const spanSec = Math.max(0.5, (now - oldest) / 1000)
+    const sum = this.passiveRecent.reduce((s, x) => s + x.amount, 0)
+    return sum / spanSec
+  }
+
+  /** Son 3 sn'de cüzdana giren gerçek hız (pasif + tıklama + ödül) */
+  measuredWalletPerSecond(): number {
+    return this.measuredPassivePerSecond()
+  }
+
+  private recordPassiveEarned(amount: number, at: number): void {
+    this.passiveRecent.push({ at, amount })
+    if (this.passiveRecent.length > 40) {
+      this.passiveRecent.splice(0, this.passiveRecent.length - 40)
+    }
+  }
+
   unlockedProducers(): ProducerDef[] {
-    return PRODUCERS.filter((p) => isProducerUnlocked(p, this.totalEarned))
+    return PRODUCERS.filter((p) => isProducerUnlocked(p, this.totalEarned, this.forcedUnlocks))
+  }
+
+  earlyUnlockProducer(id: string): boolean {
+    const def = PRODUCERS.find((p) => p.id === id)
+    if (!def || isProducerUnlocked(def, this.totalEarned, this.forcedUnlocks)) return false
+    const cost = earlyUnlockCost(def)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.forcedUnlocks.add(id)
+    this.emit({ type: 'producer_unlocked', producerId: id })
+    this.emit({ type: 'money_changed' })
+    return true
   }
 
   ownedBusinessTiers(): number {
@@ -524,6 +1794,7 @@ export class GameState {
     if (amount <= 0) return
     const prevLifetime = this.lifetimeTotalEarned
     this.money += amount
+    this.recordPassiveEarned(amount, performance.now())
     this.trackDailyGoal(amount)
     if (this.isNight) this.nightEarningsSession += amount
     if (countTotal) {
@@ -532,13 +1803,20 @@ export class GameState {
       this.sessionEarned += amount
       this.updateMissionProgress('earn_money', amount)
       this.updateWeeklyProgress(amount)
-      this.addSeasonXp(Math.floor(amount / 1000))
+      this.addSeasonXp(Math.floor(amount / 4500))
       this.emit({ type: 'money_changed' })
       this.checkMilestones(prevLifetime)
       this.checkAchievements()
+      this.syncCampaignProgress()
     } else {
       this.emit({ type: 'passive_income' })
     }
+    this.trackBaronPeak()
+  }
+
+  private trackBaronPeak(): void {
+    const nw = this.financeNetWorth()
+    if (nw > this.baronLifePeakNetWorth) this.baronLifePeakNetWorth = nw
   }
 
   ensureDailyGoal(): void {
@@ -547,36 +1825,46 @@ export class GameState {
       this.dailyGoalDay = day
       this.dailyGoalEarned = 0
       this.dailyGoalClaimed = false
+      this.refreshDailyGoalSnapshots()
     }
+  }
+
+  private refreshDailyGoalSnapshots(): void {
+    const ipd = this.incomePerDay()
+    this.dailyGoalTargetSnapshot = scaledDailyGoalTarget(ipd)
+    this.dailyGoalRewardSnapshot = Math.max(200, Math.floor(ipd * 0.22))
   }
 
   private trackDailyGoal(amount: number): void {
     this.ensureDailyGoal()
-    const bucketBefore = Math.floor(this.dailyGoalEarned / 100)
+    const target = this.dailyGoalTarget()
+    const bucketBefore = Math.floor(this.dailyGoalEarned / Math.max(1, target / 10))
     this.dailyGoalEarned += amount
-    const bucketAfter = Math.floor(this.dailyGoalEarned / 100)
-    if (bucketBefore !== bucketAfter || this.dailyGoalEarned >= DAILY_GOAL_TARGET) {
-      this.emit({ type: 'daily_goal_updated', earned: this.dailyGoalEarned, target: DAILY_GOAL_TARGET })
+    const bucketAfter = Math.floor(this.dailyGoalEarned / Math.max(1, target / 10))
+    if (bucketBefore !== bucketAfter || this.dailyGoalEarned >= target) {
+      this.emit({ type: 'daily_goal_updated', earned: this.dailyGoalEarned, target })
     }
   }
 
   claimDailyGoalReward(): number {
     this.ensureDailyGoal()
-    if (this.dailyGoalClaimed || this.dailyGoalEarned < DAILY_GOAL_TARGET) return 0
+    const target = this.dailyGoalTarget()
+    if (this.dailyGoalClaimed || this.dailyGoalEarned < target) return 0
     this.dailyGoalClaimed = true
-    const reward = Math.max(500, this.incomePerSecond() * 60)
+    const reward = this.dailyGoalRewardPreview()
     this.addMoney(reward)
+    this.emit({ type: 'daily_goal_updated', earned: this.dailyGoalEarned, target })
     return reward
   }
 
   ipoProgress(): { current: number; target: number; pct: number; ready: boolean } {
-    const target = PRESTIGE_THRESHOLD
+    const target = ipoThreshold(this.ipoCount)
     const current = this.totalEarned
     return {
       current,
       target,
       pct: Math.min(100, (current / target) * 100),
-      ready: canPrestige(current),
+      ready: canPrestige(current, this.ipoCount),
     }
   }
 
@@ -585,8 +1873,9 @@ export class GameState {
     if (!def) return null
     const owned = this.producers[id] ?? 0
     const lines: { label: string; value: string }[] = []
-    const base = def.baseIncome * owned
-    lines.push({ label: 'Temel gelir', value: `${formatMoney(base)}/sn` })
+    const unitBase = scaledBaseIncome(def.baseIncome, def)
+    const base = unitBase * owned
+    lines.push({ label: 'Temel gelir', value: formatIncomeRate(base) })
 
     let prodMult = 1
     for (const uid of this.purchasedUpgrades) {
@@ -609,9 +1898,9 @@ export class GameState {
     return {
       name: def.name,
       owned,
-      basePerUnit: def.baseIncome,
+      basePerUnit: unitBase,
       lines,
-      totalPerSec: this.producerIncome(def),
+      totalPerDay: this.producerIncome(def),
     }
   }
 
@@ -629,7 +1918,7 @@ export class GameState {
   private updateWeeklyProgress(amount: number): void {
     this.ensureWeekly()
     if (this.weekly.claimed) return
-    this.weekly.progress = Math.min(this.weekly.target, this.weekly.progress + amount / 100)
+    this.weekly.progress = Math.min(this.weekly.target, this.weekly.progress + amount)
     this.emit({ type: 'weekly_updated', progress: this.weekly.progress, target: this.weekly.target })
   }
 
@@ -664,7 +1953,22 @@ export class GameState {
   producerCostFor(def: ProducerDef, owned: number, count = 1): number {
     const raw = producerCost(def, owned, count)
     const efficiencyDiscount = researchEfficiencyBonus(this.research)
-    return Math.floor(raw * (1 - producerCostDiscount(this.prestigeTree)) * (1 - efficiencyDiscount))
+    let cost = Math.floor(
+      raw
+        * (1 - producerCostDiscount(this.prestigeTree))
+        * (1 - efficiencyDiscount)
+        * this.dynastyCostMult()
+        * reputationCostMult(this.reputation),
+    )
+    const cal = activeCalendarEvents()
+    const monday = cal.find((e) => e.id === 'monday_market')
+    const dayKey = localDayKey()
+    if (monday?.firstPurchaseDiscount && this.calendarPurchaseDay !== dayKey && owned === 0) {
+      cost = Math.floor(cost * (1 - monday.firstPurchaseDiscount))
+    }
+    const torpilDisc = torpilBusinessDiscount(this.torpil)
+    if (torpilDisc > 0) cost = Math.floor(cost * (1 - torpilDisc))
+    return cost
   }
 
   countMaxAffordable(id: string): number {
@@ -675,17 +1979,54 @@ export class GameState {
 
   buyProducer(id: string, count = 1): boolean {
     const def = PRODUCERS.find((p) => p.id === id)
-    if (!def || !isProducerUnlocked(def, this.totalEarned)) return false
+    if (!def || !isProducerUnlocked(def, this.totalEarned, this.forcedUnlocks)) return false
     const owned = this.producers[id] ?? 0
+    if (def.category === 'politics' && owned === 0 && reputationPoliticsBlocked(this.reputation)) {
+      this.emit({ type: 'loan_denied', reason: 'Siyasi işletme kapalı — itibarın çok düşük (min 30)' })
+      return false
+    }
     const cost = this.producerCostFor(def, owned, count)
     if (!this.canAfford(cost)) return false
+    const dayKey = localDayKey()
+    if (owned === 0 && activeCalendarEvents().some((e) => e.id === 'monday_market')) {
+      this.calendarPurchaseDay = dayKey
+    }
     this.money -= cost
     this.producers[id] = owned + count
     this.businessesBoughtSession += count
     this.updateMissionProgress('buy_business', count)
+    if (!this.codexUnlockDates[id]) {
+      this.codexUnlockDates[id] = todayKey()
+    }
+    if (def.illegal) {
+      this.addReputation(reputationFromIllegalBusiness() * count)
+      if (!this.seenStoryBeats.has('illegal_first')) {
+        this.triggerStoryBeat('illegal_first')
+      }
+    } else {
+      this.addReputation(reputationFromLegalBusiness() * count)
+    }
+    if (owned === 0) {
+      this.recordChronicle('business', def.emoji, `${def.name} kuruldu`)
+    }
+    this.addGazette(headlinePurchase(this.playerName, def.name, owned + count), 'player')
+    if ((this.producers[id] ?? 0) >= FRANCHISE_UNLOCK_COUNT) {
+      this.addGazette(`${this.playerName.trim() || 'Baron'} — ${def.name} franchise açmaya hazır (${FRANCHISE_UNLOCK_COUNT}+ şube)`, 'player')
+    }
+    if (this.hasCodexLegalComplete()) {
+      this.awardBadge('codex_legal')
+      this.triggerStoryBeat('codex_legal')
+    }
+    if (this.hasCodexAllComplete()) {
+      this.awardBadge('codex_all')
+    }
+    syncEmpireFromProducers(this.empire, this.producers)
     this.emit({ type: 'purchase' })
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
+    this.syncCampaignProgress()
+    this.checkVictoryConditions()
+    this.checkWorldStage()
     return true
   }
 
@@ -701,16 +2042,31 @@ export class GameState {
     if (this.purchasedUpgrades.has(id)) return false
     const def = UPGRADES.find((u) => u.id === id)
     if (!def) return false
-    const cost = Math.floor(def.cost * (1 - upgradeCostDiscount(this.prestigeTree)))
+    const cost = this.upgradeCostFor(def)
     if (!this.canAfford(cost)) return false
     this.money -= cost
     this.purchasedUpgrades.add(id)
+    this.upgradeDiscountActive = false
     this.upgradesBoughtSession++
     this.updateMissionProgress('buy_upgrade', 1)
     this.emit({ type: 'purchase' })
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
+    this.syncCampaignProgress()
     return true
+  }
+
+  upgradeCostFor(def: UpgradeDef): number {
+    let cost = Math.floor(def.cost * ECONOMY_UPGRADE_COST_SCALE * (1 - upgradeCostDiscount(this.prestigeTree)))
+    if (this.upgradeDiscountActive) cost = Math.floor(cost * 0.7)
+    return cost
+  }
+
+  managerCostFor(def: ProducerDef): number {
+    const owned = this.producers[def.id] ?? 0
+    let cost = managerCost(def.baseIncome, owned)
+    cost = Math.floor(cost * (1 - managerCostDiscount(this.prestigeTree)))
+    return cost
   }
 
   buyResearch(nodeId: string): boolean {
@@ -733,25 +2089,60 @@ export class GameState {
   }
 
   availableUpgrades(): UpgradeDef[] {
-    return UPGRADES.filter((u) => !this.purchasedUpgrades.has(u.id))
+    return UPGRADES.filter((u) => {
+      if (this.purchasedUpgrades.has(u.id)) return false
+      if (u.requiresTotalEarned != null && this.totalEarned < u.requiresTotalEarned) return false
+      if (u.requiresProducer != null && (this.producers[u.requiresProducer] ?? 0) <= 0) return false
+      if (u.requiresUpgrade != null && !this.purchasedUpgrades.has(u.requiresUpgrade)) return false
+      return true
+    })
   }
 
   prestigeEligible(): boolean {
-    return canPrestige(this.totalEarned)
+    return canPrestige(this.totalEarned, this.ipoCount)
   }
 
   pendingPrestigePoints(): number {
-    return calcPrestigePoints(this.totalEarned)
+    return calcPrestigePoints(this.totalEarned, this.ipoCount)
+  }
+
+  ipoPreview(): IpoPreviewData {
+    const pointsToEarn = this.pendingPrestigePoints()
+    const portfolio = portfolioValue(this.stock)
+    const liquidationNet = portfolio + this.bank.deposit + this.bank.bonds - this.bank.loan
+    const newTotal = this.prestigePoints + pointsToEarn
+    return {
+      pointsToEarn,
+      newTotal,
+      newMultiplier: prestigeMultiplier(newTotal),
+      portfolioValue: portfolio,
+      depositValue: this.bank.deposit,
+      bondValue: this.bank.bonds,
+      loanDebt: this.bank.loan,
+      liquidationNet,
+      startingCash: calcIpoStartingCash(pointsToEarn, this.prestigePoints, liquidationNet),
+      businessesOwned: Object.values(this.producers).reduce((s, n) => s + (n > 0 ? 1 : 0), 0),
+      upgradesOwned: this.purchasedUpgrades.size,
+      managersOwned: Object.values(this.managers).filter(Boolean).length,
+      keepsPrestigeTree: true,
+      keepsResearch: true,
+    }
   }
 
   doPrestige(): number {
     const points = this.pendingPrestigePoints()
     if (points <= 0) return 0
 
+    const stockCash = liquidatePortfolio(this.stock, 1)
+    const bankCash = this.bank.deposit + this.bank.bonds
+    const loanDebt = this.bank.loan
+    const liquidationNet = stockCash + bankCash - loanDebt
+    const startingCash = calcIpoStartingCash(points, this.prestigePoints, liquidationNet)
+
     this.prestigePoints += points
     this.lifetimePrestige += points
     this.ipoCount++
-    this.money = 0
+    this.money = startingCash
     this.totalEarned = 0
     this.totalClicks = 0
     this.sessionEarned = 0
@@ -764,13 +2155,182 @@ export class GameState {
     for (const p of PRODUCERS) this.managers[p.id] = false
     for (const p of PRODUCERS) this.managerAutoBuy[p.id] = false
     this.stock = createStockState()
+    this.bank = createBankState()
     this.nightEarningsSession = 0
+    const prevRep = this.reputation
+    this.reputation = carryReputationAfterIpo(this.reputation)
+    this.recordLegacyMonuments()
+    this.recordChronicle('ipo', '🚀', `IPO #${this.ipoCount} — run sıfırlandı, prestij +${points}`)
+    syncEmpireFromProducers(this.empire, this.producers)
 
     this.addSeasonXp(points * 50)
-    this.emit({ type: 'prestige', points })
+    this.emit({ type: 'prestige', points, startingCash })
     this.emit({ type: 'money_changed' })
+    if (this.reputation !== prevRep) {
+      this.emit({ type: 'reputation_changed', reputation: this.reputation, delta: this.reputation - prevRep })
+    }
     this.checkAchievements()
+    this.syncCampaignProgress()
     return points
+  }
+
+  resolveBankruptcy(reason: string): void {
+    const now = Date.now()
+    if (now <= this.bank.bankruptcyCooldownUntil) return
+    if (now - this.lastBankruptcyAt < BANKRUPTCY_COOLDOWN_MS) return
+
+    const portfolio = portfolioValue(this.stock)
+    const fireSale = liquidatePortfolio(this.stock, 0.62)
+    const portfolioLoss = Math.max(0, portfolio - fireSale)
+    const loanPenalty = Math.floor(this.bank.loan * 0.25)
+    const depositBefore = this.bank.deposit
+    const bondsBefore = this.bank.bonds
+
+    const { seized, updated } = seizeBusinesses(this.producers)
+    this.producers = updated
+    syncEmpireFromProducers(this.empire, this.producers)
+
+    const businessLoss = seized.reduce((sum, item) => sum + item.value, 0)
+    const depositLoss = Math.floor(depositBefore * 0.3)
+    const bondLoss = Math.floor(bondsBefore * 0.25)
+    const loss = portfolioLoss + loanPenalty + depositLoss + bondLoss + businessLoss
+
+    this.money += fireSale
+    this.bank.loan = Math.floor(this.bank.loan * 0.55)
+    this.bank.deposit = Math.floor(this.bank.deposit * 0.7)
+    this.bank.bonds = Math.floor(this.bank.bonds * 0.75)
+    this.bank.creditScore = Math.max(35, this.bank.creditScore - 18)
+    this.bank.bankruptcyCooldownUntil = now + BANKRUPTCY_COOLDOWN_MS
+    this.lastBankruptcyAt = now
+    this.bankruptcyCount++
+    this.bankruptcyCashGraceSince = 0
+    this.bankruptcyRecoveryPool = Math.max(0, Math.floor(loss * 0.85))
+    this.bankruptcyRecoveryClaimed = false
+    this.bankruptcySeizedSnapshot = seized.map((item) => ({ ...item }))
+    this.stock.marketFear = Math.min(95, this.stock.marketFear + 20)
+    this.stock.macroHeadline = `⚠️ İflas: ${reason}`
+
+    this.emit({
+      type: 'bankruptcy',
+      loss,
+      reason,
+      recoveryPool: this.bankruptcyRecoveryPool,
+      seizedBusinesses: seized.map((item) => item.id),
+    })
+    this.emit({
+      type: 'story_beat',
+      beatId: 'bankruptcy',
+      text: `İflas ettin. ${formatMoney(loss)} değerinde varlık kaybı. Reklam izleyerek bir kısmını geri alabilirsin.`,
+    })
+    this.emit({ type: 'money_changed' })
+  }
+
+  hasPendingBankruptcyRecovery(): boolean {
+    return this.bankruptcyRecoveryPool > 0 && !this.bankruptcyRecoveryClaimed
+  }
+
+  bankruptcyRecoveryPreview(multiplier = 1): number {
+    return Math.floor(this.bankruptcyRecoveryPool * BANKRUPTCY_RECOVERY_BASE_RATE * multiplier)
+  }
+
+  claimBankruptcyRecovery(multiplier = 1): number {
+    if (!this.hasPendingBankruptcyRecovery()) return 0
+    const cash = this.bankruptcyRecoveryPreview(multiplier)
+    this.addMoney(cash)
+    if (this.bankruptcySeizedSnapshot.length > 0) {
+      this.producers = restoreSeizedBusinesses(
+        this.producers,
+        this.bankruptcySeizedSnapshot,
+        multiplier >= 2 ? 0.5 : 0.35,
+      )
+      syncEmpireFromProducers(this.empire, this.producers)
+    }
+    this.bankruptcyRecoveryClaimed = true
+    this.bankruptcyRecoveryPool = 0
+    this.bankruptcySeizedSnapshot = []
+    this.emit({ type: 'money_changed' })
+    return cash
+  }
+
+  discardBankruptcyRecovery(): void {
+    this.bankruptcyRecoveryPool = 0
+    this.bankruptcyRecoveryClaimed = true
+    this.bankruptcySeizedSnapshot = []
+  }
+
+  bankDeposit(amount: number): boolean {
+    const n = Math.floor(amount)
+    if (n <= 0 || n > this.money) return false
+    this.money -= n
+    this.bank.deposit += n
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  bankWithdraw(amount: number): boolean {
+    const n = Math.floor(amount)
+    if (n <= 0 || n > this.bank.deposit) return false
+    this.bank.deposit -= n
+    this.addMoney(n)
+    return true
+  }
+
+  bankTakeLoan(amount: number): boolean {
+    const n = Math.floor(amount)
+    if (n <= 0) return false
+    if (reputationLoanBlocked(this.reputation) && !torpilBypassCreditScore(this.torpil)) {
+      this.addGazette(headlineLoanDenied(this.playerName), 'market')
+      this.emit({ type: 'loan_denied', reason: 'Banka kredi başvurunu reddetti — itibarın çok düşük' })
+      return false
+    }
+    const nw = netWorth(this.money, portfolioValue(this.stock), this.bank)
+    const cap = maxLoan(this.totalEarned, nw)
+    if (this.bank.loan + n > cap) return false
+    this.bank.loan += n
+    if (torpilBypassCreditScore(this.torpil) && reputationLoanBlocked(this.reputation)) {
+      this.addReputation(reputationFromScandal())
+    }
+    this.addMoney(n)
+    return true
+  }
+
+  bankRepayLoan(amount: number): boolean {
+    const n = Math.floor(amount)
+    if (n <= 0) return false
+    const pay = Math.min(n, this.bank.loan, this.money)
+    if (pay <= 0) return false
+    this.money -= pay
+    this.bank.loan -= pay
+    if (this.bank.loan === 0) this.bank.creditScore = Math.min(100, this.bank.creditScore + 3)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  bankBuyBonds(amount: number): boolean {
+    const n = Math.floor(amount)
+    if (n <= 0 || n > this.money) return false
+    this.money -= n
+    this.bank.bonds += n
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  bankSellBonds(amount: number): boolean {
+    const n = Math.floor(amount)
+    if (n <= 0 || n > this.bank.bonds) return false
+    this.bank.bonds -= n
+    this.addMoney(n)
+    return true
+  }
+
+  financeNetWorth(): number {
+    return netWorth(this.money, portfolioValue(this.stock), this.bank)
+  }
+
+  maxAvailableLoan(): number {
+    if (reputationLoanBlocked(this.reputation) && !torpilBypassCreditScore(this.torpil)) return 0
+    const cap = maxLoan(this.totalEarned, this.financeNetWorth())
+    return Math.max(0, cap - this.bank.loan)
   }
 
   addSeasonXp(amount: number): void {
@@ -782,26 +2342,116 @@ export class GameState {
     this.emit({ type: 'season_updated', xp: this.season.xp, tier: currentTier(this.season.xp) })
   }
 
-  claimSeasonTier(tier: number): boolean {
+  claimSeasonTier(tier: number, track: SeasonTrack = 'free'): boolean {
     this.ensureSeason()
     if (tier < 1 || tier > currentTier(this.season.xp)) return false
-    if (this.season.claimedTiers.includes(tier)) return false
-    const reward = rewardForTier(tier)
-    this.season.claimedTiers.push(tier)
-    if (reward.type === 'money') {
-      this.addMoney(reward.value * tier)
-    } else if (reward.type === 'boost') {
-      this.adIncomeBoostUntil = Date.now() + reward.value * 60_000
-      this.emit({ type: 'ad_boost', until: this.adIncomeBoostUntil })
+    if (track === 'premium') {
+      if (!this.season.premiumUnlocked) return false
+      if (this.season.claimedPremiumTiers.includes(tier)) return false
+    } else if (this.season.claimedTiers.includes(tier)) {
+      return false
     }
-    this.emit({ type: 'season_claimed', tier, reward: reward.label })
+    const reward = rewardForTier(tier, track)
+    if (track === 'premium') {
+      this.season.claimedPremiumTiers.push(tier)
+    } else {
+      this.season.claimedTiers.push(tier)
+    }
+    if (reward.type === 'money') {
+      this.addMoney(reward.value)
+    } else if (reward.type === 'boost') {
+      this.grantPendingBoost('income_2x', reward.value * 60_000, 'Sezon bonusu', '🎖️')
+    } else if (reward.type === 'theme') {
+      const themeId = themeForTier(tier)
+      if (themeId) this.unlockTheme(themeId)
+    } else if (reward.type === 'chest_ticket') {
+      this.chestTickets += reward.value
+    }
+    if (tier >= 10) this.awardBadge('season_10')
+    if (tier >= 20) this.awardBadge('season_20')
+    if (tier >= 30) this.awardBadge('season_30')
+    this.updateMissionProgress('season_tier', 1)
+    this.emit({ type: 'season_claimed', tier, reward: reward.label, track })
     this.checkAchievements()
     return true
   }
 
+  unlockSeasonPremium(): void {
+    this.ensureSeason()
+    if (this.season.premiumUnlocked) return
+    this.season.premiumUnlocked = true
+    this.triggerStoryBeat('premium_season')
+    this.emit({ type: 'premium_season_unlocked' })
+  }
+
+  grantChestTickets(count: number): void {
+    this.chestTickets = Math.max(0, this.chestTickets + count)
+  }
+
+  private applyChestLootResult(loot: ChestLootResult): number {
+    if (loot.money > 0) this.addMoney(loot.money)
+    if (loot.boostMinutes > 0) {
+      this.grantPendingBoost('income_2x', loot.boostMinutes * 60_000, `${loot.label} sandık`, loot.emoji)
+    }
+    if (loot.seasonXp > 0) this.addSeasonXp(loot.seasonXp)
+    if (loot.chestTickets > 0) this.chestTickets += loot.chestTickets
+    this.chestPityCounter = shouldResetPity(loot.rarity) ? 0 : this.chestPityCounter + 1
+    if (loot.rarity === 'legendary') this.triggerStoryBeat('chest_legendary')
+    this.emit({ type: 'chest_opened', loot, amount: loot.money })
+    return loot.money
+  }
+
+  openPaidChest(): ChestLootResult | null {
+    if (this.chestTickets <= 0) return null
+    this.chestTickets--
+    const loot = rollChestLoot(this.incomePerDay(), this.chestPityCounter, true)
+    this.applyChestLootResult(loot)
+    return loot
+  }
+
   hasClaimableSeasonReward(): boolean {
     this.ensureSeason()
-    return hasClaimableTier(this.season)
+    return hasClaimableSeasonReward(this.season)
+  }
+
+  syncCampaignProgress(): void {
+    const step = currentCampaignStep(this.campaign)
+    if (!step) return
+    const chapter = chapterById(this.campaign.chapterId)
+    if (!chapter || !isChapterUnlocked(chapter, this.lifetimeTotalEarned, this.campaign.completedChapters)) return
+    this.campaign.stepProgress = Math.max(this.campaign.stepProgress, campaignStepSnapshot(this, step))
+  }
+
+  claimCampaignStep(): { money: number; boostMinutes: number } | null {
+    this.syncCampaignProgress()
+    if (!hasClaimableCampaignStep(this, this.campaign)) return null
+    const step = currentCampaignStep(this.campaign)!
+    const chapter = chapterById(this.campaign.chapterId)!
+    if (step.rewardMoney > 0) this.addMoney(step.rewardMoney)
+    if (step.rewardBoostMinutes > 0) {
+      this.grantPendingBoost('income_2x', step.rewardBoostMinutes * 60_000, 'Kampanya ödülü', '📜')
+    }
+    if (step.storyBeatId) this.triggerStoryBeat(step.storyBeatId)
+    this.emit({ type: 'campaign_step', chapterId: chapter.id, stepId: step.id, reward: step.title })
+
+    this.campaign.stepIndex++
+    this.campaign.stepProgress = 0
+    if (this.campaign.stepIndex >= chapter.steps.length) {
+      if (!this.campaign.completedChapters.includes(chapter.id)) {
+        this.campaign.completedChapters.push(chapter.id)
+      }
+      const next = chapterById(chapter.id + 1)
+      if (next && isChapterUnlocked(next, this.lifetimeTotalEarned, this.campaign.completedChapters)) {
+        this.campaign.chapterId = next.id
+        this.campaign.stepIndex = 0
+      }
+    }
+    return { money: step.rewardMoney, boostMinutes: step.rewardBoostMinutes }
+  }
+
+  hasClaimableCampaignReward(): boolean {
+    this.syncCampaignProgress()
+    return hasClaimableCampaignStep(this, this.campaign)
   }
 
   doubleSeasonXpWithAd(): void {
@@ -835,23 +2485,356 @@ export class GameState {
     if (this.stock.tickers[id]) this.stock.activeTickerId = id
   }
 
+  dailyGoalTarget(): number {
+    this.ensureDailyGoal()
+    if (this.dailyGoalTargetSnapshot <= 0) this.refreshDailyGoalSnapshots()
+    return this.dailyGoalTargetSnapshot
+  }
+
+  dailyGoalRewardPreview(): number {
+    this.ensureDailyGoal()
+    if (this.dailyGoalRewardSnapshot <= 0) this.refreshDailyGoalSnapshots()
+    return this.dailyGoalRewardSnapshot
+  }
+
+  weeklyRewardPreview(): number {
+    this.ensureWeekly()
+    return this.weekly.rewardCash ?? weeklyRewardCash(this.incomePerDay())
+  }
+
+  hasCodexLegalComplete(): boolean {
+    return PRODUCERS.filter((p) => !p.illegal && !p.category).every((p) => (this.producers[p.id] ?? 0) >= 1)
+  }
+
+  hasCodexAllComplete(): boolean {
+    return PRODUCERS.every((p) => (this.producers[p.id] ?? 0) >= 1)
+  }
+
+  codexCompletionBonus(): { legal: boolean; all: boolean } {
+    return { legal: this.hasCodexLegalComplete(), all: this.hasCodexAllComplete() }
+  }
+
+  unlockTheme(themeId: ThemeId): void {
+    if (!this.unlockedThemes.has(themeId)) {
+      this.unlockedThemes.add(themeId)
+      this.emit({ type: 'theme_unlocked', themeId })
+      this.awardBadge(`theme_${themeId}`)
+      if (themeId !== 'default') this.triggerStoryBeat(`theme_${themeId}`)
+    }
+  }
+
+  setActiveTheme(themeId: ThemeId): void {
+    if (!this.unlockedThemes.has(themeId)) return
+    this.activeTheme = themeId
+  }
+
+  triggerStoryBeat(beatId: string): void {
+    if (this.seenStoryBeats.has(beatId)) return
+    this.seenStoryBeats.add(beatId)
+    const beat = storyBeat(beatId)
+    if (beat) this.emit({ type: 'story_beat', beatId, text: beat.text })
+  }
+
+  awardBadge(badgeId: string): void {
+    if (this.earnedBadges.has(badgeId)) return
+    this.earnedBadges.add(badgeId)
+    this.emit({ type: 'badge_earned', badgeId })
+  }
+
+  undergroundCooldownRemaining(actionId: UndergroundActionId): number {
+    const until = this.undergroundCooldowns[actionId] ?? 0
+    return Math.max(0, until - Date.now())
+  }
+
+  canUseUnderground(actionId: UndergroundActionId): { ok: boolean; reason?: string } {
+    if (this.undergroundCooldownRemaining(actionId) > 0) {
+      return { ok: false, reason: 'Bekleme süresi' }
+    }
+    const ipd = this.incomePerDay()
+    if (actionId === 'lawyer') {
+      const cost = ipd * 0.5
+      if (!this.canAfford(cost)) return { ok: false, reason: 'Yetersiz para' }
+    }
+    if (actionId === 'bribe') {
+      const cost = Math.floor(this.money * 0.05)
+      if (cost <= 0 || !this.canAfford(cost)) return { ok: false, reason: 'Yetersiz para' }
+    }
+    if (actionId === 'launder') {
+      const cost = this.illegalIncomePerDay() * 0.2
+      if (this.illegalIncomePerDay() <= 0) return { ok: false, reason: 'Illegal gelir yok' }
+      if (!this.canAfford(Math.max(1, cost))) return { ok: false, reason: 'Yetersiz para' }
+    }
+    return { ok: true }
+  }
+
+  useUndergroundAction(actionId: UndergroundActionId): boolean {
+    const check = this.canUseUnderground(actionId)
+    if (!check.ok) return false
+    const ipd = this.incomePerDay()
+    const cooldowns: Record<UndergroundActionId, number> = {
+      lawyer: 10 * 60_000,
+      bribe: 5 * 60_000,
+      launder: 15 * 60_000,
+    }
+
+    if (actionId === 'lawyer') {
+      this.money -= ipd * 0.5
+      this.illegalHeat = Math.max(0, this.illegalHeat - 25)
+      this.heatProtectionUntil = Date.now() + LAWYER_PROTECTION_MS
+      this.undergroundLawyerUsed = true
+      this.awardBadge('underground_lawyer')
+    } else if (actionId === 'bribe') {
+      const cost = Math.floor(this.money * 0.05)
+      this.money -= cost
+      this.illegalHeat = Math.max(0, this.illegalHeat - 40)
+    } else if (actionId === 'launder') {
+      const cost = Math.max(1, this.illegalIncomePerDay() * 0.2)
+      this.money -= cost
+      this.launderingUntil = Date.now() + LAUNDER_DURATION_MS
+    }
+
+    this.undergroundCooldowns[actionId] = Date.now() + cooldowns[actionId]
+    this.updateMissionProgress('use_underground', 1)
+    this.emit({ type: 'underground_action', actionId })
+    this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
+    this.emit({ type: 'money_changed' })
+    this.checkAchievements()
+    return true
+  }
+
+  upgradeFootballStadium(clubId: string): boolean {
+    const club = this.empire.football.find((c) => c.clubId === clubId)
+    if (!club) return false
+    const cost = stadiumUpgradeCost(club.stadiumLevel)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    club.stadiumLevel++
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  upgradeFootballLeague(clubId: string): boolean {
+    const club = this.empire.football.find((c) => c.clubId === clubId)
+    if (!club || club.leagueLevel >= 4 || !canUpgradeLeague(club)) return false
+    const cost = leagueUpgradeCost(club.leagueLevel)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    club.leagueLevel++
+    this.emit({ type: 'money_changed' })
+    if (club.leagueLevel === 3) this.triggerStoryBeat('football_superlig')
+    if (club.leagueLevel === 4) this.triggerStoryBeat('football_europe')
+    return true
+  }
+
+  empireLobby(): boolean {
+    const cost = lobbyCost(this.empire.politics.influence)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    donateCampaign(cost, this.empire.politics)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  empireDonate(amount: number): boolean {
+    if (amount <= 0 || !this.canAfford(amount)) return false
+    this.money -= amount
+    donateCampaign(amount, this.empire.politics)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  empireBoostDarkProduction(): boolean {
+    const cost = Math.max(5000, this.incomePerDay() * 0.25)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    boostDarkProduction(this.empire.darkIndustry, this.gameTimeMs)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  empireReduceDarkHeat(): boolean {
+    const cost = Math.max(3000, this.incomePerDay() * 0.15)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    reduceDarkHeat(this.empire.darkIndustry)
+    this.illegalHeat = Math.max(0, this.illegalHeat - 15)
+    this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  activateHeatShield(): void {
+    this.heatShieldUntil = Date.now() + HEAT_SHIELD_DURATION_MS
+  }
+
+  isHeatShieldActive(): boolean {
+    return Date.now() < this.heatShieldUntil
+  }
+
+  isSurpriseInvestorActive(): boolean {
+    return false
+  }
+
+  addPendingBoost(item: PendingBoostItem): void {
+    this.pendingBoosts.push(item)
+    this.emit({ type: 'pending_boost_added', label: item.label })
+  }
+
+  grantPendingBoost(
+    kind: PendingBoostItem['kind'],
+    durationMs: number,
+    label: string,
+    emoji: string,
+  ): void {
+    this.addPendingBoost(createPendingBoost(kind, durationMs, label, emoji))
+  }
+
+  activatePendingBoost(id: string): boolean {
+    const idx = this.pendingBoosts.findIndex((b) => b.id === id)
+    if (idx < 0) return false
+    const item = this.pendingBoosts[idx]!
+    this.pendingBoosts.splice(idx, 1)
+    const now = Date.now()
+    switch (item.kind) {
+      case 'income_2x':
+        this.adBoostLabel = item.label
+        this.adBoostEmoji = item.emoji
+        this.adIncomeBoostUntil = Math.max(this.adIncomeBoostUntil, now) + item.durationMs
+        this.emit({ type: 'ad_boost', until: this.adIncomeBoostUntil })
+        break
+      case 'income_3x':
+        this.eventBoostLabel = item.label
+        this.eventBoostEmoji = item.emoji
+        this.eventBoostUntil = Math.max(this.eventBoostUntil, now) + item.durationMs
+        this.emit({ type: 'ad_boost', until: this.eventBoostUntil })
+        break
+      case 'shop_1_5x':
+        this.shopBoostLabel = item.label
+        this.shopBoostEmoji = item.emoji
+        this.shopBoostUntil = Math.max(this.shopBoostUntil, now) + item.durationMs
+        this.emit({ type: 'ad_boost', until: this.shopBoostUntil })
+        break
+    }
+    this.emit({ type: 'boost_activated', label: item.label })
+    return true
+  }
+
+  hasPendingBoosts(): boolean {
+    return this.pendingBoosts.length > 0
+  }
+
+  private tickNearMiss(now: number): void {
+    if (now - this.lastNearMissToastAt < NEAR_MISS_COOLDOWN_MS) return
+
+    const ipo = this.ipoProgress()
+    if (ipo.pct >= 90 && ipo.pct < 100 && !this.nudgeFlags.has('ipo')) {
+      this.nudgeFlags.add('ipo')
+      this.lastNearMissToastAt = now
+      this.emit({ type: 'near_miss', kind: 'ipo', message: 'Birleşmeye az kaldı!' })
+      return
+    }
+    this.ensureSeason()
+    const prog = tierProgress(this.season.xp)
+    if (prog.pct >= 95 && prog.pct < 100 && !this.nudgeFlags.has('season')) {
+      this.nudgeFlags.add('season')
+      this.lastNearMissToastAt = now
+      this.emit({ type: 'near_miss', kind: 'season', message: 'Sezon tier\'ına az kaldı!' })
+      return
+    }
+    if (this.comboCount >= this.comboBest - 2 && this.comboBest >= 10 && !this.nudgeFlags.has('combo')) {
+      this.nudgeFlags.add('combo')
+      this.lastNearMissToastAt = now
+      this.emit({ type: 'near_miss', kind: 'combo', message: 'Combo rekoruna yakınsın!' })
+    }
+  }
+
+  peekDailyStreakReset(): boolean {
+    if (!this.dailyLastClaim) return false
+    const yesterday = yesterdayKey()
+    return this.dailyLastClaim !== yesterday && this.dailyLastClaim !== todayKey()
+  }
+
+  claimComebackBonus(): number {
+    if (this.comebackPending <= 0) return 0
+    const amount = this.comebackPending
+    this.comebackPending = 0
+    this.comebackClaimed = true
+    this.comebackClaimedDay = todayKey()
+    this.addMoney(amount)
+    this.awardBadge('comeback')
+    return amount
+  }
+
+  /** Geri dönüş bonusu — yalnızca reklam sonrası */
+  claimComebackViaAd(multiplier = 1): number {
+    if (this.comebackPending <= 0) return 0
+    const amount = Math.floor(this.comebackPending * multiplier)
+    this.comebackPending = 0
+    this.comebackClaimed = true
+    this.comebackClaimedDay = todayKey()
+    this.addMoney(amount)
+    this.awardBadge('comeback')
+    this.emit({ type: 'offline_earnings', amount })
+    return amount
+  }
+
+  hasPendingComeback(): boolean {
+    return this.comebackPending > 0
+  }
+
+  /** Offline kazancı hesapla — otomatik verilmez */
   applyOfflineEarnings(lastSaveTime: number): number {
-    const elapsed = Math.min(Date.now() - lastSaveTime, this.offlineCapMs())
-    if (elapsed < 60_000) return 0
-    const elapsedSec = elapsed / 1000
+    const awayMs = Date.now() - lastSaveTime
+    this.lastActiveAt = Date.now()
+    this.pendingOfflineEarnings = 0
+
+    if (awayMs >= COMEBACK_MIN_AWAY_MS && this.comebackClaimedDay !== todayKey()) {
+      const elapsed = Math.min(awayMs, this.offlineCapMs())
+      const gameDaysAway = elapsed / MS_PER_GAME_DAY
+      let base = 0
+      for (const p of PRODUCERS) {
+        base += this.producerIncome(p) * gameDaysAway
+      }
+      const mult = awayMs >= 72 * 60 * 60 * 1000 ? 3 : awayMs >= 48 * 60 * 60 * 1000 ? 2 : 1.5
+      this.comebackPending = Math.floor(base * mult)
+      this.triggerStoryBeat('comeback')
+      this.emit({ type: 'comeback_ready', amount: this.comebackPending })
+    }
+
+    const elapsed = Math.min(awayMs, this.offlineCapMs())
+    if (elapsed < MS_PER_GAME_DAY) return 0
+    const gameDaysAway = elapsed / MS_PER_GAME_DAY
     let amount = 0
     for (const p of PRODUCERS) {
-      let inc = this.producerIncome(p)
-      if (hasManager(this.managers, p.id)) inc *= 1.5
-      amount += inc * elapsedSec
+      amount += this.producerIncome(p) * gameDaysAway
     }
     if (amount <= 0) return 0
+    this.pendingOfflineEarnings = Math.floor(amount)
+    return this.pendingOfflineEarnings
+  }
+
+  discardPendingOffline(): void {
+    this.pendingOfflineEarnings = 0
+  }
+
+  discardComeback(): void {
+    this.comebackPending = 0
+    this.comebackClaimedDay = todayKey()
+  }
+
+  /** Reklam izlendikten sonra offline kazancı topla */
+  claimOfflineViaAd(multiplier = 1): number {
+    if (this.pendingOfflineEarnings <= 0) return 0
+    const amount = Math.floor(this.pendingOfflineEarnings * multiplier)
+    this.pendingOfflineEarnings = 0
     this.addMoney(amount)
     this.emit({ type: 'offline_earnings', amount })
     return amount
   }
 
   activateAdBoost(): void {
+    this.adBoostLabel = 'Reklam boost'
+    this.adBoostEmoji = '📺'
     this.adIncomeBoostUntil = Date.now() + AD_BOOST_DURATION_MS
     this.emit({ type: 'ad_boost', until: this.adIncomeBoostUntil })
   }
@@ -864,19 +2847,81 @@ export class GameState {
     return Math.max(0, this.adIncomeBoostUntil - Date.now())
   }
 
+  activateShopBoost(): void {
+    this.shopBoostLabel = 'Mağaza boost'
+    this.shopBoostEmoji = '🛒'
+    this.shopBoostUntil = Date.now() + 15 * 60_000
+    this.emit({ type: 'ad_boost', until: this.shopBoostUntil })
+  }
+
+  isShopBoostActive(): boolean {
+    return Date.now() < this.shopBoostUntil
+  }
+
+  shopBoostRemainingMs(): number {
+    return Math.max(0, this.shopBoostUntil - Date.now())
+  }
+
+  activateUpgradeDiscount(): void {
+    this.upgradeDiscountActive = true
+  }
+
+  incrementAdvisorBuy(): void {
+    this.advisorBuys++
+    this.checkAchievements()
+  }
+
+  buyUndergroundTreeNode(nodeId: string): boolean {
+    const node = treeNodeDef(nodeId)
+    if (!node) return false
+    const level = this.undergroundTree[nodeId] ?? 0
+    if (level >= node.maxLevel) return false
+    const cost = treeNodeCost(node, level)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.undergroundTree[nodeId] = level + 1
+    this.emit({ type: 'underground_action', actionId: nodeId })
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  marketNewsStockTickerId(): string | null {
+    const n = this.activeMarketNewsDef()
+    if (!n) return null
+    if (n.id === 'bull' || n.id === 'bear' || n.id === 'crypto') return 'tech'
+    if (n.id === 'logistics') return 'industrial'
+    if (n.id === 'ecom') return 'tech'
+    return null
+  }
+
   claimDailyReward(): number {
     const today = todayKey()
     if (this.dailyLastClaim === today) return 0
     const yesterday = yesterdayKey()
+    const streakBroken = this.dailyLastClaim !== null && this.dailyLastClaim !== yesterday
     if (this.dailyLastClaim === yesterday) {
-      this.dailyStreak = Math.min(this.dailyStreak + 1, 7)
+      this.dailyStreak = Math.min(this.dailyStreak + 1, 30)
     } else {
       this.dailyStreak = 1
     }
     this.dailyLastClaim = today
-    const amount = Math.max(100 * this.dailyStreak, this.incomePerSecond() * 60 * this.dailyStreak)
+    let amount = calcDailyLoginReward(this.dailyStreak, this.incomePerDay())
+    for (const ms of STREAK_MILESTONES) {
+      if (this.dailyStreak >= ms && !this.streakMilestonesClaimed.includes(ms)) {
+        this.streakMilestonesClaimed.push(ms)
+        amount += streakMilestoneBonus(ms)
+        this.awardBadge(`streak_${ms}`)
+        this.triggerStoryBeat(`streak_${ms}`)
+      }
+    }
     this.addMoney(amount)
+    this.updateMissionProgress('claim_daily', 1)
     this.emit({ type: 'daily_reward', amount, streak: this.dailyStreak })
+    if (streakBroken && this.dailyStreak === 1) {
+      // streak was reset — UI shows warning via peekDailyStreakReset before claim
+    }
+    this.checkAchievements()
+    this.syncCampaignProgress()
     return amount
   }
 
@@ -884,13 +2929,17 @@ export class GameState {
     return this.dailyLastClaim !== todayKey()
   }
 
-  openLuckyChest(): number {
-    if (!this.luckyChestReady) return 0
+  dailyLoginRewardPreview(forStreak?: number): number {
+    const streak = forStreak ?? (this.dailyStreak > 0 ? this.dailyStreak + 1 : 1)
+    return calcDailyLoginReward(streak, this.incomePerDay())
+  }
+
+  openLuckyChest(): ChestLootResult | null {
+    if (!this.luckyChestReady) return null
     this.luckyChestReady = false
-    const amount = Math.max(500, this.incomePerSecond() * 120)
-    this.addMoney(amount)
-    this.emit({ type: 'chest_opened', amount })
-    return amount
+    const loot = rollChestLoot(this.incomePerDay(), this.chestPityCounter, false)
+    this.applyChestLootResult(loot)
+    return loot
   }
 
   incrementRewardedAdCount(): void {
@@ -917,27 +2966,29 @@ export class GameState {
     for (const m of this.missions) {
       if (m.claimed || m.type !== type) continue
       m.progress = Math.min(m.target, m.progress + amount)
+      if (this.ownerFlag('instant_missions')) m.progress = m.target
       if (m.progress >= m.target) {
         this.emit({ type: 'mission_complete', mission: m })
       }
     }
   }
 
-  claimMission(missionId: string, doubleWithAd = false): number {
+  claimMission(missionId: string, doubleWithAd = false): { money: number; boostMinutes: number } {
     const m = this.missions.find((x) => x.id === missionId)
-    if (!m || m.claimed || m.progress < m.target) return 0
+    if (!m || m.claimed || m.progress < m.target) return { money: 0, boostMinutes: 0 }
     m.claimed = true
-    let reward = 0
+    let money = 0
+    let boostMinutes = 0
     if (m.rewardMoney > 0) {
-      reward = m.rewardMoney * (doubleWithAd ? 2 : 1)
-      this.addMoney(reward)
+      money = m.rewardMoney * (doubleWithAd ? 2 : 1)
+      this.addMoney(money)
     }
     if (m.rewardBoostMinutes > 0) {
-      this.adIncomeBoostUntil = Date.now() + m.rewardBoostMinutes * 60_000 * (doubleWithAd ? 2 : 1)
-      this.emit({ type: 'ad_boost', until: this.adIncomeBoostUntil })
+      boostMinutes = m.rewardBoostMinutes * (doubleWithAd ? 2 : 1)
+      this.grantPendingBoost('income_2x', boostMinutes * 60_000, 'Görev bonusu', '📋')
     }
     this.addSeasonXp(50)
-    return reward
+    return { money, boostMinutes }
   }
 
   hireManager(producerId: string, withDiscount = false): boolean {
@@ -954,6 +3005,15 @@ export class GameState {
     this.money -= cost
     this.managers[producerId] = true
     this.managerDiscountActive = false
+    this.pendingUndo = {
+      id: `mgr_${producerId}_${Date.now()}`,
+      kind: 'manager_hire',
+      label: `${def.name} yöneticisini geri al`,
+      cost: Math.max(500, Math.floor(cost * 0.25)),
+      expiresAt: Date.now() + 60_000,
+      producerId,
+    }
+    this.emit({ type: 'undo_available', label: this.pendingUndo.label, cost: this.pendingUndo.cost, undoId: this.pendingUndo.id })
     this.emit({ type: 'manager_hired', producerId })
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
@@ -999,13 +3059,60 @@ export class GameState {
     if (this.weekly.claimed || this.weekly.progress < this.weekly.target) return 0
     this.weekly.claimed = true
     if (doubleWithAd) this.weekly.adDoubled = true
-    const reward = Math.max(1000, this.incomePerSecond() * 120) * (doubleWithAd ? 2 : 1)
+    const reward = this.weeklyRewardPreview() * (doubleWithAd ? 2 : 1)
     this.addMoney(reward)
     return reward
   }
 
   doubleWeeklyWithAd(): void {
     this.weekly.adDoubled = true
+  }
+
+  ownerGrantMoney(amount: number): void {
+    this.addMoney(amount)
+  }
+
+  ownerClearHeat(): void {
+    this.illegalHeat = 0
+    this.heatWasCritical = false
+    this.emit({ type: 'illegal_heat', heat: 0 })
+  }
+
+  ownerUnlockAllBusinesses(): void {
+    for (const p of PRODUCERS) {
+      if ((this.producers[p.id] ?? 0) < 1) {
+        this.producers[p.id] = 1
+        if (!this.codexUnlockDates[p.id]) this.codexUnlockDates[p.id] = todayKey()
+      }
+    }
+    this.emit({ type: 'money_changed' })
+    this.checkAchievements()
+  }
+
+  ownerUnlockAllUpgrades(): void {
+    for (const u of UPGRADES) this.purchasedUpgrades.add(u.id)
+    this.emit({ type: 'money_changed' })
+  }
+
+  ownerMaxSeason(): void {
+    this.ensureSeason()
+    this.season.xp = xpForTier(SEASON_MAX_TIER)
+    this.emit({ type: 'season_updated', xp: this.season.xp, tier: SEASON_MAX_TIER })
+  }
+
+  ownerCompleteWeekly(): void {
+    this.ensureWeekly()
+    this.weekly.progress = this.weekly.target
+    this.emit({ type: 'weekly_updated', progress: this.weekly.progress, target: this.weekly.target })
+  }
+
+  ownerResetDailyClaim(): void {
+    this.dailyLastClaim = null
+  }
+
+  ownerTriggerSurpriseInvestor(): void {
+    this.grantPendingBoost('income_2x', 30_000, 'Yatırımcı', '💎')
+    this.emit({ type: 'surprise_investor', until: 0 })
   }
 
   getWeeklyEventDef() {
@@ -1034,19 +3141,852 @@ export class GameState {
     this.missionsDay = ''
     this.comboBest = 0
     this.stock = createStockState()
+    this.bank = createBankState()
     this.weekly = createWeeklyState()
     this.milestonesReached = []
     this.playTimeMs = 0
     this.tutorialDone = false
+    this.onboardingComplete = false
     this.dailyGoalEarned = 0
     this.dailyGoalDay = dailyGoalDayKey()
     this.dailyGoalClaimed = false
     this.season = createSeasonState()
+    this.chestPityCounter = 0
+    this.chestTickets = 0
+    this.campaign = createCampaignState()
     this.prestigeTree = {}
     this.managerAutoBuy = {}
     for (const p of PRODUCERS) this.managerAutoBuy[p.id] = false
     this.nightEarningsSession = 0
+    this.forcedUnlocks.clear()
+    this.illegalHeat = 0
+    this.unlockedThemes = new Set(['default'])
+    this.activeTheme = 'default'
+    this.codexUnlockDates = {}
+    this.undergroundCooldowns = {}
+    this.heatShieldUntil = 0
+    this.heatProtectionUntil = 0
+    this.launderingUntil = 0
+    this.comebackPending = 0
+    this.comebackClaimedDay = null
+    this.comebackClaimed = false
+    this.surpriseInvestorUntil = 0
+    this.surpriseInvestorDay = ''
+    this.pendingBoosts = []
+    this.seenStoryBeats.clear()
+    this.earnedBadges.clear()
+    this.streakMilestonesClaimed = []
+    this.reputation = REPUTATION_START
+    this.rivals = createRivalsState()
+    this.chronicle = []
+    this.legacyMonuments = []
+    this.victoriesUnlocked = []
+    this.totalRaidsCaught = 0
+    this.presidentSeasons = 0
+    this.presidentSinceSeasonKey = null
+    this.lastWorldStageId = 'local'
+    this.childCrises = []
     this.emit({ type: 'money_changed' })
+  }
+
+  addReputation(delta: number): void {
+    if (delta === 0) return
+    const prev = this.reputation
+    this.reputation = clampReputation(this.reputation + delta)
+    if (this.reputation !== prev) {
+      this.emit({ type: 'reputation_changed', reputation: this.reputation, delta: this.reputation - prev })
+    }
+  }
+
+  recordChronicle(category: ChronicleEntry['category'], emoji: string, text: string): void {
+    const entry = createChronicleEntry({
+      gameDay: gameDay(this.gameTimeMs),
+      generation: this.dynasty.generation,
+      ipoEra: this.ipoCount,
+      text,
+      emoji,
+      category,
+    })
+    this.chronicle = appendChronicle(this.chronicle, entry)
+  }
+
+  recordLegacyMonuments(): void {
+    let best: ProducerDef | null = null
+    for (const p of PRODUCERS) {
+      if ((this.producers[p.id] ?? 0) <= 0) continue
+      if (!best || p.tier > best.tier) best = p
+    }
+    if (!best || best.tier < 5) return
+    const exists = this.legacyMonuments.some((m) => m.producerId === best!.id && m.ipoEra === this.ipoCount)
+    if (exists) return
+    this.legacyMonuments.push(createMonument(
+      best.id,
+      best.name,
+      best.emoji,
+      gameDay(this.gameTimeMs),
+      this.dynasty.generation,
+      this.ipoCount,
+    ))
+  }
+
+  victoryContext(): VictoryContext {
+    let illegalTypes = 0
+    for (const p of PRODUCERS) {
+      if (p.illegal && (this.producers[p.id] ?? 0) > 0) illegalTypes++
+    }
+    return {
+      netWorth: this.financeNetWorth(),
+      politicsLevel: this.empire.politics.level,
+      presidentSeasons: this.presidentSeasons,
+      dynastyGeneration: this.dynasty.generation,
+      illegalTypesOwned: illegalTypes,
+      totalRaidsCaught: this.totalRaidsCaught,
+      alreadyUnlocked: [...this.victoriesUnlocked],
+    }
+  }
+
+  checkVictoryConditions(): void {
+    const newOnes = checkNewVictories(this.victoryContext())
+    for (const id of newOnes) {
+      if (this.victoriesUnlocked.includes(id)) continue
+      this.victoriesUnlocked.push(id)
+      const def = victoryDef(id)
+      const unlock = mechanicForVictory(id)
+      if (!this.victoryMechanics.includes(unlock.mechanic)) {
+        this.victoryMechanics.push(unlock.mechanic)
+      }
+      this.recordChronicle('victory', def.emoji, `${def.name} — ${unlock.title} açıldı`)
+      this.addGazette(`${this.playerName.trim() || 'Baron'} ${def.name} yolunu tamamladı — ${unlock.title}`, 'player')
+      this.emit({ type: 'victory_unlocked', victoryId: id, name: def.name, emoji: def.emoji })
+      this.emit({
+        type: 'victory_mechanic_unlocked',
+        victoryId: id,
+        title: unlock.title,
+        description: unlock.description,
+        emoji: unlock.emoji,
+      })
+    }
+    this.refreshPlayerTitle()
+  }
+
+  checkWorldStage(): void {
+    const stage = currentWorldStage(this.financeNetWorth())
+    if (stage.id === this.lastWorldStageId) return
+    this.lastWorldStageId = stage.id
+    this.recordChronicle('world', stage.emoji, stage.headline)
+    this.emit({ type: 'world_stage', stageId: stage.id, name: stage.name })
+  }
+
+  private tickPresidentSeasons(): void {
+    if (this.empire.politics.level !== 'cumhurbaskan') {
+      this.presidentSinceSeasonKey = null
+      return
+    }
+    const key = gameSeasonKey(this.gameTimeMs)
+    if (this.presidentSinceSeasonKey === null) {
+      this.presidentSinceSeasonKey = key
+      return
+    }
+    if (key !== this.presidentSinceSeasonKey) {
+      this.presidentSeasons++
+      this.presidentSinceSeasonKey = key
+      this.checkVictoryConditions()
+    }
+  }
+
+  private tickRivalFamilies(day: number): void {
+    if (day === this.lastRivalTickDay) return
+    this.lastRivalTickDay = day
+    const { events, allianceOffer } = tickRivals(
+      this.rivals,
+      this.financeNetWorth(),
+      this.producers,
+      this.reputation,
+      this.playerName,
+    )
+    for (const ev of events) {
+      this.addGazette(ev.headline, ev.kind === 'alliance' ? 'rival' : 'rival')
+      this.emit({ type: 'rival_action', rivalId: ev.rivalId, headline: ev.headline })
+    }
+    if (allianceOffer && !this.pendingRivalOffer) {
+      this.pendingRivalOffer = allianceOffer
+      this.emit({ type: 'rival_alliance_offer', offer: allianceOffer })
+    }
+    if (this.pendingRivalOffer && Date.now() > this.pendingRivalOffer.expiresAt) {
+      this.pendingRivalOffer = null
+    }
+    this.checkWorldStage()
+    this.checkVictoryConditions()
+  }
+
+  private maybeSpawnChildCrisis(): void {
+    if (this.dynasty.children.length === 0) return
+    if (Math.random() > 0.06) return
+    const eligible = this.dynasty.children.filter(
+      (c) => c.educationXp >= 35 && !this.childCrises.some((x) => x.childId === c.id),
+    )
+    if (eligible.length === 0) return
+    const child = eligible[Math.floor(Math.random() * eligible.length)]!
+    const typeMap: Record<string, 'gambler' | 'illegal' | 'scandal'> = {
+      gambler: 'gambler',
+      illegal: 'illegal',
+      scandal: 'scandal',
+      low: 'gambler',
+    }
+    const type = typeMap[child.riskProfile] ?? 'gambler'
+    this.childCrises.push({ childId: child.id, type })
+    this.baronLifeChildCrises++
+    const messages = {
+      gambler: `${child.name} kumar borçları biriktiriyor!`,
+      illegal: `${child.name} illegal işlere bulaştı — heat artıyor!`,
+      scandal: `${child.name} skandala karıştı — itibar düşüyor!`,
+    }
+    this.recordChronicle('crisis', '⚠️', messages[type])
+    this.emit({ type: 'child_crisis', childName: child.name, crisisType: type, message: messages[type] })
+  }
+
+  private tickChildCrises(): void {
+    if (this.childCrises.length === 0) return
+    for (const crisis of this.childCrises) {
+      const child = this.dynasty.children.find((c) => c.id === crisis.childId)
+      if (!child) continue
+      if (crisis.type === 'gambler' && this.money > 100) {
+        const drain = Math.floor(Math.min(this.money * 0.008, this.incomePerDay() * 0.15))
+        this.money = Math.max(0, this.money - drain)
+        this.emit({ type: 'money_changed' })
+      } else if (crisis.type === 'illegal') {
+        this.illegalHeat = Math.min(100, this.illegalHeat + 2)
+        this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
+      } else if (crisis.type === 'scandal') {
+        this.addReputation(reputationFromScandal())
+      }
+      if (Math.random() < 0.12) {
+        this.childCrises = this.childCrises.filter((c) => c.childId !== crisis.childId)
+        this.recordChronicle('dynasty', '✅', `${child.name} krizden çıktı`)
+      }
+    }
+  }
+
+  rivalLobby(rivalId: string): boolean {
+    const rival = rivalById(this.rivals, rivalId)
+    if (!rival || rival.relation === 'merged') return false
+    const global = hasMechanic(this.victoryMechanics, 'global_lobby')
+    const cost = Math.max(5000, this.incomePerDay() * (global ? 0.14 : 0.2))
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    lobbyAgainstRival(rival, cost, global)
+    this.addReputation(reputationFromLobby())
+    this.recordChronicle('rival', '🏛️', `${rival.name}'a karşı lobi yaptın`)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  rivalCooperate(rivalId: string): boolean {
+    const rival = rivalById(this.rivals, rivalId)
+    if (!rival || rival.relation === 'merged') return false
+    const cost = Math.max(3000, this.incomePerDay() * 0.1)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    cooperateWithRival(rival)
+    this.addReputation(reputationFromLobby() * 2)
+    this.recordChronicle('rival', '🤝', `${rival.name} ile işbirliği anlaşması`)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  rivalMerge(rivalId: string): boolean {
+    const rival = rivalById(this.rivals, rivalId)
+    if (!rival || rival.relation === 'merged') return false
+    const cost = mergeRivalCost(rival)
+    if (!this.canAfford(cost)) return false
+    if (!mergeRival(rival)) return false
+    this.money -= cost
+    this.addReputation(5)
+    this.recordChronicle('rival', '🛒', `${rival.name} satın alındı — merger tamamlandı`)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  skylineTierCount(): number {
+    return this.ownedBusinessTiers() + this.legacyMonuments.length
+  }
+
+  ownedProducerIds(): string[] {
+    return PRODUCERS.filter((p) => (this.producers[p.id] ?? 0) > 0).map((p) => p.id)
+  }
+
+  skylineWorldStageId(): WorldStageId {
+    return currentWorldStage(this.financeNetWorth()).id
+  }
+
+  addGazette(headline: string, category: GazetteCategory): void {
+    const day = gameDay(this.gameTimeMs)
+    this.gazetteEntries = pushGazette(this.gazetteEntries, headline, day, category)
+    this.emit({ type: 'gazette_headline', headline, category })
+  }
+
+  latestGazetteHeadlines(limit = 5): GazetteEntry[] {
+    return this.gazetteEntries.slice(0, limit)
+  }
+
+  refreshPlayerTitle(): PlayerTitleDef {
+    let illegalTypes = 0
+    for (const p of PRODUCERS) {
+      if (p.illegal && (this.producers[p.id] ?? 0) > 0) illegalTypes++
+    }
+    const title = computePlayerTitle({
+      reputation: this.reputation,
+      illegalHeat: this.illegalHeat,
+      illegalTypesOwned: illegalTypes,
+      politicsLevel: this.empire.politics.level,
+      bankruptcyCount: this.bankruptcyCount,
+      totalRaidsCaught: this.totalRaidsCaught,
+      lifetimeTotalEarned: this.lifetimeTotalEarned,
+    })
+    if (title.id !== this.playerTitleId) {
+      this.playerTitleId = title.id
+      this.emit({ type: 'player_title', title })
+    }
+    return title
+  }
+
+  playerTitle(): PlayerTitleDef {
+    return computePlayerTitle({
+      reputation: this.reputation,
+      illegalHeat: this.illegalHeat,
+      illegalTypesOwned: PRODUCERS.filter((p) => p.illegal && (this.producers[p.id] ?? 0) > 0).length,
+      politicsLevel: this.empire.politics.level,
+      bankruptcyCount: this.bankruptcyCount,
+      totalRaidsCaught: this.totalRaidsCaught,
+      lifetimeTotalEarned: this.lifetimeTotalEarned,
+    })
+  }
+
+  private tickMetaSystems(): void {
+    const day = gameDay(this.gameTimeMs)
+    this.tickCalendarEvents()
+    this.tickInsurance(day)
+    this.tickCommodities()
+    this.tickInvestmentOffers(day)
+    this.tickPendingInvestments(day)
+    this.maybeSpawnCrisis(day)
+    this.tickCrisisExpiry()
+    this.tickTorpilGifts(day)
+    this.maybeNaturalDisaster(day)
+    this.tickUndoExpiry()
+    if (day % 7 === 0 && day !== this.advisorTipDay) {
+      this.advisorTipDay = day
+      this.advisorTip = rollAdvisorTip(this.stock.marketFear, day)
+    }
+    if (day % 30 === 0 && day > 0) {
+      const rival = this.rivals.find((r) => r.relation !== 'merged')
+      const amt = formatMoney(this.incomePerDay() * 30)
+      this.addGazette(
+        headlineMonthlyIncome(this.playerName, amt, rival?.name),
+        'player',
+      )
+    }
+  }
+
+  private tickCalendarEvents(): void {
+    const dayKey = localDayKey()
+    if (this.lastCalendarEmitDay === dayKey) return
+    for (const ev of activeCalendarEvents()) {
+      this.addGazette(ev.headline, 'calendar')
+      this.emit({ type: 'calendar_event', headline: ev.headline, emoji: ev.emoji })
+    }
+    this.lastCalendarEmitDay = dayKey
+  }
+
+  private tickInsurance(day: number): void {
+    if (day === this.lastInsuranceChargeDay) return
+    this.lastInsuranceChargeDay = day
+    const cost = insuranceDailyCost(this.insurance)
+    if (cost > 0 && this.money >= cost) {
+      this.money -= cost
+      this.emit({ type: 'money_changed' })
+    }
+  }
+
+  private tickCommodities(): void {
+    if (Date.now() - this.lastCommodityTick < 8000) return
+    this.lastCommodityTick = Date.now()
+    tickCommodityPrices(this.commodities)
+  }
+
+  private tickInvestmentOffers(day: number): void {
+    if (this.investmentOffer && Date.now() > this.investmentOffer.expiresAt) {
+      this.investmentOffer = null
+    }
+    if (day - this.lastInvestmentOfferDay < 5) return
+    if (this.investmentOffer) return
+    this.lastInvestmentOfferDay = day
+    const offer = createStartupOffer(this.incomePerDay(), day)
+    this.investmentOffer = offer
+    this.emit({ type: 'investment_offer', offer })
+  }
+
+  private tickPendingInvestments(day: number): void {
+    const resolved: PendingInvestment[] = []
+    for (const inv of this.pendingInvestments) {
+      if (day < inv.resolveGameDay) continue
+      const roll = inv.minReturn + Math.random() * (inv.maxReturn - inv.minReturn)
+      const payout = Math.floor(inv.cost * roll)
+      this.addMoney(payout)
+      this.addGazette(`${this.playerName.trim() || 'Baron'} startup yatırımından ${formatMoney(payout)} aldı`, 'market')
+      resolved.push(inv)
+    }
+    if (resolved.length > 0) {
+      this.pendingInvestments = this.pendingInvestments.filter((i) => !resolved.includes(i))
+    }
+  }
+
+  private maybeSpawnCrisis(day: number): void {
+    if (this.activeCrisis && !this.activeCrisis.resolved) return
+    if (day - this.lastCrisisGameDay < 15) return
+    if (Math.random() > 0.08) return
+    const id = pickRandomCrisis()
+    const def = crisisDef(id)
+    this.activeCrisis = {
+      crisisId: id,
+      startedAt: Date.now(),
+      expiresAt: Date.now() + def.durationMs,
+      resolved: false,
+    }
+    this.lastCrisisGameDay = day
+    this.addGazette(headlineCrisis(this.playerName, def.title), 'crisis')
+    this.emit({ type: 'crisis_started', crisisId: id, title: def.title })
+  }
+
+  private tickCrisisExpiry(): void {
+    if (!this.activeCrisis || this.activeCrisis.resolved) return
+    if (Date.now() <= this.activeCrisis.expiresAt) return
+    this.resolveCrisis('timeout')
+  }
+
+  resolveCrisis(choiceId: string): boolean {
+    if (!this.activeCrisis || this.activeCrisis.resolved) return false
+    const id = this.activeCrisis.crisisId
+    const def = crisisDef(id)
+    let summary = ''
+    this.activeCrisis.resolved = true
+
+    if (id === 'economic') {
+      if (choiceId === 'sell') {
+        this.crisisIncomeMult = 0.8
+        summary = 'Erken çıktın — gelir geçici -%20'
+        window.setTimeout(() => { this.crisisIncomeMult = 1 }, 60_000)
+      } else if (choiceId === 'hold') {
+        this.crisisIncomeMult = 0.6
+        this.crisisHoldBonusUntil = Date.now() + 90_000
+        summary = 'Tut ve bekle — kriz sonrası +%40 bonus şansı'
+        window.setTimeout(() => { this.crisisIncomeMult = 1 }, 90_000)
+      } else if (choiceId === 'buy') {
+        const loan = Math.min(this.maxAvailableLoan(), Math.floor(this.incomePerDay() * 5))
+        if (loan > 0) this.bankTakeLoan(loan)
+        this.crisisHoldBonusUntil = Date.now() + 120_000
+        summary = 'Ucuza aldın — büyük fırsat penceresi açık'
+      } else {
+        this.crisisIncomeMult = 0.6
+        summary = 'Kararsız kaldın — gelir baskı altında'
+        window.setTimeout(() => { this.crisisIncomeMult = 1 }, 60_000)
+      }
+    } else if (id === 'scandal') {
+      if (choiceId === 'lobby') {
+        const cost = Math.max(8000, this.incomePerDay() * 0.25)
+        if (this.canAfford(cost)) {
+          this.money -= cost
+          this.addReputation(reputationFromLobby())
+          summary = 'Lobi yaptın — itibar korundu'
+        } else summary = 'Lobi için para yetmedi — itibar düştü'
+      } else if (choiceId === 'pay') {
+        const fine = Math.max(5000, this.incomePerDay() * 0.15)
+        if (this.canAfford(fine)) this.money -= fine
+        this.addReputation(-5)
+        summary = 'Para cezası ödendi'
+      } else {
+        this.addReputation(reputationFromScandal())
+        summary = 'Reddettin — medya saldırıyor'
+      }
+    } else if (id === 'rival_attack') {
+      const rival = this.rivals.find((r) => r.relation !== 'merged')
+      if (choiceId === 'pricewar') {
+        this.crisisIncomeMult = 0.75
+        if (rival) rival.attitude = Math.max(-100, rival.attitude - 5)
+        summary = 'Fiyat savaşı — gelir geçici -%25'
+        window.setTimeout(() => { this.crisisIncomeMult = 1 }, 75_000)
+      } else if (choiceId === 'retreat') {
+        this.crisisIncomeMult = 0.85
+        summary = 'Sektörden çekildin — 3 gün düşük gelir'
+        window.setTimeout(() => { this.crisisIncomeMult = 1 }, 90_000)
+      } else if (rival) {
+        const cost = mergeRivalCost(rival) * 0.15
+        if (this.canAfford(cost)) {
+          this.money -= cost
+          cooperateWithRival(rival)
+          summary = `${rival.name} ile masaya oturdun`
+        } else summary = 'Birleşme masası için para yetmedi'
+      }
+    }
+
+    this.addGazette(`${this.playerName.trim() || 'Baron'}: ${def.title} — ${summary}`, 'crisis')
+    this.emit({ type: 'crisis_resolved', crisisId: id, choiceId, summary })
+    this.activeCrisis = null
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  toggleInsurance(kind: keyof InsuranceState): void {
+    this.insurance[kind] = !this.insurance[kind]
+  }
+
+  buyCommodity(id: CommodityId, units: number): boolean {
+    const price = this.commodities.prices[id] ?? 0
+    const cost = Math.floor(price * units)
+    if (cost <= 0 || !this.canAfford(cost)) return false
+    this.money -= cost
+    const prev = this.commodities.holdings[id] ?? 0
+    const prevAvg = this.commodities.avgBuy[id] ?? 0
+    this.commodities.holdings[id] = prev + units
+    this.commodities.avgBuy[id] = prev > 0 ? (prevAvg * prev + price * units) / (prev + units) : price
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  sellCommodity(id: CommodityId, units: number): boolean {
+    const held = this.commodities.holdings[id] ?? 0
+    if (units <= 0 || units > held) return false
+    const price = this.commodities.prices[id] ?? 0
+    this.commodities.holdings[id] = held - units
+    this.addMoney(Math.floor(price * units))
+    return true
+  }
+
+  acceptInvestmentOffer(): boolean {
+    if (!this.investmentOffer) return false
+    const offer = this.investmentOffer
+    if (!this.canAfford(offer.cost)) return false
+    this.money -= offer.cost
+    this.pendingInvestments.push({
+      offerId: offer.id,
+      cost: offer.cost,
+      resolveGameDay: offer.resolveGameDay,
+      minReturn: offer.minReturn,
+      maxReturn: offer.maxReturn,
+    })
+    this.investmentOffer = null
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  dismissInvestmentOffer(): void {
+    this.investmentOffer = null
+  }
+
+  canOpenFranchise(producerId: string): boolean {
+    return (this.producers[producerId] ?? 0) >= FRANCHISE_UNLOCK_COUNT
+  }
+
+  openFranchise(producerId: string, city: FranchiseCity): boolean {
+    if (!this.canOpenFranchise(producerId)) return false
+    const cityDef = FRANCHISE_CITIES.find((c) => c.id === city)
+    if (!cityDef || this.reputation < cityDef.repReq) {
+      this.emit({ type: 'loan_denied', reason: `${cityDef?.label ?? city} franchise için itibar yetersiz (min ${cityDef?.repReq ?? FRANCHISE_REPUTATION_MIN})` })
+      return false
+    }
+    if (!this.canAfford(FRANCHISE_COST)) return false
+    if (this.franchises.some((f) => f.producerId === producerId && f.city === city)) return false
+    this.money -= FRANCHISE_COST
+    this.franchises.push({
+      producerId,
+      city,
+      openedGameDay: gameDay(this.gameTimeMs),
+      incomeMult: 0.08,
+    })
+    const p = PRODUCERS.find((x) => x.id === producerId)
+    this.addGazette(`${this.playerName.trim() || 'Baron'} ${cityDef.label}'de ${p?.name ?? 'işletme'} franchise açtı`, 'player')
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  hireNamedManager(id: NamedManagerId): boolean {
+    if (this.namedManagers.some((m) => m.id === id)) return false
+    const def = namedManagerDef(id)
+    if (!def || !this.canAfford(def.hireCost)) return false
+    this.money -= def.hireCost
+    this.namedManagers.push({ id, hiredGameDay: gameDay(this.gameTimeMs) })
+    this.pendingUndo = {
+      id: `nm_${id}_${Date.now()}`,
+      kind: 'named_manager',
+      label: `${def.name} işe alımını geri al`,
+      cost: Math.max(1000, Math.floor(def.hireCost * 0.2)),
+      expiresAt: Date.now() + 60_000,
+      namedManagerId: id,
+    }
+    this.emit({ type: 'undo_available', label: this.pendingUndo.label, cost: this.pendingUndo.cost, undoId: this.pendingUndo.id })
+    this.addGazette(`${def.name} ${this.playerName.trim() || 'Baron'}'un ekibine katıldı`, 'player')
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  acceptRivalAllianceOffer(): boolean {
+    if (!this.pendingRivalOffer) return false
+    const rival = rivalById(this.rivals, this.pendingRivalOffer.rivalId)
+    if (!rival) return false
+    acceptRivalAlliance(rival)
+    this.addGazette(`${rival.name} ile sektör paylaşım anlaşması imzalandı`, 'rival')
+    this.pendingRivalOffer = null
+    return true
+  }
+
+  declineRivalAlliance(): void {
+    this.pendingRivalOffer = null
+  }
+
+  toggleUndergroundMarket(action: UndergroundMarketAction): boolean {
+    if (!hasMechanic(this.victoryMechanics, 'shadow_network') && action === 'intel_leak') return false
+    const idx = this.undergroundMarketActive.indexOf(action)
+    if (idx >= 0) {
+      this.undergroundMarketActive.splice(idx, 1)
+      return true
+    }
+    const def = undergroundActionDef(action)
+    if (!this.canAfford(def.dailyCost)) return false
+    this.undergroundMarketActive.push(action)
+    this.illegalHeat = Math.min(100, this.illegalHeat + def.heatGain)
+    this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
+    return true
+  }
+
+  payAdvisorTip(): AdvisorTip | null {
+    if (!this.advisorTip || !this.canAfford(ADVISOR_FEE)) return null
+    this.money -= ADVISOR_FEE
+    this.emit({ type: 'money_changed' })
+    return this.advisorTip
+  }
+
+  hasVictoryMechanic(m: VictoryMechanic): boolean {
+    return hasMechanic(this.victoryMechanics, m)
+  }
+
+  dynastyAcademyActive(): boolean {
+    return hasMechanic(this.victoryMechanics, 'dynasty_academy')
+  }
+
+  progressPath(): ProgressPathSnapshot {
+    return progressPathSnapshot(this.totalEarned, this.ipoCount)
+  }
+
+  baronDynastySummary(): ReturnType<typeof dynastyHistorySummary> {
+    return dynastyHistorySummary(this.baronHistory)
+  }
+
+  activeCityId(): CityId {
+    return this.cities.activeCity
+  }
+
+  private finalizeBaronOnDeath(causeLabel: string, causeEmoji: string, causeId: DeathCauseId): BaronRecord {
+    const birthYear = gameCalendarDate((this.currentBaronStartedGameDay - 1) * MS_PER_GAME_DAY).getUTCFullYear()
+    const deathYear = gameYear(this.gameTimeMs)
+    const club = this.empire.football.find((c) => (this.producers[c.clubId] ?? 0) > 0)
+    const stage = currentWorldStage(this.baronLifePeakNetWorth)
+    const snapshot: BaronLifeSnapshot = {
+      playerName: this.playerName,
+      birthYear,
+      deathYear,
+      age: this.playerAge(),
+      startedGameDay: this.currentBaronStartedGameDay,
+      deathGameDay: gameDay(this.gameTimeMs),
+      causeId,
+      causeLabel,
+      causeEmoji,
+      peakNetWorth: this.baronLifePeakNetWorth,
+      totalEarnedLife: Math.max(0, this.totalEarned - this.baronLifeEarnedStart),
+      generation: this.dynasty.generation,
+      politicsLevel: this.empire.politics.level,
+      hasFootballClub: !!club,
+      footballLeague: club ? leagueName(club.leagueLevel) : '',
+      childCrisisCount: this.baronLifeChildCrises,
+      raidsWithoutInsurance: this.baronLifeRaidsUninsured,
+      hadInsurance: this.insurance.business || this.insurance.illegal || this.insurance.dynasty,
+      factoriesLostToRaid: this.baronLifeFactoryRaidDamage,
+      nearPresidency: this.empire.politics.level === 'bakan' && this.presidentSeasons >= 2,
+      victoriesCount: this.victoriesUnlocked.length,
+      reachedForbes: stage.id === 'forbes' || stage.id === 'endgame',
+      baronNumber: this.baronCounter,
+    }
+    const record = buildBaronRecord(snapshot)
+    this.baronHistory = [record, ...this.baronHistory].slice(0, 50)
+    this.baronCounter++
+    return record
+  }
+
+  private resetBaronLifeTracking(): void {
+    this.currentBaronStartedGameDay = gameDay(this.gameTimeMs)
+    this.baronLifePeakNetWorth = this.financeNetWorth()
+    this.baronLifeEarnedStart = this.totalEarned
+    this.baronLifeRaidsUninsured = 0
+    this.baronLifeChildCrises = 0
+    this.baronLifeFactoryRaidDamage = 0
+    this.dynasty.pendingDeath = null
+  }
+
+  sellProducer(id: string, count = 1): boolean {
+    const owned = this.producers[id] ?? 0
+    if (count <= 0 || count > owned) return false
+    const def = PRODUCERS.find((p) => p.id === id)
+    if (!def) return false
+    const refund = Math.floor(this.producerCostFor(def, owned - count, count) * 0.55)
+    this.producers[id] = owned - count
+    if (hasManager(this.managers, id) && (this.producers[id] ?? 0) <= 0) {
+      this.managers[id] = false
+    }
+    syncEmpireFromProducers(this.empire, this.producers)
+    this.addMoney(refund)
+    this.pendingUndo = {
+      id: `sell_${id}_${Date.now()}`,
+      kind: 'sell_producer',
+      label: `${def.name} satışını geri al`,
+      cost: Math.max(200, Math.floor(refund * 0.12)),
+      expiresAt: Date.now() + 10_000,
+      producerId: id,
+      soldCount: count,
+      soldCost: refund,
+    }
+    this.emit({ type: 'undo_available', label: this.pendingUndo.label, cost: this.pendingUndo.cost, undoId: this.pendingUndo.id })
+    this.emit({ type: 'purchase' })
+    return true
+  }
+
+  executeUndo(): boolean {
+    const u = this.pendingUndo
+    if (!u || Date.now() > u.expiresAt) return false
+    if (!this.canAfford(u.cost)) return false
+    this.money -= u.cost
+    if (u.kind === 'manager_hire' && u.producerId) {
+      this.managers[u.producerId] = false
+    } else if (u.kind === 'named_manager' && u.namedManagerId) {
+      this.namedManagers = this.namedManagers.filter((m) => m.id !== u.namedManagerId)
+    } else if (u.kind === 'sell_producer' && u.producerId && u.soldCount) {
+      this.producers[u.producerId] = (this.producers[u.producerId] ?? 0) + u.soldCount
+      if (u.soldCost) this.money = Math.max(0, this.money - u.soldCost)
+      syncEmpireFromProducers(this.empire, this.producers)
+    }
+    this.pendingUndo = null
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  dismissUndo(): void {
+    this.pendingUndo = null
+  }
+
+  private tickUndoExpiry(): void {
+    if (this.pendingUndo && Date.now() > this.pendingUndo.expiresAt) {
+      this.pendingUndo = null
+    }
+  }
+
+  unlockCity(id: CityId): boolean {
+    const check = canUnlockCity(id, this.cities, this.money, this.reputation, this.ipoCount)
+    if (!check.ok) return false
+    const def = cityDef(id)
+    this.money -= def.unlockCost
+    this.cities.unlocked.push(id)
+    this.cities.cityReputation[id] = Math.max(def.repReq, 40)
+    this.addGazette(`${this.playerName.trim() || 'Baron'} ${def.label}'yi fethetti`, 'player')
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  setActiveCity(id: CityId): boolean {
+    if (!this.cities.unlocked.includes(id)) return false
+    this.cities.activeCity = id
+    return true
+  }
+
+  hireTorpil(id: TorpilId): boolean {
+    const contact = this.torpil.find((t) => t.id === id)
+    const def = torpilDef(id)
+    if (!contact || contact.active || !this.canAfford(def.hireCost)) return false
+    this.money -= def.hireCost
+    contact.active = true
+    contact.lastGiftGameDay = gameDay(this.gameTimeMs)
+    this.addGazette(`${def.name} torpil ağına katıldı`, 'player')
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  payTorpilGift(id: TorpilId): boolean {
+    const contact = this.torpil.find((t) => t.id === id)
+    const def = torpilDef(id)
+    if (!contact?.active || !contact.giftDue || !this.canAfford(def.giftCost)) return false
+    this.money -= def.giftCost
+    contact.giftDue = false
+    contact.lastGiftGameDay = gameDay(this.gameTimeMs)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  private tickTorpilGifts(day: number): void {
+    for (const t of this.torpil) {
+      if (!t.active) continue
+      const def = torpilDef(t.id)
+      if (day - t.lastGiftGameDay >= def.giftIntervalDays) {
+        t.giftDue = true
+      }
+    }
+  }
+
+  modernizeProducer(id: string): boolean {
+    const def = PRODUCERS.find((p) => p.id === id)
+    if (!def || (this.producers[id] ?? 0) <= 0) return false
+    if (this.producerModernized[id]) return false
+    const cost = modernizeCost(def.tier, this.producers[id] ?? 0)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.producerModernized[id] = true
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  obsolescenceLabel(producerId: string): string | null {
+    const def = PRODUCERS.find((p) => p.id === producerId)
+    if (!def || this.ipoCount <= 0 || this.producerModernized[producerId]) return null
+    const mult = obsolescenceMult(def.tier, this.ipoCount)
+    if (mult >= 0.98) return null
+    return `Teknoloji eskidi — gelir ${Math.round(mult * 100)}%`
+  }
+
+  private maybeNaturalDisaster(day: number): void {
+    if (day - this.lastDisasterGameDay < 20) return
+    if (Math.random() > 0.04) return
+    const disaster = pickDisaster(this.cities.activeCity)
+    if (!disaster) return
+    this.lastDisasterGameDay = day
+    const insured = this.insurance.business
+    const damage = disasterDamage(disaster.baseDamage, this.incomePerDay(), insured)
+    if (damage > 0) {
+      this.money = Math.max(0, this.money - damage)
+      this.emit({ type: 'money_changed' })
+    }
+    const cityLabel = cityDef(this.cities.activeCity).label
+    this.addGazette(
+      `${disaster.emoji} ${disaster.title} — ${cityLabel}'i etkiledi${insured ? ' (sigorta devrede)' : ` — ${formatMoney(damage)} zarar`}`,
+      'crisis',
+    )
+    this.emit({
+      type: 'disaster_hit',
+      title: disaster.title,
+      emoji: disaster.emoji,
+      city: cityLabel,
+      damage,
+      insured,
+    })
+  }
+
+  isCrisisActive(): boolean {
+    return this.activeCrisis !== null && !this.activeCrisis.resolved
   }
 
   private checkAchievements(): void {
@@ -1068,6 +4008,13 @@ export class GameState {
       stockTickerCount: ownedTickerCount(this.stock),
       nightEarnings: this.nightEarningsSession,
       managerAutoBuyCount: this.managerAutoBuyCount(),
+      dailyStreak: this.dailyStreak,
+      comebackClaimed: this.comebackClaimed,
+      heatSurvived: this.heatSurvived,
+      unlockedThemes: [...this.unlockedThemes],
+      undergroundLawyerUsed: this.undergroundLawyerUsed,
+      dynastyMarried: !!this.dynasty.spouseName,
+      advisorBuys: this.advisorBuys,
     }
     const newOnes = checkNewAchievements(ctx)
     for (const a of newOnes) {
@@ -1104,23 +4051,133 @@ export class GameState {
       upgradesBoughtSession: this.upgradesBoughtSession,
       eventBoostUntil: this.eventBoostUntil,
       playTimeMs: this.playTimeMs,
+      gameTimeMs: this.gameTimeMs,
+      gamePaused: this.gamePaused,
       tutorialDone: this.tutorialDone,
+      onboardingComplete: this.onboardingComplete,
       ipoCount: this.ipoCount,
       lifetimeTotalEarned: this.lifetimeTotalEarned,
       managers: { ...this.managers },
-      stock: { ...this.stock },
+      stock: structuredClone(this.stock),
+      bank: { ...this.bank },
       weekly: { ...this.weekly },
       milestonesReached: [...this.milestonesReached],
       managerDiscountActive: this.managerDiscountActive,
       dailyGoalEarned: this.dailyGoalEarned,
       dailyGoalDay: this.dailyGoalDay,
       dailyGoalClaimed: this.dailyGoalClaimed,
-      season: { ...this.season, claimedTiers: [...this.season.claimedTiers] },
+      dailyGoalTargetSnapshot: this.dailyGoalTargetSnapshot,
+      dailyGoalRewardSnapshot: this.dailyGoalRewardSnapshot,
+      season: {
+        ...this.season,
+        claimedTiers: [...this.season.claimedTiers],
+        claimedPremiumTiers: [...this.season.claimedPremiumTiers],
+      },
       prestigeTree: { ...this.prestigeTree },
       managerAutoBuy: { ...this.managerAutoBuy },
       nightEarningsSession: this.nightEarningsSession,
       hapticsEnabled: this.hapticsEnabled,
       reducedMotion: this.reducedMotion,
+      playerName: this.playerName,
+      birthYear: this.birthYear,
+      playerGender: this.playerGender,
+      forcedUnlocks: [...this.forcedUnlocks],
+      illegalHeat: this.illegalHeat,
+      unlockedThemes: [...this.unlockedThemes],
+      activeTheme: this.activeTheme,
+      codexUnlockDates: { ...this.codexUnlockDates },
+      undergroundCooldowns: { ...this.undergroundCooldowns },
+      heatShieldUntil: this.heatShieldUntil,
+      heatProtectionUntil: this.heatProtectionUntil,
+      launderingUntil: this.launderingUntil,
+      lastActiveAt: Date.now(),
+      comebackClaimedDay: this.comebackClaimedDay,
+      comebackPending: this.comebackPending,
+      notificationPrefs: { ...this.notificationPrefs },
+      surpriseInvestorUntil: this.surpriseInvestorUntil,
+      surpriseInvestorDay: this.surpriseInvestorDay,
+      seenStoryBeats: [...this.seenStoryBeats],
+      earnedBadges: [...this.earnedBadges],
+      raidsToday: this.raidsToday,
+      raidsDay: this.raidsDay,
+      heatWasCritical: this.heatWasCritical,
+      heatSurvived: this.heatSurvived,
+      undergroundLawyerUsed: this.undergroundLawyerUsed,
+      comebackClaimed: this.comebackClaimed,
+      streakMilestonesClaimed: [...this.streakMilestonesClaimed],
+      dynasty: {
+        ...this.dynasty,
+        children: this.dynasty.children.map((c) => ({ ...c })),
+      },
+      activeMarketNews: this.activeMarketNews ? { ...this.activeMarketNews } : null,
+      shopBoostUntil: this.shopBoostUntil,
+      upgradeDiscountActive: this.upgradeDiscountActive,
+      undergroundTree: { ...this.undergroundTree },
+      advisorBuys: this.advisorBuys,
+      empire: {
+        football: this.empire.football.map((c) => ({ ...c })),
+        politics: { ...this.empire.politics },
+        darkIndustry: { ...this.empire.darkIndustry },
+      },
+      gameStartYear: this.gameStartYear,
+      pendingBoosts: this.pendingBoosts.map((b) => ({ ...b })),
+      chestPityCounter: this.chestPityCounter,
+      chestTickets: this.chestTickets,
+      campaign: {
+        ...this.campaign,
+        completedChapters: [...this.campaign.completedChapters],
+      },
+      bankruptcyRecoveryPool: this.bankruptcyRecoveryPool,
+      bankruptcyRecoveryClaimed: this.bankruptcyRecoveryClaimed,
+      bankruptcySeizedSnapshot: this.bankruptcySeizedSnapshot.map((item) => ({ ...item })),
+      lastBankruptcyAt: this.lastBankruptcyAt,
+      bankruptcyCashGraceSince: this.bankruptcyCashGraceSince,
+      reputation: this.reputation,
+      rivals: this.rivals.map((r) => ({ ...r, sectorFocus: [...r.sectorFocus] })),
+      chronicle: this.chronicle.map((e) => ({ ...e })),
+      legacyMonuments: this.legacyMonuments.map((m) => ({ ...m })),
+      victoriesUnlocked: [...this.victoriesUnlocked],
+      totalRaidsCaught: this.totalRaidsCaught,
+      presidentSeasons: this.presidentSeasons,
+      presidentSinceSeasonKey: this.presidentSinceSeasonKey,
+      lastWorldStageId: this.lastWorldStageId,
+      childCrises: this.childCrises.map((c) => ({ ...c })),
+      gazetteEntries: this.gazetteEntries.map((e) => ({ ...e })),
+      activeCrisis: this.activeCrisis ? { ...this.activeCrisis } : null,
+      crisisIncomeMult: this.crisisIncomeMult,
+      crisisHoldBonusUntil: this.crisisHoldBonusUntil,
+      victoryMechanics: [...this.victoryMechanics],
+      bankruptcyCount: this.bankruptcyCount,
+      insurance: { ...this.insurance },
+      commodities: structuredClone(this.commodities),
+      investmentOffer: this.investmentOffer ? { ...this.investmentOffer } : null,
+      pendingInvestments: this.pendingInvestments.map((i) => ({ ...i })),
+      franchises: this.franchises.map((f) => ({ ...f })),
+      namedManagers: this.namedManagers.map((m) => ({ ...m })),
+      pendingRivalOffer: this.pendingRivalOffer ? { ...this.pendingRivalOffer } : null,
+      undergroundMarketActive: [...this.undergroundMarketActive],
+      advisorTip: this.advisorTip ? { ...this.advisorTip } : null,
+      advisorTipDay: this.advisorTipDay,
+      calendarPurchaseDay: this.calendarPurchaseDay,
+      lastCrisisGameDay: this.lastCrisisGameDay,
+      lastInvestmentOfferDay: this.lastInvestmentOfferDay,
+      playerTitleId: this.playerTitleId,
+      baronHistory: this.baronHistory.map((b) => ({ ...b, achievements: [...b.achievements], weaknesses: [...b.weaknesses] })),
+      baronCounter: this.baronCounter,
+      currentBaronStartedGameDay: this.currentBaronStartedGameDay,
+      baronLifePeakNetWorth: this.baronLifePeakNetWorth,
+      baronLifeEarnedStart: this.baronLifeEarnedStart,
+      baronLifeRaidsUninsured: this.baronLifeRaidsUninsured,
+      baronLifeChildCrises: this.baronLifeChildCrises,
+      cities: {
+        unlocked: [...this.cities.unlocked],
+        activeCity: this.cities.activeCity,
+        cityReputation: { ...this.cities.cityReputation },
+      },
+      torpil: this.torpil.map((t) => ({ ...t })),
+      producerModernized: { ...this.producerModernized },
+      pendingUndo: this.pendingUndo ? { ...this.pendingUndo } : null,
+      lastDisasterGameDay: this.lastDisasterGameDay,
     }
   }
 
@@ -1155,7 +4212,10 @@ export class GameState {
     this.upgradesBoughtSession = data.upgradesBoughtSession ?? 0
     this.eventBoostUntil = data.eventBoostUntil ?? 0
     this.playTimeMs = data.playTimeMs ?? 0
+    this.gameTimeMs = data.gameTimeMs ?? 0
+    this.gamePaused = data.gamePaused ?? false
     this.tutorialDone = data.tutorialDone ?? false
+    this.onboardingComplete = data.onboardingComplete ?? data.tutorialDone ?? false
     this.ipoCount = data.ipoCount ?? 0
     this.lifetimeTotalEarned = data.lifetimeTotalEarned ?? data.totalEarned ?? 0
     this.managers = { ...(data.managers ?? {}) }
@@ -1163,15 +4223,40 @@ export class GameState {
       if (this.managers[p.id] === undefined) this.managers[p.id] = false
     }
     this.stock = data.stock && 'tickers' in data.stock
-      ? structuredClone(data.stock)
+      ? migrateStockState(data.stock)
       : migrateLegacyStock((data.stock ?? {}) as { price?: number; shares?: number; avgBuyPrice?: number })
-    this.weekly = data.weekly ? { ...data.weekly } : createWeeklyState()
+    this.bank = data.bank ? { ...createBankState(), ...data.bank } : createBankState()
+    const loadedWeekly = data.weekly
+    this.weekly = loadedWeekly
+      ? {
+          weekKey: String(loadedWeekly.weekKey ?? ''),
+          eventId: loadedWeekly.eventId ?? createWeeklyState().eventId,
+          progress: Math.max(0, Number(loadedWeekly.progress) || 0),
+          target: Math.max(WEEKLY_EARN_MIN, Number(loadedWeekly.target) || WEEKLY_EARN_MIN),
+          claimed: !!loadedWeekly.claimed,
+          adDoubled: !!loadedWeekly.adDoubled,
+          rewardCash: Number(loadedWeekly.rewardCash) > 0
+            ? Number(loadedWeekly.rewardCash)
+            : weeklyRewardCash(this.incomePerDay()),
+        }
+      : createWeeklyState()
     this.milestonesReached = data.milestonesReached ?? []
     this.managerDiscountActive = data.managerDiscountActive ?? false
     this.dailyGoalEarned = data.dailyGoalEarned ?? 0
     this.dailyGoalDay = data.dailyGoalDay ?? dailyGoalDayKey()
     this.dailyGoalClaimed = data.dailyGoalClaimed ?? false
-    this.season = data.season ? { ...data.season, claimedTiers: [...(data.season.claimedTiers ?? [])] } : createSeasonState()
+    this.dailyGoalTargetSnapshot = data.dailyGoalTargetSnapshot ?? 0
+    this.dailyGoalRewardSnapshot = data.dailyGoalRewardSnapshot ?? 0
+    if (this.dailyGoalTargetSnapshot <= 0) this.refreshDailyGoalSnapshots()
+    this.season = data.season
+      ? {
+          ...createSeasonState(),
+          ...data.season,
+          claimedTiers: [...(data.season.claimedTiers ?? [])],
+          claimedPremiumTiers: [...(data.season.claimedPremiumTiers ?? [])],
+          premiumUnlocked: !!data.season.premiumUnlocked,
+        }
+      : createSeasonState()
     this.prestigeTree = { ...(data.prestigeTree ?? {}) }
     this.managerAutoBuy = { ...(data.managerAutoBuy ?? {}) }
     for (const p of PRODUCERS) {
@@ -1180,8 +4265,142 @@ export class GameState {
     this.nightEarningsSession = data.nightEarningsSession ?? 0
     this.hapticsEnabled = data.hapticsEnabled ?? true
     this.reducedMotion = data.reducedMotion ?? false
+    this.playerName = data.playerName ?? 'Baron'
+    this.birthYear = data.birthYear ?? 0
+    this.playerGender = data.playerGender === 'female' ? 'female' : 'male'
+    this.forcedUnlocks = new Set(data.forcedUnlocks ?? [])
+    this.illegalHeat = data.illegalHeat ?? 0
+    this.unlockedThemes = new Set(data.unlockedThemes ?? ['default'])
+    this.activeTheme = (data.activeTheme ?? 'default') as ThemeId
+    this.codexUnlockDates = { ...(data.codexUnlockDates ?? {}) }
+    this.undergroundCooldowns = { ...(data.undergroundCooldowns ?? {}) }
+    this.heatShieldUntil = data.heatShieldUntil ?? 0
+    this.heatProtectionUntil = data.heatProtectionUntil ?? 0
+    this.launderingUntil = data.launderingUntil ?? 0
+    this.lastActiveAt = data.lastActiveAt ?? Date.now()
+    this.comebackClaimedDay = data.comebackClaimedDay ?? null
+    this.comebackPending = data.comebackPending ?? 0
+    this.notificationPrefs = {
+      dailyReward: data.notificationPrefs?.dailyReward ?? true,
+      passiveIncome: data.notificationPrefs?.passiveIncome ?? true,
+      goalNear: data.notificationPrefs?.goalNear ?? true,
+      webPush: data.notificationPrefs?.webPush ?? false,
+    }
+    this.chestPityCounter = data.chestPityCounter ?? 0
+    this.chestTickets = data.chestTickets ?? 0
+    this.campaign = data.campaign
+      ? {
+          chapterId: data.campaign.chapterId ?? 1,
+          stepIndex: data.campaign.stepIndex ?? 0,
+          stepProgress: data.campaign.stepProgress ?? 0,
+          completedChapters: [...(data.campaign.completedChapters ?? [])],
+        }
+      : createCampaignState()
+    this.surpriseInvestorUntil = data.surpriseInvestorUntil ?? 0
+    this.surpriseInvestorDay = data.surpriseInvestorDay ?? ''
+    this.seenStoryBeats = new Set(data.seenStoryBeats ?? [])
+    this.earnedBadges = new Set(data.earnedBadges ?? [])
+    this.raidsToday = data.raidsToday ?? 0
+    this.raidsDay = data.raidsDay ?? todayKey()
+    this.heatWasCritical = data.heatWasCritical ?? false
+    this.heatSurvived = data.heatSurvived ?? false
+    this.undergroundLawyerUsed = data.undergroundLawyerUsed ?? false
+    this.comebackClaimed = data.comebackClaimed ?? false
+    this.streakMilestonesClaimed = data.streakMilestonesClaimed ?? []
+    this.dynasty = data.dynasty
+      ? { ...data.dynasty, children: [...(data.dynasty.children ?? [])] }
+      : createDynastyState()
+    this.activeMarketNews = data.activeMarketNews ?? null
+    this.shopBoostUntil = data.shopBoostUntil ?? 0
+    this.upgradeDiscountActive = data.upgradeDiscountActive ?? false
+    this.undergroundTree = data.undergroundTree ?? createUndergroundTreeState()
+    this.advisorBuys = data.advisorBuys ?? 0
+    this.empire = data.empire
+      ? {
+          football: [...(data.empire.football ?? [])],
+          politics: { ...(data.empire.politics ?? createEmpireState().politics) },
+          darkIndustry: { ...(data.empire.darkIndustry ?? createEmpireState().darkIndustry) },
+        }
+      : createEmpireState()
+    this.gameStartYear = data.gameStartYear ?? 2026
+    this.pendingBoosts = Array.isArray(data.pendingBoosts)
+      ? data.pendingBoosts.filter((b) => b && typeof b.id === 'string' && typeof b.durationMs === 'number')
+      : []
+    const legacyInvestorMs = (data.surpriseInvestorUntil ?? 0) - Date.now()
+    if (legacyInvestorMs > 1000) {
+      this.grantPendingBoost('income_2x', legacyInvestorMs, 'Yatırımcı', '💎')
+    }
+    this.surpriseInvestorUntil = 0
+    syncEmpireFromProducers(this.empire, this.producers)
+    if (this.dynasty.children.length > 0) {
+      this.dynasty.children = this.dynasty.children.map((c) => migrateChildRecord(c))
+    }
+    if (this.dynasty.playerBornGameDay === undefined) this.dynasty.playerBornGameDay = 1
+    if (this.dynasty.playerStartAge === undefined) this.dynasty.playerStartAge = 18
+    if (this.dynasty.lifespanNotified === undefined) this.dynasty.lifespanNotified = false
+    if (this.dynasty.pendingDeath === undefined) this.dynasty.pendingDeath = null
+    this.bankruptcyRecoveryPool = data.bankruptcyRecoveryPool ?? 0
+    this.bankruptcyRecoveryClaimed = data.bankruptcyRecoveryClaimed ?? false
+    this.bankruptcySeizedSnapshot = (data.bankruptcySeizedSnapshot ?? []).map((item) => ({ ...item }))
+    this.lastBankruptcyAt = data.lastBankruptcyAt ?? 0
+    this.bankruptcyCashGraceSince = data.bankruptcyCashGraceSince ?? 0
+    this.reputation = data.reputation ?? REPUTATION_START
+    this.rivals = data.rivals?.length
+      ? data.rivals.map((r) => ({
+          ...r,
+          sectorFocus: [...r.sectorFocus],
+          personality: r.personality ?? rivalDef(r.id)?.personality ?? 'conservative',
+          copiedSector: r.copiedSector ?? null,
+        }))
+      : createRivalsState()
+    this.chronicle = data.chronicle ?? []
+    this.legacyMonuments = data.legacyMonuments ?? []
+    this.victoriesUnlocked = data.victoriesUnlocked ?? []
+    this.victoryMechanics = data.victoryMechanics ?? []
+    for (const vid of this.victoriesUnlocked) {
+      const unlock = mechanicForVictory(vid)
+      if (!this.victoryMechanics.includes(unlock.mechanic)) {
+        this.victoryMechanics.push(unlock.mechanic)
+      }
+    }
+    this.totalRaidsCaught = data.totalRaidsCaught ?? 0
+    this.presidentSeasons = data.presidentSeasons ?? 0
+    this.presidentSinceSeasonKey = data.presidentSinceSeasonKey ?? null
+    this.lastWorldStageId = data.lastWorldStageId ?? currentWorldStage(netWorth(this.money, portfolioValue(this.stock), this.bank)).id
+    this.childCrises = data.childCrises ?? []
+    this.gazetteEntries = data.gazetteEntries ?? []
+    this.activeCrisis = data.activeCrisis ?? null
+    this.crisisIncomeMult = data.crisisIncomeMult ?? 1
+    this.crisisHoldBonusUntil = data.crisisHoldBonusUntil ?? 0
+    this.bankruptcyCount = data.bankruptcyCount ?? 0
+    this.insurance = data.insurance ? { ...createInsuranceState(), ...data.insurance } : createInsuranceState()
+    this.commodities = data.commodities ?? createCommodityMarket()
+    this.investmentOffer = data.investmentOffer ?? null
+    this.pendingInvestments = data.pendingInvestments ?? []
+    this.franchises = data.franchises ?? []
+    this.namedManagers = data.namedManagers ?? []
+    this.pendingRivalOffer = data.pendingRivalOffer ?? null
+    this.undergroundMarketActive = data.undergroundMarketActive ?? []
+    this.advisorTip = data.advisorTip ?? null
+    this.advisorTipDay = data.advisorTipDay ?? 0
+    this.calendarPurchaseDay = data.calendarPurchaseDay ?? ''
+    this.lastCrisisGameDay = data.lastCrisisGameDay ?? 0
+    this.lastInvestmentOfferDay = data.lastInvestmentOfferDay ?? 0
+    this.playerTitleId = data.playerTitleId ?? 'tycoon'
+    this.baronHistory = data.baronHistory ?? []
+    this.baronCounter = data.baronCounter ?? 1
+    this.currentBaronStartedGameDay = data.currentBaronStartedGameDay ?? 1
+    this.baronLifePeakNetWorth = data.baronLifePeakNetWorth ?? this.financeNetWorth()
+    this.baronLifeEarnedStart = data.baronLifeEarnedStart ?? 0
+    this.baronLifeRaidsUninsured = data.baronLifeRaidsUninsured ?? 0
+    this.baronLifeChildCrises = data.baronLifeChildCrises ?? 0
+    this.cities = data.cities ?? createCityState()
+    this.torpil = data.torpil?.length ? data.torpil.map((t) => ({ ...t })) : createTorpilState()
+    this.producerModernized = data.producerModernized ?? {}
+    this.pendingUndo = data.pendingUndo ?? null
+    this.lastDisasterGameDay = data.lastDisasterGameDay ?? 0
     this.lastSaveTime = data.lastSaveTime
-    this.isNight = isNightHour(new Date().getHours())
+    this.isNight = isGameNight(this.gameTimeMs)
     this.ensureDailyGoal()
     this.ensureMissions()
     this.ensureWeekly()

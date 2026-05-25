@@ -1,7 +1,38 @@
-const BUILDING_HEIGHTS = [36, 44, 52, 48, 56, 64, 72, 80, 88, 96]
+import { PRODUCERS } from '../game/Economy'
+import { isGameWeekend } from '../game/GameClock'
+import type { LegacyMonument } from '../game/Chronicle'
+import type { WorldStageId } from '../game/WorldStage'
+
+const MAX_BUILDINGS = 16
+
+const TIER_HEIGHTS: Record<number, number> = {
+  1: 28, 2: 36, 3: 42, 4: 48, 5: 56, 6: 64, 7: 72, 8: 80, 9: 88, 10: 96, 11: 104,
+}
+
+const TIER_COLORS: Record<number, [string, string]> = {
+  1: ['#4a6fa5', '#2d4a6f'],
+  2: ['#5b7eb8', '#3a5580'],
+  3: ['#6b8fc4', '#455f8a'],
+  4: ['#7a9fd0', '#4f6a94'],
+  5: ['#fbbf24', '#b45309'],
+  6: ['#34d399', '#047857'],
+  7: ['#a78bfa', '#6d28d9'],
+  8: ['#f472b6', '#be185d'],
+  9: ['#38bdf8', '#0369a1'],
+  10: ['#fcd34d', '#92400e'],
+  11: ['#e879f9', '#86198f'],
+}
 
 function isNightHour(hour: number): boolean {
   return hour < 6 || hour >= 20
+}
+
+export interface SkylineBuilding {
+  producerId: string
+  name: string
+  emoji: string
+  tier: number
+  income: number
 }
 
 export class Skyline {
@@ -13,7 +44,10 @@ export class Skyline {
   private skyEl: HTMLElement
   private startTime = Date.now()
   private lastNight: boolean | null = null
+  private gameTimeMs = 0
   private parallaxRaf: number | null = null
+  private prevProducerIds = new Set<string>()
+  private onBuildingClick?: (producerId: string) => void
 
   constructor(container: HTMLElement) {
     this.el = document.createElement('div')
@@ -50,17 +84,103 @@ export class Skyline {
     this.animateParallax()
   }
 
-  update(tierCount: number): void {
+  setBuildingClickHandler(handler: (producerId: string) => void): void {
+    this.onBuildingClick = handler
+  }
+
+  update(
+    buildings: SkylineBuilding[],
+    worldStageId: WorldStageId = 'local',
+    gameTimeMs?: number,
+    monuments: LegacyMonument[] = [],
+    citySkylineClass = 'city-istanbul',
+  ): void {
+    if (gameTimeMs !== undefined) this.gameTimeMs = gameTimeMs
     this.buildingsEl.replaceChildren()
-    const count = Math.min(BUILDING_HEIGHTS.length, Math.max(0, tierCount))
-    for (let i = 0; i < count; i++) {
-      const b = document.createElement('div')
-      b.className = 'skyline-building svg-building'
-      b.style.animationDelay = `${i * 0.12}s`
-      b.style.height = `${BUILDING_HEIGHTS[i]}px`
-      b.innerHTML = `<svg viewBox="0 0 40 80" preserveAspectRatio="none"><rect x="2" y="10" width="36" height="70" rx="2" fill="#1e3a5f"/><rect x="8" y="18" width="6" height="6" class="win"/><rect x="18" y="18" width="6" height="6" class="win"/><rect x="28" y="18" width="6" height="6" class="win"/><rect x="8" y="30" width="6" height="6" class="win"/><rect x="18" y="30" width="6" height="6" class="win"/><rect x="28" y="30" width="6" height="6" class="win"/></svg>`
-      this.buildingsEl.appendChild(b)
+
+    this.el.classList.remove('skyline-stage-local', 'skyline-stage-national', 'skyline-stage-forbes', 'skyline-stage-endgame')
+    this.el.classList.remove('city-istanbul', 'city-ankara', 'city-izmir', 'city-dubai', 'city-london')
+    this.el.classList.add(`skyline-stage-${worldStageId}`, citySkylineClass)
+
+    const sorted = [...buildings].sort((a, b) => a.tier - b.tier || b.income - a.income)
+    const overflow = sorted.length > MAX_BUILDINGS ? sorted.length - MAX_BUILDINGS + 1 : 0
+    const visible = overflow > 0 ? sorted.slice(-MAX_BUILDINGS + 1) : sorted
+
+    const count = visible.length + monuments.length + (overflow > 0 ? 1 : 0)
+    this.el.classList.toggle('skyline-mega', count >= 12 || worldStageId === 'endgame')
+    this.el.classList.toggle('skyline-mid', (count >= 6 && count < 12) || worldStageId === 'forbes')
+
+    if (overflow > 0) {
+      const cluster = document.createElement('div')
+      cluster.className = 'skyline-building skyline-cluster'
+      cluster.title = `+${overflow} işletme daha`
+      cluster.innerHTML = `<div class="skyline-tower" style="height:52px"><span class="skyline-emoji">🏙️</span><span class="skyline-cluster-count">+${overflow}</span></div>`
+      this.buildingsEl.appendChild(cluster)
     }
+
+    for (let i = 0; i < visible.length; i++) {
+      const b = visible[i]!
+      const isNew = !this.prevProducerIds.has(b.producerId)
+      const height = TIER_HEIGHTS[b.tier] ?? 48
+      const [top, bottom] = TIER_COLORS[b.tier] ?? TIER_COLORS[1]!
+
+      const el = document.createElement('button')
+      el.type = 'button'
+      el.className = `skyline-building skyline-tier-${b.tier}${isNew ? ' skyline-building-new' : ''}`
+      el.style.animationDelay = `${i * 0.08}s`
+      el.title = `${b.name} · ${Math.floor(b.income).toLocaleString('tr-TR')}/sn`
+      el.dataset.producerId = b.producerId
+
+      const tower = document.createElement('div')
+      tower.className = 'skyline-tower'
+      tower.style.height = `${height}px`
+      tower.style.background = `linear-gradient(180deg, ${top} 0%, ${bottom} 100%)`
+
+      const windows = document.createElement('div')
+      windows.className = 'skyline-windows'
+      const rowCount = Math.max(2, Math.floor(height / 18))
+      for (let r = 0; r < rowCount; r++) {
+        const row = document.createElement('div')
+        row.className = 'skyline-window-row'
+        row.innerHTML = '<span></span><span></span><span></span>'
+        windows.appendChild(row)
+      }
+
+      const emoji = document.createElement('span')
+      emoji.className = 'skyline-emoji'
+      emoji.textContent = b.emoji
+
+      tower.append(windows, emoji)
+      el.appendChild(tower)
+      el.addEventListener('click', (ev) => {
+        ev.stopPropagation()
+        this.onBuildingClick?.(b.producerId)
+      })
+      this.buildingsEl.appendChild(el)
+    }
+
+    for (let mi = 0; mi < monuments.length; mi++) {
+      const m = monuments[mi]!
+      const el = document.createElement('div')
+      el.className = 'skyline-building skyline-monument'
+      el.style.animationDelay = `${(visible.length + mi) * 0.08}s`
+      el.title = `${m.producerName} · G${m.generation} · IPO ${m.ipoEra}`
+      const tower = document.createElement('div')
+      tower.className = 'skyline-tower skyline-monument-tower'
+      tower.style.height = `${88 + mi * 6}px`
+      tower.innerHTML = `<span class="skyline-emoji">${m.emoji}</span>`
+      el.appendChild(tower)
+      this.buildingsEl.appendChild(el)
+    }
+
+    if (visible.length === 0 && monuments.length === 0) {
+      const placeholder = document.createElement('div')
+      placeholder.className = 'skyline-placeholder'
+      placeholder.innerHTML = `<span>${worldStageId === 'local' ? '🏘️' : '🌆'}</span><small>İşletme al — şehir yükselsin</small>`
+      this.buildingsEl.appendChild(placeholder)
+    }
+
+    this.prevProducerIds = new Set(sorted.map((b) => b.producerId))
     this.updateDayNight()
   }
 
@@ -91,8 +211,7 @@ export class Skyline {
   }
 
   private updateDayNight(): void {
-    const hour = new Date().getHours()
-    const night = isNightHour(hour)
+    const night = this.gameTimeMs > 0 ? isGameWeekend(this.gameTimeMs) : isNightHour(new Date().getHours())
     if (this.lastNight === night) return
     this.lastNight = night
     this.el.classList.toggle('skyline-night', night)
@@ -108,4 +227,23 @@ export class Skyline {
 
 export function currentIsNight(): boolean {
   return isNightHour(new Date().getHours())
+}
+
+export function buildSkylineBuildings(
+  producers: Record<string, number>,
+  incomeFn: (id: string) => number,
+): SkylineBuilding[] {
+  const out: SkylineBuilding[] = []
+  for (const p of PRODUCERS) {
+    const owned = producers[p.id] ?? 0
+    if (owned <= 0) continue
+    out.push({
+      producerId: p.id,
+      name: p.name,
+      emoji: p.emoji,
+      tier: p.tier,
+      income: incomeFn(p.id),
+    })
+  }
+  return out
 }

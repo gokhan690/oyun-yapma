@@ -1,3 +1,6 @@
+import type { IpoPreviewData } from '../../game/FinanceBank'
+import { formatMoney } from '../../game/Economy'
+
 export class ModalManager {
   readonly layer: HTMLElement
   private goldenModal: HTMLElement | null = null
@@ -12,6 +15,7 @@ export class ModalManager {
   close(): void {
     this.layer.classList.remove('is-open')
     this.layer.replaceChildren()
+    this.layer.hidden = false
     this.goldenModal = null
     this.goldenTimerEl = null
     this.goldenClaimHandler = null
@@ -22,6 +26,49 @@ export class ModalManager {
   }
 
   show(title: string, body: string, actions: HTMLElement[]): void {
+    const p = document.createElement('p')
+    p.textContent = body
+    this.showContent(title, p, actions)
+  }
+
+  showBankruptcyModal(
+    reason: string,
+    loss: string,
+    recovery40: string,
+    recovery80: string,
+    seizedLines: string[],
+    actions: HTMLElement[],
+  ): void {
+    const body = document.createElement('div')
+    body.className = 'bankruptcy-modal-body'
+    const reasonEl = document.createElement('p')
+    reasonEl.className = 'bankruptcy-reason'
+    reasonEl.textContent = reason
+    const lossEl = document.createElement('p')
+    lossEl.className = 'bankruptcy-loss'
+    lossEl.innerHTML = `Toplam kayıp: <strong>${loss}</strong>`
+    body.append(reasonEl, lossEl)
+    if (seizedLines.length > 0) {
+      const listTitle = document.createElement('p')
+      listTitle.className = 'bankruptcy-seized-title'
+      listTitle.textContent = 'El konulan varlıklar:'
+      const list = document.createElement('ul')
+      list.className = 'bankruptcy-seized-list'
+      for (const line of seizedLines) {
+        const li = document.createElement('li')
+        li.textContent = line
+        list.appendChild(li)
+      }
+      body.append(listTitle, list)
+    }
+    const hint = document.createElement('p')
+    hint.className = 'bankruptcy-recovery-hint'
+    hint.textContent = `Reklam izleyerek ${recovery40} (%40) veya ${recovery80} (%80) geri alabilirsin. İşletmelerin bir kısmı da iade edilir.`
+    body.appendChild(hint)
+    this.showContent('İflas ettin', body, actions)
+  }
+
+  showContent(title: string, bodyEl: HTMLElement, actions: HTMLElement[]): void {
     this.layer.replaceChildren()
     const scrim = document.createElement('div')
     scrim.className = 'modal-scrim'
@@ -30,27 +77,27 @@ export class ModalManager {
     modal.className = 'game-modal modal-enter'
     const h2 = document.createElement('h2')
     h2.textContent = title
-    const p = document.createElement('p')
-    p.textContent = body
     const row = document.createElement('div')
     row.className = 'modal-actions'
     row.append(...actions)
-    modal.append(h2, p, row)
+    modal.append(h2, bodyEl, row)
     this.layer.append(scrim, modal)
     this.openLayer()
   }
 
-  showDailyReward(streak: number, amount: string, onClaim: () => void): void {
+  showDailyReward(streak: number, amount: string, onClaim: () => void, streakLost = false): void {
     this.layer.replaceChildren()
     const scrim = document.createElement('div')
     scrim.className = 'modal-scrim'
+    scrim.dataset.action = 'close-modal'
     const modal = document.createElement('div')
     modal.className = 'game-modal daily-reward-modal modal-enter'
-    modal.innerHTML = `<div class="reward-box">🎁</div><h2>Günlük Ödül</h2><p>${streak}. gün streak!</p><strong class="reward-amount">+${amount}</strong>`
+    const lostNote = streakLost ? '<p class="streak-lost-warn">⚠️ Serin sıfırlandı — yeniden başlıyorsun!</p>' : ''
+    modal.innerHTML = `<div class="reward-box">🎁</div><h2>Günlük Ödül</h2>${lostNote}<p>${streak}. gün streak!</p><strong class="reward-amount">+${amount}</strong>`
 
-    const dayInCycle = ((streak - 1) % 7) + 1
+    const dayInCycle = streak % 7 || 7
     const calendar = document.createElement('div')
-    calendar.className = 'streak-calendar'
+    calendar.className = 'streak-calendar streak-calendar-extended'
     for (let i = 1; i <= 7; i++) {
       const day = document.createElement('div')
       if (i < dayInCycle) day.className = 'streak-day streak-done'
@@ -60,6 +107,13 @@ export class ModalManager {
       calendar.appendChild(day)
     }
     modal.appendChild(calendar)
+
+    if (streak >= 7) {
+      const ms = document.createElement('p')
+      ms.className = 'streak-milestone-note'
+      ms.textContent = streak >= 30 ? '🏆 Efsane seri bonusu!' : streak >= 14 ? '💪 Demir irade bonusu!' : '🔥 7 gün bonusu!'
+      modal.appendChild(ms)
+    }
 
     const btn = document.createElement('button')
     btn.type = 'button'
@@ -74,52 +128,85 @@ export class ModalManager {
     this.openLayer()
   }
 
-  showIpoPreview(
-    pointsToEarn: number,
-    newTotal: number,
-    newMultiplier: number,
-    onConfirm: () => Promise<void>,
-  ): void {
+  showIpoPreview(preview: IpoPreviewData, onConfirm: () => Promise<void>): void {
     this.layer.replaceChildren()
     const scrim = document.createElement('div')
     scrim.className = 'modal-scrim'
+    scrim.dataset.action = 'close-modal'
     const modal = document.createElement('div')
-    modal.className = 'game-modal ipo-preview-modal modal-enter'
+    modal.className = 'game-modal ipo-preview-modal modal-enter ipo-preview-modal-lg'
+
     const icon = document.createElement('div')
     icon.className = 'ipo-preview-icon'
-    icon.textContent = '📈'
+    icon.textContent = '🚀'
+
     const h2 = document.createElement('h2')
-    h2.textContent = 'IPO Önizleme'
+    h2.textContent = 'IPO — Şirket Birleşmesi'
+
+    const intro = document.createElement('p')
+    intro.className = 'ipo-preview-intro'
+    intro.textContent = 'Run sıfırlanır; kalıcı prestij hisselerin ve meta ilerlemen korunur. Borsa ve mevduat nakde çevrilir — yeni turda başlangıç sermayesi alırsın.'
+
     const table = document.createElement('div')
     table.className = 'ipo-preview-table'
-    for (const [label, value] of [
-      ['Kazanılacak hisse', `+${pointsToEarn}`],
-      ['Yeni toplam', `${newTotal} hisse`],
-      ['Yeni çarpan', `x${newMultiplier.toFixed(2)}`],
-    ] as const) {
-      const row = document.createElement('div')
-      row.className = 'ipo-preview-row'
-      const l = document.createElement('span')
-      l.textContent = label
-      const v = document.createElement('strong')
-      v.textContent = value
-      row.append(l, v)
-      table.appendChild(row)
+
+    const gainRows: [string, string][] = [
+      ['Kazanılacak kalıcı hisse', `+${preview.pointsToEarn}`],
+      ['Yeni toplam hisse', `${preview.newTotal}`],
+      ['Kalıcı gelir çarpanı', `x${preview.newMultiplier.toFixed(2)}`],
+      ['Başlangıç sermayesi', formatMoney(preview.startingCash)],
+    ]
+    const lossRows: [string, string][] = [
+      ['Borsa portföyü (satılacak)', formatMoney(preview.portfolioValue)],
+      ['Mevduat + tahvil', formatMoney(preview.depositValue + preview.bondValue)],
+      ['Kredi borcu (kapanacak)', formatMoney(preview.loanDebt)],
+      ['İşletmeler sıfırlanır', `${preview.businessesOwned} adet`],
+      ['Yükseltmeler sıfırlanır', `${preview.upgradesOwned} adet`],
+      ['Yöneticiler sıfırlanır', `${preview.managersOwned} adet`],
+    ]
+    const keepRows: [string, string][] = [
+      ['Prestij ağacı', '✓ Korunur'],
+      ['Ar-Ge seviyeleri', '✓ Korunur'],
+      ['Hanedan / imparatorluk', '✓ Korunur'],
+    ]
+
+    const section = (title: string, rows: [string, string][], tone?: string) => {
+      const head = document.createElement('h3')
+      head.className = `ipo-preview-section${tone ? ` ipo-${tone}` : ''}`
+      head.textContent = title
+      table.appendChild(head)
+      for (const [label, value] of rows) {
+        const row = document.createElement('div')
+        row.className = 'ipo-preview-row'
+        const l = document.createElement('span')
+        l.textContent = label
+        const v = document.createElement('strong')
+        v.textContent = value
+        row.append(l, v)
+        table.appendChild(row)
+      }
     }
+
+    section('Kazanacakların', gainRows, 'gain')
+    section('Sıfırlanacaklar (run)', lossRows, 'loss')
+    section('Korunacaklar (meta)', keepRows, 'keep')
+
     const confirmBtn = document.createElement('button')
     confirmBtn.type = 'button'
     confirmBtn.className = 'btn-prestige'
-    confirmBtn.textContent = '🚀 IPO Yap!'
+    confirmBtn.textContent = `🚀 IPO Yap · ${formatMoney(preview.startingCash)} ile başla`
     confirmBtn.addEventListener('click', () => void onConfirm())
+
     const cancelBtn = document.createElement('button')
     cancelBtn.type = 'button'
     cancelBtn.className = 'btn-secondary'
     cancelBtn.dataset.action = 'close-modal'
     cancelBtn.textContent = 'Vazgeç'
+
     const actions = document.createElement('div')
     actions.className = 'modal-actions'
     actions.append(confirmBtn, cancelBtn)
-    modal.append(icon, h2, table, actions)
+    modal.append(icon, h2, intro, table, actions)
     this.layer.append(scrim, modal)
     this.openLayer()
   }
@@ -129,11 +216,13 @@ export class ModalManager {
     title: string,
     desc: string,
     onClaim: () => void,
+    claimLabel = 'Reklam izle & kabul et',
   ): void {
     this.layer.replaceChildren()
     this.goldenClaimHandler = onClaim
     const scrim = document.createElement('div')
     scrim.className = 'modal-scrim'
+    scrim.dataset.action = 'close-modal'
     const modal = document.createElement('div')
     modal.className = 'game-modal golden-event-modal modal-enter'
     const icon = document.createElement('div')
@@ -149,7 +238,7 @@ export class ModalManager {
     const btn = document.createElement('button')
     btn.type = 'button'
     btn.className = 'btn-primary golden-claim-btn'
-    btn.textContent = 'Kabul Et!'
+    btn.textContent = claimLabel
     btn.addEventListener('click', () => {
       if (this.goldenClaimHandler) this.goldenClaimHandler()
     })
@@ -203,13 +292,30 @@ export class ModalManager {
     this.openLayer()
   }
 
-  showToast(root: HTMLElement, message: string): void {
+  showToast(root: HTMLElement, message: string, priority: 'normal' | 'important' = 'normal'): void {
+    const now = Date.now()
+    if (priority === 'normal') {
+      if (this.lastToastMessage === message && now - this.lastToastAt < 8000) return
+      if (now - this.toastWindowStart > 12_000) {
+        this.toastWindowStart = now
+        this.toastWindowCount = 0
+      }
+      if (this.toastWindowCount >= 3) return
+      this.toastWindowCount++
+    }
+    this.lastToastMessage = message
+    this.lastToastAt = now
     const toast = document.createElement('div')
     toast.className = 'toast'
     toast.textContent = message
     root.appendChild(toast)
-    window.setTimeout(() => toast.remove(), 2800)
+    window.setTimeout(() => toast.remove(), priority === 'important' ? 3400 : 2200)
   }
+
+  private lastToastAt = 0
+  private lastToastMessage = ''
+  private toastWindowStart = 0
+  private toastWindowCount = 0
 
   showAchievementToast(emoji: string, name: string, reward: string): void {
     const toast = document.createElement('div')

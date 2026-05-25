@@ -1,28 +1,39 @@
+import { calendarMonthKey } from './dateUtils'
+
+export type SeasonTrack = 'free' | 'premium'
+
 export interface SeasonState {
   weekKey: string
   xp: number
   claimedTiers: number[]
+  claimedPremiumTiers: number[]
+  premiumUnlocked: boolean
   adXpDoubled: boolean
 }
 
 export const SEASON_MAX_TIER = 30
 
-export function seasonWeekKey(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-W${Math.ceil((d.getDate() + new Date(d.getFullYear(), d.getMonth(), 1).getDay()) / 7)}`
+export function seasonWeekKey(_gameTimeMs = 0): string {
+  return calendarMonthKey()
 }
 
-export function createSeasonState(): SeasonState {
+export function isLegacyGameSeasonKey(key: string): boolean {
+  return key.startsWith('gs')
+}
+
+export function createSeasonState(gameTimeMs = 0): SeasonState {
   return {
-    weekKey: seasonWeekKey(),
+    weekKey: seasonWeekKey(gameTimeMs),
     xp: 0,
     claimedTiers: [],
+    claimedPremiumTiers: [],
+    premiumUnlocked: false,
     adXpDoubled: false,
   }
 }
 
 export function xpForTier(tier: number): number {
-  return tier * tier * 80
+  return tier * tier * 150
 }
 
 export function currentTier(xp: number): number {
@@ -49,7 +60,7 @@ export function tierProgress(xp: number): { tier: number; current: number; neede
 
 export interface SeasonReward {
   tier: number
-  type: 'money' | 'boost' | 'theme'
+  type: 'money' | 'boost' | 'theme' | 'chest_ticket'
   label: string
   value: number
 }
@@ -58,17 +69,32 @@ export const SEASON_REWARDS: SeasonReward[] = Array.from({ length: SEASON_MAX_TI
   const tier = i + 1
   if (tier % 10 === 0) return { tier, type: 'theme', label: 'Kozmetik Tema', value: tier }
   if (tier % 5 === 0) return { tier, type: 'boost', label: '5 dk x2 Gelir', value: 5 }
-  return { tier, type: 'money', label: 'Para Ödülü', value: tier * 500 }
+  return { tier, type: 'money', label: 'Para Ödülü', value: tier * 120 }
 })
 
-export function rewardForTier(tier: number): SeasonReward {
-  return SEASON_REWARDS[tier - 1] ?? { tier, type: 'money', label: 'Para', value: tier * 500 }
+export const SEASON_PREMIUM_REWARDS: SeasonReward[] = Array.from({ length: SEASON_MAX_TIER }, (_, i) => {
+  const tier = i + 1
+  if (tier % 10 === 0) return { tier, type: 'theme', label: 'Premium Tema', value: tier + 100 }
+  if (tier % 5 === 0) return { tier, type: 'boost', label: '10 dk x2 Gelir', value: 10 }
+  if (tier % 7 === 0) return { tier, type: 'chest_ticket', label: 'Sandık Bileti', value: 1 }
+  return { tier, type: 'money', label: 'Premium Para', value: tier * 280 }
+})
+
+export function rewardForTier(tier: number, track: SeasonTrack = 'free'): SeasonReward {
+  const list = track === 'premium' ? SEASON_PREMIUM_REWARDS : SEASON_REWARDS
+  return list[tier - 1] ?? { tier, type: 'money', label: 'Para', value: tier * (track === 'premium' ? 280 : 120) }
 }
 
-export function hasClaimableTier(state: SeasonState): boolean {
+export function hasClaimableTier(state: SeasonState, track: SeasonTrack = 'free'): boolean {
   const tier = currentTier(state.xp)
+  const claimed = track === 'premium' ? state.claimedPremiumTiers : state.claimedTiers
+  if (track === 'premium' && !state.premiumUnlocked) return false
   for (let i = 1; i <= tier; i++) {
-    if (!state.claimedTiers.includes(i)) return true
+    if (!claimed.includes(i)) return true
   }
   return false
+}
+
+export function hasClaimableSeasonReward(state: SeasonState): boolean {
+  return hasClaimableTier(state, 'free') || hasClaimableTier(state, 'premium')
 }

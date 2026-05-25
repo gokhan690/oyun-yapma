@@ -8,6 +8,11 @@ export type RewardedAdType =
   | 'stock_hint'
   | 'manager_discount'
   | 'season_xp'
+  | 'heat_shield'
+  | 'shop_boost_15m'
+  | 'upgrade_discount'
+  | 'golden_event'
+  | 'bankruptcy_recovery'
 
 export interface AdRewardResult {
   success: boolean
@@ -22,8 +27,9 @@ export interface IAdProvider {
   hideBanner(): void
 }
 
-const REWARDED_COOLDOWN_MS = 30_000
-const DAILY_REWARDED_LIMIT = 20
+/** Orta reklam sıklığı — ödüllü reklamlar arası minimum bekleme */
+const REWARDED_COOLDOWN_MS = 90_000
+const DAILY_REWARDED_LIMIT = 18
 const INTERSTITIAL_COOLDOWN_MS = 5 * 60_000
 const MAX_INTERSTITIALS_PER_SESSION = 8
 

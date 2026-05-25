@@ -47,12 +47,80 @@ export const SYNERGIES: SynergyDef[] = [
     bonus: 0.3,
   },
   {
-    id: 'ipo_uydu',
-    name: 'Uzay Finans',
-    requires: ['tuzaq', 'uydu'],
+    id: 'medya_siyaset',
+    name: 'Medya Etkisi',
+    requires: ['medya', 'siyaset_belediye'],
     effect: 'producer',
-    targetProducer: 'uydu',
+    targetProducer: 'siyaset_belediye',
+    bonus: 0.2,
+  },
+  {
+    id: 'futbol_medya',
+    name: 'Spor Medyası',
+    requires: ['futbol_superlig', 'medya'],
+    effect: 'producer',
+    targetProducer: 'futbol_superlig',
+    bonus: 0.25,
+  },
+  {
+    id: 'siyah_lojistik',
+    name: 'Gizli Tedarik',
+    requires: ['siyah_fabrika', 'fabrika'],
+    effect: 'producer',
+    targetProducer: 'siyah_fabrika',
+    bonus: 0.2,
+  },
+  {
+    id: 'otel_turizm',
+    name: 'Turizm Zinciri',
+    requires: ['otel', 'futbol_amateur'],
+    effect: 'global',
+    bonus: 0.15,
+  },
+  {
+    id: 'luxury_yacht_jet',
+    name: 'Ultra Mobilite',
+    requires: ['yacht_filo', 'jet_filo'],
+    effect: 'producer',
+    targetProducer: 'yacht_filo',
     bonus: 0.3,
+  },
+  {
+    id: 'finance_pe_hedge',
+    name: 'Wall Street Combo',
+    requires: ['hedge_fund', 'private_equity'],
+    effect: 'global',
+    bonus: 0.25,
+  },
+  {
+    id: 'science_fusion_mars',
+    name: 'Yıldızlararası Plan',
+    requires: ['fuzyon', 'mars'],
+    effect: 'producer',
+    targetProducer: 'mars',
+    bonus: 0.35,
+  },
+  {
+    id: 'havayolu_liman',
+    name: 'Lojistik Koridoru',
+    requires: ['havayolu', 'liman'],
+    effect: 'producer',
+    targetProducer: 'liman',
+    bonus: 0.2,
+  },
+  {
+    id: 'medya_streaming',
+    name: 'İçerik İmparatorluğu',
+    requires: ['medya', 'streaming'],
+    effect: 'global',
+    bonus: 0.18,
+  },
+  {
+    id: 'uzay_chain',
+    name: 'Orbital Ekonomi',
+    requires: ['uzay_turizmi', 'uzay_istasyonu'],
+    effect: 'global',
+    bonus: 0.4,
   },
 ]
 
@@ -68,6 +136,24 @@ export function getActiveSynergies(
     def,
     active: def.requires.every((id) => (producers[id] ?? 0) > 0),
   }))
+}
+
+export interface NearSynergy {
+  def: SynergyDef
+  owned: string[]
+  missing: string[]
+}
+
+/** Bir parça eksik sinerjiler — önizleme için */
+export function getNearSynergies(producers: Record<string, number>): NearSynergy[] {
+  const result: NearSynergy[] = []
+  for (const def of SYNERGIES) {
+    const owned = def.requires.filter((id) => (producers[id] ?? 0) > 0)
+    const missing = def.requires.filter((id) => (producers[id] ?? 0) <= 0)
+    if (owned.length === 0 || missing.length === 0 || missing.length > 1) continue
+    result.push({ def, owned, missing })
+  }
+  return result
 }
 
 export function globalSynergyBonus(producers: Record<string, number>): number {
