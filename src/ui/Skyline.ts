@@ -48,6 +48,8 @@ export class Skyline {
   private gameTimeMs = 0
   private parallaxRaf: number | null = null
   private prevProducerIds = new Set<string>()
+  /** producerId → satır başına koyu pencere indexleri (sabit, titreme yok) */
+  private windowCache = new Map<string, boolean[][]>()
   private hillsEl: HTMLElement
   private moonEl: HTMLElement
 
@@ -167,17 +169,26 @@ export class Skyline {
       shade.className = 'skyline-shade'
       tower.appendChild(shade)
 
-      // Windows — vary lit/unlit
+      // Windows — vary lit/unlit (cache'li, titreme yok)
       const windows = document.createElement('div')
       windows.className = 'skyline-windows'
       const cols = bldWidth >= 46 ? 4 : 3
       const rowCount = Math.max(2, Math.floor((height - 14) / 16))
+      if (!this.windowCache.has(b.producerId)) {
+        const rows: boolean[][] = []
+        for (let r = 0; r < rowCount; r++) {
+          rows.push(Array.from({ length: cols }, () => Math.random() < 0.28))
+        }
+        this.windowCache.set(b.producerId, rows)
+      }
+      const cachedRows = this.windowCache.get(b.producerId)!
       for (let r = 0; r < rowCount; r++) {
         const row = document.createElement('div')
         row.className = 'skyline-window-row'
+        const rowData = cachedRows[r] ?? []
         for (let c = 0; c < cols; c++) {
           const w = document.createElement('span')
-          if (Math.random() < 0.28) w.className = 'win-dark'
+          if (rowData[c]) w.className = 'win-dark'
           row.appendChild(w)
         }
         windows.appendChild(row)

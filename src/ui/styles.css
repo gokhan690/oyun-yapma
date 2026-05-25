@@ -5315,10 +5315,16 @@ html.theme-galactic {
 
 .biz-franchise-block {
   margin-top: 10px;
-  padding: 10px;
+  padding: 8px;
   border-radius: 10px;
   background: rgba(59, 130, 246, 0.08);
   border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+/* Franchise veya modernize butonu olan kart → tam satır kaplasın */
+.tier-band-body .biz-hero-card:has(.biz-franchise-block),
+.tier-band-body .biz-hero-card:has(.biz-modernize-btn) {
+  grid-column: 1 / -1;
 }
 .biz-franchise-title {
   display: flex;
@@ -5685,9 +5691,10 @@ html.theme-galactic {
 /* Skyline v2 — CSS kuleler (dekoratif, tıklamayı engellemez) */
 .skyline-buildings {
   pointer-events: none;
-  overflow: hidden;
+  overflow: visible;
   gap: 4px;
   min-height: 120px;
+  padding-top: 28px;
   padding-bottom: 2px;
 }
 
