@@ -482,7 +482,29 @@ export class EventsPanel {
       `T${prog.tier}`,
       `${prog.current} / ${prog.needed} XP · Para kazanınca XP gelir`,
     ))
-    wrap.appendChild(this.progressBar(prog.pct))
+
+    // Prominent progress bar with tier/30 label
+    const progWrap = document.createElement('div')
+    progWrap.className = 'season-progress-prominent'
+    const progLabel = document.createElement('div')
+    progLabel.className = 'season-progress-label'
+    progLabel.innerHTML = `<span>Tier <strong>${prog.tier}</strong> / ${SEASON_MAX_TIER}</span><span>${prog.current} / ${prog.needed} XP</span>`
+    const progStrip = document.createElement('div')
+    progStrip.className = 'season-progress-strip'
+    const progFill = document.createElement('div')
+    progFill.className = 'season-progress-strip-fill'
+    progFill.style.width = `${Math.min(100, (prog.tier / SEASON_MAX_TIER) * 100).toFixed(1)}%`
+    progStrip.appendChild(progFill)
+    progWrap.append(progLabel, progStrip)
+    wrap.appendChild(progWrap)
+
+    // Season ending warning
+    if (tier >= 28) {
+      const warning = document.createElement('div')
+      warning.className = 'season-ending-warning'
+      warning.textContent = `⏰ Sezon sona yaklaşıyor! Son ${SEASON_MAX_TIER - tier} tier kaldı`
+      wrap.appendChild(warning)
+    }
 
     if (!state.season.premiumUnlocked) {
       const premiumCta = document.createElement('div')
@@ -538,12 +560,13 @@ export class EventsPanel {
     const locked = track === 'premium' && !state.season.premiumUnlocked
     for (let i = 1; i <= Math.min(SEASON_MAX_TIER, tier + 3); i++) {
       const node = document.createElement('div')
-      node.className = 'season-node'
+      const isBigReward = i % 5 === 0
+      node.className = `season-node${isBigReward ? ' season-node-big' : ''}`
       if (i <= tier) node.classList.add('unlocked')
       if (claimed.includes(i)) node.classList.add('claimed')
       if (locked) node.classList.add('locked')
       const rw = rewardForTier(i, track)
-      node.innerHTML = `<span class="season-node-tier">${i}</span><small>${rw.label}</small>`
+      node.innerHTML = `${isBigReward ? '<span class="season-big-badge">⭐ BÜYÜK ÖDÜL</span>' : ''}<span class="season-node-tier">${i}</span><small>${rw.label}</small>`
       if (i <= tier && !claimed.includes(i) && !locked) {
         const claim = document.createElement('button')
         claim.type = 'button'

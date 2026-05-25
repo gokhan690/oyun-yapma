@@ -2346,25 +2346,47 @@ export class ShopPanel {
     btn.disabled = !state.prestigeEligible()
 
     // IPO Önizleme kartı (Adım 8)
-    if (preview.pointsToEarn > 0) {
+    {
       const previewCard = document.createElement('div')
       previewCard.className = 'ipo-preview-card'
+
       const previewTitle = document.createElement('div')
-      previewTitle.style.cssText = 'font-size:0.8rem;font-weight:800;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em'
-      previewTitle.textContent = '📊 IPO Önizlemesi'
-      const rows: [string, string][] = [
-        ['Şu an kazanacağın hisse', `+${preview.pointsToEarn} ✦`],
-        ['Yeni kalıcı çarpan', `x${currentMult.toFixed(2)} → x${preview.newMultiplier.toFixed(2)}`],
-        ['Portföy nakde çevrilecek', formatMoney(preview.portfolioValue)],
-        ['Başlangıç sermayesi', formatMoney(preview.startingCash)],
-      ]
+      previewTitle.className = 'ipo-preview-title'
+      previewTitle.textContent = 'Bu IPO\'dan kazanacakların:'
       previewCard.appendChild(previewTitle)
-      for (const [label, val] of rows) {
+
+      const gainRows: [string, string][] = preview.pointsToEarn > 0
+        ? [
+            ['Prestij hissesi', `+${preview.pointsToEarn} ✦`],
+            ['Yeni kalıcı çarpan', `x${currentMult.toFixed(2)} → x${preview.newMultiplier.toFixed(2)}`],
+            ['Başlangıç sermayesi', `₺${formatMoney(preview.startingCash)}`],
+          ]
+        : [['Başlangıç sermayesi', `₺${formatMoney(preview.startingCash)}`]]
+      for (const [label, val] of gainRows) {
         const row = document.createElement('div')
-        row.className = 'ipo-preview-row'
+        row.className = 'ipo-preview-row ipo-preview-gain'
         row.innerHTML = `<span>${label}</span><strong>${val}</strong>`
         previewCard.appendChild(row)
       }
+
+      const loseTitle = document.createElement('div')
+      loseTitle.className = 'ipo-preview-subtitle'
+      loseTitle.textContent = 'Kaybedeceklerin:'
+      previewCard.appendChild(loseTitle)
+      const loseRow = document.createElement('div')
+      loseRow.className = 'ipo-preview-row ipo-preview-lose'
+      loseRow.innerHTML = '<span>Para, işletmeler (yöneticiler korunur)</span>'
+      previewCard.appendChild(loseRow)
+
+      const keepTitle = document.createElement('div')
+      keepTitle.className = 'ipo-preview-subtitle'
+      keepTitle.textContent = 'Koruyacakların:'
+      previewCard.appendChild(keepTitle)
+      const keepRow = document.createElement('div')
+      keepRow.className = 'ipo-preview-row ipo-preview-keep'
+      keepRow.innerHTML = '<span>Araştırma, prestij ağacı bonusları</span>'
+      previewCard.appendChild(keepRow)
+
       ipoCard.appendChild(previewCard)
     }
 

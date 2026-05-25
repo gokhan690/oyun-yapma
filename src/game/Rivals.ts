@@ -14,7 +14,7 @@ export type BusinessSector =
 
 export type RivalPersonality = 'aggressive' | 'conservative' | 'shadow' | 'media'
 
-export type RivalRelation = 'neutral' | 'hostile' | 'allied' | 'merged'
+export type RivalRelation = 'neutral' | 'hostile' | 'allied' | 'merged' | 'bankrupt'
 
 export interface RivalFamilyState {
   id: string

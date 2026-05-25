@@ -591,17 +591,43 @@ export class StatsScreen {
       const playerWorth = this.state.financeNetWorth()
       const diff = rs.netWorth - playerWorth
       const threatLevel = diff > 2_000_000 ? 'high' : diff > 0 ? 'med' : 'low'
+      const threatPct = Math.min(100, Math.max(0, 50 + (diff / Math.max(1, playerWorth)) * 50))
       const card = document.createElement('div')
       card.className = `rival-card threat-${threatLevel}`
-      const threat = threatLevel === 'high' ? 'Tehlikeli' : threatLevel === 'med' ? 'Rekabetçi' : 'Geride'
+
+      // Relation badges
+      const relationBadge = rs.relation === 'merged'
+        ? '<span class="rival-relation-badge merged">🤝 Birleşme</span>'
+        : rs.relation === 'bankrupt'
+          ? '<span class="rival-relation-badge bankrupt">💀 İflas</span>'
+          : ''
+
+      // NetWorth warning badge
+      const aheadBadge = rs.netWorth > playerWorth
+        ? '<span class="rival-ahead-badge">⚠️</span>'
+        : ''
+
+      const sectorTags = def.sectorFocus
+        .map(s => `<span class="rival-sector-tag">${s}</span>`)
+        .join('')
+
       card.innerHTML = `
-        <span class="rival-emoji">${def.emoji}</span>
+        <span class="rival-emoji">🏦</span>
         <div class="rival-info">
-          <div class="rival-name">${def.name}</div>
-          <div class="rival-sector">${def.sectorFocus.join(' · ')}</div>
+          <div class="rival-name-row">
+            <span class="rival-name">${def.name}</span>
+            ${relationBadge}
+            ${aheadBadge}
+          </div>
           <div class="rival-worth">💰 ${formatMoney(rs.netWorth)}</div>
+          <div class="rival-sector-tags">${sectorTags}</div>
+          <div class="rival-threat-bar-wrap">
+            <div class="rival-threat-bar">
+              <div class="rival-threat-bar-fill threat-${threatLevel}" style="width:${threatPct.toFixed(0)}%"></div>
+            </div>
+            <span class="rival-threat-label">${threatLevel === 'high' ? 'Tehlikeli' : threatLevel === 'med' ? 'Rekabetçi' : 'Geride'}</span>
+          </div>
         </div>
-        <span class="rival-threat-badge ${threatLevel}">${threat}</span>
       `
       panel.appendChild(card)
     }
