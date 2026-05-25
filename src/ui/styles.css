@@ -2975,34 +2975,35 @@ button.shop-card {
 .session-passive { color: var(--green); font-size: 1.1rem; }
 
 @media (max-width: 640px) {
+  /* Mobilde shop da desktop gibi kendi içinde scroll eder */
   .game-main.shop-scroll-lock {
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+    overflow: hidden;
   }
   .shop-panel:not([hidden]) {
-    flex: none;
-    min-height: auto;
-    overflow: visible;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
   .shop-chrome {
     position: sticky;
     top: 0;
     z-index: 6;
+    flex-shrink: 0;
   }
   .shop-body {
-    flex: none;
-    min-height: auto;
-    overflow: visible;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
   .shop-panel .tab-panel {
-    flex: none;
-    min-height: auto;
-    overflow: visible;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
   .shop-context-business .shop-body .tab-panel[data-panel="businesses"] {
-    min-height: auto;
-    padding-bottom: calc(var(--nav-h) + var(--ad-h) + 48px);
+    padding-bottom: calc(var(--nav-h, 64px) + var(--ad-h, 0px) + 32px);
   }
   .session-panel {
     padding: 8px 10px;
