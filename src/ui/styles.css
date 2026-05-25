@@ -96,6 +96,27 @@ body {
   gap: 8px;
 }
 
+.header-profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.header-profile-btn:active { transform: scale(0.98); }
+.header-profile-emoji { font-size: 1.2rem; line-height: 1; }
+.header-profile-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .icon-btn,
 .btn-daily,
 .btn-pause {
@@ -200,7 +221,9 @@ body {
 
 .tap-wrap {
   position: relative;
-  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  min-height: 260px;
   border-radius: var(--radius-lg, 24px);
   overflow: hidden;
   border: 1px solid rgba(251, 191, 36, 0.35);
@@ -229,7 +252,7 @@ html.theme-night .tap-wrap {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
 }
 
 .skyline-sky {
@@ -240,7 +263,7 @@ html.theme-night .tap-wrap {
 
 .skyline-buildings {
   position: absolute;
-  bottom: 28px;
+  bottom: 52px;
   left: 0;
   right: 0;
   display: flex;
@@ -248,6 +271,7 @@ html.theme-night .tap-wrap {
   justify-content: center;
   gap: 4px;
   padding: 0 8px;
+  min-height: 72px;
 }
 
 .skyline-building {
@@ -289,9 +313,10 @@ html.theme-night .tap-wrap {
 
 .tap-area {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   width: 100%;
-  min-height: 220px;
+  flex: 1;
+  min-height: 160px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -5458,7 +5483,7 @@ html.theme-galactic {
 .skyline-stage-endgame .skyline-buildings { filter: saturate(1.35) brightness(1.12); }
 .skyline-building-new { animation: buildingRise 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
 .skyline-building { cursor: pointer; border: none; background: transparent; padding: 0; }
-.skyline-placeholder { font-size: 2rem; opacity: 0.4; align-self: flex-end; }
+.skyline-placeholder { font-size: 1.6rem; opacity: 0.75; align-self: flex-end; }
 @keyframes buildingRise { from { transform: translateY(100%) scaleY(0); opacity: 0; } to { transform: none; opacity: 1; } }
 .skyline-night .skyline-building { box-shadow: 0 0 8px rgba(251, 191, 36, 0.25); }
 
@@ -5516,8 +5541,24 @@ html.theme-galactic {
 .baron-subnav-btn { flex: 1; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 10px; padding: 10px; font-size: 0.85rem; }
 .baron-subnav-btn.active { background: var(--accent); color: #111; border-color: transparent; font-weight: 600; }
 .baron-view .events-panel, .baron-view .stats-embedded { flex: 1; overflow: auto; position: relative; inset: auto; transform: none; max-height: none; }
-.slide-panel.stats-embedded { position: relative; transform: none; width: 100%; max-width: none; height: auto; border-radius: 0; box-shadow: none; background: transparent; }
-.slide-panel.stats-embedded .panel-header { position: sticky; top: 0; z-index: 2; }
+.slide-panel.stats-embedded {
+  display: flex !important;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  pointer-events: auto;
+  position: relative;
+  transform: none;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  border: none;
+}
+.slide-panel.stats-embedded[hidden] { display: none !important; }
+.slide-panel.stats-embedded .panel-header { position: sticky; top: 0; z-index: 2; background: var(--surface); }
 
 .era-strip { padding: 8px 12px 0; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
 .era-year { font-weight: 700; color: var(--accent); }
@@ -5624,9 +5665,14 @@ html.theme-galactic {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  opacity: 0.5;
+  opacity: 0.75;
   align-self: flex-end;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.72rem;
+  text-align: center;
+  padding-bottom: 4px;
 }
+.skyline-placeholder span { font-size: 1.6rem; }
 
 .skyline-night .skyline-window-row span {
   background: rgba(253, 224, 71, 0.95);

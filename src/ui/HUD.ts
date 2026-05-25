@@ -59,6 +59,7 @@ export class HUD {
   private sessionComboMult!: HTMLElement
   private sessionPassiveIncome!: HTMLElement
   private progressPathWidget!: HTMLElement
+  private profileQuickBtn!: HTMLButtonElement
   private eraStrip!: HTMLElement
   private cityStrip!: HTMLElement
   private baronView!: HTMLElement
@@ -254,7 +255,12 @@ export class HUD {
     titleRow.append(title, actions)
     this.progressPathWidget = document.createElement('div')
     this.progressPathWidget.className = 'progress-path-widget'
-    header.append(titleRow, this.progressPathWidget, this.statsBar.root)
+    this.profileQuickBtn = document.createElement('button')
+    this.profileQuickBtn.type = 'button'
+    this.profileQuickBtn.className = 'header-profile-btn'
+    this.profileQuickBtn.dataset.action = 'open-profile'
+    this.profileQuickBtn.title = 'Baron profili'
+    header.append(titleRow, this.profileQuickBtn, this.progressPathWidget, this.statsBar.root)
 
     const main = document.createElement('main')
     main.className = 'game-main'
@@ -431,7 +437,7 @@ export class HUD {
     this.baronView.hidden = true
     const baronSubNav = document.createElement('div')
     baronSubNav.className = 'baron-subnav'
-    for (const [id, label] of [['dynasty', '👑 Hanedan'], ['events', '🎪 Etkinlik']] as const) {
+    for (const [id, label] of [['dynasty', '📊 Profil'], ['events', '🎪 Etkinlik']] as const) {
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = `baron-subnav-btn${id === 'dynasty' ? ' active' : ''}`
@@ -499,12 +505,21 @@ export class HUD {
   private syncBaronTab(): void {
     const isEvents = this.baronSubTab === 'events'
     this.eventsPanel.root.hidden = !isEvents
-    this.statsScreen.setEmbeddedVisible(!isEvents)
+    if (isEvents) {
+      this.statsScreen.hide()
+      this.eventsPanel.render(this.state)
+    } else {
+      this.statsScreen.show()
+    }
     this.baronView.querySelectorAll('.baron-subnav-btn').forEach((el) => {
       el.classList.toggle('active', (el as HTMLElement).dataset.id === this.baronSubTab)
     })
-    if (isEvents) this.eventsPanel.render(this.state)
-    else this.statsScreen.render()
+  }
+
+  private renderProfileQuickBtn(): void {
+    const name = this.state.playerName.trim() || 'Baron'
+    const title = this.state.playerTitle()
+    this.profileQuickBtn.innerHTML = `<span class="header-profile-emoji">${title.emoji}</span><span class="header-profile-text">${name}</span>`
   }
 
   private updateNavBadges(): void {
@@ -1050,6 +1065,8 @@ export class HUD {
         }
         break
       case 'open-stats':
+      case 'open-profile':
+        this.baronSubTab = 'dynasty'
         this.setView('profile')
         break
       case 'open-settings':
@@ -2617,6 +2634,7 @@ export class HUD {
     applyDocumentTheme(this.state.activeTheme)
     this.root.classList.toggle('owner-session-active', isOwnerSession())
     this.statsBar.render()
+    this.renderProfileQuickBtn()
     this.renderSessionPanel()
     this.renderHeatMeter()
     if (this.bottomNav.getActive() === 'shop' || this.bottomNav.getActive() === 'market') {
@@ -2626,7 +2644,9 @@ export class HUD {
     }
     this.refreshSkyline()
     this.goalsSheet.render(this.state)
-    if (this.baronShowsEvents()) {
+    if (this.bottomNav.getActive() === 'profile') {
+      this.syncBaronTab()
+    } else if (this.baronShowsEvents()) {
       this.eventsPanel.render(this.state)
     }
     this.renderMarketNewsBanner()

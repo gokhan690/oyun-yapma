@@ -474,11 +474,10 @@ export class StatsScreen {
     this.embedded = true
     this.layer.classList.add('stats-embedded')
     parent.appendChild(this.layer)
+    const title = this.layer.querySelector('.panel-header h2')
+    if (title) title.textContent = 'Baron Profili'
     const close = this.layer.querySelector('[data-action="nav-view"]') as HTMLButtonElement | null
-    if (close) {
-      close.dataset.action = 'nav-view'
-      close.dataset.id = 'earn'
-    }
+    if (close) close.hidden = true
   }
 
   setEmbeddedVisible(visible: boolean): void {
