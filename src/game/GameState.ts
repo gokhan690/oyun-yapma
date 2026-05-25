@@ -283,6 +283,31 @@ import {
 } from './UndergroundMarket'
 import { rollAdvisorTip, ADVISOR_FEE, type AdvisorTip } from './AdvisorNPC'
 import type { RivalAllianceOffer } from './Rivals'
+import {
+  createLifestyleState,
+  lifestyleMonthlyExpense,
+  lifestyleVehicleIncomeMult,
+  stressIncomePenalty,
+  dailyStressDelta,
+  RESIDENCES,
+  VEHICLES,
+  PETS,
+  WELLBEING_ACTIVITIES,
+  type LifestyleState,
+  type ResidenceId,
+  type VehicleId,
+  type PetId,
+  type WellbeingActivityId,
+} from './Lifestyle'
+import {
+  LIFE_EVENTS,
+  shouldTriggerLifeEvent,
+  resolveConsequence,
+  type ActiveLifeEvent,
+  type PendingConsequence,
+  type LifeEventId,
+  type LifeEventDef,
+} from './LifeEvents'
 import { buildBaronRecord, dynastyHistorySummary, type BaronRecord, type BaronLifeSnapshot } from './BaronLegacy'
 import {
   createCityState,
@@ -452,6 +477,11 @@ export interface SerializableState {
   producerModernized?: Record<string, boolean>
   pendingUndo?: PendingUndo | null
   lastDisasterGameDay?: number
+  lifestyle?: LifestyleState
+  lifeEvents?: ActiveLifeEvent[]
+  pendingConsequences?: PendingConsequence[]
+  removeAdsOwned?: boolean
+  vipPassActive?: boolean
 }
 
 export interface ProducerBreakdown {
@@ -534,6 +564,8 @@ export type GameEvent =
   | { type: 'player_title'; title: PlayerTitleDef }
   | { type: 'calendar_event'; headline: string; emoji: string }
   | { type: 'skyline_building_click'; producerId: string; income: number; name: string }
+  | { type: 'life_event_triggered'; eventDef: LifeEventDef }
+  | { type: 'life_event_consequence'; headline: string; moneyDelta: number }
 
 const MILESTONE_THRESHOLDS = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
 const CRIT_CHANCE = 0.1
@@ -603,6 +635,11 @@ export class GameState {
   nightEarningsSession = 0
   hapticsEnabled = true
   reducedMotion = false
+  removeAdsOwned = false
+  vipPassActive = false
+  lifestyle = createLifestyleState()
+  lifeEvents: ActiveLifeEvent[] = []
+  pendingConsequences: PendingConsequence[] = []
   difficulty: 'easy' | 'normal' | 'hard' = 'normal'
   isNight = isGameNight(0)
   playerName = 'Baron'
@@ -1317,6 +1354,10 @@ export class GameState {
     return Math.floor(this.offlineCapMs() / MS_PER_GAME_DAY)
   }
 
+  vipPassIncomeBonus(): number {
+    return this.vipPassActive ? 1.25 : 1
+  }
+
   globalMultiplier(): number {
     let mult = prestigeMultiplier(this.prestigePoints) * (1 + prestigeMultBonus(this.prestigeTree))
     for (const id of this.purchasedUpgrades) {
@@ -1350,6 +1391,9 @@ export class GameState {
       const def = undergroundActionDef(act)
       if (def.incomeMult) mult *= 1 + def.incomeMult
     }
+    mult *= this.vipPassIncomeBonus()
+    mult *= stressIncomePenalty(this.lifestyle.stress, this.lifestyle.burnoutDays)
+    mult *= lifestyleVehicleIncomeMult(this.lifestyle)
     return mult
   }
 
@@ -3489,6 +3533,8 @@ export class GameState {
   private tickMetaSystems(): void {
     const day = gameDay(this.gameTimeMs)
     this.tickCalendarEvents()
+    this.tickLifestyle(day)
+    this.tickLifeEvents(day)
     this.tickInsurance(day)
     this.tickCommodities()
     this.tickInvestmentOffers(day)
@@ -3510,6 +3556,134 @@ export class GameState {
         'player',
       )
     }
+  }
+
+  private lastLifestyleTickDay = 0
+  private tickLifestyle(day: number): void {
+    if (day === this.lastLifestyleTickDay) return
+    this.lastLifestyleTickDay = day
+    const ls = this.lifestyle
+    const activeBiz = Object.values(this.producers).filter((c) => c > 0).length
+    const delta = dailyStressDelta(ls, activeBiz, this.illegalHeat, day)
+    ls.stress = Math.max(0, Math.min(100, ls.stress + delta))
+    if (ls.stress >= 80) {
+      ls.burnoutDays += 1
+    } else {
+      ls.burnoutDays = Math.max(0, ls.burnoutDays - 1)
+    }
+    if (day % 30 === 0 && day > 0) {
+      const expense = lifestyleMonthlyExpense(ls)
+      if (expense > 0 && this.money >= expense) {
+        this.money -= expense
+        this.emit({ type: 'money_changed' })
+      }
+    }
+  }
+
+  private lastLifeEventTickDay = 0
+  private tickLifeEvents(day: number): void {
+    if (day === this.lastLifeEventTickDay) return
+    this.lastLifeEventTickDay = day
+    const pending = this.pendingConsequences.filter((c) => c.triggerGameDay <= day)
+    for (const pc of pending) {
+      const result = resolveConsequence(pc.consequenceId, pc.eventId)
+      if (result.moneyDelta !== 0) {
+        this.money += result.moneyDelta
+        this.emit({ type: 'money_changed' })
+      }
+      if (result.reputationDelta !== 0) {
+        this.reputation = Math.max(0, Math.min(100, this.reputation + result.reputationDelta))
+      }
+      this.addGazette(result.headline, result.moneyDelta < 0 ? 'crisis' : 'player')
+      this.emit({ type: 'life_event_consequence', headline: result.headline, moneyDelta: result.moneyDelta })
+    }
+    this.pendingConsequences = this.pendingConsequences.filter((c) => c.triggerGameDay > day)
+    if (this.pendingConsequences.length === 0) {
+      for (const def of LIFE_EVENTS) {
+        if (shouldTriggerLifeEvent(this.lifeEvents, def, day, this.totalEarned)) {
+          this.lifeEvents.push({ eventId: def.id, seenAtGameDay: day })
+          this.emit({ type: 'life_event_triggered', eventDef: def })
+          break
+        }
+      }
+    }
+  }
+
+  resolveLifeEventChoice(eventId: LifeEventId, choiceId: string): void {
+    const def = LIFE_EVENTS.find((e) => e.id === eventId)
+    if (!def) return
+    const choice = def.choices.find((c) => c.id === choiceId)
+    if (!choice) return
+    if (choice.moneyDelta !== 0) {
+      this.money += choice.moneyDelta
+      this.emit({ type: 'money_changed' })
+    }
+    if (choice.reputationDelta !== 0) {
+      this.reputation = Math.max(0, Math.min(100, this.reputation + choice.reputationDelta))
+    }
+    if (choice.stressDelta !== 0) {
+      this.lifestyle.stress = Math.max(0, Math.min(100, this.lifestyle.stress + choice.stressDelta))
+    }
+    if (choice.consequenceId && choice.consequenceDelayDays) {
+      const currentDay = gameDay(this.gameTimeMs)
+      this.pendingConsequences.push({
+        id: `${eventId}_${choiceId}_${currentDay}`,
+        triggerGameDay: currentDay + choice.consequenceDelayDays,
+        eventId,
+        choiceId,
+        consequenceId: choice.consequenceId,
+      })
+    }
+  }
+
+  buyResidence(id: ResidenceId): boolean {
+    const res = RESIDENCES.find((r) => r.id === id)
+    if (!res) return false
+    if (res.buyCost > 0 && !this.canAfford(res.buyCost)) return false
+    if (res.buyCost > 0) {
+      this.money -= res.buyCost
+      this.emit({ type: 'money_changed' })
+    }
+    this.lifestyle.residence = id
+    return true
+  }
+
+  buyVehicle(id: VehicleId): boolean {
+    const veh = VEHICLES.find((v) => v.id === id)
+    if (!veh) return false
+    if (veh.buyCost > 0 && !this.canAfford(veh.buyCost)) return false
+    if (veh.buyCost > 0) {
+      this.money -= veh.buyCost
+      this.emit({ type: 'money_changed' })
+    }
+    this.lifestyle.vehicle = id
+    return true
+  }
+
+  buyPet(id: PetId): boolean {
+    const pet = PETS.find((p) => p.id === id)
+    if (!pet) return false
+    if (!this.canAfford(pet.buyCost)) return false
+    this.money -= pet.buyCost
+    this.emit({ type: 'money_changed' })
+    if (!this.lifestyle.pets.includes(id)) this.lifestyle.pets.push(id)
+    return true
+  }
+
+  buyWellbeing(id: WellbeingActivityId): boolean {
+    const act = WELLBEING_ACTIVITIES.find((a) => a.id === id)
+    if (!act) return false
+    if (!this.canAfford(act.cost)) return false
+    this.money -= act.cost
+    this.emit({ type: 'money_changed' })
+    this.lifestyle.stress = Math.max(0, this.lifestyle.stress - act.stressReduction)
+    const currentDay = gameDay(this.gameTimeMs)
+    if (id === 'terapi') {
+      this.lifestyle.therapyActiveUntilDay = currentDay + act.durationDays
+    } else {
+      this.lifestyle.vacationActiveUntilDay = currentDay + act.durationDays
+    }
+    return true
   }
 
   private tickCalendarEvents(): void {
@@ -4102,6 +4276,11 @@ export class GameState {
       nightEarningsSession: this.nightEarningsSession,
       hapticsEnabled: this.hapticsEnabled,
       reducedMotion: this.reducedMotion,
+      removeAdsOwned: this.removeAdsOwned,
+      vipPassActive: this.vipPassActive,
+      lifestyle: { ...this.lifestyle, pets: [...this.lifestyle.pets] },
+      lifeEvents: this.lifeEvents.map((e) => ({ ...e })),
+      pendingConsequences: this.pendingConsequences.map((c) => ({ ...c })),
       difficulty: this.difficulty,
       playerName: this.playerName,
       birthYear: this.birthYear,
@@ -4290,6 +4469,13 @@ export class GameState {
     this.nightEarningsSession = data.nightEarningsSession ?? 0
     this.hapticsEnabled = data.hapticsEnabled ?? true
     this.reducedMotion = data.reducedMotion ?? false
+    this.removeAdsOwned = data.removeAdsOwned ?? false
+    this.vipPassActive = data.vipPassActive ?? false
+    if (data.lifestyle) {
+      this.lifestyle = { ...createLifestyleState(), ...data.lifestyle, pets: [...(data.lifestyle.pets ?? [])] }
+    }
+    this.lifeEvents = data.lifeEvents ?? []
+    this.pendingConsequences = data.pendingConsequences ?? []
     this.difficulty = (['easy', 'normal', 'hard'] as const).includes(data.difficulty as 'easy' | 'normal' | 'hard')
       ? (data.difficulty as 'easy' | 'normal' | 'hard')
       : 'normal'

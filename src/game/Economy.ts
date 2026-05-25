@@ -131,6 +131,12 @@ export const PRODUCERS: ProducerDef[] = [
   { id: 'cyber_kara', name: 'Siber Suç Şebekesi', emoji: '💻', description: 'Veri ve fidye geliri.', tier: 6, unlockAt: 5_000_000, baseCost: 13_500, baseIncome: 125, costMultiplier: 1.22, illegal: true, category: 'dark', riskChance: 0.06, riskFinePct: 0.22 },
   { id: 'kripto_aklama', name: 'Kripto Aklama Hattı', emoji: '🪙', description: 'Mixer ve offshore zincir.', tier: 7, unlockAt: 25_000_000, baseCost: 26_000, baseIncome: 210, costMultiplier: 1.23, illegal: true, category: 'dark', riskChance: 0.05, riskFinePct: 0.20 },
   { id: 'veri_broker', name: 'Veri Brokerlığı', emoji: '📡', description: 'Gölge pazar istihbaratı.', tier: 8, unlockAt: 75_000_000, baseCost: 45_000, baseIncome: 315, costMultiplier: 1.22, illegal: true, category: 'dark', riskChance: 0.04, riskFinePct: 0.18 },
+  { id: 'kacak_sigara', name: 'Kaçak Sigara Kaçakçılığı', emoji: '🚬', description: 'Gümrük kaçakçılığı, kolay para ama riskli.', tier: 2, unlockAt: 6_000, baseCost: 720, baseIncome: 13, costMultiplier: 1.19, illegal: true, riskChance: 0.05, riskFinePct: 0.12 },
+  { id: 'sahte_evrak', name: 'Sahte Evrak Basımevi', emoji: '📄', description: 'Kimlik, pasaport, diploma — gizli baskı.', tier: 3, unlockAt: 38_000, baseCost: 1_350, baseIncome: 23, costMultiplier: 1.19, illegal: true, riskChance: 0.07, riskFinePct: 0.16 },
+  { id: 'gizli_kumarhane', name: 'Yeraltı Kumarhane Ağı', emoji: '🎰', description: 'VIP salonlar, yüksek bahis, yüksek risk.', tier: 4, unlockAt: 145_000, baseCost: 2_480, baseIncome: 37, costMultiplier: 1.20, illegal: true, riskChance: 0.08, riskFinePct: 0.18 },
+  { id: 'banka_dolandirici', name: 'Fintech Dolandırıcılığı', emoji: '🕵️', description: 'Sahte yatırım platformları, phishing.', tier: 4, unlockAt: 175_000, baseCost: 2_780, baseIncome: 40, costMultiplier: 1.20, illegal: true, category: 'dark', riskChance: 0.07, riskFinePct: 0.20 },
+  { id: 'organize_suc', name: 'Organize Suç Sendikası', emoji: '🦅', description: 'Haraç, koruma, kara ekonomi koordinasyonu.', tier: 5, unlockAt: 850_000, baseCost: 6_800, baseIncome: 86, costMultiplier: 1.20, illegal: true, category: 'dark', riskChance: 0.06, riskFinePct: 0.25 },
+  { id: 'paralel_banka', name: 'Gölge Bankacılık', emoji: '🏦', description: 'Kayıt dışı kredi ve sermaye.', tier: 6, unlockAt: 4_500_000, baseCost: 11_500, baseIncome: 118, costMultiplier: 1.21, illegal: true, category: 'dark', riskChance: 0.05, riskFinePct: 0.22 },
 
   // —— MEGA PROJELER (tier 12–20) — milyarder bile düşünür ——
   { id: 'uzay_turizmi', name: 'Uzay Turizmi Şirketi', emoji: '🌠', description: 'Suborbital ve lunar excursion.', tier: 12, unlockAt: 15_000_000_000, baseCost: 420_000, baseIncome: 2_120, costMultiplier: 1.22 },
@@ -268,6 +274,12 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'fulfillment_x2', name: 'Drone Teslimat', description: 'Fulfillment merkezi geliri x2', cost: 16_000, effect: 'producer_mult', value: 2, producerId: 'fulfillment', requiresProducer: 'fulfillment' },
   { id: 'online_egitim_x2', name: 'Sertifika Programı', description: 'Online eğitim geliri x2', cost: 28_000, effect: 'producer_mult', value: 2, producerId: 'online_egitim', requiresProducer: 'online_egitim' },
   { id: 'biyoteknoloji_x2', name: 'Gen Patent', description: 'Biyoteknoloji geliri x2', cost: 40_000, effect: 'producer_mult', value: 2, producerId: 'biyoteknoloji', requiresProducer: 'biyoteknoloji' },
+  { id: 'kacak_sigara_up', name: 'Özel Ağ', description: '×2 kaçakçılık geliri', cost: 12_000, effect: 'producer_mult', value: 2, producerId: 'kacak_sigara', requiresTotalEarned: 6_000 },
+  { id: 'sahte_evrak_up', name: 'İleri Baskı Teknolojisi', description: '×2 evrak geliri', cost: 45_000, effect: 'producer_mult', value: 2, producerId: 'sahte_evrak', requiresTotalEarned: 38_000 },
+  { id: 'gizli_kumarhane_up', name: 'VIP Salon Açılışı', description: '×2 kumarhane geliri', cost: 180_000, effect: 'producer_mult', value: 2, producerId: 'gizli_kumarhane', requiresTotalEarned: 145_000 },
+  { id: 'banka_dolandirici_up', name: 'Gelişmiş Phishing Kit', description: '×2 dolandırıcılık geliri', cost: 220_000, effect: 'producer_mult', value: 2, producerId: 'banka_dolandirici', requiresTotalEarned: 175_000 },
+  { id: 'organize_suc_up', name: 'Kıta Genişlemesi', description: '×2 sendika geliri', cost: 1_200_000, effect: 'producer_mult', value: 2, producerId: 'organize_suc', requiresTotalEarned: 850_000 },
+  { id: 'paralel_banka_up', name: 'Offshore İştirak', description: '×2 gölge banka geliri', cost: 6_500_000, effect: 'producer_mult', value: 2, producerId: 'paralel_banka', requiresTotalEarned: 4_500_000 },
 ]
 
 /** BitLife uyumlu ekonomi — baseIncome = günlük gelir ($), 5 sn = 1 oyun günü */
@@ -280,7 +292,7 @@ export const ECONOMY_COST_GROWTH_BONUS = 0.028
 export const ECONOMY_TIER_COST_BONUS = 0.075
 /** Gelir maliyetle aynı ölçekte — ROI korunur */
 export const ECONOMY_INCOME_SCALE = ECONOMY_COST_SCALE
-export const ECONOMY_BASE_INCOME_MULT = ECONOMY_BASE_COST_MULT
+export const ECONOMY_BASE_INCOME_MULT = ECONOMY_BASE_COST_MULT * 1.35
 export const ECONOMY_UPGRADE_COST_SCALE = 1.45
 export const EARLY_UNLOCK_COST_SCALE = 1.65
 

@@ -98,6 +98,63 @@ export class EventsPanel {
     restoreBtn.dataset.action = 'iap-restore'
     restoreBtn.textContent = '🔄 Satın almaları geri yükle (Google Play / App Store)'
     iapFooter.appendChild(restoreBtn)
+
+    const monetSection = document.createElement('section')
+    monetSection.className = 'events-block events-block-monetization'
+    const monetHead = document.createElement('div')
+    monetHead.className = 'events-block-head'
+    monetHead.innerHTML = `
+      <span class="events-hero-icon">💎</span>
+      <div class="events-hero-text">
+        <strong>Baron Premium</strong>
+        <small>Deneyimini geliştir</small>
+      </div>
+    `
+    monetSection.appendChild(monetHead)
+
+    const monetCards = document.createElement('div')
+    monetCards.className = 'events-monet-cards'
+
+    if (!state.removeAdsOwned) {
+      const noAdsCard = document.createElement('div')
+      noAdsCard.className = 'iap-value-card'
+      const noAdsProd = iapManager.getProduct('remove_ads')
+      noAdsCard.innerHTML = `
+        <strong>🚫📺 Reklamları Kaldır</strong>
+        <p>Tüm reklam banner'larından kurtul — tek seferlik ödeme.</p>
+      `
+      const noAdsBtn = this.actionBtn('iap-remove-ads', `${noAdsProd.priceLabel} · Satın Al`, 'btn-premium')
+      noAdsCard.appendChild(noAdsBtn)
+      monetCards.appendChild(noAdsCard)
+    }
+
+    if (!state.vipPassActive) {
+      const vipCard = document.createElement('div')
+      vipCard.className = 'iap-value-card'
+      const vipProd = iapManager.getProduct('vip_pass')
+      vipCard.innerHTML = `
+        <strong>👑 VIP Baron Pasaportu</strong>
+        <p>+%25 pasif gelir · Her gün ücretsiz sandık · VIP rozeti</p>
+        <ul class="iap-perks">
+          <li>Pasif gelir kalıcı +%25 artışı</li>
+          <li>Her gün ücretsiz şans sandığı</li>
+          <li>Reklamsız haftalık bonus</li>
+        </ul>
+      `
+      const vipBtn = this.actionBtn('iap-vip-pass', `${vipProd.priceLabel} · Abone Ol`, 'btn-premium')
+      vipCard.appendChild(vipBtn)
+      monetCards.appendChild(vipCard)
+    }
+
+    if (state.vipPassActive) {
+      const activeVip = document.createElement('div')
+      activeVip.className = 'events-vip-active'
+      activeVip.textContent = '👑 VIP Baron — Tüm avantajlar aktif'
+      monetCards.appendChild(activeVip)
+    }
+
+    monetSection.appendChild(monetCards)
+    this.scrollBody.insertBefore(monetSection, iapFooter)
     this.scrollBody.appendChild(iapFooter)
   }
 

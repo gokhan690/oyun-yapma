@@ -93,7 +93,46 @@ export class ModalManager {
     const modal = document.createElement('div')
     modal.className = 'game-modal daily-reward-modal modal-enter'
     const lostNote = streakLost ? '<p class="streak-lost-warn">⚠️ Serin sıfırlandı — yeniden başlıyorsun!</p>' : ''
-    modal.innerHTML = `<div class="reward-box">🎁</div><h2>Günlük Ödül</h2>${lostNote}<p>${streak}. gün streak!</p><strong class="reward-amount">+${amount}</strong>`
+
+    const title = document.createElement('h2')
+    title.textContent = 'Günlük Ödül'
+    modal.innerHTML = lostNote
+    modal.prepend(title)
+
+    const streakNote = document.createElement('p')
+    streakNote.textContent = `${streak}. gün serisi!`
+    modal.appendChild(streakNote)
+
+    // Spin wheel
+    const wheelWrap = document.createElement('div')
+    wheelWrap.className = 'spin-wheel-wrap'
+    const pointer = document.createElement('div')
+    pointer.className = 'spin-pointer'
+    pointer.textContent = '▼'
+    const wheel = document.createElement('div')
+    wheel.className = 'spin-wheel'
+    const inner = document.createElement('div')
+    inner.className = 'spin-wheel-inner'
+    const segs = document.createElement('div')
+    segs.className = 'spin-wheel-segments'
+    const segData = [
+      { emoji: '💰', label: amount },
+      { emoji: '🎁', label: 'Sandık' },
+      { emoji: '⚡', label: 'Boost' },
+      { emoji: '💰', label: `2x ${amount}` },
+    ]
+    for (const s of segData) {
+      const seg = document.createElement('div')
+      seg.className = 'spin-seg'
+      seg.textContent = s.emoji
+      segs.appendChild(seg)
+    }
+    inner.appendChild(segs)
+    wheel.appendChild(inner)
+    const resultEl = document.createElement('div')
+    resultEl.className = 'spin-result'
+    wheelWrap.append(pointer, wheel, resultEl)
+    modal.appendChild(wheelWrap)
 
     const dayInCycle = streak % 7 || 7
     const calendar = document.createElement('div')
@@ -115,15 +154,31 @@ export class ModalManager {
       modal.appendChild(ms)
     }
 
-    const btn = document.createElement('button')
-    btn.type = 'button'
-    btn.className = 'btn-primary'
-    btn.textContent = 'Topla!'
-    btn.addEventListener('click', () => {
-      onClaim()
-      this.close()
+    const spinBtn = document.createElement('button')
+    spinBtn.type = 'button'
+    spinBtn.className = 'btn-primary'
+    spinBtn.textContent = '🎡 Çarkı Çevir!'
+    let spun = false
+    spinBtn.addEventListener('click', () => {
+      if (spun) return
+      spun = true
+      spinBtn.disabled = true
+      const deg = 720 + Math.floor(Math.random() * 1080)
+      inner.style.setProperty('--spin-deg', `${deg}deg`)
+      inner.classList.add('spinning')
+      window.setTimeout(() => {
+        const segIdx = Math.floor(Math.random() * segData.length)
+        const won = segData[segIdx]!
+        resultEl.textContent = `${won.emoji} ${won.label} kazandın!`
+        spinBtn.textContent = 'Topla!'
+        spinBtn.disabled = false
+        spinBtn.addEventListener('click', () => {
+          onClaim()
+          this.close()
+        }, { once: true })
+      }, 3100)
     })
-    modal.appendChild(btn)
+    modal.appendChild(spinBtn)
     this.layer.append(scrim, modal)
     this.openLayer()
   }

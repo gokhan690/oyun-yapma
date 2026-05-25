@@ -39,6 +39,7 @@ import { EventDirector } from '../game/EventDirector'
 import type { GameEventDef } from '../game/Events'
 import { activeTicker } from '../game/StockMarket'
 import { parseFranchiseAction } from './components/shop/FranchiseBlock'
+import { LifestylePanel } from './components/LifestylePanel'
 import { FRANCHISE_CITIES, franchiseOpenFailureReason } from '../game/Franchise'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
@@ -94,6 +95,7 @@ export class HUD {
   private modals: ModalManager
   private settings: SettingsPanel
   private statsScreen: StatsScreen
+  private lifestylePanel: LifestylePanel
   private tutorial: Tutorial
   private leaderboard: Leaderboard
   private skyline!: Skyline
@@ -141,6 +143,7 @@ export class HUD {
       applyDocumentTheme(themeId)
     })
     this.statsScreen = new StatsScreen(state, this.leaderboard)
+    this.lifestylePanel = new LifestylePanel()
     this.tutorial = new Tutorial(state)
     this.tutorial.setTabHandler((tab) => this.shop.setTab(tab, this.state))
     this.build()
@@ -456,6 +459,7 @@ export class HUD {
     }
     this.baronView.append(baronSubNav)
     this.baronView.appendChild(this.eventsPanel.root)
+    this.baronView.appendChild(this.lifestylePanel.root)
     this.statsScreen.embedIn(this.baronView)
 
     this.earnView.append(this.weeklyBanner, this.eraStrip, this.cityStrip, this.earnModifiersEl, tapWrap, comboWrap, sessionPanel, progressStrip, adsPanel)
@@ -508,17 +512,24 @@ export class HUD {
   }
 
   private refreshBaronPanel(): void {
-    if (this.bottomNav.getActive() !== 'profile' || this.baronSubTab === 'events') return
+    if (this.bottomNav.getActive() !== 'profile') return
+    if (this.baronSubTab === 'events' || this.baronSubTab === 'lifestyle') return
     this.statsScreen.renderSection(this.baronSubTab)
   }
 
   private syncBaronTab(): void {
     const tab = this.baronSubTab
     const isEvents = tab === 'events'
+    const isLifestyle = tab === 'lifestyle'
     this.eventsPanel.root.hidden = !isEvents
+    this.lifestylePanel.root.hidden = !isLifestyle
     if (isEvents) {
       this.statsScreen.hide()
+      this.lifestylePanel.root.hidden = true
       this.eventsPanel.render(this.state)
+    } else if (isLifestyle) {
+      this.statsScreen.hide()
+      this.lifestylePanel.render(this.state)
     } else {
       this.statsScreen.show(tab)
     }
@@ -808,6 +819,13 @@ export class HUD {
         if (this.baronShowsEvents()) {
           if (!this.eventsPanel.patchLive(this.state)) this.eventsPanel.render(this.state)
         }
+      }
+      if (ev.type === 'life_event_triggered') {
+        this.showLifeEventModal(ev.eventDef)
+      }
+      if (ev.type === 'life_event_consequence') {
+        this.modals.showToast(this.root, ev.headline)
+        if (this.baronSubTab === 'lifestyle') this.lifestylePanel.render(this.state)
       }
       if (ev.type === 'market_news') {
         this.renderMarketNewsBanner()
@@ -1570,6 +1588,54 @@ export class HUD {
       case 'iap-chest-pack':
         await this.handleIAPChestPack()
         break
+      case 'iap-remove-ads': {
+        void iapManager.purchase('remove_ads').then((r) => {
+          if (r.success) {
+            this.state.removeAdsOwned = true
+            this.modals.showToast(this.root, '🚫📺 Reklamlar kaldırıldı!')
+            this.renderAll()
+          } else {
+            this.modals.showToast(this.root, r.reason ?? 'Satın alma başarısız')
+          }
+        })
+        break
+      }
+      case 'iap-vip-pass': {
+        void iapManager.purchase('vip_pass').then((r) => {
+          if (r.success) {
+            this.state.vipPassActive = true
+            this.modals.showToast(this.root, '👑 VIP Baron Pasaportu aktif!')
+            this.renderAll()
+          } else {
+            this.modals.showToast(this.root, r.reason ?? 'Satın alma başarısız')
+          }
+        })
+        break
+      }
+      case 'buy-residence': {
+        const ok = id ? this.state.buyResidence(id as import('../game/Lifestyle').ResidenceId) : false
+        if (ok) { this.modals.showToast(this.root, '🏠 Konut değiştirildi!'); this.lifestylePanel.render(this.state) }
+        else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
+        break
+      }
+      case 'buy-vehicle': {
+        const ok = id ? this.state.buyVehicle(id as import('../game/Lifestyle').VehicleId) : false
+        if (ok) { this.modals.showToast(this.root, '🚗 Araç alındı!'); this.lifestylePanel.render(this.state) }
+        else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
+        break
+      }
+      case 'buy-pet': {
+        const ok = id ? this.state.buyPet(id as import('../game/Lifestyle').PetId) : false
+        if (ok) { this.modals.showToast(this.root, '🐾 Evcil hayvan sahiplenildi!'); this.lifestylePanel.render(this.state) }
+        else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
+        break
+      }
+      case 'buy-wellbeing': {
+        const ok = id ? this.state.buyWellbeing(id as import('../game/Lifestyle').WellbeingActivityId) : false
+        if (ok) { this.modals.showToast(this.root, '🧘 Refah aktivitesi başladı!'); this.lifestylePanel.render(this.state) }
+        else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
+        break
+      }
       case 'open-free-chest':
         this.handleOpenFreeChest()
         break
@@ -1739,6 +1805,17 @@ export class HUD {
       case 'crisis-choice':
         if (id) this.state.resolveCrisis(id)
         break
+      case 'life-event-choice': {
+        if (id) {
+          const [eventId, choiceId] = id.split(':')
+          if (eventId && choiceId) {
+            this.state.resolveLifeEventChoice(eventId as import('../game/LifeEvents').LifeEventId, choiceId)
+            this.modals.close()
+            this.closeModalAndPump()
+          }
+        }
+        break
+      }
       case 'rival-alliance-accept':
         if (this.state.acceptRivalAllianceOffer()) {
           this.modals.showToast(this.root, '🤝 Sektör anlaşması imzalandı')
@@ -2058,6 +2135,30 @@ export class HUD {
       id: `crisis-${crisisId}`,
       priority: 1,
       run: () => this.modals.show(`${def.emoji} ${title}`, def.description, buttons),
+    })
+  }
+
+  private showLifeEventModal(def: import('../game/LifeEvents').LifeEventDef): void {
+    const buttons = def.choices.map((choice) => {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'btn-secondary life-event-choice-btn'
+      b.dataset.action = 'life-event-choice'
+      b.dataset.id = `${def.id}:${choice.id}`
+      const delta = []
+      if (choice.moneyDelta > 0) delta.push(`+${formatMoney(choice.moneyDelta)}`)
+      else if (choice.moneyDelta < 0) delta.push(formatMoney(choice.moneyDelta))
+      if (choice.reputationDelta > 0) delta.push(`İtibar +${choice.reputationDelta}`)
+      else if (choice.reputationDelta < 0) delta.push(`İtibar ${choice.reputationDelta}`)
+      if (choice.stressDelta > 0) delta.push(`Stres +${choice.stressDelta}`)
+      else if (choice.stressDelta < 0) delta.push(`Stres ${choice.stressDelta}`)
+      b.innerHTML = `<strong>${choice.emoji} ${choice.label}</strong><small>${delta.join(' · ')}</small>`
+      return b
+    })
+    this.eventDirector.enqueue({
+      id: `life-event-${def.id}`,
+      priority: 2,
+      run: () => this.modals.show(`${def.emoji} ${def.title}`, def.description, buttons),
     })
   }
 
