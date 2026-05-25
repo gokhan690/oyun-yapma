@@ -1,5 +1,5 @@
 import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, type ProducerDef, type UpgradeDef } from './Economy'
-import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, prestigeMultiplier } from './Prestige'
+import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, ipoThreshold, prestigeMultiplier } from './Prestige'
 import { globalSynergyBonus, producerSynergyBonus } from './Synergies'
 import {
   RESEARCH_NODES,
@@ -1858,13 +1858,13 @@ export class GameState {
   }
 
   ipoProgress(): { current: number; target: number; pct: number; ready: boolean } {
-    const target = PRESTIGE_THRESHOLD
+    const target = ipoThreshold(this.ipoCount)
     const current = this.totalEarned
     return {
       current,
       target,
       pct: Math.min(100, (current / target) * 100),
-      ready: canPrestige(current),
+      ready: canPrestige(current, this.ipoCount),
     }
   }
 
@@ -2099,11 +2099,11 @@ export class GameState {
   }
 
   prestigeEligible(): boolean {
-    return canPrestige(this.totalEarned)
+    return canPrestige(this.totalEarned, this.ipoCount)
   }
 
   pendingPrestigePoints(): number {
-    return calcPrestigePoints(this.totalEarned)
+    return calcPrestigePoints(this.totalEarned, this.ipoCount)
   }
 
   ipoPreview(): IpoPreviewData {
@@ -3774,7 +3774,7 @@ export class GameState {
   }
 
   progressPath(): ProgressPathSnapshot {
-    return progressPathSnapshot(this.totalEarned)
+    return progressPathSnapshot(this.totalEarned, this.ipoCount)
   }
 
   baronDynastySummary(): ReturnType<typeof dynastyHistorySummary> {

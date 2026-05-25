@@ -1,4 +1,4 @@
-export type NavView = 'earn' | 'shop' | 'market' | 'events' | 'profile'
+export type NavView = 'earn' | 'shop' | 'market' | 'profile'
 
 import { assetUrl } from '../../utils/assetUrl'
 
@@ -6,27 +6,26 @@ const NAV_ICONS: Record<NavView, string> = {
   earn: assetUrl('icons/nav/earn.svg'),
   shop: assetUrl('icons/nav/shop.svg'),
   market: assetUrl('icons/nav/shop.svg'),
-  events: assetUrl('icons/nav/events.svg'),
   profile: assetUrl('icons/nav/profile.svg'),
 }
 
+/** Alt menü: Şehir · İş · Piyasa · Baron */
 export class BottomNav {
   readonly root: HTMLElement
   private active: NavView = 'earn'
   private buttons = new Map<NavView, HTMLButtonElement>()
-  private badgeEvents!: HTMLElement
+  private badgeBaron!: HTMLElement
   private badgeShop!: HTMLElement
   private badgeMarket!: HTMLElement
 
   constructor() {
     this.root = document.createElement('nav')
-    this.root.className = 'bottom-nav'
+    this.root.className = 'bottom-nav bottom-nav-four'
     const defs: { id: NavView; label: string }[] = [
-      { id: 'earn', label: 'Kazan' },
-      { id: 'shop', label: 'İşletme' },
-      { id: 'market', label: 'Borsa' },
-      { id: 'events', label: 'Etkinlik' },
-      { id: 'profile', label: 'Profil' },
+      { id: 'earn', label: 'Şehir' },
+      { id: 'shop', label: 'İş' },
+      { id: 'market', label: 'Piyasa' },
+      { id: 'profile', label: 'Baron' },
     ]
     for (const d of defs) {
       const btn = document.createElement('button')
@@ -47,12 +46,12 @@ export class BottomNav {
       label.className = 'nav-label'
       label.textContent = d.label
       btn.append(iconWrap, label)
-      if (d.id === 'events') {
+      if (d.id === 'profile') {
         const badge = document.createElement('span')
         badge.className = 'nav-badge'
         badge.hidden = true
         btn.appendChild(badge)
-        this.badgeEvents = badge
+        this.badgeBaron = badge
       }
       if (d.id === 'shop') {
         const badge = document.createElement('span')
@@ -84,8 +83,8 @@ export class BottomNav {
     return this.active
   }
 
-  setBadges(events: boolean, shop: boolean, market = false): void {
-    if (this.badgeEvents) this.badgeEvents.hidden = !events
+  setBadges(baron: boolean, shop: boolean, market = false): void {
+    if (this.badgeBaron) this.badgeBaron.hidden = !baron
     if (this.badgeShop) this.badgeShop.hidden = !shop
     if (this.badgeMarket) this.badgeMarket.hidden = !market
   }

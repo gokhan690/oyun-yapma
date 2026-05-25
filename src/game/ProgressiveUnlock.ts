@@ -23,16 +23,12 @@ export function isStarterBusiness(id: string): boolean {
 
 export function navLockReason(view: NavView, producers: Record<string, number>, totalEarned: number): string | null {
   const owned = ownedBusinessCount(producers)
-  if (view === 'earn' || view === 'shop') return null
-  if (view === 'profile') return null
+  if (view === 'earn' || view === 'shop' || view === 'profile') return null
   if (owned === 0) {
-    return 'Önce İşletme sekmesinden bir işletme satın al.'
+    return 'Önce İş sekmesinden bir işletme satın al.'
   }
   if (view === 'market' && totalEarned < 800) {
-    return `Borsa ${formatUnlockMoney(800)} toplam kazançta açılır.`
-  }
-  if (view === 'events' && owned < 1) {
-    return 'Etkinlikler ilk işletme sonrası açılır.'
+    return `Piyasa ${formatUnlockMoney(800)} toplam kazançta açılır.`
   }
   return null
 }

@@ -1,4 +1,4 @@
-import { PRESTIGE_THRESHOLD } from './Prestige'
+import { ipoThreshold } from './Prestige'
 import { rankProgress } from './PlayerRank'
 import { formatMoney } from './Economy'
 
@@ -13,13 +13,15 @@ export interface ProgressPathSnapshot {
   rankPct: number
   ipoPct: number
   ipoThreshold: number
+  ipoCount: number
 }
 
-export function progressPathSnapshot(totalEarned: number): ProgressPathSnapshot {
+export function progressPathSnapshot(totalEarned: number, ipoCount = 0): ProgressPathSnapshot {
   const prog = rankProgress(totalEarned)
   const next = prog.next
   const remaining = next ? Math.max(0, next.minEarned - totalEarned) : 0
-  const ipoPct = Math.min(100, (totalEarned / PRESTIGE_THRESHOLD) * 100)
+  const threshold = ipoThreshold(ipoCount)
+  const ipoPct = Math.min(100, (totalEarned / threshold) * 100)
   return {
     currentRank: prog.current.name,
     currentEmoji: prog.current.emoji,
@@ -30,11 +32,14 @@ export function progressPathSnapshot(totalEarned: number): ProgressPathSnapshot 
     remaining,
     rankPct: prog.pct,
     ipoPct,
-    ipoThreshold: PRESTIGE_THRESHOLD,
+    ipoThreshold: threshold,
+    ipoCount,
   }
 }
 
 export function formatProgressLine(s: ProgressPathSnapshot): string {
-  if (!s.nextRank) return `${s.currentEmoji} ${s.currentRank} — maksimum rütbe`
-  return `Sonraki: ${s.nextEmoji} ${s.nextRank} → ${formatMoney(s.nextThreshold)}'de açılır (${formatMoney(s.remaining)} kaldı)`
+  if (!s.nextRank) {
+    return `${s.currentEmoji} ${s.currentRank} · IPO ${formatMoney(s.ipoThreshold)} (${s.ipoPct.toFixed(1)}%)`
+  }
+  return `Sonraki: ${s.nextEmoji} ${s.nextRank} → ${formatMoney(s.nextThreshold)} (${formatMoney(s.remaining)} kaldı) · IPO %${s.ipoPct.toFixed(1)}`
 }

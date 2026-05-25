@@ -468,13 +468,44 @@ export class StatsScreen {
     }
   }
 
+  private embedded = false
+
+  embedIn(parent: HTMLElement): void {
+    this.embedded = true
+    this.layer.classList.add('stats-embedded')
+    parent.appendChild(this.layer)
+    const close = this.layer.querySelector('[data-action="nav-view"]') as HTMLButtonElement | null
+    if (close) {
+      close.dataset.action = 'nav-view'
+      close.dataset.id = 'earn'
+    }
+  }
+
+  setEmbeddedVisible(visible: boolean): void {
+    if (!this.embedded) return
+    this.layer.hidden = !visible
+    if (visible) this.layer.classList.remove('is-open')
+  }
+
+  isEmbedded(): boolean {
+    return this.embedded
+  }
+
   show(): void {
     this.render()
-    this.layer.classList.add('is-open')
+    if (this.embedded) {
+      this.layer.hidden = false
+    } else {
+      this.layer.classList.add('is-open')
+    }
   }
 
   hide(): void {
-    this.layer.classList.remove('is-open')
+    if (this.embedded) {
+      this.layer.hidden = true
+    } else {
+      this.layer.classList.remove('is-open')
+    }
   }
 
   toggle(): void {

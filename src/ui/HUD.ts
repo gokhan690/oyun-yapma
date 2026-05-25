@@ -3,10 +3,10 @@ import type { AdManager } from '../ads/AdManager'
 import type { SoundManager } from '../audio/SoundManager'
 import type { SaveManager } from '../security/SaveManager'
 import { formatMoney, formatIncomeRate, PRODUCERS, earlyUnlockCost, scaledUnlockAt, isProducerUnlocked } from '../game/Economy'
-import { formatGazetteDate } from '../game/BaronGazette'
 import { crisisDef } from '../game/CrisisEvents'
 import { buildSkylineBuildings } from './Skyline'
-import { cityDef } from '../game/ExpansionMap'
+import { cityDef, EXPANSION_CITIES, canUnlockCity } from '../game/ExpansionMap'
+import { applyEraTheme, eraForBaron } from '../game/EraTheme'
 import { formatProgressLine } from '../game/ProgressPath'
 import type { BaronRecord } from '../game/BaronLegacy'
 import { assetUrl } from '../utils/assetUrl'
@@ -33,8 +33,6 @@ import type { ThemeId } from '../game/Themes'
 import { isOwnerSession } from '../owner/OwnerAuth'
 import { OwnerAccessGate } from '../owner/OwnerAccessGate'
 import { formatGameClock } from '../game/GameClock'
-import { currentWorldStage } from '../game/WorldStage'
-import { reputationLabel } from '../game/Reputation'
 import { EventDirector } from '../game/EventDirector'
 import type { GameEventDef } from '../game/Events'
 import { activeTicker } from '../game/StockMarket'
@@ -60,10 +58,11 @@ export class HUD {
   private sessionClickIncome!: HTMLElement
   private sessionComboMult!: HTMLElement
   private sessionPassiveIncome!: HTMLElement
-  private profileChip!: HTMLButtonElement
-  private worldMetaChip!: HTMLElement
-  private gazetteBanner!: HTMLElement
   private progressPathWidget!: HTMLElement
+  private eraStrip!: HTMLElement
+  private cityStrip!: HTMLElement
+  private baronView!: HTMLElement
+  private baronSubTab: 'events' | 'dynasty' = 'dynasty'
   private heatMeterFill!: HTMLElement
   private heatMeterLabel!: HTMLElement
   private heatMeterRow!: HTMLElement
@@ -189,10 +188,13 @@ export class HUD {
         this.profileHoldTimer = null
       }
     }
-    this.profileChip.addEventListener('pointerdown', startProfileHold)
-    this.profileChip.addEventListener('pointerup', cancelProfileHold)
-    this.profileChip.addEventListener('pointerleave', cancelProfileHold)
-    this.profileChip.addEventListener('pointercancel', cancelProfileHold)
+    const baronBtn = this.bottomNav.root.querySelector('[data-id="profile"]')
+    if (baronBtn) {
+      baronBtn.addEventListener('pointerdown', startProfileHold)
+      baronBtn.addEventListener('pointerup', cancelProfileHold)
+      baronBtn.addEventListener('pointerleave', cancelProfileHold)
+      baronBtn.addEventListener('pointercancel', cancelProfileHold)
+    }
 
     this.titleEl.addEventListener('click', (e) => {
       e.stopPropagation()
@@ -250,19 +252,9 @@ export class HUD {
     dailyBtn.textContent = '🎁'
     actions.append(this.goalsChip, this.pauseBtn, this.dayNightChip, dailyBtn)
     titleRow.append(title, actions)
-    this.profileChip = document.createElement('button')
-    this.profileChip.type = 'button'
-    this.profileChip.className = 'profile-chip'
-    this.profileChip.dataset.action = 'nav-view'
-    this.profileChip.dataset.id = 'profile'
-    this.worldMetaChip = document.createElement('div')
-    this.worldMetaChip.className = 'world-meta-chip'
-    this.gazetteBanner = document.createElement('div')
-    this.gazetteBanner.className = 'gazette-banner'
-    this.gazetteBanner.hidden = true
     this.progressPathWidget = document.createElement('div')
     this.progressPathWidget.className = 'progress-path-widget'
-    header.append(titleRow, this.worldMetaChip, this.gazetteBanner, this.progressPathWidget, this.profileChip, this.statsBar.root)
+    header.append(titleRow, this.progressPathWidget, this.statsBar.root)
 
     const main = document.createElement('main')
     main.className = 'game-main'
@@ -429,8 +421,31 @@ export class HUD {
     earnHero.className = 'earn-tab-hero'
     earnHero.innerHTML = '<h2>Tıkla & Kazan</h2><p>Tıkla, combo yap · Sandık ve 2x gelir aşağıda</p>'
 
-    this.earnView.append(this.weeklyBanner, earnHero, progressStrip, adsPanel, sessionPanel, tapWrap)
-    main.append(this.earnView, this.shop.root, this.eventsPanel.root, this.empirePanel.root)
+    this.eraStrip = document.createElement('div')
+    this.eraStrip.className = 'era-strip'
+    this.cityStrip = document.createElement('div')
+    this.cityStrip.className = 'city-strip'
+
+    this.baronView = document.createElement('div')
+    this.baronView.className = 'baron-view tab-panel'
+    this.baronView.hidden = true
+    const baronSubNav = document.createElement('div')
+    baronSubNav.className = 'baron-subnav'
+    for (const [id, label] of [['dynasty', '👑 Hanedan'], ['events', '🎪 Etkinlik']] as const) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `baron-subnav-btn${id === 'dynasty' ? ' active' : ''}`
+      btn.dataset.action = 'baron-tab'
+      btn.dataset.id = id
+      btn.textContent = label
+      baronSubNav.appendChild(btn)
+    }
+    this.baronView.append(baronSubNav)
+    this.baronView.appendChild(this.eventsPanel.root)
+    this.statsScreen.embedIn(this.baronView)
+
+    this.earnView.append(this.weeklyBanner, this.eraStrip, this.cityStrip, earnHero, progressStrip, adsPanel, sessionPanel, tapWrap)
+    main.append(this.earnView, this.shop.root, this.baronView, this.empirePanel.root)
 
     this.adBannerSlot = document.createElement('div')
     this.adBannerSlot.className = 'ad-banner-slot'
@@ -438,7 +453,7 @@ export class HUD {
 
     this.goalsSheet.mount(this.root)
     this.undergroundSheet.mount(this.root)
-    this.root.append(header, main, this.adBannerSlot, this.settings.layer, this.statsScreen.layer, this.modals.layer)
+    this.root.append(header, main, this.adBannerSlot, this.settings.layer, this.modals.layer)
     document.body.appendChild(this.bottomNav.root)
     this.ads.showBanner(this.adBannerSlot)
     this.renderDayNightChip()
@@ -451,13 +466,13 @@ export class HUD {
     this.modals.close()
     this.tutorial.onViewChange(view)
     this.bottomNav.setActive(view)
-    this.earnView.hidden = view === 'shop' || view === 'market' || view === 'events'
+    this.earnView.hidden = view !== 'earn'
     this.shop.root.hidden = view !== 'shop' && view !== 'market'
-    this.eventsPanel.root.hidden = view !== 'events'
+    this.baronView.hidden = view !== 'profile'
     this.empirePanel.root.hidden = true
     this.empirePanel.root.classList.remove('empire-overlay-open')
     this.gameMain.classList.toggle('earn-active', view === 'earn')
-    this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'market' || view === 'events')
+    this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'market' || view === 'profile')
     if (view === 'shop') {
       this.shop.setViewContext('shop', this.state)
       this.refreshShop(true)
@@ -466,14 +481,30 @@ export class HUD {
       this.shop.setViewContext('market', this.state)
       this.refreshShop(true)
     }
-    if (view === 'events') this.eventsPanel.render(this.state)
     if (view === 'profile') {
-      this.statsScreen.show()
-      this.settings.hide()
+      this.syncBaronTab()
     } else {
-      this.statsScreen.hide()
       this.settings.hide()
     }
+  }
+
+  private baronShowsEvents(): boolean {
+    return this.bottomNav.getActive() === 'profile' && this.baronSubTab === 'events'
+  }
+
+  private baronShowsDynasty(): boolean {
+    return this.bottomNav.getActive() === 'profile' && this.baronSubTab === 'dynasty'
+  }
+
+  private syncBaronTab(): void {
+    const isEvents = this.baronSubTab === 'events'
+    this.eventsPanel.root.hidden = !isEvents
+    this.statsScreen.setEmbeddedVisible(!isEvents)
+    this.baronView.querySelectorAll('.baron-subnav-btn').forEach((el) => {
+      el.classList.toggle('active', (el as HTMLElement).dataset.id === this.baronSubTab)
+    })
+    if (isEvents) this.eventsPanel.render(this.state)
+    else this.statsScreen.render()
   }
 
   private updateNavBadges(): void {
@@ -583,7 +614,7 @@ export class HUD {
         } else if (nav === 'shop' || nav === 'market') {
           this.refreshShop(false)
         }
-        if (this.bottomNav.getActive() === 'events') {
+        if (this.baronShowsEvents()) {
           if (!this.eventsPanel.patchLive(this.state)) this.eventsPanel.render(this.state)
         }
         this.scheduleUiSync()
@@ -705,7 +736,7 @@ export class HUD {
       }
       if (ev.type === 'daily_goal_updated') {
         this.goalsSheet.render(this.state)
-        if (this.bottomNav.getActive() === 'events') this.eventsPanel.render(this.state)
+        if (this.baronShowsEvents()) this.eventsPanel.render(this.state)
         this.updateNavBadges()
       }
       if (ev.type === 'day_night' || ev.type === 'game_time' || ev.type === 'game_pause') {
@@ -718,7 +749,7 @@ export class HUD {
         } else {
           this.statsBar.tickBoostTimers()
         }
-        if (this.bottomNav.getActive() === 'events') {
+        if (this.baronShowsEvents()) {
           if (!this.eventsPanel.patchLive(this.state)) this.eventsPanel.render(this.state)
         }
       }
@@ -728,19 +759,15 @@ export class HUD {
         this.refreshShop(true)
       }
       if (ev.type === 'dynasty_update') {
-        if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
-        this.renderProfileChip()
-        this.renderWorldMetaChip()
+        if (this.baronShowsDynasty()) this.statsScreen.render()
+        this.renderEraStrip()
+        this.renderCityStrip()
       }
       if (ev.type === 'reputation_changed') {
-        this.renderWorldMetaChip()
-        if (ev.delta < -3) this.modals.showToast(this.root, `⭐ İtibar ${ev.reputation} (${ev.delta})`)
+        if (ev.delta <= -5) this.toast(`⭐ İtibar ${ev.reputation} (${ev.delta})`, true)
       }
       if (ev.type === 'loan_denied') {
-        this.modals.showToast(this.root, `🏦 ${ev.reason}`)
-      }
-      if (ev.type === 'gazette_headline') {
-        this.renderGazetteBanner()
+        this.toast(`🏦 ${ev.reason}`, true)
       }
       if (ev.type === 'crisis_started') {
         this.sound.setAmbient('crisis')
@@ -748,7 +775,6 @@ export class HUD {
       }
       if (ev.type === 'crisis_resolved') {
         this.sound.setAmbient(this.state.isNight ? 'night' : 'day')
-        this.modals.showToast(this.root, `📰 ${ev.summary}`)
         this.modals.close()
       }
       if (ev.type === 'victory_mechanic_unlocked') {
@@ -775,21 +801,14 @@ export class HUD {
         this.showRivalAllianceModal(ev.offer)
       }
       if (ev.type === 'investment_offer') {
-        this.modals.showToast(this.root, `⏰ Startup fırsatı: ${ev.offer.title} — Piyasa → Fırsatlar`)
-      }
-      if (ev.type === 'calendar_event') {
-        this.modals.showToast(this.root, `${ev.emoji} ${ev.headline}`)
+        this.updateNavBadges()
+        this.refreshShop(true)
       }
       if (ev.type === 'player_title') {
-        this.renderProfileChip()
-      }
-      if (ev.type === 'world_stage') {
-        this.modals.showToast(this.root, `${ev.name} aşamasına ulaştın!`)
-        this.renderWorldMetaChip()
+        this.renderEraStrip()
       }
       if (ev.type === 'rival_action') {
-        this.modals.showToast(this.root, ev.headline)
-        if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
+        if (this.baronShowsDynasty()) this.statsScreen.render()
       }
       if (ev.type === 'victory_unlocked') {
         this.eventDirector.enqueue({
@@ -810,11 +829,10 @@ export class HUD {
             )
           },
         })
-        if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
+        if (this.baronShowsDynasty()) this.statsScreen.render()
       }
       if (ev.type === 'child_crisis') {
-        this.modals.showToast(this.root, `⚠️ ${ev.message}`)
-        if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
+        if (this.baronShowsDynasty()) this.statsScreen.render()
       }
       if (ev.type === 'player_death') {
         // Özet baron_eulogy ile gösterilir
@@ -833,7 +851,7 @@ export class HUD {
         this.showUndoPrompt(ev.label, ev.cost, ev.undoId)
       }
       if (ev.type === 'season_updated' || ev.type === 'season_claimed') {
-        this.eventsPanel.render(this.state)
+        if (this.baronShowsEvents()) this.eventsPanel.render(this.state)
         this.updateNavBadges()
       }
       if (ev.type === 'prestige_tree') {
@@ -842,11 +860,9 @@ export class HUD {
         this.renderDayNightChip()
       }
       if (ev.type === 'market_event') {
-        this.modals.showToast(this.root, ev.crash ? '📉 Piyasa çöküşü!' : '📈 Piyasa rallisi!')
         this.refreshShop(true)
       }
       if (ev.type === 'macro_event') {
-        this.modals.showToast(this.root, ev.headline)
         if (this.shop.getViewContext() === 'market') this.refreshShop(true)
       }
       if (ev.type === 'bankruptcy') {
@@ -859,28 +875,27 @@ export class HUD {
         this.refreshShop(true)
       }
       if (ev.type === 'mission_complete') {
-        this.modals.showToast(this.root, `Görev hazır: ${ev.mission.label} — Etkinliklerden topla`)
-        if (this.bottomNav.getActive() === 'events') this.eventsPanel.render(this.state)
+        if (this.baronShowsEvents()) this.eventsPanel.render(this.state)
         this.updateNavBadges()
         this.refreshShop(true)
       }
       if (ev.type === 'weekly_updated') {
         this.goalsSheet.render(this.state)
         this.renderWeeklyBanner()
-        if (this.bottomNav.getActive() === 'events') this.eventsPanel.render(this.state)
+        if (this.baronShowsEvents()) this.eventsPanel.render(this.state)
         this.updateNavBadges()
       }
       if (ev.type === 'daily_goal_updated' || ev.type === 'daily_reward' || ev.type === 'season_updated' || ev.type === 'season_claimed') {
-        if (this.bottomNav.getActive() === 'events') this.eventsPanel.render(this.state)
+        if (this.baronShowsEvents()) this.eventsPanel.render(this.state)
       }
       if (ev.type === 'story_beat') {
-        this.modals.showToast(this.root, ev.text)
+        // sessiz — kronikte görünür
       }
       if (ev.type === 'chest_opened' && ev.loot?.rarity === 'legendary') {
         this.sound.playLegendaryChest()
       }
       if (ev.type === 'near_miss') {
-        this.modals.showToast(this.root, ev.message)
+        // sessiz
       }
       if (ev.type === 'match_result') {
         const icon = ev.won ? '⚽' : '🏟️'
@@ -894,13 +909,12 @@ export class HUD {
         }
       }
       if (ev.type === 'surprise_investor') {
-        this.modals.showToast(this.root, '💎 Yatırımcı teklifi envanterde — Etkinlikler\'den aktifleştir')
-        this.eventsPanel.render(this.state)
+        if (this.baronShowsEvents()) this.eventsPanel.render(this.state)
         this.updateNavBadges()
       }
       if (ev.type === 'pending_boost_added' || ev.type === 'boost_activated') {
         this.statsBar.updateMeta()
-        if (this.bottomNav.getActive() === 'events') this.eventsPanel.render(this.state)
+        if (this.baronShowsEvents()) this.eventsPanel.render(this.state)
         this.updateNavBadges()
       }
       if (ev.type === 'comeback_ready') {
@@ -912,7 +926,7 @@ export class HUD {
       }
       if (ev.type === 'badge_earned') {
         this.modals.showToast(this.root, '🏅 Yeni rozet kazandın!')
-        if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
+        if (this.baronShowsDynasty()) this.statsScreen.render()
       }
       if (ev.type === 'underground_action') {
         this.undergroundSheet.render(this.state)
@@ -927,7 +941,7 @@ export class HUD {
       }
       if (ev.type === 'ad_boost') {
         this.statsBar.updateMeta()
-        if (this.bottomNav.getActive() === 'events') {
+        if (this.baronShowsEvents()) {
           if (!this.eventsPanel.patchLive(this.state)) this.eventsPanel.render(this.state)
         }
       }
@@ -1012,6 +1026,17 @@ export class HUD {
       case 'close-goals':
         this.goalsSheet.close()
         break
+      case 'open-expansion':
+        this.baronSubTab = 'dynasty'
+        this.setView('profile')
+        break
+      case 'baron-tab':
+        if (id === 'events' || id === 'dynasty') {
+          this.baronSubTab = id
+          if (this.bottomNav.getActive() !== 'profile') this.setView('profile')
+          else this.syncBaronTab()
+        }
+        break
       case 'nav-view':
         if (id === 'profile' && this.suppressProfileNav) break
         if (id) {
@@ -1034,7 +1059,7 @@ export class HUD {
       case 'close-settings':
         this.settings.hide()
         if (this.bottomNav.getActive() === 'profile') {
-          this.statsScreen.show()
+          this.syncBaronTab()
         } else {
           this.setView('earn')
         }
@@ -1563,7 +1588,8 @@ export class HUD {
         if (id && this.state.marrySpouse(id)) {
           this.modals.showToast(this.root, '💍 Evet! Hanedan kuruldu.')
           this.statsScreen.render()
-          this.renderProfileChip()
+          this.renderEraStrip()
+          this.renderCityStrip()
           this.renderAll()
         } else {
           this.modals.showToast(this.root, 'Evlenilemedi — yeterli para yok veya zaten evlisin.')
@@ -1574,14 +1600,16 @@ export class HUD {
           this.modals.close()
           this.modals.showToast(this.root, `👑 ${this.state.playerName} imparatorluğu devraldı!`)
           this.statsScreen.render()
-          this.renderProfileChip()
+          this.renderEraStrip()
+          this.renderCityStrip()
           this.renderAll()
         }
         break
       case 'death-continue-no-heir':
         if (this.state.resolveDeathWithoutHeir()) {
           this.modals.close()
-          this.renderProfileChip()
+          this.renderEraStrip()
+          this.renderCityStrip()
           this.statsScreen.render()
           this.renderAll()
         }
@@ -1677,7 +1705,8 @@ export class HUD {
       case 'eulogy-continue':
         this.modals.close()
         if (this.state.hasPendingDeath()) this.state.resolveDeathWithoutHeir()
-        this.renderProfileChip()
+        this.renderEraStrip()
+        this.renderCityStrip()
         break
       case 'undo-exec':
         if (this.state.executeUndo()) {
@@ -1801,10 +1830,34 @@ export class HUD {
     }
 
     this.renderSessionPanel()
-    this.renderProfileChip()
+    this.renderEraStrip()
+    this.renderCityStrip()
     this.renderHeatMeter()
-    this.renderWorldMetaChip()
     this.renderProgressPathWidget()
+  }
+
+  private renderEraStrip(): void {
+    const era = eraForBaron(this.state.baronCounter, this.state.dynasty.generation)
+    applyEraTheme(this.root, this.state.baronCounter, this.state.dynasty.generation)
+    this.eraStrip.innerHTML = `
+      <span class="era-year">${era.year}</span>
+      <span class="era-label">${era.label}</span>
+      <small class="era-flavor">${era.flavor}</small>
+    `
+  }
+
+  private renderCityStrip(): void {
+    const city = cityDef(this.state.activeCityId())
+    const unlockable = EXPANSION_CITIES.some((c) =>
+      !this.state.cities.unlocked.includes(c.id)
+      && canUnlockCity(c.id, this.state.cities, this.state.money, this.state.reputation, this.state.ipoCount).ok,
+    )
+    this.cityStrip.innerHTML = `
+      <button type="button" class="city-strip-btn" data-action="open-expansion">
+        ${city.emoji} ${city.label} · Baron #${this.state.baronCounter}
+        ${unlockable ? ' · 🗺️ Yeni şehir!' : ''}
+      </button>
+    `
   }
 
   private renderProgressPathWidget(): void {
@@ -1819,42 +1872,12 @@ export class HUD {
     `
   }
 
-  private renderWorldMetaChip(): void {
-    const stage = currentWorldStage(this.state.financeNetWorth())
-    const rep = this.state.reputation
-    this.worldMetaChip.innerHTML = `
-      <span class="world-stage-pill">${stage.emoji} ${stage.name}</span>
-      <span class="reputation-pill">⭐ ${rep} · ${reputationLabel(rep)}</span>
-    `
-    this.worldMetaChip.title = `${stage.headline} · Tehdit: ${stage.threat}`
-  }
-
-  private renderProfileChip(): void {
-    const name = this.state.playerName.trim() || 'Baron'
-    const title = this.state.playerTitle()
-    const age = this.state.playerAge()
-    const estYears = this.state.estimatedYearsRemaining()
-    const ageText = estYears < 99 ? `${age} yaş · ~${estYears} yıl` : `${age} yaş`
-    this.profileChip.innerHTML = `<span class="profile-chip-name">${title.emoji} ${name}</span><span class="profile-chip-age">${title.label} · ${ageText}</span>`
-    this.profileChip.title = `Nesil ${this.state.dynasty.generation} · Tahmini kalan ömür`
-  }
-
   private refreshSkyline(): void {
     const buildings = buildSkylineBuildings(this.state.producers, (id) => {
       const p = PRODUCERS.find((x) => x.id === id)
       return p ? this.state.producerIncome(p) : 0
     })
     this.skyline.update(buildings, this.state.skylineWorldStageId(), this.state.gameTimeMs, this.state.legacyMonuments, cityDef(this.state.activeCityId()).skylineClass)
-  }
-
-  private renderGazetteBanner(): void {
-    const latest = this.state.latestGazetteHeadlines(1)[0]
-    if (!latest) {
-      this.gazetteBanner.hidden = true
-      return
-    }
-    this.gazetteBanner.hidden = false
-    this.gazetteBanner.innerHTML = `<span class="gazette-label">📰 Baron Gazetesi · ${formatGazetteDate(this.state.gameTimeMs)}</span><span class="gazette-headline">${latest.headline}</span>`
   }
 
   private showCrisisModal(crisisId: import('../game/CrisisEvents').CrisisId, title: string): void {
@@ -1932,8 +1955,8 @@ export class HUD {
     window.setTimeout(() => el.remove(), 900)
   }
 
-  toast(message: string): void {
-    this.modals.showToast(this.root, message)
+  toast(message: string, important = false): void {
+    this.modals.showToast(this.root, message, important ? 'important' : 'normal')
   }
 
   showCorruptedSaveNotice(): void {
@@ -1992,7 +2015,7 @@ export class HUD {
 
   private updateProgressiveUnlock(): void {
     const locks: Partial<Record<NavView, string | null>> = {}
-    for (const view of ['earn', 'shop', 'market', 'events', 'profile'] as NavView[]) {
+    for (const view of ['earn', 'shop', 'market', 'profile'] as NavView[]) {
       locks[view] = navLockReason(view, this.state.producers, this.state.totalEarned)
     }
     this.bottomNav.setNavLocked(locks)
@@ -2590,15 +2613,13 @@ export class HUD {
       this.patchShopAffordability()
     }
     this.refreshSkyline()
-    this.renderGazetteBanner()
     this.goalsSheet.render(this.state)
-    if (this.bottomNav.getActive() === 'events') {
+    if (this.baronShowsEvents()) {
       this.eventsPanel.render(this.state)
     }
     this.renderMarketNewsBanner()
     this.renderDayNightChip()
     this.renderProgressStrip()
-    this.renderWorldMetaChip()
     this.updateNavBadges()
     this.updateProgressiveUnlock()
   }

@@ -5509,3 +5509,29 @@ html.theme-galactic {
 .biz-obsolete-badge { display: block; font-size: 0.72rem; color: #fb923c; margin-top: 4px; }
 .biz-action-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 .biz-action-row button { flex: 1; min-width: 0; font-size: 0.75rem; padding: 6px 8px; }
+
+.bottom-nav-four { grid-template-columns: repeat(4, 1fr); }
+.baron-view { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.baron-subnav { display: flex; gap: 8px; padding: 10px 12px 0; flex-shrink: 0; }
+.baron-subnav-btn { flex: 1; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 10px; padding: 10px; font-size: 0.85rem; }
+.baron-subnav-btn.active { background: var(--accent); color: #111; border-color: transparent; font-weight: 600; }
+.baron-view .events-panel, .baron-view .stats-embedded { flex: 1; overflow: auto; position: relative; inset: auto; transform: none; max-height: none; }
+.slide-panel.stats-embedded { position: relative; transform: none; width: 100%; max-width: none; height: auto; border-radius: 0; box-shadow: none; background: transparent; }
+.slide-panel.stats-embedded .panel-header { position: sticky; top: 0; z-index: 2; }
+
+.era-strip { padding: 8px 12px 0; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
+.era-year { font-weight: 700; color: var(--accent); }
+.era-label { font-size: 0.85rem; font-weight: 600; }
+.era-flavor { width: 100%; font-size: 0.75rem; color: var(--muted); margin: 0; }
+
+.city-strip { padding: 6px 12px 0; }
+.city-strip-btn { width: 100%; text-align: left; border: 1px dashed var(--border); background: var(--surface-2); color: var(--text); border-radius: 10px; padding: 8px 10px; font-size: 0.82rem; }
+
+.codex-lore { font-size: 0.72rem; color: var(--muted); margin: 4px 0 0; line-height: 1.35; }
+
+.app-root.era-youth { --accent: #38bdf8; }
+.app-root.era-growth { --accent: #34d399; }
+.app-root.era-consolidation { --accent: #fbbf24; }
+.app-root.era-empire { --accent: #c084fc; }
+
+.toast { max-width: min(92vw, 360px); pointer-events: none; }

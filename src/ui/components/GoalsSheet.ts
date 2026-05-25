@@ -1,7 +1,6 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
 import { dailyGoalProgress } from '../../game/DailyGoal'
-import { PRESTIGE_THRESHOLD } from '../../game/GameState'
 import { daysUntilWeekReset } from '../../game/dateUtils'
 
 export class GoalsSheet {
@@ -72,7 +71,7 @@ export class GoalsSheet {
 
     this.content.append(
       this.block('🎯 Günlük Hedef', `${formatMoney(state.dailyGoalEarned)} / ${formatMoney(target)}`, dailyGoalProgress(state.dailyGoalEarned, target)),
-      this.block('📈 IPO', state.ipoProgress().ready ? 'Hazır!' : `${formatMoney(state.totalEarned)} / ${formatMoney(PRESTIGE_THRESHOLD)}`, state.ipoProgress().pct),
+      this.block('📈 IPO', state.ipoProgress().ready ? 'Hazır!' : `${formatMoney(state.totalEarned)} / ${formatMoney(state.ipoProgress().target)}`, state.ipoProgress().pct),
     )
 
     const def = state.getWeeklyEventDef()

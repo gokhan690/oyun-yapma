@@ -1,5 +1,6 @@
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, formatIncomeRate, producerIconPath, isProducerUnlocked } from '../../game/Economy'
+import { producerLore } from '../../game/CodexLore'
 
 export class CodexPanel {
   readonly root: HTMLElement
@@ -44,7 +45,14 @@ export class CodexPanel {
       else {
         const date = state.codexUnlockDates[p.id]
         const income = state.producerIncome(p)
+        const lore = producerLore(p.id)
         meta.textContent = `x${owned}${date ? ` · ${date}` : ''} · ${formatIncomeRate(income)}`
+        if (lore) {
+          const loreEl = document.createElement('p')
+          loreEl.className = 'codex-lore'
+          loreEl.textContent = lore
+          card.appendChild(loreEl)
+        }
       }
       card.append(icon, name, meta)
       grid.appendChild(card)

@@ -292,13 +292,30 @@ export class ModalManager {
     this.openLayer()
   }
 
-  showToast(root: HTMLElement, message: string): void {
+  showToast(root: HTMLElement, message: string, priority: 'normal' | 'important' = 'normal'): void {
+    const now = Date.now()
+    if (priority === 'normal') {
+      if (this.lastToastMessage === message && now - this.lastToastAt < 8000) return
+      if (now - this.toastWindowStart > 12_000) {
+        this.toastWindowStart = now
+        this.toastWindowCount = 0
+      }
+      if (this.toastWindowCount >= 3) return
+      this.toastWindowCount++
+    }
+    this.lastToastMessage = message
+    this.lastToastAt = now
     const toast = document.createElement('div')
     toast.className = 'toast'
     toast.textContent = message
     root.appendChild(toast)
-    window.setTimeout(() => toast.remove(), 2800)
+    window.setTimeout(() => toast.remove(), priority === 'important' ? 3400 : 2200)
   }
+
+  private lastToastAt = 0
+  private lastToastMessage = ''
+  private toastWindowStart = 0
+  private toastWindowCount = 0
 
   showAchievementToast(emoji: string, name: string, reward: string): void {
     const toast = document.createElement('div')

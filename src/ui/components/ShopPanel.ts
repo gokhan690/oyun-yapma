@@ -2,11 +2,7 @@ import type { GameState } from '../../game/GameState'
 import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, producerIconPath, earlyUnlockCost, isProducerUnlocked, scaledUnlockAt, scaledBaseIncome, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
 import { RESEARCH_NODES, researchCost, researchNodesByBranch, type ResearchBranch } from '../../game/Research'
 import { reputationLoanBlocked } from '../../game/Reputation'
-import { COMMODITIES, commodityChangePct } from '../../game/Commodities'
-import { INSURANCE_DAILY_COST } from '../../game/Insurance'
 import { NAMED_MANAGERS } from '../../game/NamedManagers'
-import { UNDERGROUND_MARKET } from '../../game/UndergroundMarket'
-import { ADVISOR_FEE } from '../../game/AdvisorNPC'
 import { getActiveSynergies, getNearSynergies } from '../../game/Synergies'
 import {
   isStarterPhase,
@@ -15,7 +11,13 @@ import {
   shopHubLockReason,
   type ShopHubLock,
 } from '../../game/ProgressiveUnlock'
-import { PRESTIGE_THRESHOLD } from '../../game/Prestige'
+import { PRESTIGE_THRESHOLD, ipoThreshold } from '../../game/Prestige'
+import {
+  renderCommoditiesPanel,
+  renderInsurancePanel,
+  renderOpportunitiesPanel,
+  renderUndergroundMarketPanel,
+} from './shop/ShopAltFinancePanels'
 import { prestigeMultiplier } from '../../game/Prestige'
 import { managerCost, hasManager } from '../../game/Managers'
 import { profitLoss, priceChangePct, portfolioSummary, sparklinePath, STOCK_DEFS, fearLabel, isBankruptTicker } from '../../game/StockMarket'
@@ -465,6 +467,8 @@ export class ShopPanel {
 
   hasMarketBadge(state: GameState): boolean {
     return state.prestigeEligible()
+      || !!state.investmentOffer
+      || state.pendingInvestments.length > 0
   }
 
   updateTabBadges(state: GameState): void {
@@ -1865,130 +1869,11 @@ export class ShopPanel {
     if (this.ipoSubTab === 'stock') this.renderIpoStock(state, panel)
     else if (this.ipoSubTab === 'bank') this.renderIpoBank(state, panel)
     else if (this.ipoSubTab === 'prestige') this.renderIpoPrestige(state, panel)
-    else if (this.ipoSubTab === 'insurance') this.renderInsurance(state, panel)
-    else if (this.ipoSubTab === 'commodities') this.renderCommodities(state, panel)
-    else if (this.ipoSubTab === 'opportunities') this.renderOpportunities(state, panel)
-    else if (this.ipoSubTab === 'underground_market') this.renderUndergroundMarket(state, panel)
+    else if (this.ipoSubTab === 'insurance') renderInsurancePanel(state, panel, (a, b, c, d) => this.createTabHero(a, b, c, d))
+    else if (this.ipoSubTab === 'commodities') renderCommoditiesPanel(state, panel, (a, b, c, d) => this.createTabHero(a, b, c, d))
+    else if (this.ipoSubTab === 'opportunities') renderOpportunitiesPanel(state, panel, (a, b, c, d) => this.createTabHero(a, b, c, d))
+    else if (this.ipoSubTab === 'underground_market') renderUndergroundMarketPanel(state, panel, (a, b, c, d) => this.createTabHero(a, b, c, d))
     else this.renderIpoMerge(state, panel)
-  }
-
-  private renderInsurance(state: GameState, panel: HTMLElement): void {
-    panel.appendChild(this.createTabHero('🛡️', 'İşletme Sigortası', 'Risk al veya güvenlik için öde — gerçek karar', ''))
-    for (const [kind, label, desc] of [
-      ['business', 'Fabrika Sigortası', 'Baskında hasar yarıya iner'] as const,
-      ['illegal', 'Illegal Koruma', 'İlk polis baskını bağışık'] as const,
-      ['dynasty', 'Hanedan Sigortası', 'Mirasçısız ölümde %50 varlık korunur'] as const,
-    ]) {
-      const active = state.insurance[kind]
-      const cost = INSURANCE_DAILY_COST[kind]
-      const card = document.createElement('div')
-      card.className = `shop-card${active ? ' manager-active' : ''}`
-      card.innerHTML = `<strong>${label}</strong><p>${desc}</p><span>${formatMoney(cost)}/gün</span>`
-      const btn = document.createElement('button')
-      btn.type = 'button'
-      btn.className = active ? 'btn-secondary' : 'btn-primary'
-      btn.dataset.action = 'insurance-toggle'
-      btn.dataset.id = kind
-      btn.textContent = active ? 'İptal et' : 'Aktif et'
-      card.appendChild(btn)
-      panel.appendChild(card)
-    }
-  }
-
-  private renderCommodities(state: GameState, panel: HTMLElement): void {
-    panel.appendChild(this.createTabHero('📦', 'Emtialar', 'Piyasa haberlerine tepki veren fiziksel varlıklar', ''))
-    if (state.advisorTip) {
-      const adv = document.createElement('div')
-      adv.className = 'advisor-card'
-      adv.innerHTML = `<strong>👨‍💼 Danışman Kemal</strong><p>${state.advisorTip.headline}</p>`
-      const btn = document.createElement('button')
-      btn.type = 'button'
-      btn.className = 'btn-secondary'
-      btn.dataset.action = 'advisor-pay'
-      btn.textContent = `Dinle → ${formatMoney(ADVISOR_FEE)}`
-      adv.appendChild(btn)
-      panel.appendChild(adv)
-    }
-    for (const c of COMMODITIES) {
-      const price = state.commodities.prices[c.id] ?? c.basePrice
-      const chg = commodityChangePct(state.commodities, c.id)
-      const held = state.commodities.holdings[c.id] ?? 0
-      const chgClass = chg >= 0 ? 'pl-positive' : chg < 0 ? 'pl-negative' : ''
-      const card = document.createElement('div')
-      card.className = 'shop-card stock-board-card'
-      card.innerHTML = `
-        <div><strong>${c.emoji} ${c.name}</strong><br>${formatMoney(price)}/${c.unit}</div>
-        <div class="${chgClass}">${chg >= 0 ? '▲' : chg < 0 ? '▼' : '→'} ${Math.abs(chg).toFixed(1)}%</div>
-        <div>Stok: ${held}</div>
-      `
-      const buy = document.createElement('button')
-      buy.type = 'button'
-      buy.className = 'btn-primary'
-      buy.dataset.action = 'commodity-buy'
-      buy.dataset.id = c.id
-      buy.textContent = 'Al'
-      const sell = document.createElement('button')
-      sell.type = 'button'
-      sell.className = 'btn-secondary'
-      sell.dataset.action = 'commodity-sell'
-      sell.dataset.id = c.id
-      sell.textContent = 'Sat'
-      sell.disabled = held <= 0
-      card.append(buy, sell)
-      panel.appendChild(card)
-    }
-  }
-
-  private renderOpportunities(state: GameState, panel: HTMLElement): void {
-    panel.appendChild(this.createTabHero('💡', 'Yatırım Fırsatları', 'Süreli teklifler — yüksek getiri, garantisiz', ''))
-    const offer = state.investmentOffer
-    if (!offer) {
-      const empty = document.createElement('p')
-      empty.className = 'finance-sub-hint'
-      empty.textContent = 'Yeni fırsat birkaç gün içinde gelecek...'
-      panel.appendChild(empty)
-      return
-    }
-    const left = Math.max(0, Math.floor((offer.expiresAt - Date.now()) / 1000))
-    const card = document.createElement('div')
-    card.className = 'shop-card'
-    card.innerHTML = `
-      <strong>⏰ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} kaldı</strong>
-      <h4>${offer.title}</h4>
-      <p>${offer.description}</p>
-      <p>Maliyet: ${formatMoney(offer.cost)}</p>
-    `
-    const invest = document.createElement('button')
-    invest.type = 'button'
-    invest.className = 'btn-primary'
-    invest.dataset.action = 'investment-accept'
-    invest.textContent = 'Yatır'
-    const skip = document.createElement('button')
-    skip.type = 'button'
-    skip.className = 'btn-secondary'
-    skip.dataset.action = 'investment-dismiss'
-    skip.textContent = 'Geç'
-    card.append(invest, skip)
-    panel.appendChild(card)
-  }
-
-  private renderUndergroundMarket(state: GameState, panel: HTMLElement): void {
-    panel.appendChild(this.createTabHero('🕶️', 'Kara Borsa', 'Heat artırır — sadece cesur baronlar', ''))
-    for (const def of UNDERGROUND_MARKET) {
-      if (def.id === 'intel_leak' && !state.hasVictoryMechanic('shadow_network')) continue
-      const active = state.undergroundMarketActive.includes(def.id)
-      const card = document.createElement('div')
-      card.className = `shop-card${active ? ' manager-active' : ''}`
-      card.innerHTML = `<strong>${def.emoji} ${def.name}</strong><p>${def.description}</p><span>${formatMoney(def.dailyCost)}/gün · Heat +${def.heatGain}</span>`
-      const btn = document.createElement('button')
-      btn.type = 'button'
-      btn.className = active ? 'btn-secondary' : 'btn-primary'
-      btn.dataset.action = 'underground-market-toggle'
-      btn.dataset.id = def.id
-      btn.textContent = active ? 'Kapat' : 'Aç'
-      card.appendChild(btn)
-      panel.appendChild(card)
-    }
   }
 
   private renderIpoStock(state: GameState, panel: HTMLElement): void {
@@ -2307,7 +2192,7 @@ export class ShopPanel {
       <strong>Run Birleşmesi (IPO) nedir?</strong>
       <p>Oyunu silmez — imparatorluğunu <em>kalıcı güçlendirerek</em> yeni tura başlatırsın.</p>
       <ul>
-        <li><strong>10M+ toplam kazanç</strong> yapınca birleşme açılır</li>
+        <li><strong>${formatMoney(PRESTIGE_THRESHOLD)}+ toplam kazanç</strong> ile birleşme açılır — her IPO'da eşik katlanır</li>
         <li>Borsa & banka varlıkların nakde çevrilir, run sıfırlanır</li>
         <li><strong>Kalıcı prestij hissesi</strong> kazanırsın → tüm gelirlerin kalıcı çarpanı artar</li>
         <li>Prestij ağacı, hanedan, sezon ve imparatorluk yönetimi <strong>korunur</strong></li>
@@ -2320,7 +2205,8 @@ export class ShopPanel {
     const ipoCard = document.createElement('div')
     ipoCard.className = 'shop-card ipo-card'
     const currentMult = prestigeMultiplier(state.prestigePoints)
-    const remaining = Math.max(0, PRESTIGE_THRESHOLD - state.totalEarned)
+    const threshold = ipoThreshold(state.ipoCount)
+    const remaining = Math.max(0, threshold - state.totalEarned)
 
     const stats = document.createElement('div')
     stats.className = 'ipo-stats-grid'
@@ -2346,9 +2232,9 @@ export class ShopPanel {
     info.className = 'ipo-info-text'
     info.textContent = preview.pointsToEarn > 0
       ? `Hazırsın: +${preview.pointsToEarn} kalıcı hisse · çarpan x${currentMult.toFixed(2)} → x${preview.newMultiplier.toFixed(2)} · portföy ${formatMoney(preview.portfolioValue)} satılacak`
-      : `IPO için ${formatMoney(PRESTIGE_THRESHOLD)} toplam kazanç gerekir. Şu an ${formatMoney(state.totalEarned)} — ${formatMoney(remaining)} kaldı.`
+      : `IPO #${state.ipoCount + 1} için ${formatMoney(threshold)} toplam kazanç gerekir. Şu an ${formatMoney(state.totalEarned)} — ${formatMoney(remaining)} kaldı.`
 
-    const ipoPct = Math.min(100, (state.totalEarned / PRESTIGE_THRESHOLD) * 100)
+    const ipoPct = Math.min(100, (state.totalEarned / threshold) * 100)
     const bar = document.createElement('div')
     bar.className = 'progress-bar ipo-progress-bar'
     const fill = document.createElement('div')
