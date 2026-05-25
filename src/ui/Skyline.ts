@@ -1,10 +1,15 @@
 import { PRODUCERS, producerIconPath } from '../game/Economy'
-import { isGameNight } from '../game/GameClock'
+import { isGameWeekend } from '../game/GameClock'
+import type { LegacyMonument } from '../game/Chronicle'
 
 const BUILDING_HEIGHTS = [36, 44, 52, 48, 56, 64, 72, 80, 88, 96, 104]
 
 function isNightHour(hour: number): boolean {
   return hour < 6 || hour >= 20
+}
+
+const TIER_HEIGHTS: Record<number, number> = {
+  1: 32, 2: 44, 3: 52, 4: 60, 5: 72, 6: 84, 7: 96, 8: 108,
 }
 
 export class Skyline {
@@ -54,21 +59,33 @@ export class Skyline {
     this.animateParallax()
   }
 
-  update(tierCount: number, gameTimeMs?: number): void {
+  update(tierCount: number, gameTimeMs?: number, monuments: LegacyMonument[] = []): void {
     if (gameTimeMs !== undefined) this.gameTimeMs = gameTimeMs
     this.buildingsEl.replaceChildren()
-    const count = Math.min(PRODUCERS.length, Math.max(0, tierCount))
+    const count = Math.min(PRODUCERS.length, Math.max(0, tierCount - monuments.length))
+    this.el.classList.toggle('skyline-mega', tierCount >= 12)
+    this.el.classList.toggle('skyline-mid', tierCount >= 6 && tierCount < 12)
     for (let i = 0; i < count; i++) {
       const p = PRODUCERS[i]!
       const b = document.createElement('div')
-      b.className = 'skyline-building svg-building'
+      b.className = `skyline-building svg-building skyline-tier-${p.tier}`
       b.style.animationDelay = `${i * 0.12}s`
-      b.style.height = `${BUILDING_HEIGHTS[i] ?? 48}px`
+      b.style.height = `${TIER_HEIGHTS[p.tier] ?? BUILDING_HEIGHTS[i] ?? 48}px`
       const img = document.createElement('img')
       img.src = producerIconPath(p.id)
       img.alt = ''
       img.className = 'skyline-building-icon'
       b.appendChild(img)
+      this.buildingsEl.appendChild(b)
+    }
+    for (let mi = 0; mi < monuments.length; mi++) {
+      const m = monuments[mi]!
+      const b = document.createElement('div')
+      b.className = 'skyline-building skyline-monument'
+      b.style.animationDelay = `${(count + mi) * 0.12}s`
+      b.style.height = `${96 + mi * 4}px`
+      b.title = `${m.producerName} · G${m.generation} · IPO ${m.ipoEra}`
+      b.textContent = m.emoji
       this.buildingsEl.appendChild(b)
     }
     this.updateDayNight()
@@ -101,7 +118,7 @@ export class Skyline {
   }
 
   private updateDayNight(): void {
-    const night = this.gameTimeMs > 0 ? isGameNight(this.gameTimeMs) : isNightHour(new Date().getHours())
+    const night = this.gameTimeMs > 0 ? isGameWeekend(this.gameTimeMs) : isNightHour(new Date().getHours())
     if (this.lastNight === night) return
     this.lastNight = night
     this.el.classList.toggle('skyline-night', night)

@@ -1,7 +1,14 @@
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, producerIconPath, earlyUnlockCost, isProducerUnlocked, scaledUnlockAt, scaledBaseIncome, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
 import { RESEARCH_NODES, researchCost, researchNodesByBranch, type ResearchBranch } from '../../game/Research'
-import { getActiveSynergies } from '../../game/Synergies'
+import { getActiveSynergies, getNearSynergies } from '../../game/Synergies'
+import {
+  isStarterPhase,
+  isStarterBusiness,
+  isShopHubLocked,
+  shopHubLockReason,
+  type ShopHubLock,
+} from '../../game/ProgressiveUnlock'
 import { PRESTIGE_THRESHOLD } from '../../game/Prestige'
 import { prestigeMultiplier } from '../../game/Prestige'
 import { managerCost, hasManager } from '../../game/Managers'
@@ -19,6 +26,7 @@ import {
   type BizSortOrder,
 } from '../../game/ShopAdvisor'
 import { UNDERGROUND_TREE_NODES, treeNodeCost } from '../../game/UndergroundTree'
+import { reputationLoanBlocked } from '../../game/Reputation'
 
 export type BuyMode = 1 | 10 | 'max'
 export type ShopHub = 'growth' | 'powerup' | 'finance' | 'empire'
@@ -235,6 +243,41 @@ export class ShopPanel {
     if (state) {
       this.renderSubTabs(state)
       this.updateTabBadges(state)
+      this.applyProgressiveLocks(state)
+    }
+  }
+
+  private applyProgressiveLocks(state: GameState): void {
+    const hubMap: Partial<Record<ShopHub, ShopHubLock>> = {
+      powerup: 'powerup',
+      empire: 'empire',
+    }
+    if (isShopHubLocked('management', state.producers, state.totalEarned) && this.growthSub === 'management') {
+      this.growthSub = 'businesses'
+    }
+    if (isShopHubLocked('powerup', state.producers, state.totalEarned) && this.activeHub === 'powerup') {
+      this.activeHub = 'growth'
+    }
+    if (isShopHubLocked('empire', state.producers, state.totalEarned) && this.activeHub === 'empire') {
+      this.activeHub = 'growth'
+    }
+    for (const btn of this.tabButtons) {
+      const hub = btn.dataset.tab as ShopHub
+      const lockKey = hubMap[hub]
+      if (!lockKey) {
+        btn.classList.remove('shop-hub-locked')
+        btn.removeAttribute('title')
+        continue
+      }
+      const locked = isShopHubLocked(lockKey, state.producers, state.totalEarned)
+      btn.classList.toggle('shop-hub-locked', locked)
+      btn.title = locked ? shopHubLockReason(lockKey, state.producers, state.totalEarned) ?? '' : ''
+    }
+    for (const btn of this.subTabButtons) {
+      if (btn.dataset.id !== 'management') continue
+      const locked = isShopHubLocked('management', state.producers, state.totalEarned)
+      btn.classList.toggle('shop-hub-locked', locked)
+      btn.title = locked ? shopHubLockReason('management', state.producers, state.totalEarned) ?? '' : ''
     }
   }
 
@@ -1013,21 +1056,24 @@ export class ShopPanel {
 
   private renderBusinesses(state: GameState, patchOnly = false): void {
     const panel = this.panels.businesses!
+    const near = getNearSynergies(state.producers)
     const synergies = getActiveSynergies(state.producers).filter((s) => s.active)
-    const synergyText = synergies.length > 0
-      ? `Sinerji aktif: ${synergies.map((s) => s.def.name).join(', ')}`
-      : ''
 
-    if (synergyText) {
+    if (synergies.length > 0 || near.length > 0) {
       if (!this.synergyEl) {
         this.synergyEl = document.createElement('div')
         this.synergyEl.className = 'synergy-bar synergy-card'
         panel.prepend(this.synergyEl)
       }
-      const detail = synergies.map((s) => `${s.def.name} (+${Math.round(s.def.bonus * 100)}%)`).join(' · ')
-      if (this.synergyEl.textContent !== detail) {
-        this.synergyEl.innerHTML = `<strong>⚡ Sinerji aktif</strong><span>${detail}</span>`
-      }
+      const activeDetail = synergies.map((s) => `${s.def.name} (+${Math.round(s.def.bonus * 100)}%)`).join(' · ')
+      const nearDetail = near.slice(0, 3).map((n) => {
+        const missingName = PRODUCERS.find((p) => p.id === n.missing[0])?.name ?? n.missing[0]
+        return `${n.def.name} → ${missingName}`
+      }).join(' · ')
+      this.synergyEl.innerHTML = [
+        synergies.length > 0 ? `<strong>⚡ Sinerji aktif</strong><span>${activeDetail}</span>` : '',
+        near.length > 0 ? `<div class="synergy-near-preview"><strong>Yakında:</strong> ${nearDetail}</div>` : '',
+      ].filter(Boolean).join('')
       this.synergyEl.hidden = false
     } else if (this.synergyEl) {
       this.synergyEl.hidden = true
@@ -1089,7 +1135,9 @@ export class ShopPanel {
     const grid = this.getCardsGrid(panel)
     const visibleIds = new Set<string>()
     const unlocked = sortProducers(
-      state.unlockedProducers().filter((p) => this.matchesBizFilter(p, this.bizTypeFilter)),
+      state.unlockedProducers()
+        .filter((p) => this.matchesBizFilter(p, this.bizTypeFilter))
+        .filter((p) => !isStarterPhase(state.producers) || isStarterBusiness(p.id)),
       this.bizSortOrder,
       state,
     )
@@ -1119,7 +1167,7 @@ export class ShopPanel {
       }
     }
 
-    if (!patchOnly) {
+    if (!patchOnly && !isStarterPhase(state.producers)) {
       const nextLockedDef = PRODUCERS.find((p) => {
         if (isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks)) return false
         if (!this.matchesBizFilter(p, this.bizTypeFilter)) return false
@@ -1359,6 +1407,20 @@ export class ShopPanel {
       synBadge.textContent = '⚡ Sinerji'
       synBadge.hidden = false
     } else if (synBadge) synBadge.hidden = true
+
+    const nearForProd = getNearSynergies(state.producers).filter((n) => n.missing.includes(p.id))
+    let nearBadge = card.querySelector('.biz-synergy-near') as HTMLElement | null
+    if (nearForProd.length > 0 && (!synBadge || synBadge.hidden)) {
+      const n = nearForProd[0]!
+      if (!nearBadge) {
+        nearBadge = document.createElement('span')
+        nearBadge.className = 'biz-synergy-near'
+        card.appendChild(nearBadge)
+      }
+      nearBadge.textContent = `⚡ ${n.def.name}`
+      nearBadge.title = `Sinerji için ${n.def.name} — 1 işletme eksik`
+      nearBadge.hidden = false
+    } else if (nearBadge) nearBadge.hidden = true
 
     card.querySelectorAll('.biz-milestone-dot').forEach((dot) => {
       const ms = Number((dot as HTMLElement).dataset.milestone)
@@ -1613,9 +1675,28 @@ export class ShopPanel {
     ))
 
     const treeGrid = document.createElement('div')
-    treeGrid.className = 'research-tree-grid'
+    treeGrid.className = 'research-tree-visual'
 
-    for (const node of nodes) {
+    const treeBranchLabels: Record<ResearchBranch, string> = {
+      operasyon: 'Operasyon',
+      finans: 'Finans',
+      imparatorluk: 'İmparatorluk',
+    }
+    const branches = this.researchBranch === 'all'
+      ? (['operasyon', 'finans', 'imparatorluk'] as ResearchBranch[])
+      : [this.researchBranch]
+
+    for (const branch of branches) {
+      const col = document.createElement('div')
+      col.className = 'research-tree-branch-col'
+      const head = document.createElement('h4')
+      head.className = 'research-tree-branch-head'
+      head.textContent = treeBranchLabels[branch]
+      col.appendChild(head)
+      const chain = document.createElement('div')
+      chain.className = 'research-tree-chain'
+
+      for (const node of nodes.filter((n) => n.branch === branch)) {
       const level = state.research[node.id] ?? 0
       const maxed = level >= node.maxLevel
       const cost = state.researchCostWithWeekly(researchCost(node, level))
@@ -1658,7 +1739,10 @@ export class ShopPanel {
       price.textContent = maxed ? 'Tamam' : node.currency === 'money' ? formatMoney(cost) : `${cost} hisse`
 
       card.append(icon, body, price)
-      treeGrid.appendChild(card)
+      chain.appendChild(card)
+      }
+      col.appendChild(chain)
+      treeGrid.appendChild(col)
     }
     panel.appendChild(treeGrid)
   }
@@ -1864,6 +1948,13 @@ export class ShopPanel {
     `
     panel.appendChild(rateStrip)
 
+    if (reputationLoanBlocked(state.reputation)) {
+      const repWarn = document.createElement('p')
+      repWarn.className = 'bank-reputation-warn'
+      repWarn.textContent = `⭐ İtibar çok düşük (${state.reputation}) — banka kredi vermiyor. Yasal işletmelerle itibarını yükselt.`
+      panel.appendChild(repWarn)
+    }
+
     const now = Date.now()
     const countdownSec = Math.ceil(interestTickCountdownMs(bank, now) / 1000)
     const last = bank.lastInterestSnapshot
@@ -1941,23 +2032,52 @@ export class ShopPanel {
   }
 
   private renderIpoPrestige(state: GameState, panel: HTMLElement): void {
-    panel.appendChild(this.createSectionHeader('Prestij Ağacı', `${state.prestigePoints} harcanabilir puan`))
+    panel.appendChild(this.createSectionHeader(
+      'Prestij Ağacı',
+      `${state.prestigePoints} harcanabilir puan · kalıcı run güçlendirme`,
+    ))
 
-    const treeGrid = document.createElement('div')
-    treeGrid.className = 'prestige-tree-grid'
-    for (const node of PRESTIGE_TREE_NODES) {
-      const owned = hasNode(state.prestigeTree, node.id)
-      const canBuy = canBuyNode(state.prestigeTree, node, state.prestigePoints)
-      const card = document.createElement('button')
-      card.type = 'button'
-      card.className = `tree-node ${owned ? 'owned' : canBuy ? 'available' : 'locked'}`
-      card.dataset.action = owned ? '' : 'buy-tree-node'
-      card.dataset.id = node.id
-      card.disabled = owned || !canBuy
-      card.innerHTML = `<strong>${node.name}</strong><small>${node.description}</small><span>${owned ? '✓' : `${node.cost} puan`}</span>`
-      treeGrid.appendChild(card)
+    const branchLabels: Record<string, string> = {
+      income: '💰 Gelir',
+      economy: '📉 Ekonomi',
+      meta: '⚙️ Meta',
     }
-    panel.appendChild(treeGrid)
+    const wrap = document.createElement('div')
+    wrap.className = 'prestige-tree-visual'
+
+    for (const branch of ['income', 'economy', 'meta'] as const) {
+      const col = document.createElement('div')
+      col.className = 'prestige-branch-col'
+      const head = document.createElement('h4')
+      head.className = 'prestige-branch-head'
+      head.textContent = branchLabels[branch] ?? branch
+      col.appendChild(head)
+
+      const chain = document.createElement('div')
+      chain.className = 'prestige-branch-chain'
+      for (const node of PRESTIGE_TREE_NODES.filter((n) => n.branch === branch)) {
+        const owned = hasNode(state.prestigeTree, node.id)
+        const canBuy = canBuyNode(state.prestigeTree, node, state.prestigePoints)
+        if (node.requires) {
+          const reqNode = PRESTIGE_TREE_NODES.find((n) => n.id === node.requires)
+          const reqLine = document.createElement('div')
+          reqLine.className = 'prestige-requires-line'
+          reqLine.textContent = reqNode ? `↑ ${reqNode.name}` : '↑ ön koşul'
+          chain.appendChild(reqLine)
+        }
+        const card = document.createElement('button')
+        card.type = 'button'
+        card.className = `tree-node prestige-tree-node ${owned ? 'owned' : canBuy ? 'available' : 'locked'}`
+        card.dataset.action = owned ? '' : 'buy-tree-node'
+        card.dataset.id = node.id
+        card.disabled = owned || !canBuy
+        card.innerHTML = `<strong>${node.name}</strong><small>${node.description}</small><span class="tree-node-cost">${owned ? '✓ Alındı' : `${node.cost} puan`}</span>`
+        chain.appendChild(card)
+      }
+      col.appendChild(chain)
+      wrap.appendChild(col)
+    }
+    panel.appendChild(wrap)
   }
 
   private renderIpoMerge(state: GameState, panel: HTMLElement): void {

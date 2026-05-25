@@ -89,4 +89,14 @@ export class BottomNav {
     if (this.badgeShop) this.badgeShop.hidden = !shop
     if (this.badgeMarket) this.badgeMarket.hidden = !market
   }
+
+  setNavLocked(locks: Partial<Record<NavView, string | null>>): void {
+    for (const [id, btn] of this.buttons) {
+      const reason = locks[id]
+      const locked = !!reason
+      btn.classList.toggle('nav-btn-locked', locked)
+      btn.dataset.lockedReason = reason ?? ''
+      btn.setAttribute('aria-disabled', locked ? 'true' : 'false')
+    }
+  }
 }

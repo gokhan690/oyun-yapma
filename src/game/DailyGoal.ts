@@ -36,10 +36,19 @@ export function calcDailyLoginReward(streak: number, incomePerDay: number): numb
 }
 
 export function streakMilestoneBonus(milestone: number): number {
-  if (milestone === 7) return 400
-  if (milestone === 14) return 900
-  if (milestone === 30) return 2_500
+  if (milestone === 7) return 1_200
+  if (milestone === 14) return 2_800
+  if (milestone === 30) return 8_000
   return 0
+}
+
+export const STREAK_MILESTONES = [7, 14, 30] as const
+
+export function nextStreakMilestone(streak: number): number | null {
+  for (const m of STREAK_MILESTONES) {
+    if (streak < m) return m
+  }
+  return null
 }
 
 export const DAILY_GOAL_TARGET = DAILY_GOAL_MIN

@@ -5,6 +5,7 @@ import { PRODUCERS, formatMoney } from '../../game/Economy'
 import type { Leaderboard } from '../../game/Leaderboard'
 import { CodexPanel } from './CodexPanel'
 import { DynastyPanel } from './DynastyPanel'
+import { WorldMetaPanel } from './WorldMetaPanel'
 import { BADGES, badgeDef } from '../../game/Badges'
 
 export class StatsScreen {
@@ -14,12 +15,14 @@ export class StatsScreen {
   private content!: HTMLElement
   private codex: CodexPanel
   private dynasty: DynastyPanel
+  private worldMeta: WorldMetaPanel
 
   constructor(state: GameState, leaderboard: Leaderboard) {
     this.state = state
     this.leaderboard = leaderboard
     this.codex = new CodexPanel()
     this.dynasty = new DynastyPanel(state)
+    this.worldMeta = new WorldMetaPanel(state)
     this.layer = document.createElement('div')
     this.layer.className = 'slide-panel stats-panel'
     this.build()
@@ -49,6 +52,8 @@ export class StatsScreen {
 
   render(): void {
     this.content.replaceChildren()
+    this.worldMeta.render()
+    this.content.appendChild(this.worldMeta.root)
     this.dynasty.render()
     this.content.appendChild(this.dynasty.root)
     this.renderStats()

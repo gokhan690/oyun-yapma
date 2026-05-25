@@ -7,20 +7,47 @@ export interface TutorialStep {
   text: string
   tab?: string
   view?: NavView
+  mandatory?: boolean
+  waitFor?: 'tap' | 'purchase'
 }
 
-const STEPS: TutorialStep[] = [
-  { target: '.tap-area', title: 'Tıkla & Kazan', text: 'Buraya tıklayarak para kazan. Hızlı tık = combo bonusu!', view: 'earn' },
-  { target: '[data-id="shop"]', title: 'İşletme', text: 'Tüm işletmeleri geniş kartlarla buradan satın al.', view: 'shop' },
-  { target: '[data-tab="growth"]', title: 'Büyüme', text: 'İşletme al, yönetici işe al. Büyüme · Güçlendir · İmparatorluk sekmeleri burada.', tab: 'growth', view: 'shop' },
-  { target: '.shop-advisor-strip', title: 'Akıllı alım', text: 'En iyi sonraki alım önerisi — tek tıkla satın al.', tab: 'growth', view: 'shop' },
-  { target: '[data-id="market"]', title: 'Borsa', text: 'Hisse al/sat, banka işlemleri ve run birleşmesi burada.', view: 'market' },
-  { target: '[data-tab="empire"]', title: 'İmparatorluk', text: 'Spor, lüks, finans ve bilim kategorilerini İşletme sekmesinden aç.', tab: 'empire', view: 'shop' },
-  { target: '.combo-wrap', title: 'Combo', text: '2 saniye içinde art arda tıkla — combo çarpanı artar.', view: 'earn' },
-  { target: '[data-id="events"]', title: 'Etkinlikler', text: 'Günlük hedef, haftalık etkinlik, sezon yolu ve görevler burada.' },
-  { target: '.btn-daily', title: 'Günlük ödül', text: 'Her gün giriş yap, streak bonusu topla!' },
-  { target: '.heat-meter-row', title: 'Illegal radar', text: 'Illegal işletmeler radar biriktirir. Underground menüsünden temizle.', view: 'earn' },
+const MANDATORY_STEPS: TutorialStep[] = [
+  {
+    target: '.tap-area',
+    title: 'Tıkla & Kazan',
+    text: 'Buraya tıkla — para kazanmaya başla!',
+    view: 'earn',
+    mandatory: true,
+    waitFor: 'tap',
+  },
+  {
+    target: '[data-id="shop"]',
+    title: 'İlk işletmen',
+    text: 'İşletme sekmesine git — limonata veya berber ile başla.',
+    view: 'shop',
+    mandatory: true,
+  },
+  {
+    target: '.shop-advisor-card, .biz-card:not(.biz-card-locked-preview)',
+    title: 'Satın al',
+    text: 'Bir işletme seç — pasif gelir kazanmaya başlarsın.',
+    tab: 'growth',
+    view: 'shop',
+    mandatory: true,
+    waitFor: 'purchase',
+  },
 ]
+
+const OPTIONAL_STEPS: TutorialStep[] = [
+  { target: '.combo-wrap', title: 'Combo', text: 'Hızlı tıkla — combo çarpanı artar.', view: 'earn' },
+  { target: '[data-id="events"]', title: 'Etkinlikler', text: 'Günlük hedef, bonus envanteri ve görevler.' },
+  { target: '.btn-daily', title: 'Günlük ödül', text: 'Her gün giriş yap, streak bonusu topla!' },
+  { target: '[data-id="market"]', title: 'Borsa', text: 'Hisse, banka ve run birleşmesi burada.', view: 'market' },
+]
+
+function allSteps(): TutorialStep[] {
+  return [...MANDATORY_STEPS, ...OPTIONAL_STEPS]
+}
 
 export class Tutorial {
   private overlay: HTMLElement | null = null
@@ -29,6 +56,7 @@ export class Tutorial {
   private onTab: ((tab: string) => void) | null = null
   private state: GameState
   private currentView: NavView = 'earn'
+  private mandatoryComplete = false
 
   constructor(state: GameState) {
     this.state = state
@@ -42,6 +70,30 @@ export class Tutorial {
     return !this.state.tutorialDone
   }
 
+  isMandatoryPhase(): boolean {
+    return !this.mandatoryComplete && !this.state.onboardingComplete
+  }
+
+  onPurchaseMade(): void {
+    if (!this.shouldShow()) return
+    const step = allSteps()[this.stepIndex]
+    if (step?.waitFor === 'purchase') {
+      this.mandatoryComplete = true
+      this.state.onboardingComplete = true
+      this.stepIndex++
+      this.showStep()
+    }
+  }
+
+  onTapMade(): void {
+    if (!this.shouldShow()) return
+    const step = allSteps()[this.stepIndex]
+    if (step?.waitFor === 'tap') {
+      this.stepIndex++
+      this.showStep()
+    }
+  }
+
   onViewChange(view: NavView): void {
     this.currentView = view
     if (this.state.tutorialDone) {
@@ -49,8 +101,8 @@ export class Tutorial {
       return
     }
     this.cleanup()
-    if (this.stepIndex >= STEPS.length) return
-    const step = STEPS[this.stepIndex]!
+    if (this.stepIndex >= allSteps().length) return
+    const step = allSteps()[this.stepIndex]!
     if (!step.view || step.view === view) {
       window.setTimeout(() => this.showStep(), 120)
     }
@@ -62,23 +114,32 @@ export class Tutorial {
 
   start(): void {
     if (!this.shouldShow()) return
-    this.stepIndex = 0
+    this.mandatoryComplete = this.state.onboardingComplete
+    if (this.mandatoryComplete) {
+      this.stepIndex = MANDATORY_STEPS.length
+    } else {
+      this.stepIndex = 0
+    }
     this.showStep()
   }
 
   restart(): void {
     this.state.tutorialDone = false
+    this.state.onboardingComplete = false
+    this.mandatoryComplete = false
     this.stepIndex = 0
     this.showStep()
   }
 
   private showStep(): void {
     this.cleanup()
-    if (this.stepIndex >= STEPS.length) {
+    const steps = allSteps()
+    if (this.stepIndex >= steps.length) {
       this.state.tutorialDone = true
+      this.state.onboardingComplete = true
       return
     }
-    const step = STEPS[this.stepIndex]!
+    const step = steps[this.stepIndex]!
     if (step.view && step.view !== this.currentView) return
 
     if (step.tab && this.onTab) this.onTab(step.tab)
@@ -86,9 +147,12 @@ export class Tutorial {
     const delay = step.tab ? 400 : 100
     this.pendingStepTimer = window.setTimeout(() => {
       this.pendingStepTimer = null
-      if (this.state.tutorialDone || this.stepIndex >= STEPS.length) return
-      const current = STEPS[this.stepIndex]!
+      if (this.state.tutorialDone || this.stepIndex >= steps.length) return
+      const current = steps[this.stepIndex]!
       if (current.view && current.view !== this.currentView) return
+      if (current.waitFor === 'tap' || current.waitFor === 'purchase') {
+        // Overlay göster; ilerleme olayla gelir
+      }
 
       const target = document.querySelector(current.target) as HTMLElement | null
       if (!this.isTargetVisible(target)) return
@@ -106,23 +170,42 @@ export class Tutorial {
       p.textContent = current.text
       const row = document.createElement('div')
       row.className = 'tutorial-actions'
-      const skip = document.createElement('button')
-      skip.type = 'button'
-      skip.className = 'btn-secondary'
-      skip.textContent = 'Atla'
-      skip.addEventListener('click', () => {
-        this.state.tutorialDone = true
-        this.cleanup()
-      })
-      const next = document.createElement('button')
-      next.type = 'button'
-      next.className = 'btn-primary'
-      next.textContent = this.stepIndex >= STEPS.length - 1 ? 'Bitir' : 'Devam'
-      next.addEventListener('click', () => {
-        this.stepIndex++
-        this.showStep()
-      })
-      row.append(skip, next)
+
+      const isMandatory = !!current.mandatory && !this.mandatoryComplete
+      if (!isMandatory) {
+        const skip = document.createElement('button')
+        skip.type = 'button'
+        skip.className = 'btn-secondary'
+        skip.textContent = 'Atla'
+        skip.addEventListener('click', () => {
+          this.state.tutorialDone = true
+          this.state.onboardingComplete = true
+          this.cleanup()
+        })
+        row.appendChild(skip)
+      }
+
+      if (!current.waitFor) {
+        const next = document.createElement('button')
+        next.type = 'button'
+        next.className = 'btn-primary'
+        next.textContent = this.stepIndex >= steps.length - 1 ? 'Bitir' : 'Devam'
+        next.addEventListener('click', () => {
+          this.stepIndex++
+          if (this.stepIndex >= MANDATORY_STEPS.length) {
+            this.mandatoryComplete = true
+            this.state.onboardingComplete = true
+          }
+          this.showStep()
+        })
+        row.appendChild(next)
+      } else {
+        const hint = document.createElement('span')
+        hint.className = 'tutorial-wait-hint'
+        hint.textContent = current.waitFor === 'tap' ? 'Tıkla ve devam et →' : 'Satın al ve devam et →'
+        row.appendChild(hint)
+      }
+
       card.append(h, p, row)
       this.overlay.appendChild(card)
 

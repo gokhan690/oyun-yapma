@@ -5151,3 +5151,274 @@ html.theme-galactic {
 .ipo-explain-box ul { margin: 0; padding-left: 18px; }
 .ipo-explain-box li { margin-bottom: 4px; }
 .ipo-explain-box em { color: var(--accent); font-style: normal; font-weight: 600; }
+
+/* Progressive unlock & tutorial */
+.nav-btn-locked {
+  opacity: 0.45;
+  filter: grayscale(0.4);
+  pointer-events: auto;
+}
+.nav-btn-locked .nav-label::after {
+  content: ' 🔒';
+  font-size: 0.65rem;
+}
+.shop-hub-locked {
+  opacity: 0.5;
+  pointer-events: auto;
+}
+.tutorial-wait-hint {
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+.tutorial-highlight {
+  position: fixed;
+  border: 2px solid var(--accent);
+  border-radius: 14px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+  z-index: 80;
+  pointer-events: none;
+}
+
+/* Synergy preview */
+.synergy-near-preview {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.biz-synergy-near {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: rgba(255, 193, 7, 0.15);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.35);
+}
+
+/* Offline popup animation */
+.offline-popup-animated .offline-popup-amount {
+  animation: offline-pulse 0.9s ease-out;
+}
+@keyframes offline-pulse {
+  0% { transform: scale(0.85); opacity: 0.3; }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* IAP value cards */
+.iap-value-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  margin: 10px 0;
+}
+.iap-value-card strong { display: block; margin-bottom: 6px; }
+.iap-value-card p { margin: 0 0 8px; font-size: 0.82rem; color: var(--muted); }
+.iap-perks {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.iap-perks li { margin-bottom: 4px; }
+
+/* Prestij & Ar-Ge tree */
+.prestige-tree-visual,
+.research-tree-visual {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 10px 0;
+}
+.prestige-branch-col,
+.research-tree-branch-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.prestige-branch-head,
+.research-tree-branch-head {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 0;
+}
+.prestige-branch-chain,
+.research-tree-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+.prestige-requires-line {
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 2px 0;
+}
+.prestige-tree-node { width: 100%; text-align: left; }
+.tree-node-cost { display: block; font-size: 0.72rem; margin-top: 4px; color: var(--accent); }
+
+/* Death modal dramatic */
+.death-modal-dramatic {
+  text-align: center;
+  padding: 8px 0;
+}
+.death-vignette {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: 8px;
+  animation: death-pulse 1.2s ease-in-out infinite;
+}
+@keyframes death-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+.death-age-line {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.death-message { margin: 8px 0; }
+
+/* Dynasty legacy */
+.dynasty-legacy-banner {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(212, 175, 55, 0.04));
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.dynasty-legacy-banner p {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* Skyline tiers */
+.skyline-mid .skyline-buildings { filter: saturate(1.1); }
+.skyline-mega .skyline-buildings { filter: saturate(1.25) brightness(1.05); }
+.skyline-tier-1 { opacity: 0.85; }
+.skyline-tier-5,
+.skyline-tier-6,
+.skyline-tier-7,
+.skyline-tier-8 {
+  box-shadow: 0 -4px 12px rgba(255, 215, 0, 0.15);
+}
+.skyline-monument {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  font-size: 1.4rem;
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.35), rgba(212, 175, 55, 0.08));
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 4px 4px 0 0;
+}
+
+/* World meta systems */
+.world-meta-chip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+.world-stage-pill,
+.reputation-pill {
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.meta-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.meta-block h3 { margin: 0 0 8px; font-size: 0.95rem; }
+.meta-hint, .meta-headline, .meta-threat {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 4px 0;
+}
+.reputation-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+}
+.reputation-bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.reputation-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffc107, #4caf50);
+  border-radius: 4px;
+}
+.victory-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.victory-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  text-align: center;
+}
+.victory-card.victory-done { border-color: var(--accent); }
+.victory-emoji { font-size: 1.4rem; display: block; }
+.victory-progress { height: 4px; margin: 6px 0; }
+.victory-pct { font-size: 0.72rem; color: var(--muted); }
+.rival-list { display: flex; flex-direction: column; gap: 8px; }
+.rival-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+}
+.rival-head { display: flex; align-items: center; gap: 8px; }
+.rival-attitude { margin-left: auto; font-size: 0.72rem; color: var(--muted); }
+.rival-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.rival-merged-badge { color: var(--accent); font-size: 0.82rem; }
+.chronicle-timeline { display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; }
+.chronicle-row {
+  display: flex;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  font-size: 0.82rem;
+}
+.chronicle-row p { margin: 2px 0 0; color: var(--muted); }
+.chronicle-emoji { font-size: 1.2rem; }
+.legacy-monument-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.legacy-chip {
+  font-size: 0.72rem;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+}
+.dynasty-crisis-banner {
+  background: rgba(255, 87, 34, 0.12);
+  border: 1px solid rgba(255, 87, 34, 0.3);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+}
+.dynasty-crisis-banner ul { margin: 6px 0 0; padding-left: 18px; }

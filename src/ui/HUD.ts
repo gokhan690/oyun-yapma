@@ -28,11 +28,14 @@ import type { ThemeId } from '../game/Themes'
 import { isOwnerSession } from '../owner/OwnerAuth'
 import { OwnerAccessGate } from '../owner/OwnerAccessGate'
 import { formatGameClock } from '../game/GameClock'
+import { currentWorldStage } from '../game/WorldStage'
+import { reputationLabel } from '../game/Reputation'
 import { EventDirector } from '../game/EventDirector'
 import type { GameEventDef } from '../game/Events'
 import { activeTicker } from '../game/StockMarket'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy } from '../utils/haptics'
+import { navLockReason, isShopHubLocked, shopHubLockReason } from '../game/ProgressiveUnlock'
 
 export class HUD {
   private root: HTMLElement
@@ -53,6 +56,7 @@ export class HUD {
   private sessionComboMult!: HTMLElement
   private sessionPassiveIncome!: HTMLElement
   private profileChip!: HTMLButtonElement
+  private worldMetaChip!: HTMLElement
   private heatMeterFill!: HTMLElement
   private heatMeterLabel!: HTMLElement
   private heatMeterRow!: HTMLElement
@@ -95,6 +99,7 @@ export class HUD {
   private saveManager: SaveManager
   private unsub: (() => void) | null = null
   private eventDirector = new EventDirector()
+  private adPromptShown = false
 
   constructor(
     state: GameState,
@@ -238,7 +243,9 @@ export class HUD {
     this.profileChip.className = 'profile-chip'
     this.profileChip.dataset.action = 'nav-view'
     this.profileChip.dataset.id = 'profile'
-    header.append(titleRow, this.profileChip, this.statsBar.root)
+    this.worldMetaChip = document.createElement('div')
+    this.worldMetaChip.className = 'world-meta-chip'
+    header.append(titleRow, this.worldMetaChip, this.profileChip, this.statsBar.root)
 
     const main = document.createElement('main')
     main.className = 'game-main'
@@ -510,6 +517,7 @@ export class HUD {
       window.setTimeout(() => this.tapArea.classList.remove('tap-ripple'), 450)
       const rect = this.tapArea.getBoundingClientRect()
       this.state.click(e.clientX - rect.left, e.clientY - rect.top)
+      this.tutorial.onTapMade()
     })
 
     const onActionClick = (e: Event): void => {
@@ -611,10 +619,12 @@ export class HUD {
         this.particles.spawnPurchasePulse()
         if (ev.type === 'purchase') {
           this.particles.spawnMoneyToHeader()
+          this.tutorial.onPurchaseMade()
+          this.maybePromptFirstBusinessAd()
         }
         this.statsBar.updateMeta()
         this.refreshShop(true)
-        this.skyline.update(this.state.ownedBusinessTiers(), this.state.gameTimeMs)
+        this.skyline.update(this.state.skylineTierCount(), this.state.gameTimeMs, this.state.legacyMonuments)
       }
       if (ev.type === 'prestige') {
         this.sound.playPrestige()
@@ -687,6 +697,44 @@ export class HUD {
       if (ev.type === 'dynasty_update') {
         if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
         this.renderProfileChip()
+        this.renderWorldMetaChip()
+      }
+      if (ev.type === 'reputation_changed') {
+        this.renderWorldMetaChip()
+        if (ev.delta < -3) this.modals.showToast(this.root, `⭐ İtibar ${ev.reputation} (${ev.delta})`)
+      }
+      if (ev.type === 'world_stage') {
+        this.modals.showToast(this.root, `${ev.name} aşamasına ulaştın!`)
+        this.renderWorldMetaChip()
+      }
+      if (ev.type === 'rival_action') {
+        this.modals.showToast(this.root, ev.headline)
+        if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
+      }
+      if (ev.type === 'victory_unlocked') {
+        this.eventDirector.enqueue({
+          id: `victory-${ev.victoryId}`,
+          priority: 1,
+          run: () => {
+            this.modals.show(
+              `${ev.emoji} Zafer!`,
+              `${ev.name} yolunu tamamladın. Stratejin işe yaradı!`,
+              [(() => {
+                const b = document.createElement('button')
+                b.type = 'button'
+                b.className = 'btn-primary'
+                b.dataset.action = 'close-modal'
+                b.textContent = 'Harika!'
+                return b
+              })()],
+            )
+          },
+        })
+        if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
+      }
+      if (ev.type === 'child_crisis') {
+        this.modals.showToast(this.root, `⚠️ ${ev.message}`)
+        if (this.bottomNav.getActive() === 'profile') this.statsScreen.render()
       }
       if (ev.type === 'player_death') {
         this.showDeathModal(ev)
@@ -870,7 +918,15 @@ export class HUD {
         break
       case 'nav-view':
         if (id === 'profile' && this.suppressProfileNav) break
-        if (id) this.setView(id as NavView)
+        if (id) {
+          const view = id as NavView
+          const reason = navLockReason(view, this.state.producers, this.state.totalEarned)
+          if (reason) {
+            this.toast(reason)
+            return
+          }
+          this.setView(view)
+        }
         break
       case 'open-stats':
         this.setView('profile')
@@ -1117,11 +1173,20 @@ export class HUD {
       }
       case 'shop-tab':
         if (id) {
+          const hubLock = id === 'powerup' ? 'powerup' as const : id === 'empire' ? 'empire' as const : null
+          if (hubLock && isShopHubLocked(hubLock, this.state.producers, this.state.totalEarned)) {
+            this.toast(shopHubLockReason(hubLock, this.state.producers, this.state.totalEarned)!)
+            return
+          }
           this.shop.setTab(id, this.state)
           this.refreshShop(true)
         }
         break
       case 'shop-sub-tab':
+        if (id === 'management' && isShopHubLocked('management', this.state.producers, this.state.totalEarned)) {
+          this.toast(shopHubLockReason('management', this.state.producers, this.state.totalEarned)!)
+          return
+        }
         if (id === 'businesses' || id === 'management') this.shop.setGrowthSub(id)
         else if (id === 'upgrades' || id === 'research') this.shop.setPowerupSub(id)
         else if (id === 'sport' || id === 'politics' || id === 'dark' || id === 'luxury' || id === 'finance' || id === 'science') {
@@ -1428,6 +1493,31 @@ export class HUD {
       case 'dynasty-succession-open':
         this.showSuccessionPicker(this.state.needsSuccession())
         break
+      case 'rival-lobby':
+        if (id && this.state.rivalLobby(id)) {
+          this.modals.showToast(this.root, '🏛️ Lobi başarılı')
+          this.statsScreen.render()
+        } else {
+          this.modals.showToast(this.root, 'Lobi başarısız — yeterli para yok')
+        }
+        break
+      case 'rival-coop':
+        if (id && this.state.rivalCooperate(id)) {
+          this.modals.showToast(this.root, '🤝 İşbirliği anlaşması imzalandı')
+          this.statsScreen.render()
+        } else {
+          this.modals.showToast(this.root, 'İşbirliği başarısız')
+        }
+        break
+      case 'rival-merge':
+        if (id && this.state.rivalMerge(id)) {
+          this.modals.showToast(this.root, '🛒 Rakip aile satın alındı!')
+          this.statsScreen.render()
+          this.renderAll()
+        } else {
+          this.modals.showToast(this.root, 'Satın alma başarısız — yeterli para yok')
+        }
+        break
       default:
         break
     }
@@ -1502,6 +1592,17 @@ export class HUD {
     this.renderSessionPanel()
     this.renderProfileChip()
     this.renderHeatMeter()
+    this.renderWorldMetaChip()
+  }
+
+  private renderWorldMetaChip(): void {
+    const stage = currentWorldStage(this.state.financeNetWorth())
+    const rep = this.state.reputation
+    this.worldMetaChip.innerHTML = `
+      <span class="world-stage-pill">${stage.emoji} ${stage.name}</span>
+      <span class="reputation-pill">⭐ ${rep} · ${reputationLabel(rep)}</span>
+    `
+    this.worldMetaChip.title = `${stage.headline} · Tehdit: ${stage.threat}`
   }
 
   private renderProfileChip(): void {
@@ -1606,11 +1707,27 @@ export class HUD {
     )
   }
 
+  private maybePromptFirstBusinessAd(): void {
+    if (this.adPromptShown || this.state.ownedBusinessTiers() !== 1) return
+    this.adPromptShown = true
+    window.setTimeout(() => {
+      this.modals.showToast(this.root, '📺 İlk işletmen açık! Kazan sekmesinde 2x gelir reklamını dene.')
+    }, 1800)
+  }
+
+  private updateProgressiveUnlock(): void {
+    const locks: Partial<Record<NavView, string | null>> = {}
+    for (const view of ['earn', 'shop', 'market', 'events', 'profile'] as NavView[]) {
+      locks[view] = navLockReason(view, this.state.producers, this.state.totalEarned)
+    }
+    this.bottomNav.setNavLocked(locks)
+  }
+
   showOfflinePopup(amount: number): void {
     this.pendingOffline = amount
     const hero = document.createElement('div')
-    hero.className = 'offline-popup-hero'
-    hero.innerHTML = `<span class="offline-popup-label">Birikmiş kazanç</span><strong class="offline-popup-amount">${formatMoney(amount)}</strong>`
+    hero.className = 'offline-popup-hero offline-popup-animated'
+    hero.innerHTML = `<span class="offline-popup-label">Birikmiş kazanç</span><strong class="offline-popup-amount" data-target="${amount}">${formatMoney(0)}</strong>`
     const ad2 = document.createElement('button')
     ad2.type = 'button'
     ad2.className = 'btn-primary offline-btn-hero'
@@ -1634,6 +1751,21 @@ export class HUD {
       'Yokken biriken kazancını toplamak için reklam izlemen gerek.',
       [body],
     )
+    const amountEl = hero.querySelector('.offline-popup-amount') as HTMLElement | null
+    if (amountEl) this.animateOfflineAmount(amountEl, amount)
+  }
+
+  private animateOfflineAmount(el: HTMLElement, target: number): void {
+    const start = performance.now()
+    const duration = 900
+    const tick = (now: number): void => {
+      const t = Math.min(1, (now - start) / duration)
+      const eased = 1 - (1 - t) ** 3
+      el.textContent = formatMoney(Math.floor(target * eased))
+      if (t < 1) requestAnimationFrame(tick)
+      else el.textContent = formatMoney(target)
+    }
+    requestAnimationFrame(tick)
   }
 
   private showGoldenEventModal(
@@ -1693,10 +1825,12 @@ export class HUD {
   }): void {
     if (ev.hasHeir && this.state.dynasty.children.length > 1) {
       const body = document.createElement('div')
-      body.className = 'death-modal-body'
+      body.className = 'death-modal-body death-modal-dramatic'
       body.innerHTML = `
+        <div class="death-vignette">💀</div>
+        <p class="death-age-line">${ev.age} yaşında vefat</p>
         <p class="death-cause-line">${ev.emoji} <strong>${ev.label}</strong></p>
-        <p>${ev.message}</p>
+        <p class="death-message">${ev.message}</p>
         <p class="death-succession-hint">Bir varis seçerek imparatorluğa devam et.</p>
       `
       this.showSuccessionPicker(true, body)
@@ -1704,21 +1838,30 @@ export class HUD {
     }
 
     const body = document.createElement('div')
-    body.className = 'death-modal-body'
+    body.className = 'death-modal-body death-modal-dramatic'
     if (ev.hasHeir && this.state.dynasty.children.length === 1) {
       body.innerHTML = `
+        <div class="death-vignette">💀</div>
+        <p class="death-age-line">${ev.age} yaşında vefat</p>
         <p class="death-cause-line">${ev.emoji} <strong>${ev.label}</strong></p>
-        <p>${ev.message}</p>
+        <p class="death-message">${ev.message}</p>
         <p><strong>${this.state.playerName}</strong> imparatorluğu devraldı. Yeni nesille devam ediyorsun.</p>
       `
     } else if (!ev.hasHeir) {
       body.innerHTML = `
+        <div class="death-vignette">💀</div>
+        <p class="death-age-line">${ev.age} yaşında vefat</p>
         <p class="death-cause-line">${ev.emoji} <strong>${ev.label}</strong></p>
-        <p>${ev.message}</p>
+        <p class="death-message">${ev.message}</p>
         <p class="death-no-heir-warn">Mirasçın yoktu. Aile avukatları imparatorluğu kurtaracak — cüzdanının ~%15'i gidecek ve biraz gençleşerek devam edeceksin.</p>
       `
     } else {
-      body.innerHTML = `<p class="death-cause-line">${ev.emoji} <strong>${ev.label}</strong></p><p>${ev.message}</p>`
+      body.innerHTML = `
+        <div class="death-vignette">💀</div>
+        <p class="death-age-line">${ev.age} yaşında vefat</p>
+        <p class="death-cause-line">${ev.emoji} <strong>${ev.label}</strong></p>
+        <p class="death-message">${ev.message}</p>
+      `
     }
 
     const close = document.createElement('button')
@@ -1726,7 +1869,7 @@ export class HUD {
     close.className = 'btn-primary'
     close.dataset.action = ev.hasHeir ? 'close-modal' : 'death-continue-no-heir'
     close.textContent = ev.hasHeir ? 'Tamam' : 'Devam Et'
-    this.modals.showContent(`${ev.age} yaşında vefat`, body, [close])
+    this.modals.showContent(`${ev.emoji} Hanedan`, body, [close])
   }
 
   private showSuccessionPicker(urgent = false, deathIntro?: HTMLElement): void {
@@ -2160,7 +2303,7 @@ export class HUD {
     } else {
       this.patchShopAffordability()
     }
-    this.skyline.update(this.state.ownedBusinessTiers(), this.state.gameTimeMs)
+    this.skyline.update(this.state.skylineTierCount(), this.state.gameTimeMs, this.state.legacyMonuments)
     this.goalsSheet.render(this.state)
     if (this.bottomNav.getActive() === 'events') {
       this.eventsPanel.render(this.state)
@@ -2168,7 +2311,9 @@ export class HUD {
     this.renderMarketNewsBanner()
     this.renderDayNightChip()
     this.renderProgressStrip()
+    this.renderWorldMetaChip()
     this.updateNavBadges()
+    this.updateProgressiveUnlock()
   }
 
   destroy(): void {

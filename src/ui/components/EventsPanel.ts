@@ -415,9 +415,17 @@ export class EventsPanel {
 
     if (!state.season.premiumUnlocked) {
       const premiumCta = document.createElement('div')
-      premiumCta.className = 'season-premium-cta'
+      premiumCta.className = 'season-premium-cta iap-value-card'
       const product = iapManager.getProduct('season_premium')
-      premiumCta.innerHTML = `<p><strong>⭐ Premium Yol</strong> — 2x para, sandık biletleri, özel temalar</p>`
+      premiumCta.innerHTML = `
+        <strong>⭐ Premium Sezon Yolu</strong>
+        <p>${product.description}</p>
+        <ul class="iap-perks">
+          <li>2x para ödülleri (premium kolon)</li>
+          <li>Özel tema ve sandık biletleri</li>
+          <li>Tek seferlik — bu sezon boyunca geçerli</li>
+        </ul>
+      `
       const buyBtn = this.actionBtn('iap-season-premium', `${product.priceLabel} · Premium Aç`, 'btn-premium')
       premiumCta.appendChild(buyBtn)
       wrap.appendChild(premiumCta)
@@ -501,7 +509,18 @@ export class EventsPanel {
       actions.appendChild(this.actionBtn('open-paid-chest', `🎫 Bilet ile Aç (${state.chestTickets})`, 'btn-secondary'))
     }
     const pack = iapManager.getProduct('chest_pack_5')
-    actions.appendChild(this.actionBtn('iap-chest-pack', `${pack.priceLabel} · 5 Sandık`, 'btn-premium'))
+    const packCard = document.createElement('div')
+    packCard.className = 'iap-value-card iap-chest-card'
+    packCard.innerHTML = `
+      <strong>🎁 ${pack.name}</strong>
+      <p>${pack.description}</p>
+      <ul class="iap-perks">
+        <li>Reklamsız 5 premium sandık</li>
+        <li>Pity sayacını atla — nadir ödül şansı</li>
+      </ul>
+    `
+    packCard.appendChild(this.actionBtn('iap-chest-pack', `${pack.priceLabel} · Satın Al`, 'btn-premium'))
+    actions.appendChild(packCard)
     wrap.appendChild(actions)
     return wrap
   }

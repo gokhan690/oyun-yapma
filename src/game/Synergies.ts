@@ -138,6 +138,24 @@ export function getActiveSynergies(
   }))
 }
 
+export interface NearSynergy {
+  def: SynergyDef
+  owned: string[]
+  missing: string[]
+}
+
+/** Bir parça eksik sinerjiler — önizleme için */
+export function getNearSynergies(producers: Record<string, number>): NearSynergy[] {
+  const result: NearSynergy[] = []
+  for (const def of SYNERGIES) {
+    const owned = def.requires.filter((id) => (producers[id] ?? 0) > 0)
+    const missing = def.requires.filter((id) => (producers[id] ?? 0) <= 0)
+    if (owned.length === 0 || missing.length === 0 || missing.length > 1) continue
+    result.push({ def, owned, missing })
+  }
+  return result
+}
+
 export function globalSynergyBonus(producers: Record<string, number>): number {
   let bonus = 0
   for (const s of SYNERGIES) {

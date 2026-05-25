@@ -12,8 +12,8 @@ import {
   researchFootballBonus,
   researchHeatGainReduction,
 } from './Research'
-import { pickRandomEvent, nextEventDelayMs, type GameEventDef } from './Events'
-import { EVENT_PREVIEW_LEAD_MS, NEAR_MISS_COOLDOWN_MS } from './EventDirector'
+import { pickRandomEvent, type GameEventDef } from './Events'
+import { computeGoldenEventDelay, EVENT_PREVIEW_LEAD_MS, NEAR_MISS_COOLDOWN_MS } from './EventDirector'
 import { checkNewAchievements, type AchievementDef } from './Achievements'
 import { generateDailyMissions, type MissionProgress } from './Missions'
 import { managerCost, managerMultiplier, hasManager } from './Managers'
@@ -177,6 +177,44 @@ import { themeForTier, type ThemeId } from './Themes'
 import { storyBeat } from './StoryBeats'
 import { loadOwnerFlags, type OwnerFlags } from '../owner/FeatureFlags'
 import { createPendingBoost, type PendingBoostItem } from './BoostInventory'
+import {
+  clampReputation,
+  REPUTATION_START,
+  reputationCostMult,
+  reputationFromIllegalBusiness,
+  reputationFromLegalBusiness,
+  reputationFromLobby,
+  reputationFromRaid,
+  reputationFromScandal,
+  reputationLoanBlocked,
+  reputationPoliticsBlocked,
+  carryReputationAfterIpo,
+} from './Reputation'
+import { currentWorldStage, type WorldStageId } from './WorldStage'
+import {
+  createRivalsState,
+  tickRivals,
+  rivalById,
+  lobbyAgainstRival,
+  cooperateWithRival,
+  mergeRival,
+  mergeRivalCost,
+  type RivalFamilyState,
+} from './Rivals'
+import {
+  checkNewVictories,
+  type VictoryId,
+  type VictoryContext,
+  victoryDef,
+} from './VictoryConditions'
+import {
+  appendChronicle,
+  createChronicleEntry,
+  createMonument,
+  type ChronicleEntry,
+  type LegacyMonument,
+} from './Chronicle'
+import { gameSeasonKey } from './GameClock'
 
 export interface SerializableState {
   money: number
@@ -207,6 +245,7 @@ export interface SerializableState {
   gameTimeMs: number
   gamePaused?: boolean
   tutorialDone: boolean
+  onboardingComplete?: boolean
   ipoCount: number
   lifetimeTotalEarned: number
   managers: Record<string, boolean>
@@ -270,6 +309,16 @@ export interface SerializableState {
   bankruptcySeizedSnapshot?: SeizedBusiness[]
   lastBankruptcyAt?: number
   bankruptcyCashGraceSince?: number
+  reputation?: number
+  rivals?: RivalFamilyState[]
+  chronicle?: ChronicleEntry[]
+  legacyMonuments?: LegacyMonument[]
+  victoriesUnlocked?: VictoryId[]
+  totalRaidsCaught?: number
+  presidentSeasons?: number
+  presidentSinceSeasonKey?: string | null
+  lastWorldStageId?: WorldStageId
+  childCrises?: { childId: string; type: 'gambler' | 'illegal' | 'scandal' }[]
 }
 
 export interface ProducerBreakdown {
@@ -334,6 +383,11 @@ export type GameEvent =
   | { type: 'market_news'; headline: string; active: boolean }
   | { type: 'dynasty_update'; kind: string; name?: string }
   | { type: 'player_death'; age: number; causeId: DeathCauseId; emoji: string; label: string; message: string; hasHeir: boolean }
+  | { type: 'reputation_changed'; reputation: number; delta: number }
+  | { type: 'world_stage'; stageId: WorldStageId; name: string }
+  | { type: 'rival_action'; rivalId: string; headline: string }
+  | { type: 'victory_unlocked'; victoryId: VictoryId; name: string; emoji: string }
+  | { type: 'child_crisis'; childName: string; crisisType: string; message: string }
 
 const MILESTONE_THRESHOLDS = [100_000, 1_000_000, 10_000_000]
 const CRIT_CHANCE = 0.1
@@ -383,6 +437,7 @@ export class GameState {
   gameTimeMs = 0
   gamePaused = false
   tutorialDone = false
+  onboardingComplete = false
   ipoCount = 0
   lifetimeTotalEarned = 0
   managers: Record<string, boolean> = {}
@@ -441,7 +496,18 @@ export class GameState {
   undergroundTree = createUndergroundTreeState()
   empire = createEmpireState()
   gameStartYear = 2026
+  reputation = REPUTATION_START
+  rivals = createRivalsState()
+  chronicle: ChronicleEntry[] = []
+  legacyMonuments: LegacyMonument[] = []
+  victoriesUnlocked: VictoryId[] = []
+  totalRaidsCaught = 0
+  presidentSeasons = 0
+  presidentSinceSeasonKey: string | null = null
+  lastWorldStageId: WorldStageId = 'local'
+  childCrises: { childId: string; type: 'gambler' | 'illegal' | 'scandal' }[] = []
   pendingBoosts: PendingBoostItem[] = []
+  private lastRivalTickDay = 0
   private lastIllegalRiskCheck = 0
   private lastHeatTick = 0
   private nudgeFlags = new Set<string>()
@@ -637,7 +703,9 @@ export class GameState {
       }, this.eventExpireRemainingMs)
       this.eventExpireRemainingMs = 0
     } else if (!this.activeEvent) {
-      const delay = this.eventScheduleRemainingMs > 0 ? this.eventScheduleRemainingMs : nextEventDelayMs()
+      const delay = this.eventScheduleRemainingMs > 0
+        ? this.eventScheduleRemainingMs
+        : computeGoldenEventDelay(this.eventsSeen, this.playTimeMs)
       this.eventScheduleRemainingMs = 0
       this.nextEventAt = Date.now() + delay
       this.eventTimer = window.setTimeout(() => this.spawnGoldenEvent(), delay)
@@ -652,11 +720,11 @@ export class GameState {
     if (this.eventTimer !== null) clearTimeout(this.eventTimer)
     if (this.eventPreviewTimer !== null) clearTimeout(this.eventPreviewTimer)
     if (this.gamePaused) {
-      this.eventScheduleRemainingMs = nextEventDelayMs()
+      this.eventScheduleRemainingMs = computeGoldenEventDelay(this.eventsSeen, this.playTimeMs)
       this.nextEventAt = Date.now() + this.eventScheduleRemainingMs
       return
     }
-    const delay = nextEventDelayMs()
+    const delay = computeGoldenEventDelay(this.eventsSeen, this.playTimeMs)
     this.nextEventAt = Date.now() + delay
     this.eventScheduleRemainingMs = 0
     const previewDelay = Math.max(0, delay - EVENT_PREVIEW_LEAD_MS)
@@ -682,7 +750,7 @@ export class GameState {
 
   private spawnGoldenEvent(): void {
     if (this.gamePaused) {
-      this.eventScheduleRemainingMs = nextEventDelayMs()
+      this.eventScheduleRemainingMs = computeGoldenEventDelay(this.eventsSeen, this.playTimeMs)
       return
     }
     if (this.activeEvent) {
@@ -970,6 +1038,8 @@ export class GameState {
       this.money = Math.max(0, this.money - fine)
       this.illegalHeat = Math.min(100, this.illegalHeat + 20)
       this.raidsToday++
+      this.totalRaidsCaught++
+      this.addReputation(reputationFromRaid())
       this.emit({ type: 'illegal_raid', fine, producerId: p.id })
       this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
       this.emit({ type: 'money_changed' })
@@ -1069,6 +1139,7 @@ export class GameState {
       const t = activeDynastyTrait(this.dynasty)
       if (t === 'merchant' || t === 'diplomat') mult *= 1.05
     }
+    mult *= 1 + this.legacyMonuments.length * 0.004
     return mult
   }
 
@@ -1205,6 +1276,10 @@ export class GameState {
       this.emit({ type: 'match_result', ...m })
     }
     if (election) this.triggerStoryBeat('election_year')
+    this.tickPresidentSeasons()
+    this.tickRivalFamilies(day)
+    this.tickChildCrises()
+    this.maybeSpawnChildCrisis()
     if (gameYear(this.gameTimeMs) === 2027 && !this.seenStoryBeats.has('year_2027')) {
       this.triggerStoryBeat('year_2027')
     }
@@ -1263,6 +1338,7 @@ export class GameState {
     this.dynasty.playerStartAge = SUCCESSION_START_AGE
     this.dynasty.lifespanNotified = false
     this.dynasty.pendingDeath = null
+    this.recordChronicle('dynasty', '👑', `${child.name} imparatorluğu devraldı — ${this.dynasty.generation}. nesil`)
     this.triggerStoryBeat('succession')
     this.emit({ type: 'dynasty_update', kind: 'succession', name: child.name })
     this.emit({ type: 'story_beat', beatId: 'succession', text: `${prevName} emekli oldu. ${child.name} (${SUCCESSION_START_AGE} yaş) imparatorluğu devraldı.` })
@@ -1651,7 +1727,13 @@ export class GameState {
   producerCostFor(def: ProducerDef, owned: number, count = 1): number {
     const raw = producerCost(def, owned, count)
     const efficiencyDiscount = researchEfficiencyBonus(this.research)
-    return Math.floor(raw * (1 - producerCostDiscount(this.prestigeTree)) * (1 - efficiencyDiscount) * this.dynastyCostMult())
+    return Math.floor(
+      raw
+        * (1 - producerCostDiscount(this.prestigeTree))
+        * (1 - efficiencyDiscount)
+        * this.dynastyCostMult()
+        * reputationCostMult(this.reputation),
+    )
   }
 
   countMaxAffordable(id: string): number {
@@ -1664,6 +1746,7 @@ export class GameState {
     const def = PRODUCERS.find((p) => p.id === id)
     if (!def || !isProducerUnlocked(def, this.totalEarned, this.forcedUnlocks)) return false
     const owned = this.producers[id] ?? 0
+    if (def.category === 'politics' && owned === 0 && reputationPoliticsBlocked(this.reputation)) return false
     const cost = this.producerCostFor(def, owned, count)
     if (!this.canAfford(cost)) return false
     this.money -= cost
@@ -1673,8 +1756,16 @@ export class GameState {
     if (!this.codexUnlockDates[id]) {
       this.codexUnlockDates[id] = todayKey()
     }
-    if (def.illegal && !this.seenStoryBeats.has('illegal_first')) {
-      this.triggerStoryBeat('illegal_first')
+    if (def.illegal) {
+      this.addReputation(reputationFromIllegalBusiness() * count)
+      if (!this.seenStoryBeats.has('illegal_first')) {
+        this.triggerStoryBeat('illegal_first')
+      }
+    } else {
+      this.addReputation(reputationFromLegalBusiness() * count)
+    }
+    if (owned === 0) {
+      this.recordChronicle('business', def.emoji, `${def.name} kuruldu`)
     }
     if (this.hasCodexLegalComplete()) {
       this.awardBadge('codex_legal')
@@ -1688,6 +1779,8 @@ export class GameState {
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
     this.syncCampaignProgress()
+    this.checkVictoryConditions()
+    this.checkWorldStage()
     return true
   }
 
@@ -1818,11 +1911,18 @@ export class GameState {
     this.stock = createStockState()
     this.bank = createBankState()
     this.nightEarningsSession = 0
+    const prevRep = this.reputation
+    this.reputation = carryReputationAfterIpo(this.reputation)
+    this.recordLegacyMonuments()
+    this.recordChronicle('ipo', '🚀', `IPO #${this.ipoCount} — run sıfırlandı, prestij +${points}`)
     syncEmpireFromProducers(this.empire, this.producers)
 
     this.addSeasonXp(points * 50)
     this.emit({ type: 'prestige', points, startingCash })
     this.emit({ type: 'money_changed' })
+    if (this.reputation !== prevRep) {
+      this.emit({ type: 'reputation_changed', reputation: this.reputation, delta: this.reputation - prevRep })
+    }
     this.checkAchievements()
     this.syncCampaignProgress()
     return points
@@ -1931,6 +2031,7 @@ export class GameState {
   bankTakeLoan(amount: number): boolean {
     const n = Math.floor(amount)
     if (n <= 0) return false
+    if (reputationLoanBlocked(this.reputation)) return false
     const nw = netWorth(this.money, portfolioValue(this.stock), this.bank)
     const cap = maxLoan(this.totalEarned, nw)
     if (this.bank.loan + n > cap) return false
@@ -1973,6 +2074,7 @@ export class GameState {
   }
 
   maxAvailableLoan(): number {
+    if (reputationLoanBlocked(this.reputation)) return 0
     const cap = maxLoan(this.totalEarned, this.financeNetWorth())
     return Math.max(0, cap - this.bank.loan)
   }
@@ -2781,6 +2883,7 @@ export class GameState {
     this.milestonesReached = []
     this.playTimeMs = 0
     this.tutorialDone = false
+    this.onboardingComplete = false
     this.dailyGoalEarned = 0
     this.dailyGoalDay = dailyGoalDayKey()
     this.dailyGoalClaimed = false
@@ -2810,7 +2913,205 @@ export class GameState {
     this.seenStoryBeats.clear()
     this.earnedBadges.clear()
     this.streakMilestonesClaimed = []
+    this.reputation = REPUTATION_START
+    this.rivals = createRivalsState()
+    this.chronicle = []
+    this.legacyMonuments = []
+    this.victoriesUnlocked = []
+    this.totalRaidsCaught = 0
+    this.presidentSeasons = 0
+    this.presidentSinceSeasonKey = null
+    this.lastWorldStageId = 'local'
+    this.childCrises = []
     this.emit({ type: 'money_changed' })
+  }
+
+  addReputation(delta: number): void {
+    if (delta === 0) return
+    const prev = this.reputation
+    this.reputation = clampReputation(this.reputation + delta)
+    if (this.reputation !== prev) {
+      this.emit({ type: 'reputation_changed', reputation: this.reputation, delta: this.reputation - prev })
+    }
+  }
+
+  recordChronicle(category: ChronicleEntry['category'], emoji: string, text: string): void {
+    const entry = createChronicleEntry({
+      gameDay: gameDay(this.gameTimeMs),
+      generation: this.dynasty.generation,
+      ipoEra: this.ipoCount,
+      text,
+      emoji,
+      category,
+    })
+    this.chronicle = appendChronicle(this.chronicle, entry)
+  }
+
+  recordLegacyMonuments(): void {
+    let best: ProducerDef | null = null
+    for (const p of PRODUCERS) {
+      if ((this.producers[p.id] ?? 0) <= 0) continue
+      if (!best || p.tier > best.tier) best = p
+    }
+    if (!best || best.tier < 5) return
+    const exists = this.legacyMonuments.some((m) => m.producerId === best!.id && m.ipoEra === this.ipoCount)
+    if (exists) return
+    this.legacyMonuments.push(createMonument(
+      best.id,
+      best.name,
+      best.emoji,
+      gameDay(this.gameTimeMs),
+      this.dynasty.generation,
+      this.ipoCount,
+    ))
+  }
+
+  victoryContext(): VictoryContext {
+    let illegalTypes = 0
+    for (const p of PRODUCERS) {
+      if (p.illegal && (this.producers[p.id] ?? 0) > 0) illegalTypes++
+    }
+    return {
+      netWorth: this.financeNetWorth(),
+      politicsLevel: this.empire.politics.level,
+      presidentSeasons: this.presidentSeasons,
+      dynastyGeneration: this.dynasty.generation,
+      illegalTypesOwned: illegalTypes,
+      totalRaidsCaught: this.totalRaidsCaught,
+      alreadyUnlocked: [...this.victoriesUnlocked],
+    }
+  }
+
+  checkVictoryConditions(): void {
+    const newOnes = checkNewVictories(this.victoryContext())
+    for (const id of newOnes) {
+      if (this.victoriesUnlocked.includes(id)) continue
+      this.victoriesUnlocked.push(id)
+      const def = victoryDef(id)
+      this.recordChronicle('victory', def.emoji, `${def.name} kazanıldı!`)
+      this.emit({ type: 'victory_unlocked', victoryId: id, name: def.name, emoji: def.emoji })
+    }
+  }
+
+  checkWorldStage(): void {
+    const stage = currentWorldStage(this.financeNetWorth())
+    if (stage.id === this.lastWorldStageId) return
+    this.lastWorldStageId = stage.id
+    this.recordChronicle('world', stage.emoji, stage.headline)
+    this.emit({ type: 'world_stage', stageId: stage.id, name: stage.name })
+  }
+
+  private tickPresidentSeasons(): void {
+    if (this.empire.politics.level !== 'cumhurbaskan') {
+      this.presidentSinceSeasonKey = null
+      return
+    }
+    const key = gameSeasonKey(this.gameTimeMs)
+    if (this.presidentSinceSeasonKey === null) {
+      this.presidentSinceSeasonKey = key
+      return
+    }
+    if (key !== this.presidentSinceSeasonKey) {
+      this.presidentSeasons++
+      this.presidentSinceSeasonKey = key
+      this.checkVictoryConditions()
+    }
+  }
+
+  private tickRivalFamilies(day: number): void {
+    if (day === this.lastRivalTickDay) return
+    this.lastRivalTickDay = day
+    const events = tickRivals(this.rivals, this.financeNetWorth(), this.producers)
+    for (const ev of events) {
+      this.emit({ type: 'rival_action', rivalId: ev.rivalId, headline: ev.headline })
+    }
+    this.checkWorldStage()
+    this.checkVictoryConditions()
+  }
+
+  private maybeSpawnChildCrisis(): void {
+    if (this.dynasty.children.length === 0) return
+    if (Math.random() > 0.06) return
+    const eligible = this.dynasty.children.filter(
+      (c) => c.educationXp >= 35 && !this.childCrises.some((x) => x.childId === c.id),
+    )
+    if (eligible.length === 0) return
+    const child = eligible[Math.floor(Math.random() * eligible.length)]!
+    const types = ['gambler', 'illegal', 'scandal'] as const
+    const type = types[Math.floor(Math.random() * types.length)]!
+    this.childCrises.push({ childId: child.id, type })
+    const messages = {
+      gambler: `${child.name} kumar borçları biriktiriyor!`,
+      illegal: `${child.name} illegal işlere bulaştı — heat artıyor!`,
+      scandal: `${child.name} skandala karıştı — itibar düşüyor!`,
+    }
+    this.recordChronicle('crisis', '⚠️', messages[type])
+    this.emit({ type: 'child_crisis', childName: child.name, crisisType: type, message: messages[type] })
+  }
+
+  private tickChildCrises(): void {
+    if (this.childCrises.length === 0) return
+    for (const crisis of this.childCrises) {
+      const child = this.dynasty.children.find((c) => c.id === crisis.childId)
+      if (!child) continue
+      if (crisis.type === 'gambler' && this.money > 100) {
+        const drain = Math.floor(Math.min(this.money * 0.008, this.incomePerDay() * 0.15))
+        this.money = Math.max(0, this.money - drain)
+        this.emit({ type: 'money_changed' })
+      } else if (crisis.type === 'illegal') {
+        this.illegalHeat = Math.min(100, this.illegalHeat + 2)
+        this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
+      } else if (crisis.type === 'scandal') {
+        this.addReputation(reputationFromScandal())
+      }
+      if (Math.random() < 0.12) {
+        this.childCrises = this.childCrises.filter((c) => c.childId !== crisis.childId)
+        this.recordChronicle('dynasty', '✅', `${child.name} krizden çıktı`)
+      }
+    }
+  }
+
+  rivalLobby(rivalId: string): boolean {
+    const rival = rivalById(this.rivals, rivalId)
+    if (!rival || rival.relation === 'merged') return false
+    const cost = Math.max(5000, this.incomePerDay() * 0.2)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    lobbyAgainstRival(rival, cost)
+    this.addReputation(reputationFromLobby())
+    this.recordChronicle('rival', '🏛️', `${rival.name}'a karşı lobi yaptın`)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  rivalCooperate(rivalId: string): boolean {
+    const rival = rivalById(this.rivals, rivalId)
+    if (!rival || rival.relation === 'merged') return false
+    const cost = Math.max(3000, this.incomePerDay() * 0.1)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    cooperateWithRival(rival)
+    this.addReputation(reputationFromLobby() * 2)
+    this.recordChronicle('rival', '🤝', `${rival.name} ile işbirliği anlaşması`)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  rivalMerge(rivalId: string): boolean {
+    const rival = rivalById(this.rivals, rivalId)
+    if (!rival || rival.relation === 'merged') return false
+    const cost = mergeRivalCost(rival)
+    if (!this.canAfford(cost)) return false
+    if (!mergeRival(rival)) return false
+    this.money -= cost
+    this.addReputation(5)
+    this.recordChronicle('rival', '🛒', `${rival.name} satın alındı — merger tamamlandı`)
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  skylineTierCount(): number {
+    return this.ownedBusinessTiers() + this.legacyMonuments.length
   }
 
   private checkAchievements(): void {
@@ -2878,6 +3179,7 @@ export class GameState {
       gameTimeMs: this.gameTimeMs,
       gamePaused: this.gamePaused,
       tutorialDone: this.tutorialDone,
+      onboardingComplete: this.onboardingComplete,
       ipoCount: this.ipoCount,
       lifetimeTotalEarned: this.lifetimeTotalEarned,
       managers: { ...this.managers },
@@ -2955,6 +3257,16 @@ export class GameState {
       bankruptcySeizedSnapshot: this.bankruptcySeizedSnapshot.map((item) => ({ ...item })),
       lastBankruptcyAt: this.lastBankruptcyAt,
       bankruptcyCashGraceSince: this.bankruptcyCashGraceSince,
+      reputation: this.reputation,
+      rivals: this.rivals.map((r) => ({ ...r, sectorFocus: [...r.sectorFocus] })),
+      chronicle: this.chronicle.map((e) => ({ ...e })),
+      legacyMonuments: this.legacyMonuments.map((m) => ({ ...m })),
+      victoriesUnlocked: [...this.victoriesUnlocked],
+      totalRaidsCaught: this.totalRaidsCaught,
+      presidentSeasons: this.presidentSeasons,
+      presidentSinceSeasonKey: this.presidentSinceSeasonKey,
+      lastWorldStageId: this.lastWorldStageId,
+      childCrises: this.childCrises.map((c) => ({ ...c })),
     }
   }
 
@@ -2992,6 +3304,7 @@ export class GameState {
     this.gameTimeMs = data.gameTimeMs ?? 0
     this.gamePaused = data.gamePaused ?? false
     this.tutorialDone = data.tutorialDone ?? false
+    this.onboardingComplete = data.onboardingComplete ?? data.tutorialDone ?? false
     this.ipoCount = data.ipoCount ?? 0
     this.lifetimeTotalEarned = data.lifetimeTotalEarned ?? data.totalEarned ?? 0
     this.managers = { ...(data.managers ?? {}) }
@@ -3122,6 +3435,16 @@ export class GameState {
     this.bankruptcySeizedSnapshot = (data.bankruptcySeizedSnapshot ?? []).map((item) => ({ ...item }))
     this.lastBankruptcyAt = data.lastBankruptcyAt ?? 0
     this.bankruptcyCashGraceSince = data.bankruptcyCashGraceSince ?? 0
+    this.reputation = data.reputation ?? REPUTATION_START
+    this.rivals = data.rivals?.length ? data.rivals.map((r) => ({ ...r, sectorFocus: [...r.sectorFocus] })) : createRivalsState()
+    this.chronicle = data.chronicle ?? []
+    this.legacyMonuments = data.legacyMonuments ?? []
+    this.victoriesUnlocked = data.victoriesUnlocked ?? []
+    this.totalRaidsCaught = data.totalRaidsCaught ?? 0
+    this.presidentSeasons = data.presidentSeasons ?? 0
+    this.presidentSinceSeasonKey = data.presidentSinceSeasonKey ?? null
+    this.lastWorldStageId = data.lastWorldStageId ?? currentWorldStage(netWorth(this.money, portfolioValue(this.stock), this.bank)).id
+    this.childCrises = data.childCrises ?? []
     this.lastSaveTime = data.lastSaveTime
     this.isNight = isGameNight(this.gameTimeMs)
     this.ensureDailyGoal()

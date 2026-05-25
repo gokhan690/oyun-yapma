@@ -22,6 +22,17 @@ export class DynastyPanel {
 
   render(): void {
     this.root.replaceChildren()
+
+    if (this.state.dynasty.generation > 1 || this.state.dynasty.children.length > 0) {
+      const legacy = document.createElement('div')
+      legacy.className = 'dynasty-legacy-banner'
+      legacy.innerHTML = `
+        <strong>🏛️ ${this.state.dynasty.generation}. nesil hanedan</strong>
+        <p>İmparatorluğunu miras bırak — çocuk yetiştir, vefat sonrası trait bonusuyla devam et.</p>
+      `
+      this.root.appendChild(legacy)
+    }
+
     const title = document.createElement('h3')
     title.textContent = `👨‍👩‍👧 Hanedan · Nesil ${this.state.dynasty.generation}`
     this.root.appendChild(title)
@@ -39,6 +50,24 @@ export class DynastyPanel {
     this.root.appendChild(ageBar)
 
     this.renderMortalityRisks()
+
+    const crises = this.state.childCrises
+    if (crises.length > 0) {
+      const warn = document.createElement('div')
+      warn.className = 'dynasty-crisis-banner'
+      warn.innerHTML = '<strong>⚠️ Aile krizi</strong>'
+      const list = document.createElement('ul')
+      for (const c of crises) {
+        const child = this.state.dynasty.children.find((ch) => ch.id === c.childId)
+        if (!child) continue
+        const li = document.createElement('li')
+        const labels = { gambler: '🎲 Kumarbaz', illegal: '🕶️ Illegal', scandal: '📰 Skandal' }
+        li.textContent = `${child.name}: ${labels[c.type]}`
+        list.appendChild(li)
+      }
+      warn.appendChild(list)
+      this.root.appendChild(warn)
+    }
 
     if (this.state.hasPendingDeath()) {
       const death = this.state.dynasty.pendingDeath!

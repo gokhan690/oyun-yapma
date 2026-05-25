@@ -105,6 +105,8 @@ export function scheduleWebAlarms(prefs: NotificationPrefs): void {
   scheduleAt(10, 'İş İmparatorluğu 🏢', '🎁 Günlük ödülün seni bekliyor!', prefs.dailyReward)
   scheduleAt(20, 'İş İmparatorluğu 🏢', '💼 Pasif gelirin birikiyor — kontrol et.', prefs.passiveIncome)
   scheduleAt(14, 'İş İmparatorluğu 🎯', 'Günlük hedefe yaklaşıyorsun!', prefs.goalNear)
+  scheduleAt(21, 'İş İmparatorluğu 🔥', 'Streak kaybetme — bugün giriş yap!', prefs.dailyReward)
+  scheduleAt(18, 'İş İmparatorluğu ⏳', 'Golden event fırsatı yaklaşıyor — oyuna dön!', prefs.passiveIncome)
   window.localStorage.setItem(WEB_ALARM_KEY, JSON.stringify(timeoutIds))
 }
 

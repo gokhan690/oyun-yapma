@@ -62,7 +62,7 @@ export function getBestRecommendation(state: GameState): ShopRecommendation | nu
 
   for (const p of state.unlockedProducers()) {
     const owned = state.producers[p.id] ?? 0
-    const count = state.countMaxAffordable(p.id) >= 1 ? 1 : 1
+    const count = Math.max(1, state.countMaxAffordable(p.id))
     const cost = state.producerCostFor(p, owned, count)
     const roi = producerRoiDays(state, p, count)
     const ipdGain = state.marginalProducerIncome(p, count)

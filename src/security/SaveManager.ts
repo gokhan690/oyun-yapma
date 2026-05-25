@@ -7,6 +7,8 @@ import { createCampaignState } from '../game/Campaign'
 import { dailyGoalDayKey } from '../game/DailyGoal'
 import { createDynastyState } from '../game/Dynasty'
 import { createEmpireState } from '../game/Empire'
+import { createRivalsState } from '../game/Rivals'
+import { REPUTATION_START } from '../game/Reputation'
 import { PRODUCERS } from '../game/Economy'
 import { RESEARCH_NODES } from '../game/Research'
 
@@ -594,6 +596,16 @@ function applyV9Defaults(state: SerializableState): SerializableState {
     chestPityCounter: state.chestPityCounter ?? 0,
     chestTickets: state.chestTickets ?? 0,
     campaign: state.campaign ?? createCampaignState(),
+    reputation: state.reputation ?? REPUTATION_START,
+    rivals: state.rivals?.length ? state.rivals : createRivalsState(),
+    chronicle: state.chronicle ?? [],
+    legacyMonuments: state.legacyMonuments ?? [],
+    victoriesUnlocked: state.victoriesUnlocked ?? [],
+    totalRaidsCaught: state.totalRaidsCaught ?? 0,
+    presidentSeasons: state.presidentSeasons ?? 0,
+    presidentSinceSeasonKey: state.presidentSinceSeasonKey ?? null,
+    lastWorldStageId: state.lastWorldStageId ?? 'local',
+    childCrises: state.childCrises ?? [],
   }
 }
 
