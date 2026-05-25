@@ -3990,19 +3990,29 @@ html.theme-galactic {
 /* Shop v2.7 */
 .shop-hub-btn { display: inline-flex; align-items: center; gap: 6px; }
 .shop-hub-btn img { opacity: 0.85; }
-.shop-sub-tabs { display: flex; gap: 6px; padding: 0 12px 8px; }
+.shop-sub-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 0 12px 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.shop-sub-tabs::-webkit-scrollbar { display: none; }
 .shop-sub-tab {
-  flex: 1;
-  padding: 8px 10px;
+  flex-shrink: 0;
+  padding: 7px 12px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--surface2);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   cursor: pointer;
+  white-space: nowrap;
+  touch-action: manipulation;
 }
-.shop-sub-tab.active { border-color: var(--accent); background: rgba(251,191,36,0.12); color: var(--accent); }
+.shop-sub-tab.active { border-color: var(--accent); background: rgba(251,191,36,0.12); color: var(--accent); font-weight: 700; }
 /* Panel içinde advisor — padding tab-panel'den geliyor */
 .shop-advisor-strip { padding: 0 0 8px; }
 .shop-advisor-card {
@@ -6386,3 +6396,73 @@ html.theme-galactic {
 .baron-profile-hero-top strong { font-size: 1.15rem; }
 .baron-profile-hero-top small { font-size: 0.85rem; }
 .baron-profile-hero-meta { font-size: 0.85rem; }
+
+/* ── İmparatorluk sekmesi kompakt kartlar ── */
+.shop-context-business .tab-panel[data-panel^="empire_"] .biz-buy-btn {
+  min-height: 130px;
+  padding: 12px 10px;
+}
+.shop-context-business .tab-panel[data-panel^="empire_"] .biz-cards-grid .biz-card {
+  min-height: 130px;
+}
+.shop-context-business .tab-panel[data-panel^="empire_"] .biz-icon-wrap {
+  width: 52px;
+  height: 52px;
+}
+.shop-context-business .tab-panel[data-panel^="empire_"] .biz-emoji-display {
+  font-size: 1.8rem;
+}
+.shop-context-business .tab-panel[data-panel^="empire_"] .biz-left strong {
+  font-size: 0.88rem;
+  line-height: 1.2;
+}
+.shop-context-business .tab-panel[data-panel^="empire_"] .biz-cost {
+  font-size: 0.82rem !important;
+}
+
+/* ── Ar-Ge görsel iyileştirmeleri ── */
+.research-tree-visual {
+  grid-template-columns: repeat(3, 1fr);
+}
+@media (max-width: 560px) {
+  .research-tree-visual {
+    grid-template-columns: 1fr;
+  }
+}
+.research-tree-branch-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--branch-color, var(--muted));
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--branch-color, var(--border)) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--branch-color, var(--border)) 25%, transparent);
+  margin-bottom: 6px;
+}
+.research-branch-icon { font-size: 1rem; }
+.research-branch-progress {
+  margin-left: auto;
+  font-size: 0.7rem;
+  opacity: 0.8;
+  font-weight: 700;
+}
+.research-node-progress {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--border);
+  margin-top: 6px;
+  overflow: hidden;
+}
+.research-node-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.research-tree-node.branch-operasyon { border-left-color: var(--green) !important; }
+.research-tree-node.branch-finans { border-left-color: #60a5fa !important; }
+.research-tree-node.branch-imparatorluk { border-left-color: #c084fc !important; }

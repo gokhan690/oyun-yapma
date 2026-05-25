@@ -1806,94 +1806,103 @@ export class ShopPanel {
   private renderResearch(state: GameState): void {
     const panel = this.panels.research!
     panel.replaceChildren()
+    const allNodes = RESEARCH_NODES
     const nodes = this.researchBranch === 'all'
-      ? RESEARCH_NODES
+      ? allNodes
       : researchNodesByBranch(this.researchBranch)
-    const totalLevels = nodes.reduce((s, n) => s + (state.research[n.id] ?? 0), 0)
-    const maxLevels = nodes.reduce((s, n) => s + n.maxLevel, 0)
+    const totalLevels = allNodes.reduce((s, n) => s + (state.research[n.id] ?? 0), 0)
+    const maxLevels = allNodes.reduce((s, n) => s + n.maxLevel, 0)
     panel.appendChild(this.createTabHero('🔬', 'Ar-Ge Laboratuvarı', 'Uzun vadeli bonuslar — dal seçerek ilerle', `${totalLevels}/${maxLevels} seviye`))
 
     const branchLabels: Record<ResearchBranch | 'all', string> = {
-      all: 'Tümü',
-      operasyon: 'Operasyon',
-      finans: 'Finans',
-      imparatorluk: 'İmparatorluk',
+      all: 'Tümü', operasyon: '⚡ Operasyon', finans: '💰 Finans', imparatorluk: '👑 İmparatorluk',
     }
     panel.appendChild(this.createFilterPills(
-      (['all', 'operasyon', 'finans', 'imparatorluk'] as const).map((id) => ({
-        id,
-        label: branchLabels[id],
-      })),
+      (['all', 'operasyon', 'finans', 'imparatorluk'] as const).map((id) => ({ id, label: branchLabels[id] })),
       this.researchBranch,
       'research-branch',
     ))
 
+    const nodeEmojis: Record<string, string> = {
+      marketing: '📣', automation: '🤖', accounting: '📊', lobby: '🏛️', efficiency: '⚡',
+      logistics: '🚚', automation2: '🔧', energy_eff: '🌿', finance_interest: '💰',
+      credit_mgmt: '💳', stock_analysis: '📈', tax_shield: '🛡️', football_fan: '⚽',
+      stadium_ops: '🏟️', politics_lobby_r: '🤝', dark_stealth: '🕶️', dark_production: '🏭',
+    }
+    const branchCfg: Record<ResearchBranch, { label: string; icon: string; color: string }> = {
+      operasyon: { label: 'Operasyon', icon: '⚡', color: 'var(--green)' },
+      finans: { label: 'Finans', icon: '💰', color: '#60a5fa' },
+      imparatorluk: { label: 'İmparatorluk', icon: '👑', color: '#c084fc' },
+    }
+
     const treeGrid = document.createElement('div')
     treeGrid.className = 'research-tree-visual'
 
-    const treeBranchLabels: Record<ResearchBranch, string> = {
-      operasyon: 'Operasyon',
-      finans: 'Finans',
-      imparatorluk: 'İmparatorluk',
-    }
     const branches = this.researchBranch === 'all'
       ? (['operasyon', 'finans', 'imparatorluk'] as ResearchBranch[])
       : [this.researchBranch]
 
     for (const branch of branches) {
+      const cfg = branchCfg[branch]
+      const branchNodes = nodes.filter((n) => n.branch === branch)
+      const branchDone = branchNodes.reduce((s, n) => s + (state.research[n.id] ?? 0), 0)
+      const branchMax = branchNodes.reduce((s, n) => s + n.maxLevel, 0)
+
       const col = document.createElement('div')
-      col.className = 'research-tree-branch-col'
+      col.className = `research-tree-branch-col branch-${branch}`
+
       const head = document.createElement('h4')
       head.className = 'research-tree-branch-head'
-      head.textContent = treeBranchLabels[branch]
+      head.style.setProperty('--branch-color', cfg.color)
+      head.innerHTML = `<span class="research-branch-icon">${cfg.icon}</span><span>${cfg.label}</span><span class="research-branch-progress">${branchDone}/${branchMax}</span>`
       col.appendChild(head)
+
       const chain = document.createElement('div')
       chain.className = 'research-tree-chain'
 
-      for (const node of nodes.filter((n) => n.branch === branch)) {
-      const level = state.research[node.id] ?? 0
-      const maxed = level >= node.maxLevel
-      const cost = state.researchCostWithWeekly(researchCost(node, level))
-      const canBuy = !maxed && (node.currency === 'money' ? state.canAfford(cost) : state.prestigePoints >= cost)
+      for (const node of branchNodes) {
+        const level = state.research[node.id] ?? 0
+        const maxed = level >= node.maxLevel
+        const cost = state.researchCostWithWeekly(researchCost(node, level))
+        const canBuy = !maxed && (node.currency === 'money' ? state.canAfford(cost) : state.prestigePoints >= cost)
 
-      const card = document.createElement('button')
-      card.type = 'button'
-      card.className = `shop-card shop-card-research research-tree-node${canBuy ? ' affordable' : ''}${maxed ? ' research-maxed' : ''}${node.currency === 'prestige' ? ' research-prestige' : ' research-money'}`
-      card.dataset.action = 'buy-research'
-      card.dataset.id = node.id
-      card.disabled = !canBuy
+        const card = document.createElement('button')
+        card.type = 'button'
+        card.className = `shop-card shop-card-research research-tree-node branch-${branch}${canBuy ? ' affordable' : ''}${maxed ? ' research-maxed' : ''}${node.currency === 'prestige' ? ' research-prestige' : ' research-money'}`
+        card.dataset.action = 'buy-research'
+        card.dataset.id = node.id
+        card.disabled = !canBuy
 
-      const icon = document.createElement('span')
-      icon.className = 'shop-card-icon'
-      icon.textContent = '🔬'
+        const icon = document.createElement('span')
+        icon.className = 'shop-card-icon'
+        icon.textContent = nodeEmojis[node.id] ?? '🔬'
 
-      const body = document.createElement('div')
-      body.className = 'shop-card-body'
-      const name = document.createElement('strong')
-      name.textContent = node.name
-      const branchTag = document.createElement('span')
-      branchTag.className = 'research-branch-tag'
-      branchTag.textContent = node.branch
-      const desc = document.createElement('small')
-      desc.textContent = node.description
-      const dots = document.createElement('div')
-      dots.className = 'research-level-dots'
-      for (let i = 0; i < node.maxLevel; i++) {
-        const dot = document.createElement('span')
-        dot.className = `research-level-dot${i < level ? ' filled' : ''}`
-        dots.appendChild(dot)
-      }
-      const levelLabel = document.createElement('span')
-      levelLabel.className = 'shop-level-label'
-      levelLabel.textContent = `${level}/${node.maxLevel}`
-      body.append(name, branchTag, desc, dots, levelLabel)
+        const body = document.createElement('div')
+        body.className = 'shop-card-body'
+        const name = document.createElement('strong')
+        name.textContent = node.name
+        const desc = document.createElement('small')
+        desc.textContent = node.description
 
-      const price = document.createElement('span')
-      price.className = `shop-card-price${node.currency === 'prestige' ? ' price-prestige' : ''}`
-      price.textContent = maxed ? 'Tamam' : node.currency === 'money' ? formatMoney(cost) : `${cost} hisse`
+        const progressBar = document.createElement('div')
+        progressBar.className = 'research-node-progress'
+        const fill = document.createElement('div')
+        fill.className = 'research-node-progress-fill'
+        fill.style.width = `${maxed ? 100 : Math.round((level / node.maxLevel) * 100)}%`
+        fill.style.background = maxed ? 'var(--green)' : cfg.color
+        progressBar.appendChild(fill)
 
-      card.append(icon, body, price)
-      chain.appendChild(card)
+        const levelLabel = document.createElement('span')
+        levelLabel.className = 'shop-level-label'
+        levelLabel.textContent = maxed ? '✅ Tamamlandı' : `${level}/${node.maxLevel} seviye`
+        body.append(name, desc, progressBar, levelLabel)
+
+        const price = document.createElement('span')
+        price.className = `shop-card-price${node.currency === 'prestige' ? ' price-prestige' : ''}`
+        price.textContent = maxed ? '✓' : node.currency === 'money' ? formatMoney(cost) : `${cost} ✦`
+
+        card.append(icon, body, price)
+        chain.appendChild(card)
       }
       col.appendChild(chain)
       treeGrid.appendChild(col)
