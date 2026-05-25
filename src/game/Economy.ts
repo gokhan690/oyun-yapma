@@ -144,7 +144,6 @@ export const PRODUCERS: ProducerDef[] = [
   { id: 'multiverse', name: 'Çoklu Evren Ticaret Ağı', emoji: '♾️', description: 'Son sınır — başka boyutlardan vergi.', tier: 20, unlockAt: 10_000_000_000_000, baseCost: 12_500_000, baseIncome: 37_060, costMultiplier: 1.26 },
 
   // —— Ek kariyer yolları (dengeli tier aralığı) ——
-  { id: 'firin', name: 'Fırın & Pastane', emoji: '🥐', description: 'Mahalle favorisi, sabit müşteri.', tier: 1, unlockAt: 0, baseCost: 265, baseIncome: 5, costMultiplier: 1.17 },
   { id: 'market_zincir', name: 'Market Zinciri', emoji: '🛍️', description: 'Mahalle marketlerinden zincire.', tier: 2, unlockAt: 4_000, baseCost: 520, baseIncome: 9, costMultiplier: 1.17 },
   { id: 'otopark', name: 'Otopark İşletmesi', emoji: '🅿️', description: 'Şehir merkezinde park geliri.', tier: 2, unlockAt: 12_000, baseCost: 650, baseIncome: 11, costMultiplier: 1.17 },
   { id: 'bahce_merkez', name: 'Bahçe & Peyzaj', emoji: '🌿', description: 'Villa ve site projeleri.', tier: 2, unlockAt: 15_000, baseCost: 700, baseIncome: 12, costMultiplier: 1.17 },
@@ -173,8 +172,8 @@ export const PRODUCERS: ProducerDef[] = [
 ]
 
 export const UPGRADES: UpgradeDef[] = [
-  { id: 'click_x2', name: 'Pazarlama Kampanyası', description: 'Tıklama geliri x2', cost: 45, effect: 'click_mult', value: 2 },
-  { id: 'click_x5', name: 'Viral Reklam', description: 'Tıklama geliri x5', cost: 450, effect: 'click_mult', value: 5 },
+  { id: 'click_x2', name: 'Pazarlama Kampanyası', description: 'Tıklama geliri x2', cost: 250, effect: 'click_mult', value: 2 },
+  { id: 'click_x5', name: 'Viral Reklam', description: 'Tıklama geliri x5', cost: 2_200, effect: 'click_mult', value: 5 },
   { id: 'global_x2', name: 'Kurumsal Büyüme', description: 'Tüm gelir x2', cost: 1_800, effect: 'global_mult', value: 2 },
   { id: 'stajyer_x2', name: 'Franchise Sistemi', description: 'Limonata geliri x2', cost: 120, effect: 'producer_mult', value: 2, producerId: 'stajyer' },
   { id: 'robot_x2', name: 'SEO Optimizasyonu', description: 'E-ticaret geliri x2', cost: 750, effect: 'producer_mult', value: 2, producerId: 'robot' },

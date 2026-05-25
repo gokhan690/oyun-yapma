@@ -137,25 +137,49 @@ export class Skyline {
       const isNew = !this.prevProducerIds.has(b.producerId)
       const height = TIER_HEIGHTS[b.tier] ?? 48
       const [top, bottom] = TIER_COLORS[b.tier] ?? TIER_COLORS[1]!
+      const bldWidth = Math.min(56, 28 + b.tier * 4)
 
       const el = document.createElement('div')
       el.className = `skyline-building skyline-tier-${b.tier}${isNew ? ' skyline-building-new' : ''}`
-      el.style.animationDelay = `${i * 0.08}s`
+      el.style.animationDelay = `${i * 0.07}s`
       el.title = `${b.name} · ${Math.floor(b.income).toLocaleString('tr-TR')}/sn`
       el.dataset.producerId = b.producerId
 
       const tower = document.createElement('div')
       tower.className = 'skyline-tower'
-      tower.style.height = `${height}px`
-      tower.style.background = `linear-gradient(180deg, ${top} 0%, ${bottom} 100%)`
+      tower.style.cssText = `height:${height}px; width:${bldWidth}px; background:linear-gradient(170deg,${top} 0%,${bottom} 100%)`
 
+      // Rooftop ledge
+      const ledge = document.createElement('div')
+      ledge.className = 'skyline-ledge'
+      ledge.style.background = top
+      tower.appendChild(ledge)
+
+      // Spire for tier 6+
+      if (b.tier >= 6) {
+        const spire = document.createElement('div')
+        spire.className = 'skyline-spire'
+        tower.appendChild(spire)
+      }
+
+      // Side shadow stripe for depth
+      const shade = document.createElement('div')
+      shade.className = 'skyline-shade'
+      tower.appendChild(shade)
+
+      // Windows — vary lit/unlit
       const windows = document.createElement('div')
       windows.className = 'skyline-windows'
-      const rowCount = Math.max(2, Math.floor(height / 18))
+      const cols = bldWidth >= 46 ? 4 : 3
+      const rowCount = Math.max(2, Math.floor((height - 14) / 16))
       for (let r = 0; r < rowCount; r++) {
         const row = document.createElement('div')
         row.className = 'skyline-window-row'
-        row.innerHTML = '<span></span><span></span><span></span>'
+        for (let c = 0; c < cols; c++) {
+          const w = document.createElement('span')
+          if (Math.random() < 0.28) w.className = 'win-dark'
+          row.appendChild(w)
+        }
         windows.appendChild(row)
       }
 

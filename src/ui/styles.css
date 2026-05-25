@@ -258,7 +258,23 @@ html.theme-night .tap-wrap {
 .skyline-sky {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, #1e3a5f 0%, #122035 60%, transparent 100%);
+  background: linear-gradient(180deg,
+    #0a0e1a 0%,
+    #0f1e3a 25%,
+    #1a2d4f 50%,
+    #2a3f5c 70%,
+    #1f2a38 85%,
+    transparent 100%
+  );
+}
+.skyline-sky-night {
+  background: linear-gradient(180deg,
+    #03050d 0%,
+    #080c1a 30%,
+    #0d1229 55%,
+    #121826 75%,
+    transparent 100%
+  ) !important;
 }
 
 .skyline-buildings {
@@ -291,8 +307,24 @@ html.theme-night .tap-wrap {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 28px;
-  background: linear-gradient(180deg, #1a2d4a, #0f1f35);
+  height: 32px;
+  z-index: 2;
+  background: linear-gradient(180deg,
+    rgba(10, 20, 40, 0) 0%,
+    rgba(10, 18, 32, 0.85) 40%,
+    #07101e 100%
+  );
+}
+/* Şehir ışığı parlaması — zemin üzerinde */
+.skyline-ground::before {
+  content: '';
+  position: absolute;
+  bottom: 24px;
+  left: 10%;
+  right: 10%;
+  height: 12px;
+  background: radial-gradient(ellipse at center, rgba(80, 140, 255, 0.18) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .skyline-flash {
@@ -794,12 +826,8 @@ html.theme-night body {
   background: linear-gradient(180deg, #0a1220 0%, #050a14 50%, #020508 100%);
 }
 
-.skyline-sky-night {
-  background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 40%, transparent 100%) !important;
-}
-
 .skyline-night .skyline-building {
-  filter: brightness(0.7) drop-shadow(0 0 6px rgba(251, 191, 36, 0.3));
+  filter: brightness(0.75) drop-shadow(0 0 8px rgba(251, 191, 36, 0.35));
 }
 
 .skyline-night .skyline-ground {
@@ -5673,25 +5701,60 @@ html.theme-galactic {
 }
 
 .skyline-tower {
-  width: 42px;
-  min-width: 32px;
-  border-radius: 4px 4px 0 0;
+  min-width: 28px;
+  border-radius: 3px 3px 0 0;
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  overflow: hidden;
-  box-shadow: inset 0 -8px 12px rgba(0,0,0,0.25);
+  overflow: visible;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.4), inset -4px 0 8px rgba(0,0,0,0.2);
+}
+
+/* Çatı ledge */
+.skyline-ledge {
+  position: absolute;
+  top: -3px;
+  left: -2px;
+  right: -2px;
+  height: 4px;
+  border-radius: 2px 2px 0 0;
+  opacity: 0.9;
+  z-index: 2;
+}
+
+/* Anten / spire — tier 6+ */
+.skyline-spire {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 22px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.15) 100%);
+  border-radius: 1px;
+  z-index: 3;
+}
+
+/* Sağ kenar gölgesi — derinlik */
+.skyline-shade {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 30%;
+  background: rgba(0,0,0,0.22);
+  pointer-events: none;
 }
 
 .skyline-windows {
   position: absolute;
-  inset: 6px 4px auto 4px;
+  inset: 8px 5px auto 5px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  opacity: 0.55;
+  gap: 4px;
+  opacity: 0.7;
 }
 
 .skyline-window-row {
@@ -5703,15 +5766,26 @@ html.theme-galactic {
 .skyline-window-row span {
   flex: 1;
   height: 4px;
-  background: rgba(255, 236, 179, 0.85);
+  background: rgba(255, 236, 179, 0.9);
   border-radius: 1px;
 }
 
+.skyline-window-row span.win-dark {
+  background: rgba(30, 40, 60, 0.6);
+  box-shadow: none;
+}
+
+.skyline-night .skyline-window-row span:not(.win-dark) {
+  background: rgba(253, 224, 71, 0.95);
+  box-shadow: 0 0 4px 1px rgba(251, 191, 36, 0.55);
+}
+
 .skyline-emoji {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   line-height: 1;
-  padding: 0 0 3px;
-  z-index: 1;
+  padding: 0 0 4px;
+  z-index: 4;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
 }
 
 .skyline-cluster-count {
@@ -5790,9 +5864,10 @@ html.theme-galactic {
 .tier-band-meta { font-size: 0.72rem; color: var(--muted); }
 
 .tier-band-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 10px;
   padding: 0 10px 12px;
   position: relative;
   z-index: 1;
@@ -5810,13 +5885,14 @@ html.theme-galactic {
 
 .biz-hero-card {
   position: relative;
-  border-radius: 16px;
-  padding: 14px;
+  border-radius: 14px;
+  padding: 11px 10px;
   background: var(--surface);
   border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .biz-hero-card.biz-owned {
@@ -5930,12 +6006,12 @@ html.theme-galactic {
   100% { transform: scale(1); }
 }
 
-.biz-hero-head { display: flex; gap: 12px; align-items: flex-start; }
+.biz-hero-head { display: flex; gap: 9px; align-items: flex-start; }
 
 .biz-hero-icon-wrap {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
   background: var(--surface2);
   display: flex;
   align-items: center;
@@ -5945,16 +6021,31 @@ html.theme-galactic {
   overflow: hidden;
 }
 
-.biz-hero-emoji { font-size: 1.8rem; }
+.biz-hero-emoji { font-size: 1.5rem; }
 .biz-hero-titles { flex: 1; min-width: 0; }
-.biz-hero-name { display: block; font-size: 1.05rem; }
-.biz-hero-desc { display: block; font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+.biz-hero-name {
+  display: block;
+  font-size: 0.92rem;
+  line-height: 1.18;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.biz-hero-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 3px;
+  line-height: 1.3;
+}
 
 .biz-hero-owned-badge {
   font-weight: 800;
-  font-size: 0.85rem;
-  padding: 4px 8px;
-  border-radius: 8px;
+  font-size: 0.72rem;
+  padding: 3px 6px;
+  border-radius: 7px;
   background: var(--surface2);
 }
 
@@ -5965,38 +6056,46 @@ html.theme-galactic {
 
 .biz-hero-metrics {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  font-size: 0.78rem;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
   color: var(--muted);
 }
 
 .biz-hero-income { color: #34d399 !important; font-weight: 600; }
 
-.biz-hero-milestones { display: flex; gap: 6px; }
-.biz-hero-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.biz-hero-milestones { display: flex; gap: 5px; }
+.biz-hero-badges { display: flex; flex-wrap: wrap; gap: 5px; }
 
 .biz-hero-actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr) 1.6fr auto;
+  grid-template-columns: 1fr auto;
   gap: 6px;
 }
 
-.biz-qty-btn, .biz-hero-buy, .biz-hero-info {
-  min-height: 44px;
+.biz-hero-buy, .biz-hero-info {
+  min-height: 42px;
   border-radius: 10px;
   touch-action: manipulation;
 }
 
-.biz-qty-btn {
-  border: 1px solid var(--border);
-  background: var(--surface2);
-  color: var(--text);
+.biz-hero-buy {
+  font-size: 0.8rem;
   font-weight: 700;
+  padding: 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.biz-hero-extra { display: flex; gap: 8px; flex-wrap: wrap; }
-.biz-hero-extra button { flex: 1; min-height: 40px; }
+.biz-hero-info {
+  width: 42px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+}
+
+.biz-hero-extra { display: flex; flex-direction: column; gap: 6px; }
+.biz-hero-extra button { width: 100%; min-height: 38px; font-size: 0.76rem; }
 
 /* v2.8 — Baron IA, skyline, keşfedilebilirlik */
 .baron-profile-hero {

@@ -1,6 +1,6 @@
 export const GAME_START_YEAR = 2026
-/** 20 gerçek saniye = 1 oyun günü (BitLife tarzı uzun tempo) */
-export const REAL_SECONDS_PER_GAME_DAY = 20
+/** 12 gerçek saniye = 1 oyun günü */
+export const REAL_SECONDS_PER_GAME_DAY = 12
 
 export const MS_PER_GAME_DAY = REAL_SECONDS_PER_GAME_DAY * 1000
 

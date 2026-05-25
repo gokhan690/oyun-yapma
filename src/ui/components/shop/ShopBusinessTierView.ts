@@ -76,9 +76,6 @@ export function createHeroBusinessCard(p: ProducerDef): HTMLDivElement {
     <div class="biz-hero-milestones"></div>
     <div class="biz-hero-badges"></div>
     <div class="biz-hero-actions">
-      <button type="button" class="biz-qty-btn" data-action="buy-business" data-count="1">×1</button>
-      <button type="button" class="biz-qty-btn" data-action="buy-business" data-count="10">×10</button>
-      <button type="button" class="biz-qty-btn" data-action="buy-business" data-count="max">Max</button>
       <button type="button" class="biz-hero-buy btn-primary" data-action="buy-business">Satın Al</button>
       <button type="button" class="biz-hero-info" data-action="biz-detail" title="Detay">ℹ️</button>
     </div>
@@ -168,10 +165,6 @@ export function updateHeroBusinessCard(
   buyBtn.textContent = affordable
     ? (buyMode === 'max' && maxCount > 1 ? `Satın Al · ${maxCount} adet` : `Satın Al · ${formatMoney(cost)}`)
     : (maxCount < 1 ? 'Yetersiz para' : `Satın Al · ${formatMoney(cost)}`)
-
-  for (const q of card.querySelectorAll<HTMLButtonElement>('.biz-qty-btn')) {
-    q.disabled = !affordable && q.dataset.count !== '1'
-  }
 
   const badges = card.querySelector('.biz-hero-badges')!
   badges.replaceChildren()
