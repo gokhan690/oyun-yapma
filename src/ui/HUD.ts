@@ -1121,6 +1121,7 @@ export class HUD {
       case 'restart-tutorial':
         this.settings.hide()
         this.tutorial.restart()
+        this.setView('earn')
         break
       case 'close-stats':
         this.setView('earn')
