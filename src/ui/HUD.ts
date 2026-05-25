@@ -36,6 +36,8 @@ import { formatGameClock } from '../game/GameClock'
 import { EventDirector } from '../game/EventDirector'
 import type { GameEventDef } from '../game/Events'
 import { activeTicker } from '../game/StockMarket'
+import { parseFranchiseAction } from './components/shop/FranchiseBlock'
+import { FRANCHISE_CITIES } from '../game/Franchise'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
 import { navLockReason, isShopHubLocked, shopHubLockReason } from '../game/ProgressiveUnlock'
@@ -1786,6 +1788,26 @@ export class HUD {
           this.refreshShop(true)
         }
         break
+      case 'open-franchise': {
+        const parsed = id ? parseFranchiseAction(id) : null
+        if (parsed && this.state.openFranchise(parsed.producerId, parsed.city)) {
+          const city = FRANCHISE_CITIES.find((c) => c.id === parsed.city)
+          const p = PRODUCERS.find((x) => x.id === parsed.producerId)
+          this.modals.showToast(this.root, `🏪 ${p?.name ?? 'İşletme'} — ${city?.label ?? parsed.city} franchise açıldı!`)
+          this.refreshShop(true)
+        }
+        break
+      }
+      case 'iap-restore': {
+        const restored = await iapManager.restorePurchases()
+        if (restored.length > 0) {
+          this.modals.showToast(this.root, `✅ ${restored.length} satın alma geri yüklendi`)
+          if (this.baronShowsEvents()) this.eventsPanel.render(this.state)
+        } else {
+          this.modals.showToast(this.root, 'Geri yüklenecek satın alma yok')
+        }
+        break
+      }
       default:
         break
     }

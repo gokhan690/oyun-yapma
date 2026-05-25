@@ -85,6 +85,16 @@ export class EventsPanel {
     this.scrollBody.appendChild(this.renderGacha(state))
     this.scrollBody.appendChild(this.renderSeason(state))
     this.scrollBody.appendChild(this.renderMissions(state))
+
+    const iapFooter = document.createElement('div')
+    iapFooter.className = 'iap-restore-footer'
+    const restoreBtn = document.createElement('button')
+    restoreBtn.type = 'button'
+    restoreBtn.className = 'btn-secondary btn-sm'
+    restoreBtn.dataset.action = 'iap-restore'
+    restoreBtn.textContent = '🔄 Satın almaları geri yükle (Google Play / App Store)'
+    iapFooter.appendChild(restoreBtn)
+    this.scrollBody.appendChild(iapFooter)
   }
 
   /** Tam DOM yenilemeden ilerleme ve bonus sürelerini günceller. */

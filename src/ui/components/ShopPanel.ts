@@ -43,6 +43,7 @@ import {
 } from '../../game/ShopAdvisor'
 import { UNDERGROUND_TREE_NODES, treeNodeCost } from '../../game/UndergroundTree'
 import { modernizeCost } from '../../game/TechObsolescence'
+import { appendFranchiseSection, franchiseNearCount, franchiseReadyCount } from './shop/FranchiseBlock'
 
 export type BuyMode = 1 | 10 | 'max'
 export type ShopHub = 'growth' | 'powerup' | 'finance' | 'empire'
@@ -82,6 +83,7 @@ export class ShopPanel {
   private shopSubEl!: HTMLElement
   private shopHubEl!: HTMLElement
   private advisorEl!: HTMLElement
+  private shopMetaHintsEl!: HTMLElement
   private subTabsEl!: HTMLElement
   private businessCards = new Map<string, HTMLDivElement>()
   private expandedBands = new Set<string>(['starter'])
@@ -160,6 +162,10 @@ export class ShopPanel {
     this.advisorEl = document.createElement('div')
     this.advisorEl.className = 'shop-advisor-strip'
 
+    this.shopMetaHintsEl = document.createElement('div')
+    this.shopMetaHintsEl.className = 'shop-meta-hints'
+    this.shopMetaHintsEl.hidden = true
+
     this.subTabsEl = document.createElement('div')
     this.subTabsEl.className = 'shop-sub-tabs'
 
@@ -206,7 +212,7 @@ export class ShopPanel {
     chrome.className = 'shop-chrome'
     this.shopHubEl = document.createElement('div')
     this.shopHubEl.className = 'shop-hub-strip'
-    chrome.append(header, this.shopHubEl, this.advisorEl, buyModes, this.subTabsEl, tabsWrap)
+    chrome.append(header, this.shopHubEl, this.advisorEl, this.shopMetaHintsEl, buyModes, this.subTabsEl, tabsWrap)
     this.renderSubTabs()
 
     const body = document.createElement('div')
@@ -520,8 +526,10 @@ export class ShopPanel {
       this.shopHubEl.hidden = true
       this.shopHubEl.replaceChildren()
       this.renderAdvisorStrip(state)
+      this.renderMetaHints(state)
     } else {
       this.renderShopHub(state)
+      this.shopMetaHintsEl.hidden = true
     }
     this.renderSubTabs(state)
     const panelId = this.activePanelId()
@@ -553,6 +561,53 @@ export class ShopPanel {
     if (panelId === 'businesses') this.renderBusinesses(state, true)
     else if (panelId.startsWith('empire_')) this.patchEmpireLockedCards(state)
     this.renderAdvisorStrip(state)
+    this.renderMetaHints(state)
+  }
+
+  private renderMetaHints(state: GameState): void {
+    if (this.viewContext !== 'shop') {
+      this.shopMetaHintsEl.hidden = true
+      return
+    }
+    const hints: { emoji: string; text: string; action?: string }[] = []
+    const torpilActive = state.torpil.some((t) => t.active)
+    if (!torpilActive && state.money >= 15_000) {
+      hints.push({
+        emoji: '🤝',
+        text: 'Torpil ağı — indirim & kredi (Baron > Profil)',
+        action: 'open-profile',
+      })
+    } else if (state.torpil.some((t) => t.giftDue)) {
+      hints.push({ emoji: '🎁', text: 'Torpil hediyesi bekliyor', action: 'open-profile' })
+    }
+    const ready = franchiseReadyCount(state)
+    const near = franchiseNearCount(state)
+    if (ready > 0) {
+      hints.push({ emoji: '🏪', text: `${ready} işletmede franchise açılabilir — kartlara bak` })
+    } else if (near > 0) {
+      hints.push({ emoji: '🏪', text: `${near} işletme franchise\'a yakın (10+ adet)` })
+    }
+    if (hints.length === 0) {
+      this.shopMetaHintsEl.hidden = true
+      return
+    }
+    this.shopMetaHintsEl.hidden = false
+    this.shopMetaHintsEl.replaceChildren()
+    for (const h of hints) {
+      if (h.action) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = 'shop-meta-hint-btn'
+        btn.dataset.action = h.action
+        btn.textContent = `${h.emoji} ${h.text}`
+        this.shopMetaHintsEl.appendChild(btn)
+      } else {
+        const span = document.createElement('span')
+        span.className = 'shop-meta-hint'
+        span.textContent = `${h.emoji} ${h.text}`
+        this.shopMetaHintsEl.appendChild(span)
+      }
+    }
   }
 
   private patchLockedCards(state: GameState, root: ParentNode): void {
@@ -1475,6 +1530,22 @@ export class ShopPanel {
       actionRow.hidden = false
     } else if (actionRow) {
       actionRow.hidden = true
+    }
+
+    let franchiseBlock = card.querySelector('.biz-franchise-block') as HTMLElement | null
+    const ownedForFranchise = owned
+    const branches = state.franchises.filter((f) => f.producerId === p.id)
+    const showFranchise = branches.length > 0 || state.canOpenFranchise(p.id) || ownedForFranchise >= 8
+    if (showFranchise) {
+      if (!franchiseBlock) {
+        franchiseBlock = document.createElement('div')
+        card.appendChild(franchiseBlock)
+      }
+      franchiseBlock.replaceChildren()
+      appendFranchiseSection(franchiseBlock, p.id, p.name, ownedForFranchise, state)
+      franchiseBlock.hidden = franchiseBlock.childElementCount === 0
+    } else if (franchiseBlock) {
+      franchiseBlock.hidden = true
     }
   }
 

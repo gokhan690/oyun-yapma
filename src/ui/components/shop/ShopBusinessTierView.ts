@@ -10,6 +10,7 @@ import {
   type ProducerDef,
 } from '../../../game/Economy'
 import { modernizeCost } from '../../../game/TechObsolescence'
+import { appendFranchiseSection } from './FranchiseBlock'
 import { getActiveSynergies } from '../../../game/Synergies'
 import { sortProducers, formatRoi, producerRoiSeconds, type BizSortOrder } from '../../../game/ShopAdvisor'
 import type { BizTypeFilter, BuyMode } from '../ShopPanel'
@@ -220,6 +221,7 @@ export function updateHeroBusinessCard(
       modBtn.disabled = !state.canAfford(modCost)
       extra.appendChild(modBtn)
     }
+    appendFranchiseSection(extra as HTMLElement, p.id, p.name, owned, state)
   }
 }
 

@@ -5251,6 +5251,69 @@ html.theme-galactic {
 }
 .iap-perks li { margin-bottom: 4px; }
 
+.shop-meta-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 12px 8px;
+}
+.shop-meta-hint,
+.shop-meta-hint-btn {
+  font-size: 0.75rem;
+  border-radius: 10px;
+  padding: 8px 10px;
+  text-align: left;
+  line-height: 1.35;
+}
+.shop-meta-hint {
+  display: block;
+  background: rgba(52, 211, 153, 0.08);
+  border: 1px dashed rgba(52, 211, 153, 0.35);
+  color: var(--text);
+}
+.shop-meta-hint-btn {
+  width: 100%;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.08);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+}
+.shop-meta-hint-btn:active { transform: scale(0.99); }
+
+.biz-franchise-block {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+.biz-franchise-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+}
+.biz-franchise-title small { color: var(--muted); font-size: 0.72rem; }
+.biz-franchise-hint { margin: 0 0 8px; font-size: 0.75rem; color: #93c5fd; }
+.biz-franchise-open { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.biz-franchise-tag {
+  font-size: 0.72rem;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.15);
+  color: #6ee7b7;
+}
+.biz-franchise-cities { display: flex; flex-wrap: wrap; gap: 6px; }
+.biz-franchise-btn { flex: 1; min-width: 90px; }
+
+.iap-restore-footer {
+  padding: 12px 16px 24px;
+  text-align: center;
+}
+.iap-restore-footer button { width: 100%; max-width: 360px; }
+
 /* Prestij & Ar-Ge tree */
 .prestige-tree-visual,
 .research-tree-visual {

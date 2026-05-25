@@ -4,6 +4,16 @@ GitHub commit / release notu olarak kopyalayabilirsin.
 
 ---
 
+## [2.7.0] — 2026-05-23
+
+### Özet
+- **Franchise UI:** 10+ adet işletmelerde şube açma (İstanbul/Ankara/İzmir) — İş sekmesi kartlarında
+- **IAP native:** `@capgo/native-purchases` ile Google Play / App Store iskeleti + geri yükleme
+- **Versiyon:** package.json, ayarlar ekranı ve build tek kaynaktan (`appVersion.ts`)
+- **Keşfedilebilirlik:** Torpil ve franchise ipuçları İş sekmesinde
+
+---
+
 ## [2.6.0] — 2026-05-21
 
 ### Özet
