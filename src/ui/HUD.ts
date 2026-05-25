@@ -1246,18 +1246,30 @@ export class HUD {
       }
       case 'buy-business':
         if (id) {
-          const mode = this.shop.getBuyMode()
           let ok = false
-          if (mode === 'max') {
+          if (count === 'max') {
             ok = this.state.buyMaxProducer(id) > 0
+          } else if (count) {
+            ok = this.state.buyProducer(id, Number(count))
           } else {
-            ok = this.state.buyProducer(id, Number(count ?? 1))
+            const mode = this.shop.getBuyMode()
+            if (mode === 'max') {
+              ok = this.state.buyMaxProducer(id) > 0
+            } else {
+              ok = this.state.buyProducer(id, mode === 10 ? 10 : 1)
+            }
           }
           if (ok) {
             this.shop.flashCard(id)
           } else {
-            this.modals.showToast(this.root, 'Satın alınamadı — yeterli para yok')
+            this.modals.showToast(this.root, 'Satın alınamadı — yeterli para yok', 'important')
           }
+        }
+        break
+      case 'toggle-tier-band':
+        if (id) {
+          this.shop.toggleTierBand(id)
+          this.refreshShop(true)
         }
         break
       case 'biz-detail':

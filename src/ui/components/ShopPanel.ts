@@ -5,8 +5,6 @@ import { reputationLoanBlocked } from '../../game/Reputation'
 import { NAMED_MANAGERS } from '../../game/NamedManagers'
 import { getActiveSynergies, getNearSynergies } from '../../game/Synergies'
 import {
-  isStarterPhase,
-  isStarterBusiness,
   isShopHubLocked,
   shopHubLockReason,
   type ShopHubLock,
@@ -18,6 +16,16 @@ import {
   renderOpportunitiesPanel,
   renderUndergroundMarketPanel,
 } from './shop/ShopAltFinancePanels'
+import {
+  BIZ_TIER_BANDS,
+  activeTierBandId,
+  bandUnlocked,
+  createHeroBusinessCard,
+  filterProducersForShop,
+  producersInBand,
+  renderLockedPreviewCard,
+  updateHeroBusinessCard,
+} from './shop/ShopBusinessTierView'
 import { prestigeMultiplier } from '../../game/Prestige'
 import { managerCost, hasManager } from '../../game/Managers'
 import { profitLoss, priceChangePct, portfolioSummary, sparklinePath, STOCK_DEFS, fearLabel, isBankruptTicker } from '../../game/StockMarket'
@@ -76,6 +84,8 @@ export class ShopPanel {
   private advisorEl!: HTMLElement
   private subTabsEl!: HTMLElement
   private businessCards = new Map<string, HTMLDivElement>()
+  private expandedBands = new Set<string>(['starter'])
+  private tierBandsInit = false
   private synergyEl: HTMLElement | null = null
   private ipoSubTab: IpoSubTab = 'stock'
   private upgradeFilter: UpgradeFilter = 'all'
@@ -639,6 +649,11 @@ export class ShopPanel {
     window.setTimeout(() => card.classList.remove('just-bought'), 450)
   }
 
+  toggleTierBand(bandId: string): void {
+    if (this.expandedBands.has(bandId)) this.expandedBands.delete(bandId)
+    else this.expandedBands.add(bandId)
+  }
+
   private renderShopHub(state: GameState): void {
     if (this.viewContext !== 'market') {
       this.shopHubEl.hidden = true
@@ -752,14 +767,6 @@ export class ShopPanel {
     }
     el.appendChild(legend)
     return el
-  }
-
-  private formatEta(days: number): string {
-    if (!Number.isFinite(days) || days <= 0) return '—'
-    if (days < 1) return `${Math.ceil(days * 24)}sa`
-    if (days < 30) return `${Math.ceil(days)}g`
-    if (days < 365) return `${Math.ceil(days / 30)}ay`
-    return `${Math.ceil(days / 365)}y`
   }
 
   private patchEarlyUnlockFooter(
@@ -892,16 +899,6 @@ export class ShopPanel {
       el.appendChild(statEl)
     }
     return el
-  }
-
-  private createProgressBar(pct: number, extraClass = ''): HTMLElement {
-    const wrap = document.createElement('div')
-    wrap.className = `progress-bar${extraClass ? ` ${extraClass}` : ''}`
-    const fill = document.createElement('div')
-    fill.className = 'progress-fill'
-    fill.style.width = `${Math.min(100, Math.max(0, pct))}%`
-    wrap.appendChild(fill)
-    return wrap
   }
 
   private createEmptyState(icon: string, text: string, hint?: string): HTMLElement {
@@ -1068,6 +1065,17 @@ export class ShopPanel {
     panel.appendChild(section)
   }
 
+  private getTierList(panel: HTMLElement): HTMLElement {
+    panel.querySelector('.biz-cards-grid')?.remove()
+    let list = panel.querySelector('.biz-tier-list') as HTMLElement | null
+    if (!list) {
+      list = document.createElement('div')
+      list.className = 'biz-tier-list'
+      panel.appendChild(list)
+    }
+    return list
+  }
+
   private renderBusinesses(state: GameState, patchOnly = false): void {
     const panel = this.panels.businesses!
     const near = getNearSynergies(state.producers)
@@ -1146,33 +1154,92 @@ export class ShopPanel {
       panel.querySelector('.finance-summary')?.remove()
     }
 
-    const grid = this.getCardsGrid(panel)
-    const visibleIds = new Set<string>()
-    const unlocked = sortProducers(
-      state.unlockedProducers()
-        .filter((p) => this.matchesBizFilter(p, this.bizTypeFilter))
-        .filter((p) => !isStarterPhase(state.producers) || isStarterBusiness(p.id)),
-      this.bizSortOrder,
-      state,
-    )
-
-    for (const p of unlocked) {
-      const owned = state.producers[p.id] ?? 0
-      let count = this.buyMode === 'max' ? state.countMaxAffordable(p.id) : this.buyMode
-      if (count < 1) count = 1
-      visibleIds.add(p.id)
-
-      let card = this.businessCards.get(p.id)
-      if (!card) {
-        card = this.createBusinessCard(p)
-        this.businessCards.set(p.id, card)
-      }
-      card.hidden = false
-      card.classList.toggle('biz-card-illegal', !!p.illegal)
-      const buyCount = this.buyMode === 'max' ? Math.max(1, state.countMaxAffordable(p.id)) : count
-      this.updateBusinessCard(card, p, state, owned, buyCount)
-      grid.appendChild(card)
+    if (!this.tierBandsInit) {
+      this.expandedBands.add(activeTierBandId(state))
+      this.tierBandsInit = true
     }
+
+    const tierList = this.getTierList(panel)
+    const visibleIds = new Set<string>()
+    const allFiltered = filterProducersForShop(state, this.bizTypeFilter, this.bizSortOrder, (p, f) => this.matchesBizFilter(p, f))
+
+    if (!patchOnly) tierList.replaceChildren()
+
+    for (const band of BIZ_TIER_BANDS) {
+      const unlocked = bandUnlocked(band, state.totalEarned)
+      const expanded = unlocked && this.expandedBands.has(band.id)
+      const bandProducers = producersInBand(band).filter((p) => allFiltered.some((x) => x.id === p.id))
+      const ownedInBand = bandProducers.filter((p) => (state.producers[p.id] ?? 0) > 0).length
+
+      let section = tierList.querySelector(`[data-tier-band="${band.id}"]`) as HTMLElement | null
+      if (!section) {
+        section = document.createElement('section')
+        section.className = 'tier-band'
+        section.dataset.tierBand = band.id
+        tierList.appendChild(section)
+      }
+
+      section.classList.toggle('tier-band-locked', !unlocked)
+      section.classList.toggle('tier-band-active', band.id === activeTierBandId(state))
+      section.classList.toggle('tier-band-open', expanded)
+
+      let header = section.querySelector('.tier-band-header') as HTMLButtonElement | null
+      if (!header) {
+        header = document.createElement('button')
+        header.type = 'button'
+        header.className = 'tier-band-header'
+        header.dataset.action = 'toggle-tier-band'
+        section.prepend(header)
+      }
+      header.dataset.id = band.id
+      const lockHint = unlocked ? '' : ` · 🔒 ${formatMoney(band.unlockAt)}`
+      header.innerHTML = `
+        <span class="tier-band-chevron">${expanded ? '▼' : '▶'}</span>
+        <span class="tier-band-label">${band.emoji} ${band.label}</span>
+        <span class="tier-band-meta">T${band.minTier}–${band.maxTier}${ownedInBand > 0 ? ` · ${ownedInBand} aktif` : ''}${lockHint}</span>
+      `
+      header.disabled = !unlocked
+
+      let body = section.querySelector('.tier-band-body') as HTMLElement | null
+      if (!body) {
+        body = document.createElement('div')
+        body.className = 'tier-band-body'
+        section.appendChild(body)
+      }
+      body.hidden = !expanded
+      if (!expanded) continue
+      if (!patchOnly) body.replaceChildren()
+
+      for (const p of bandProducers) {
+        visibleIds.add(p.id)
+        let card = this.businessCards.get(p.id)
+        if (!card) {
+          card = createHeroBusinessCard(p)
+          this.businessCards.set(p.id, card)
+        }
+        updateHeroBusinessCard(card, p, state, this.buyMode)
+        body.appendChild(card)
+      }
+
+      const lockedPreview = producersInBand(band).filter(
+        (p) => !isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks)
+          && this.matchesBizFilter(p, this.bizTypeFilter),
+      ).slice(0, 2)
+
+      if (bandProducers.length === 0 && lockedPreview.length === 0 && unlocked) {
+        const empty = document.createElement('p')
+        empty.className = 'tier-band-empty'
+        empty.textContent = 'Bu grupta henüz açık işletme yok.'
+        body.appendChild(empty)
+      }
+
+      for (const p of lockedPreview) {
+        if (bandProducers.some((x) => x.id === p.id)) continue
+        body.appendChild(renderLockedPreviewCard(p, state))
+      }
+    }
+
+    panel.querySelector('.biz-card-locked-preview')?.remove()
 
     for (const [id, card] of this.businessCards) {
       if (!visibleIds.has(id)) {
@@ -1181,95 +1248,7 @@ export class ShopPanel {
       }
     }
 
-    if (!patchOnly && !isStarterPhase(state.producers)) {
-      const nextLockedDef = PRODUCERS.find((p) => {
-        if (isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks)) return false
-        if (!this.matchesBizFilter(p, this.bizTypeFilter)) return false
-        return true
-      })
-      if (nextLockedDef) {
-        let lockedCard = panel.querySelector('.biz-card-locked-preview') as HTMLElement | null
-        if (!lockedCard) {
-          lockedCard = document.createElement('div')
-          lockedCard.className = 'biz-card biz-card-locked-preview'
-          lockedCard.dataset.producerId = nextLockedDef.id
-          const inner = document.createElement('div')
-          inner.className = 'biz-card-locked-inner'
-          const emojiEl = document.createElement('span')
-          emojiEl.className = 'biz-emoji'
-          const icon = document.createElement('img')
-          icon.className = 'biz-icon'
-          icon.src = producerIconPath(nextLockedDef.id)
-          icon.alt = ''
-          icon.onerror = () => {
-            icon.remove()
-            emojiEl.textContent = nextLockedDef.emoji
-          }
-          emojiEl.appendChild(icon)
-          const infoEl = document.createElement('div')
-          const nameEl = document.createElement('strong')
-          nameEl.textContent = nextLockedDef.name
-          const descEl = document.createElement('small')
-          descEl.className = 'biz-lock-desc'
-          descEl.textContent = nextLockedDef.description
-          const hintEl = document.createElement('small')
-          hintEl.className = 'biz-lock-hint'
-          hintEl.textContent = 'İşletmeler toplam kazanç ile açılır (cüzdan değil)'
-          infoEl.append(nameEl, descEl, hintEl)
-          inner.append(emojiEl, infoEl)
-          const overlay = document.createElement('div')
-          overlay.className = 'biz-locked-overlay'
-          const lockIcon = document.createElement('span')
-          lockIcon.className = 'biz-locked-icon'
-          lockIcon.textContent = nextLockedDef.illegal ? '🕶️' : '🔒'
-          const lockText = document.createElement('span')
-          lockText.className = 'biz-locked-text'
-          overlay.append(lockIcon, lockText)
-          const footer = document.createElement('div')
-          footer.className = 'biz-card-locked-footer'
-          const earlyBtn = document.createElement('button')
-          earlyBtn.type = 'button'
-          earlyBtn.className = 'btn-early-unlock'
-          earlyBtn.dataset.action = 'early-unlock'
-          earlyBtn.dataset.id = nextLockedDef.id
-          const earlyHint = document.createElement('small')
-          earlyHint.className = 'btn-early-unlock-hint'
-          footer.append(earlyBtn, earlyHint)
-          lockedCard.append(inner, overlay, footer)
-          grid.appendChild(lockedCard)
-        } else {
-          lockedCard.dataset.producerId = nextLockedDef.id
-        }
-        const unlockAt = scaledUnlockAt(nextLockedDef)
-        const pct = unlockAt > 0
-          ? (state.totalEarned / unlockAt) * 100
-          : 100
-        const lockText = lockedCard.querySelector('.biz-locked-text')
-        if (lockText) {
-          const remaining = Math.max(0, unlockAt - state.totalEarned)
-          const ipd = state.incomePerDay()
-          const eta = ipd > 0 ? remaining / ipd : Infinity
-          lockText.textContent = `${formatMoney(state.totalEarned)} / ${formatMoney(unlockAt)} kazanç · ~${this.formatEta(eta)}`
-        }
-        this.patchEarlyUnlockFooter(lockedCard, nextLockedDef, state, unlockAt)
-        let progressBar = lockedCard.querySelector('.unlock-progress') as HTMLElement | null
-        const footerEl = lockedCard.querySelector('.biz-card-locked-footer')
-        if (!progressBar) {
-          progressBar = this.createProgressBar(pct, 'unlock-progress')
-          if (footerEl) lockedCard.insertBefore(progressBar, footerEl)
-          else lockedCard.appendChild(progressBar)
-        } else {
-          const fill = progressBar.querySelector('.progress-fill') as HTMLElement
-          if (fill) fill.style.width = `${Math.min(100, pct)}%`
-        }
-      } else {
-        panel.querySelector('.biz-card-locked-preview')?.remove()
-      }
-    } else {
-      this.patchLockedCards(state, panel)
-    }
-
-    if (!patchOnly && panel.querySelectorAll('.biz-card:not([hidden]):not(.biz-card-locked-preview)').length === 0 && visibleIds.size === 0) {
+    if (!patchOnly && visibleIds.size === 0) {
       let empty = panel.querySelector('.empty-state') as HTMLElement | null
       if (!empty) {
         empty = this.createEmptyState('🏢', 'Daha fazla kazan', 'Yeni işletmeler açılacak')

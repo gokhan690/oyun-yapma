@@ -5534,4 +5534,245 @@ html.theme-galactic {
 .app-root.era-consolidation { --accent: #fbbf24; }
 .app-root.era-empire { --accent: #c084fc; }
 
-.toast { max-width: min(92vw, 360px); pointer-events: none; }
+.shop-context-business .biz-tier-list {
+  padding: 0 8px 20px;
+}
+
+@media (max-width: 380px) {
+  .biz-hero-actions {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .biz-hero-buy { grid-column: 1 / -1; }
+  .biz-hero-info { grid-column: 1 / -1; width: 100%; }
+}
+
+/* Skyline v2 — CSS kuleler */
+.skyline-buildings {
+  pointer-events: auto;
+  overflow: hidden;
+  gap: 3px;
+}
+
+.skyline-building {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  padding: 0;
+  pointer-events: auto;
+}
+
+.skyline-tower {
+  width: 26px;
+  min-width: 22px;
+  border-radius: 4px 4px 0 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: hidden;
+  box-shadow: inset 0 -8px 12px rgba(0,0,0,0.25);
+}
+
+.skyline-windows {
+  position: absolute;
+  inset: 6px 4px auto 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  opacity: 0.55;
+}
+
+.skyline-window-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 2px;
+}
+
+.skyline-window-row span {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 236, 179, 0.85);
+  border-radius: 1px;
+}
+
+.skyline-emoji {
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0 0 3px;
+  z-index: 1;
+}
+
+.skyline-cluster-count {
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: #fde68a;
+}
+
+.skyline-cluster .skyline-tower {
+  width: 34px;
+  background: linear-gradient(180deg, #64748b, #334155) !important;
+}
+
+.skyline-monument-tower {
+  background: linear-gradient(180deg, #fcd34d, #b45309) !important;
+  width: 30px;
+}
+
+.skyline-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.5;
+  align-self: flex-end;
+}
+
+.skyline-night .skyline-window-row span {
+  background: rgba(253, 224, 71, 0.95);
+  box-shadow: 0 0 4px rgba(251, 191, 36, 0.6);
+}
+
+.biz-tier-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding-bottom: 16px;
+}
+
+.tier-band {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface2);
+}
+
+.tier-band-active {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+.tier-band-locked { opacity: 0.55; }
+
+.tier-band-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.tier-band-chevron { width: 1rem; flex-shrink: 0; }
+.tier-band-label { font-weight: 700; font-size: 0.9rem; flex: 1; }
+.tier-band-meta { font-size: 0.72rem; color: var(--muted); }
+
+.tier-band-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 10px 12px;
+}
+
+.tier-band-empty { font-size: 0.8rem; color: var(--muted); margin: 0; }
+
+.biz-hero-card {
+  position: relative;
+  border-radius: 16px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.biz-hero-card.biz-owned {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 8%, var(--surface)), var(--surface));
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+
+.biz-hero-card.biz-unowned { opacity: 0.88; }
+.biz-hero-card.biz-dim { opacity: 0.65; }
+.biz-hero-card.just-bought { animation: cardPop 0.45s ease; }
+
+@keyframes cardPop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.biz-hero-head { display: flex; gap: 12px; align-items: flex-start; }
+
+.biz-hero-icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.biz-hero-emoji { font-size: 1.8rem; }
+.biz-hero-titles { flex: 1; min-width: 0; }
+.biz-hero-name { display: block; font-size: 1.05rem; }
+.biz-hero-desc { display: block; font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+.biz-hero-owned-badge {
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--surface2);
+}
+
+.biz-owned .biz-hero-owned-badge {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  color: var(--accent);
+}
+
+.biz-hero-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.biz-hero-income { color: #34d399 !important; font-weight: 600; }
+
+.biz-hero-milestones { display: flex; gap: 6px; }
+.biz-hero-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.biz-hero-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) 1.6fr auto;
+  gap: 6px;
+}
+
+.biz-qty-btn, .biz-hero-buy, .biz-hero-info {
+  min-height: 44px;
+  border-radius: 10px;
+  touch-action: manipulation;
+}
+
+.biz-qty-btn {
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.biz-hero-extra { display: flex; gap: 8px; flex-wrap: wrap; }
+.biz-hero-extra button { flex: 1; min-height: 40px; }
