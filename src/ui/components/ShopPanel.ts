@@ -213,7 +213,7 @@ export class ShopPanel {
     chrome.className = 'shop-chrome'
     this.shopHubEl = document.createElement('div')
     this.shopHubEl.className = 'shop-hub-strip'
-    chrome.append(header, this.shopHubEl, this.advisorEl, this.shopMetaHintsEl, buyModes, this.subTabsEl, tabsWrap)
+    chrome.append(header, this.shopHubEl, buyModes, this.subTabsEl, tabsWrap)
     this.renderSubTabs()
 
     const body = document.createElement('div')
@@ -221,6 +221,9 @@ export class ShopPanel {
     for (const panel of Object.values(this.panels)) {
       body.appendChild(panel)
     }
+
+    // Advisor ve meta-hints scrollable panel içinde (chrome'u şişirmez)
+    this.panels['businesses']!.prepend(this.shopMetaHintsEl, this.advisorEl)
 
     this.root.append(chrome, body)
   }

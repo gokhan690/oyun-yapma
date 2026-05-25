@@ -3986,7 +3986,8 @@ html.theme-galactic {
   cursor: pointer;
 }
 .shop-sub-tab.active { border-color: var(--accent); background: rgba(251,191,36,0.12); color: var(--accent); }
-.shop-advisor-strip { padding: 0 12px 8px; }
+/* Panel içinde advisor — padding tab-panel'den geliyor */
+.shop-advisor-strip { padding: 0 0 8px; }
 .shop-advisor-card {
   display: flex;
   align-items: center;
@@ -4943,7 +4944,7 @@ html.theme-galactic {
 .shop-context-market .shop-advisor-strip.is-hidden { display: none !important; }
 .shop-context-business .shop-hub-strip,
 .shop-context-business .finance-modifiers { display: none !important; }
-.shop-context-business .shop-advisor-strip { margin-bottom: 4px; }
+.shop-context-business .shop-advisor-strip { margin-bottom: 0; }
 .shop-context-business .buy-modes {
   padding: 4px 14px 6px;
   gap: 6px;
@@ -5288,7 +5289,7 @@ html.theme-galactic {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 0 12px 8px;
+  padding: 0 0 8px;
 }
 .shop-meta-hint,
 .shop-meta-hint-btn {
