@@ -246,17 +246,31 @@ export function renderLockedPreviewCard(p: ProducerDef, state: GameState): HTMLE
   const unlockAt = scaledUnlockAt(p)
   const earlyCost = earlyUnlockCost(p)
   const canEarly = state.canAfford(earlyCost)
+  const earned = state.totalEarned
+  const pct = Math.min(100, Math.floor((earned / unlockAt) * 100))
+  const remaining = Math.max(0, unlockAt - earned)
   card.innerHTML = `
-    <div class="biz-hero-head">
-      <div class="biz-hero-icon-wrap"><span class="biz-hero-emoji">${p.emoji}</span></div>
-      <div class="biz-hero-titles">
-        <strong>${p.name}</strong>
-        <small>${formatMoney(unlockAt)} kazançta açılır</small>
+    <div class="biz-locked-head">
+      <div class="biz-hero-icon-wrap biz-locked-icon-wrap">
+        <span class="biz-hero-emoji">${p.emoji}</span>
+        <span class="biz-lock-pip">🔒</span>
       </div>
-      <span class="biz-hero-owned-badge">🔒</span>
+      <div class="biz-hero-titles">
+        <strong class="biz-hero-name">${p.name}</strong>
+        <small class="biz-hero-desc">${p.description}</small>
+      </div>
     </div>
-    <button type="button" class="btn-secondary biz-early-unlock" data-action="early-unlock" data-id="${p.id}" ${canEarly ? '' : 'disabled'}>
-      Erken aç · ${formatMoney(earlyCost)}
+    <div class="biz-unlock-progress">
+      <div class="biz-unlock-bar-wrap">
+        <div class="biz-unlock-bar" style="width:${pct}%"></div>
+      </div>
+      <div class="biz-unlock-labels">
+        <span>${formatMoney(earned)}</span>
+        <span>${formatMoney(unlockAt)}</span>
+      </div>
+    </div>
+    <button type="button" class="biz-early-btn" data-action="early-unlock" data-id="${p.id}" ${canEarly ? '' : 'disabled'}>
+      🔓 Erken aç · ${formatMoney(earlyCost)}${remaining > 0 ? `<span class="biz-early-hint"> · ${formatMoney(remaining)} daha kazan</span>` : ''}
     </button>
   `
   return card

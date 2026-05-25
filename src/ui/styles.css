@@ -5829,6 +5829,101 @@ html.theme-galactic {
 .biz-hero-card.biz-dim { opacity: 0.65; }
 .biz-hero-card.just-bought { animation: cardPop 0.45s ease; }
 
+/* ── Kilitli önizleme kartı ── */
+.biz-hero-card.biz-hero-locked {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+  opacity: 0.9;
+}
+
+.biz-locked-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.biz-locked-icon-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.biz-lock-pip {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  font-size: 0.68rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.biz-unlock-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.biz-unlock-bar-wrap {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--surface2);
+  overflow: hidden;
+}
+
+.biz-unlock-bar {
+  height: 100%;
+  min-width: 3px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #a0f0ff));
+  transition: width 0.6s ease;
+}
+
+.biz-unlock-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.67rem;
+  color: var(--muted);
+}
+
+.biz-early-btn {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 60%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.biz-early-btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: var(--accent);
+}
+
+.biz-early-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  border-color: var(--border);
+  color: var(--muted);
+  background: transparent;
+}
+
+.biz-early-hint {
+  font-weight: 400;
+  opacity: 0.75;
+  font-size: 0.75em;
+}
+
 @keyframes cardPop {
   0% { transform: scale(1); }
   40% { transform: scale(1.02); }
