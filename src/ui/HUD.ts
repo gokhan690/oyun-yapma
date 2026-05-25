@@ -450,7 +450,7 @@ export class HUD {
     this.baronView.appendChild(this.eventsPanel.root)
     this.statsScreen.embedIn(this.baronView)
 
-    this.earnView.append(this.weeklyBanner, this.eraStrip, this.cityStrip, earnHero, progressStrip, adsPanel, sessionPanel, tapWrap)
+    this.earnView.append(this.weeklyBanner, this.eraStrip, this.cityStrip, tapWrap, sessionPanel, progressStrip, adsPanel)
     main.append(this.earnView, this.shop.root, this.baronView, this.empirePanel.root)
 
     this.adBannerSlot = document.createElement('div')

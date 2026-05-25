@@ -39,10 +39,17 @@ const MANDATORY_STEPS: TutorialStep[] = [
 ]
 
 const OPTIONAL_STEPS: TutorialStep[] = [
-  { target: '.combo-wrap', title: 'Combo', text: 'Hızlı tıkla — combo çarpanı artar.', view: 'earn' },
-  { target: '[data-id="events"]', title: 'Etkinlikler', text: 'Günlük hedef, bonus envanteri ve görevler.' },
-  { target: '.btn-daily', title: 'Günlük ödül', text: 'Her gün giriş yap, streak bonusu topla!' },
-  { target: '[data-id="market"]', title: 'Borsa', text: 'Hisse, banka ve run birleşmesi burada.', view: 'market' },
+  { target: '.combo-wrap', title: 'Combo sistemi', text: 'Hızlı tıkla — çarpan artar, daha fazla para kazanırsın!', view: 'earn' },
+  { target: '.quick-ads', title: '2x Gelir & Sandık', text: 'Reklam izleyerek gelirini 2 katına çıkar veya sandıktan ödül kazan.', view: 'earn' },
+  { target: '.session-panel', title: 'İstatistiklerin', text: 'Tıklama gelirin, combo çarpanın ve pasif gelirin burada görünür.', view: 'earn' },
+  { target: '[data-id="shop"]', title: 'İşletme yönetimi', text: 'İşletme sekmesinde yönetici işe alabilir, upgradelar satın alabilirsin.' },
+  { target: '.tier-band-header', title: 'İşletme grupları', text: 'İşletmeler kademelere ayrılmış — üste tıkla, grubu genişlet ve işletme satın al.', view: 'shop' },
+  { target: '[data-tab="management"]', title: 'Yöneticiler', text: 'Yönetici kirala — işletmen pasif olarak büyür, sen tıklamasan bile!', view: 'shop' },
+  { target: '[data-tab="upgrades"]', title: 'Upgradeler', text: 'Tüm geliri artıran global upgradeları satın al.', view: 'shop' },
+  { target: '[data-tab="research"]', title: 'Ar-Ge ağacı', text: 'Ar-Ge noktalarıyla kalıcı bonuslar aç — offline gelir, çarpan, özel güçler.', view: 'shop' },
+  { target: '[data-id="market"]', title: 'Piyasa & Borsa', text: 'Hisse senedi al/sat, banka faizi kazan, sigorta ve emtia ticareti yap.', view: 'market' },
+  { target: '[data-id="profile"]', title: 'Baron profili', text: 'IPO yap — işletmeni halka aç, prestige puanı kazan ve yeni avantajlar aç!' },
+  { target: '.btn-daily', title: 'Günlük ödül', text: 'Her gün giriş yap, streak bonusu topla ve sezon XP kazan!' },
 ]
 
 function allSteps(): TutorialStep[] {
