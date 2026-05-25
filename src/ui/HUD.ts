@@ -23,6 +23,8 @@ import { Skyline } from './Skyline'
 import { ParticleSystem } from '../effects/ParticleSystem'
 import { Leaderboard } from '../game/Leaderboard'
 import { BottomNav, type NavView } from './components/BottomNav'
+import { BARON_TABS, type BaronSection } from './components/BaronSections'
+import { DISASTERS } from '../game/NaturalDisasters'
 import { GoalsSheet } from './components/GoalsSheet'
 import { EventsPanel } from './components/EventsPanel'
 import { EmpirePanel } from './components/EmpirePanel'
@@ -36,6 +38,8 @@ import { formatGameClock } from '../game/GameClock'
 import { EventDirector } from '../game/EventDirector'
 import type { GameEventDef } from '../game/Events'
 import { activeTicker } from '../game/StockMarket'
+import { parseFranchiseAction } from './components/shop/FranchiseBlock'
+import { FRANCHISE_CITIES, franchiseOpenFailureReason } from '../game/Franchise'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
 import { navLockReason, isShopHubLocked, shopHubLockReason } from '../game/ProgressiveUnlock'
@@ -62,8 +66,9 @@ export class HUD {
   private profileQuickBtn!: HTMLButtonElement
   private eraStrip!: HTMLElement
   private cityStrip!: HTMLElement
+  private earnModifiersEl!: HTMLElement
   private baronView!: HTMLElement
-  private baronSubTab: 'events' | 'dynasty' = 'dynasty'
+  private baronSubTab: BaronSection = 'profile'
   private heatMeterFill!: HTMLElement
   private heatMeterLabel!: HTMLElement
   private heatMeterRow!: HTMLElement
@@ -317,7 +322,7 @@ export class HUD {
     comboTrack.appendChild(this.comboFill)
     comboWrap.append(comboRow, comboTrack)
 
-    tapWrap.append(this.tapArea, this.floatLayer, comboWrap)
+    tapWrap.append(this.tapArea, this.floatLayer)
 
     const progressStrip = document.createElement('div')
     progressStrip.className = 'player-progress-strip'
@@ -431,16 +436,19 @@ export class HUD {
     this.eraStrip.className = 'era-strip'
     this.cityStrip = document.createElement('div')
     this.cityStrip.className = 'city-strip'
+    this.earnModifiersEl = document.createElement('div')
+    this.earnModifiersEl.className = 'earn-modifiers-strip'
+    this.earnModifiersEl.hidden = true
 
     this.baronView = document.createElement('div')
     this.baronView.className = 'baron-view tab-panel'
     this.baronView.hidden = true
     const baronSubNav = document.createElement('div')
     baronSubNav.className = 'baron-subnav'
-    for (const [id, label] of [['dynasty', '📊 Profil'], ['events', '🎪 Etkinlik']] as const) {
+    for (const { id, label } of BARON_TABS) {
       const btn = document.createElement('button')
       btn.type = 'button'
-      btn.className = `baron-subnav-btn${id === 'dynasty' ? ' active' : ''}`
+      btn.className = `baron-subnav-btn${id === 'profile' ? ' active' : ''}`
       btn.dataset.action = 'baron-tab'
       btn.dataset.id = id
       btn.textContent = label
@@ -450,7 +458,7 @@ export class HUD {
     this.baronView.appendChild(this.eventsPanel.root)
     this.statsScreen.embedIn(this.baronView)
 
-    this.earnView.append(this.weeklyBanner, this.eraStrip, this.cityStrip, tapWrap, sessionPanel, progressStrip, adsPanel)
+    this.earnView.append(this.weeklyBanner, this.eraStrip, this.cityStrip, this.earnModifiersEl, earnHero, progressStrip, adsPanel, sessionPanel, tapWrap, comboWrap)
     main.append(this.earnView, this.shop.root, this.baronView, this.empirePanel.root)
 
     this.adBannerSlot = document.createElement('div')
@@ -498,21 +506,23 @@ export class HUD {
     return this.bottomNav.getActive() === 'profile' && this.baronSubTab === 'events'
   }
 
-  private baronShowsDynasty(): boolean {
-    return this.bottomNav.getActive() === 'profile' && this.baronSubTab === 'dynasty'
+  private refreshBaronPanel(): void {
+    if (this.bottomNav.getActive() !== 'profile' || this.baronSubTab === 'events') return
+    this.statsScreen.renderSection(this.baronSubTab)
   }
 
   private syncBaronTab(): void {
-    const isEvents = this.baronSubTab === 'events'
+    const tab = this.baronSubTab
+    const isEvents = tab === 'events'
     this.eventsPanel.root.hidden = !isEvents
     if (isEvents) {
       this.statsScreen.hide()
       this.eventsPanel.render(this.state)
     } else {
-      this.statsScreen.show()
+      this.statsScreen.show(tab)
     }
     this.baronView.querySelectorAll('.baron-subnav-btn').forEach((el) => {
-      el.classList.toggle('active', (el as HTMLElement).dataset.id === this.baronSubTab)
+      el.classList.toggle('active', (el as HTMLElement).dataset.id === tab)
     })
   }
 
@@ -571,7 +581,11 @@ export class HUD {
   }
 
   private bindEvents(): void {
-    this.tapArea.addEventListener('click', (e) => {
+    let lastTapMs = 0
+    const performTap = (clientX: number, clientY: number): void => {
+      const now = Date.now()
+      if (now - lastTapMs < 80) return
+      lastTapMs = now
       this.sound.resume()
       void hapticLight()
       this.tapArea.classList.remove('tap-ripple')
@@ -579,8 +593,18 @@ export class HUD {
       this.tapArea.classList.add('tap-ripple')
       window.setTimeout(() => this.tapArea.classList.remove('tap-ripple'), 450)
       const rect = this.tapArea.getBoundingClientRect()
-      this.state.click(e.clientX - rect.left, e.clientY - rect.top)
+      this.state.click(clientX - rect.left, clientY - rect.top)
       this.tutorial.onTapMade()
+    }
+    this.tapArea.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return
+      performTap(e.clientX, e.clientY)
+    })
+    this.tapArea.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return
+      e.preventDefault()
+      const rect = this.tapArea.getBoundingClientRect()
+      performTap(rect.left + rect.width / 2, rect.top + rect.height / 2)
     })
 
     const onActionClick = (e: Event): void => {
@@ -593,6 +617,7 @@ export class HUD {
       void this.handleAction(el.dataset.action, el.dataset.id, el.dataset.count)
     }
     this.root.addEventListener('click', onActionClick)
+    this.shop.root.addEventListener('click', onActionClick)
     this.bottomNav.root.addEventListener('click', onActionClick)
     this.eventsPanel.root.addEventListener('click', onActionClick)
     this.modals.layer.addEventListener('click', onActionClick)
@@ -774,7 +799,7 @@ export class HUD {
         this.refreshShop(true)
       }
       if (ev.type === 'dynasty_update') {
-        if (this.baronShowsDynasty()) this.statsScreen.render()
+        this.refreshBaronPanel()
         this.renderEraStrip()
         this.renderCityStrip()
       }
@@ -823,7 +848,7 @@ export class HUD {
         this.renderEraStrip()
       }
       if (ev.type === 'rival_action') {
-        if (this.baronShowsDynasty()) this.statsScreen.render()
+        this.refreshBaronPanel()
       }
       if (ev.type === 'victory_unlocked') {
         this.eventDirector.enqueue({
@@ -844,10 +869,10 @@ export class HUD {
             )
           },
         })
-        if (this.baronShowsDynasty()) this.statsScreen.render()
+        this.refreshBaronPanel()
       }
       if (ev.type === 'child_crisis') {
-        if (this.baronShowsDynasty()) this.statsScreen.render()
+        this.refreshBaronPanel()
       }
       if (ev.type === 'player_death') {
         // Özet baron_eulogy ile gösterilir
@@ -941,7 +966,7 @@ export class HUD {
       }
       if (ev.type === 'badge_earned') {
         this.modals.showToast(this.root, '🏅 Yeni rozet kazandın!')
-        if (this.baronShowsDynasty()) this.statsScreen.render()
+        this.refreshBaronPanel()
       }
       if (ev.type === 'underground_action') {
         this.undergroundSheet.render(this.state)
@@ -1042,11 +1067,11 @@ export class HUD {
         this.goalsSheet.close()
         break
       case 'open-expansion':
-        this.baronSubTab = 'dynasty'
+        this.baronSubTab = 'world'
         this.setView('profile')
         break
       case 'baron-tab':
-        if (id === 'events' || id === 'dynasty') {
+        if (id === 'events' || id === 'profile' || id === 'dynasty' || id === 'world') {
           this.baronSubTab = id
           if (this.bottomNav.getActive() !== 'profile') this.setView('profile')
           else this.syncBaronTab()
@@ -1066,7 +1091,11 @@ export class HUD {
         break
       case 'open-stats':
       case 'open-profile':
-        this.baronSubTab = 'dynasty'
+        this.baronSubTab = 'profile'
+        this.setView('profile')
+        break
+      case 'open-torpil':
+        this.baronSubTab = 'world'
         this.setView('profile')
         break
       case 'open-settings':
@@ -1723,8 +1752,23 @@ export class HUD {
       case 'advisor-pay':
         {
           const tip = this.state.payAdvisorTip()
-          if (tip) this.modals.showToast(this.root, `👨‍💼 Kemal: ${tip.headline}`)
-          else this.modals.showToast(this.root, 'Danışman ücreti ödenemedi')
+          if (!tip) {
+            this.modals.showToast(this.root, 'Danışman ücreti ödenemedi')
+            break
+          }
+          const acc = Math.round(tip.accuracy * 100)
+          this.modals.showToast(this.root, `👨‍💼 Kemal (%${acc}): ${tip.headline}`)
+          if (tip.action === 'buy_stock' || tip.action === 'sell_stock') {
+            this.setView('market')
+            this.shop.setViewContext('market', this.state)
+            this.shop.setTab('stock', this.state)
+            this.refreshShop(true)
+          } else if (tip.action === 'buy_commodity') {
+            this.setView('market')
+            this.shop.setViewContext('market', this.state)
+            this.shop.setTab('commodities', this.state)
+            this.refreshShop(true)
+          }
         }
         break
       case 'eulogy-succession':
@@ -1786,6 +1830,37 @@ export class HUD {
           this.refreshShop(true)
         }
         break
+      case 'open-franchise': {
+        const parsed = id ? parseFranchiseAction(id) : null
+        if (!parsed) {
+          this.modals.showToast(this.root, 'Franchise seçimi geçersiz')
+          break
+        }
+        const fail = franchiseOpenFailureReason(this.state, parsed.producerId, parsed.city)
+        if (fail) {
+          this.modals.showToast(this.root, `🏪 ${fail}`)
+          break
+        }
+        if (this.state.openFranchise(parsed.producerId, parsed.city)) {
+          const city = FRANCHISE_CITIES.find((c) => c.id === parsed.city)
+          const p = PRODUCERS.find((x) => x.id === parsed.producerId)
+          this.modals.showToast(this.root, `🏪 ${p?.name ?? 'İşletme'} — ${city?.label ?? parsed.city} franchise açıldı!`)
+          this.refreshShop(true)
+        } else {
+          this.modals.showToast(this.root, '🏪 Franchise açılamadı — tekrar dene')
+        }
+        break
+      }
+      case 'iap-restore': {
+        const restored = await iapManager.restorePurchases()
+        if (restored.length > 0) {
+          this.modals.showToast(this.root, `✅ ${restored.length} satın alma geri yüklendi`)
+          if (this.baronShowsEvents()) this.eventsPanel.render(this.state)
+        } else {
+          this.modals.showToast(this.root, 'Geri yüklenecek satın alma yok')
+        }
+        break
+      }
       default:
         break
     }
@@ -1861,6 +1936,7 @@ export class HUD {
     this.renderSessionPanel()
     this.renderEraStrip()
     this.renderCityStrip()
+    this.renderEarnModifiers()
     this.renderHeatMeter()
     this.renderProgressPathWidget()
   }
@@ -1875,15 +1951,36 @@ export class HUD {
     `
   }
 
+  private renderEarnModifiers(): void {
+    const chips = this.state.incomeModifierChips()
+    if (chips.length === 0) {
+      this.earnModifiersEl.hidden = true
+      return
+    }
+    this.earnModifiersEl.hidden = false
+    this.earnModifiersEl.replaceChildren()
+    for (const c of chips) {
+      const chip = document.createElement('span')
+      chip.className = 'earn-mod-chip'
+      chip.title = c.detail
+      chip.textContent = `${c.emoji} ${c.label}`
+      this.earnModifiersEl.appendChild(chip)
+    }
+  }
+
   private renderCityStrip(): void {
     const city = cityDef(this.state.activeCityId())
+    const cityId = this.state.activeCityId()
     const unlockable = EXPANSION_CITIES.some((c) =>
       !this.state.cities.unlocked.includes(c.id)
       && canUnlockCity(c.id, this.state.cities, this.state.money, this.state.reputation, this.state.ipoCount).ok,
     )
+    const hasDisasterRisk = DISASTERS.some((d) => d.affectedCities.includes(cityId))
+    const insured = this.state.insurance.business
+    const riskLabel = hasDisasterRisk ? (insured ? ' · 🛡️ Sigortalı' : ' · ⚠️ Afet riski') : ''
     this.cityStrip.innerHTML = `
       <button type="button" class="city-strip-btn" data-action="open-expansion">
-        ${city.emoji} ${city.label} · Baron #${this.state.baronCounter}
+        ${city.emoji} ${city.label} · Baron #${this.state.baronCounter}${riskLabel}
         ${unlockable ? ' · 🗺️ Yeni şehir!' : ''}
       </button>
     `
@@ -2652,6 +2749,7 @@ export class HUD {
     this.renderMarketNewsBanner()
     this.renderDayNightChip()
     this.renderProgressStrip()
+    this.renderEarnModifiers()
     this.updateNavBadges()
     this.updateProgressiveUnlock()
   }

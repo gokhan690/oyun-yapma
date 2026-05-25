@@ -30,13 +30,13 @@ export class WorldMetaPanel {
   render(): void {
     this.root.replaceChildren()
     this.renderReputation()
-    this.renderGazette()
-    this.renderPlayerTitle()
-    this.renderWorldStage()
-    this.renderVictories()
-    this.renderRivals()
-    this.renderExpansionMap()
     this.renderTorpilNetwork()
+    this.renderVictories()
+    this.renderExpansionMap()
+    this.renderRivals()
+    this.renderGazette()
+    this.renderWorldStage()
+    this.renderPlayerTitle()
     this.renderBaronHistory()
     this.renderChronicle()
   }
@@ -285,13 +285,20 @@ export class WorldMetaPanel {
     if (this.state.baronHistory.length > 0) {
       const scroll = document.createElement('div')
       scroll.className = 'baron-history-scroll'
-      for (const b of this.state.baronHistory) {
+      for (const b of [...this.state.baronHistory].reverse()) {
         const card = document.createElement('div')
         card.className = 'baron-history-card'
+        const ach = b.achievements.slice(0, 3).map((a) => `<li>${a}</li>`).join('')
+        const weak = b.weaknesses.slice(0, 2).map((w) => `<li class="baron-history-weak">${w}</li>`).join('')
         card.innerHTML = `
-          <strong>#${b.baronNumber} ${b.name}</strong>
-          <small>${b.birthYear}-${b.deathYear} · ${b.causeEmoji} ${b.causeLabel}</small>
-          <p>"${b.epitaph}"</p>
+          <div class="baron-history-card-head">
+            <strong>#${b.baronNumber} ${b.name}</strong>
+            <small>${b.birthYear}–${b.deathYear} · ${b.yearsRuled} yıl · ${b.causeEmoji} ${b.causeLabel}</small>
+          </div>
+          <p class="baron-history-peak">Zirve: ${formatMoney(b.peakNetWorth)} · Kazanç: ${formatMoney(b.totalEarnedLife)}</p>
+          <p class="baron-history-quote">"${b.epitaph}"</p>
+          ${ach ? `<ul class="baron-history-ach">${ach}</ul>` : ''}
+          ${weak ? `<ul class="baron-history-weak-list">${weak}</ul>` : ''}
         `
         scroll.appendChild(card)
       }

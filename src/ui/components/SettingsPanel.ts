@@ -2,6 +2,7 @@ import type { GameState } from '../../game/GameState'
 import type { SoundManager } from '../../audio/SoundManager'
 import type { SaveManager } from '../../security/SaveManager'
 import { THEMES, type ThemeId } from '../../game/Themes'
+import { APP_TITLE, APP_VERSION } from '../../appVersion'
 import { rescheduleFromPrefs, isWebPushSupported, isNativePlatform } from '../../notifications/NotificationManager'
 
 export class SettingsPanel {
@@ -179,7 +180,7 @@ export class SettingsPanel {
 
     const version = document.createElement('p')
     version.className = 'version-tag'
-    version.textContent = 'İş İmparatorluğu v2.4.0'
+    version.textContent = `${APP_TITLE} v${APP_VERSION}`
     body.appendChild(version)
 
     const hapticRow = this.toggleRow('Titreşim', this.state.hapticsEnabled, () => {

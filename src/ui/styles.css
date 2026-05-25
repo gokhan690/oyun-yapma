@@ -223,7 +223,7 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 200px;
+  min-height: 260px;
   border-radius: var(--radius-lg, 24px);
   overflow: hidden;
   border: 1px solid rgba(251, 191, 36, 0.35);
@@ -258,27 +258,12 @@ html.theme-night .tap-wrap {
 .skyline-sky {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg,
-    #0f2744 0%,
-    #1a3a5c 25%,
-    #1e4976 45%,
-    #162035 75%,
-    transparent 100%
-  );
-  transition: background 2s ease;
-}
-.skyline-sky-night {
-  background: linear-gradient(180deg,
-    #030712 0%,
-    #0a0f1e 30%,
-    #0d1a2e 60%,
-    transparent 100%
-  ) !important;
+  background: linear-gradient(180deg, #1e3a5f 0%, #122035 60%, transparent 100%);
 }
 
 .skyline-buildings {
   position: absolute;
-  bottom: 36px;
+  bottom: 8px;
   left: 0;
   right: 0;
   display: flex;
@@ -286,7 +271,7 @@ html.theme-night .tap-wrap {
   justify-content: center;
   gap: 4px;
   padding: 0 8px;
-  min-height: 100px;
+  min-height: 96px;
 }
 
 .skyline-building {
@@ -306,15 +291,8 @@ html.theme-night .tap-wrap {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 36px;
-  background: linear-gradient(180deg, #0f2035 0%, #070e1a 100%);
-  border-top: 1px solid rgba(96, 165, 250, 0.2);
-  box-shadow: 0 -4px 20px rgba(30, 58, 95, 0.5);
-}
-.skyline-night .skyline-ground {
-  background: linear-gradient(180deg, #070e1a 0%, #030712 100%);
-  border-top-color: rgba(251, 191, 36, 0.15);
-  box-shadow: 0 -4px 20px rgba(251, 191, 36, 0.08);
+  height: 28px;
+  background: linear-gradient(180deg, #1a2d4a, #0f1f35);
 }
 
 .skyline-flash {
@@ -335,13 +313,15 @@ html.theme-night .tap-wrap {
 
 .tap-area {
   position: relative;
-  z-index: 2;
+  z-index: 5;
   width: 100%;
   flex: 1;
-  min-height: 160px;
+  min-height: 180px;
   border: none;
   background: transparent;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .tap-area.tap-ripple::after {
@@ -419,11 +399,9 @@ html.theme-night .tap-wrap {
 }
 
 .combo-wrap {
-  position: absolute;
-  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-  left: 10px;
-  right: 10px;
-  z-index: 4;
+  position: relative;
+  z-index: 3;
+  margin: 0 10px 8px;
   pointer-events: none;
   height: 36px;
 }
@@ -1025,9 +1003,8 @@ html.theme-night body {
 }
 
 .ad-banner-mock {
-  height: 50px;
-  background: transparent;
-  pointer-events: none;
+  color: var(--muted);
+  font-size: 0.8rem;
 }
 
 .modal-layer {
@@ -1380,13 +1357,13 @@ html.theme-night body {
 }
 
 .skyline-back {
-  opacity: 0.45;
-  background: linear-gradient(180deg, transparent 30%, rgba(96, 165, 250, 0.12) 100%);
+  opacity: 0.3;
+  background: linear-gradient(180deg, transparent 40%, rgba(96,165,250,0.1) 100%);
 }
 
 .skyline-front {
-  opacity: 0.3;
-  background: linear-gradient(0deg, rgba(251,191,36,0.1) 0%, transparent 50%);
+  opacity: 0.2;
+  background: linear-gradient(0deg, rgba(251,191,36,0.08) 0%, transparent 60%);
 }
 
 /* v4 — İmparatorluk Çağı */
@@ -1674,19 +1651,8 @@ html.theme-night body {
 .tap-mascot { width: 72px; height: 72px; object-fit: contain; }
 .skyline-stars { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.5s; }
 .skyline-stars.visible { opacity: 1; }
-.skyline-star {
-  position: absolute;
-  width: 2px;
-  height: 2px;
-  background: #fff;
-  border-radius: 50%;
-  animation: twinkle 2s ease-in-out infinite;
-  box-shadow: 0 0 3px rgba(255,255,255,0.8);
-}
-@keyframes twinkle {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.3; transform: scale(0.6); }
-}
+.skyline-star { position: absolute; width: 2px; height: 2px; background: #fff; border-radius: 50%; animation: twinkle 2s ease-in-out infinite; }
+@keyframes twinkle { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
 .svg-building svg { width: 100%; height: 100%; }
 .skyline-night .svg-building .win { fill: #fbbf24; opacity: 0.8; }
 .market-event-banner { background: rgba(251,191,36,0.15); border: 1px solid var(--accent); border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; font-weight: 600; font-size: 0.85rem; }
@@ -1753,8 +1719,10 @@ html.theme-night body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  gap: 8px;
-  padding-bottom: calc(var(--nav-h) + var(--ad-h) + 8px);
+  scroll-behavior: smooth;
+  gap: 12px;
+  padding: 8px 10px calc(var(--nav-h) + var(--ad-h) + 16px);
+  scroll-padding-bottom: calc(var(--nav-h) + var(--ad-h) + 16px);
 }
 
 .game-main.earn-active {
@@ -3026,13 +2994,13 @@ button.shop-card {
     margin-bottom: 0;
   }
   .tap-wrap {
-    min-height: 140px;
+    min-height: 200px;
   }
   .tap-inner {
-    min-height: 130px;
+    min-height: 170px;
   }
   .tap-area {
-    min-height: 130px;
+    min-height: 170px;
   }
   .quick-ad-card {
     min-height: 52px;
@@ -4071,22 +4039,24 @@ html.theme-galactic {
 }
 .codex-card { padding: 6px; font-size: 0.68rem; }
 
-.shop-card {
-  padding: 8px 10px;
-  gap: 8px;
+@media (max-width: 360px) {
+  .shop-card:not(.manager-card):not(.biz-hero-card) {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .shop-card:not(.manager-card) .shop-card-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+    border-radius: 8px;
+  }
+  .shop-card:not(.manager-card) .shop-card-body strong { font-size: 0.82rem; }
+  .shop-card:not(.manager-card) .shop-card-body small {
+    font-size: 0.68rem;
+    -webkit-line-clamp: 3;
+  }
+  .shop-card:not(.manager-card) .shop-card-price { font-size: 0.82rem; }
 }
-.shop-card-icon {
-  width: 36px;
-  height: 36px;
-  font-size: 1.1rem;
-  border-radius: 8px;
-}
-.shop-card-body strong { font-size: 0.82rem; }
-.shop-card-body small {
-  font-size: 0.68rem;
-  -webkit-line-clamp: 3;
-}
-.shop-card-price { font-size: 0.82rem; }
 
 .biz-list-grid {
   display: flex;
@@ -5285,6 +5255,69 @@ html.theme-galactic {
 }
 .iap-perks li { margin-bottom: 4px; }
 
+.shop-meta-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 12px 8px;
+}
+.shop-meta-hint,
+.shop-meta-hint-btn {
+  font-size: 0.75rem;
+  border-radius: 10px;
+  padding: 8px 10px;
+  text-align: left;
+  line-height: 1.35;
+}
+.shop-meta-hint {
+  display: block;
+  background: rgba(52, 211, 153, 0.08);
+  border: 1px dashed rgba(52, 211, 153, 0.35);
+  color: var(--text);
+}
+.shop-meta-hint-btn {
+  width: 100%;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.08);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+}
+.shop-meta-hint-btn:active { transform: scale(0.99); }
+
+.biz-franchise-block {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+.biz-franchise-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+}
+.biz-franchise-title small { color: var(--muted); font-size: 0.72rem; }
+.biz-franchise-hint { margin: 0 0 8px; font-size: 0.75rem; color: #93c5fd; }
+.biz-franchise-open { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.biz-franchise-tag {
+  font-size: 0.72rem;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.15);
+  color: #6ee7b7;
+}
+.biz-franchise-cities { display: flex; flex-wrap: wrap; gap: 6px; }
+.biz-franchise-btn { flex: 1; min-width: 90px; }
+
+.iap-restore-footer {
+  padding: 12px 16px 24px;
+  text-align: center;
+}
+.iap-restore-footer button { width: 100%; max-width: 360px; }
+
 /* Prestij & Ar-Ge tree */
 .prestige-tree-visual,
 .research-tree-visual {
@@ -5516,7 +5549,7 @@ html.theme-galactic {
 .skyline-stage-forbes .skyline-buildings { filter: saturate(1.2) brightness(1.08); }
 .skyline-stage-endgame .skyline-buildings { filter: saturate(1.35) brightness(1.12); }
 .skyline-building-new { animation: buildingRise 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
-.skyline-building { cursor: pointer; border: none; background: transparent; padding: 0; }
+.skyline-building { border: none; background: transparent; padding: 0; }
 .skyline-placeholder { font-size: 1.6rem; opacity: 0.75; align-self: flex-end; }
 @keyframes buildingRise { from { transform: translateY(100%) scaleY(0); opacity: 0; } to { transform: none; opacity: 1; } }
 .skyline-night .skyline-building { box-shadow: 0 0 8px rgba(251, 191, 36, 0.25); }
@@ -5571,8 +5604,8 @@ html.theme-galactic {
 
 .bottom-nav-four { grid-template-columns: repeat(4, 1fr); }
 .baron-view { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-.baron-subnav { display: flex; gap: 8px; padding: 10px 12px 0; flex-shrink: 0; }
-.baron-subnav-btn { flex: 1; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 10px; padding: 10px; font-size: 0.85rem; }
+.baron-subnav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px 8px 0; flex-shrink: 0; }
+.baron-subnav-btn { border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 10px; padding: 8px 4px; font-size: 0.72rem; line-height: 1.2; }
 .baron-subnav-btn.active { background: var(--accent); color: #111; border-color: transparent; font-weight: 600; }
 .baron-view .events-panel, .baron-view .stats-embedded { flex: 1; overflow: auto; position: relative; inset: auto; transform: none; max-height: none; }
 .slide-panel.stats-embedded {
@@ -5621,11 +5654,13 @@ html.theme-galactic {
   .biz-hero-info { grid-column: 1 / -1; width: 100%; }
 }
 
-/* Skyline v2 — CSS kuleler */
+/* Skyline v2 — CSS kuleler (dekoratif, tıklamayı engellemez) */
 .skyline-buildings {
-  pointer-events: auto;
+  pointer-events: none;
   overflow: hidden;
-  gap: 3px;
+  gap: 4px;
+  min-height: 120px;
+  padding-bottom: 2px;
 }
 
 .skyline-building {
@@ -5633,11 +5668,12 @@ html.theme-galactic {
   background: transparent;
   border: none;
   padding: 0;
-  pointer-events: auto;
+  pointer-events: none;
+  cursor: default;
 }
 
 .skyline-tower {
-  width: 40px;
+  width: 42px;
   min-width: 32px;
   border-radius: 4px 4px 0 0;
   position: relative;
@@ -5655,7 +5691,7 @@ html.theme-galactic {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  opacity: 0.7;
+  opacity: 0.55;
 }
 
 .skyline-window-row {
@@ -5666,13 +5702,13 @@ html.theme-galactic {
 
 .skyline-window-row span {
   flex: 1;
-  height: 5px;
+  height: 4px;
   background: rgba(255, 236, 179, 0.85);
   border-radius: 1px;
 }
 
 .skyline-emoji {
-  font-size: 1.15rem;
+  font-size: 0.95rem;
   line-height: 1;
   padding: 0 0 3px;
   z-index: 1;
@@ -5710,62 +5746,7 @@ html.theme-galactic {
 
 .skyline-night .skyline-window-row span {
   background: rgba(253, 224, 71, 0.95);
-  box-shadow: 0 0 6px rgba(251, 191, 36, 0.8);
-}
-
-.skyline-antenna {
-  width: 2px;
-  height: 18px;
-  background: linear-gradient(180deg, rgba(251,191,36,0.9) 0%, rgba(251,191,36,0.3) 100%);
-  margin: 0 auto;
-  border-radius: 1px;
-  position: relative;
-}
-.skyline-antenna::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 6px;
-  height: 6px;
-  background: #f87171;
-  border-radius: 50%;
-  animation: antennaBlink 1.5s ease-in-out infinite;
-}
-@keyframes antennaBlink {
-  0%, 100% { opacity: 1; box-shadow: 0 0 4px #f87171; }
-  50% { opacity: 0.3; box-shadow: none; }
-}
-
-.skyline-illegal .skyline-tower {
-  box-shadow: inset 0 -8px 12px rgba(0,0,0,0.25), 0 0 12px rgba(248, 113, 113, 0.3);
-}
-.skyline-illegal .skyline-window-row span {
-  background: rgba(248, 113, 113, 0.7);
-}
-
-.skyline-sun-moon {
-  position: absolute;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  top: 12%;
-  right: 15%;
-  pointer-events: none;
-  transition: all 2s ease;
-}
-.skyline-sun {
-  background: radial-gradient(circle, #fde68a 30%, #fbbf24 60%, transparent 100%);
-  box-shadow: 0 0 20px rgba(251,191,36,0.5), 0 0 40px rgba(251,191,36,0.2);
-}
-.skyline-moon {
-  background: radial-gradient(circle, #e2e8f0 30%, #cbd5e1 70%, transparent 100%);
-  box-shadow: 0 0 16px rgba(226,232,240,0.4);
-}
-
-.skyline-night .skyline-building {
-  box-shadow: 0 0 12px rgba(251, 191, 36, 0.2);
+  box-shadow: 0 0 4px rgba(251, 191, 36, 0.6);
 }
 
 .biz-tier-list {
@@ -5813,17 +5794,6 @@ html.theme-galactic {
   flex-direction: column;
   gap: 12px;
   padding: 0 10px 12px;
-  position: relative;
-  z-index: 1;
-}
-
-.tier-band-body button,
-.tier-band-body input,
-.tier-band-body select {
-  position: relative;
-  z-index: 2;
-  pointer-events: auto;
-  touch-action: manipulation;
 }
 
 .tier-band-empty { font-size: 0.8rem; color: var(--muted); margin: 0; }
@@ -5922,3 +5892,259 @@ html.theme-galactic {
 
 .biz-hero-extra { display: flex; gap: 8px; flex-wrap: wrap; }
 .biz-hero-extra button { flex: 1; min-height: 40px; }
+
+/* v2.8 — Baron IA, skyline, keşfedilebilirlik */
+.baron-profile-hero {
+  padding: 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(251,191,36,0.12), rgba(59,130,246,0.08));
+  border: 1px solid rgba(251,191,36,0.25);
+  margin-bottom: 12px;
+}
+.baron-profile-hero-top { display: flex; gap: 12px; align-items: center; }
+.baron-profile-hero-emoji { font-size: 2rem; line-height: 1; }
+.baron-profile-hero-top strong { display: block; font-size: 1.05rem; }
+.baron-profile-hero-top small { color: var(--muted); font-size: 0.78rem; }
+.baron-profile-hero-meta { margin: 8px 0 0; font-size: 0.78rem; color: var(--muted); }
+.baron-profile-hero-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+.synergy-guide-list { display: flex; flex-direction: column; gap: 6px; }
+.synergy-guide-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  font-size: 0.78rem;
+}
+.synergy-guide-row small { grid-column: 1 / -1; color: var(--muted); font-size: 0.72rem; }
+.synergy-guide-row.synergy-active { border-color: rgba(52,211,153,0.45); background: rgba(52,211,153,0.08); }
+.synergy-guide-row span { color: var(--accent); font-weight: 700; }
+
+.earn-modifiers-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 12px 8px;
+}
+.earn-mod-chip {
+  font-size: 0.68rem;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  white-space: nowrap;
+}
+
+.skyline-silhouette {
+  position: absolute;
+  bottom: 22px;
+  left: 0;
+  right: 0;
+  height: 48px;
+  opacity: 0.45;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(15,23,42,0.5));
+}
+.skyline.city-istanbul .skyline-silhouette {
+  background-image: linear-gradient(180deg, transparent 0%, rgba(15,23,42,0.4) 100%),
+    repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(148,163,184,0.25) 8px, rgba(148,163,184,0.25) 12px);
+  background-size: auto, 24px 100%;
+  background-position: center bottom;
+}
+.skyline.city-dubai .skyline-silhouette {
+  background: linear-gradient(180deg, transparent, rgba(180,83,9,0.25)),
+    radial-gradient(ellipse 8px 40px at 50% 100%, rgba(251,191,36,0.5), transparent 70%);
+}
+.skyline.city-london .skyline-silhouette {
+  background: linear-gradient(180deg, transparent, rgba(30,58,95,0.35)),
+    repeating-linear-gradient(90deg, transparent 0, transparent 14px, rgba(148,163,184,0.2) 14px, rgba(148,163,184,0.2) 18px);
+}
+.skyline.city-ankara .skyline-silhouette,
+.skyline.city-izmir .skyline-silhouette {
+  background: linear-gradient(180deg, transparent, rgba(30,58,95,0.3)),
+    repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(96,165,250,0.15) 10px, rgba(96,165,250,0.15) 14px);
+}
+
+.baron-history-card-head { margin-bottom: 6px; }
+.baron-history-peak { font-size: 0.78rem; color: var(--accent); margin: 0 0 6px; }
+.baron-history-quote { font-style: italic; font-size: 0.82rem; margin: 0 0 8px; color: var(--muted); }
+.baron-history-ach, .baron-history-weak-list { margin: 0; padding-left: 16px; font-size: 0.75rem; line-height: 1.4; }
+.baron-history-scroll { max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.baron-history-card { padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
+
+.skyline-placeholder strong { display: block; font-size: 0.78rem; margin-top: 4px; }
+.skyline-placeholder small { font-size: 0.68rem; opacity: 0.85; }
+
+.tap-wrap { min-height: 280px; }
+.skyline { z-index: 0; }
+.skyline-buildings { z-index: 1; bottom: 4px; }
+.skyline-sky {
+  background:
+    radial-gradient(ellipse 90% 55% at 50% 0%, rgba(96, 165, 250, 0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 80% 15%, rgba(251, 191, 36, 0.18) 0%, transparent 50%),
+    linear-gradient(180deg, #1a3a5c 0%, #122035 55%, rgba(18, 32, 53, 0.85) 100%);
+}
+.skyline-ground { z-index: 1; height: 26px; background: linear-gradient(180deg, #1a2d4a, #060d18); }
+.skyline-hills {
+  position: absolute;
+  bottom: 18px;
+  left: 0;
+  right: 0;
+  height: 56px;
+  pointer-events: none;
+  opacity: 0.55;
+  background:
+    radial-gradient(ellipse 45% 100% at 15% 100%, rgba(15, 23, 42, 0.95) 0%, transparent 70%),
+    radial-gradient(ellipse 55% 100% at 55% 100%, rgba(15, 23, 42, 0.9) 0%, transparent 72%),
+    radial-gradient(ellipse 40% 100% at 88% 100%, rgba(15, 23, 42, 0.85) 0%, transparent 68%);
+}
+.skyline-moon {
+  position: absolute;
+  top: 14px;
+  right: 18%;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fef9c3, #fde68a 45%, rgba(253, 224, 71, 0.2) 70%);
+  box-shadow: 0 0 18px rgba(253, 224, 71, 0.35);
+  opacity: 0;
+  transition: opacity 0.5s;
+  pointer-events: none;
+}
+.skyline-night .skyline-moon { opacity: 0.9; }
+.skyline-silhouette { height: 64px; bottom: 18px; opacity: 0.55; }
+.skyline-building { cursor: default; pointer-events: none !important; }
+
+/* v2.9 — büyük iş/yönetim, scroll, franchise */
+.shop-panel .tab-panel {
+  padding: 14px 14px 28px;
+  gap: 14px;
+}
+.baron-view .stats-embedded .panel-body {
+  padding: 12px 14px calc(var(--nav-h) + var(--ad-h) + 20px);
+  gap: 14px;
+  scroll-behavior: smooth;
+  scroll-padding-bottom: calc(var(--nav-h) + var(--ad-h) + 20px);
+}
+.baron-view .events-panel {
+  padding: 0 12px calc(var(--nav-h) + var(--ad-h) + 20px);
+  scroll-behavior: smooth;
+}
+.shop-section-title {
+  font-size: 1rem;
+  margin: 18px 0 10px;
+  font-weight: 700;
+}
+.manager-card {
+  min-height: 96px;
+  padding: 16px 18px;
+  gap: 16px;
+  border-radius: 18px;
+  margin-bottom: 12px;
+  align-items: flex-start;
+}
+.manager-portrait {
+  width: 56px;
+  height: 56px;
+  font-size: 2rem;
+  border-radius: 14px;
+}
+.manager-card .shop-card-body strong,
+.manager-card > strong {
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+.manager-card .shop-card-body small,
+.manager-card > p {
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin: 4px 0 0;
+}
+.manager-card .btn-primary,
+.manager-card .btn-secondary,
+.manager-card .btn-ad {
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+}
+.manager-income-chip {
+  font-size: 0.85rem;
+  padding: 4px 8px;
+}
+.manager-summary-banner {
+  font-size: 0.9rem;
+  padding: 12px 14px;
+}
+.biz-hero-card {
+  padding: 18px;
+  gap: 14px;
+  border-radius: 18px;
+}
+.biz-hero-icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+}
+.biz-hero-emoji { font-size: 2.2rem; }
+.biz-hero-name { font-size: 1.18rem; font-weight: 700; }
+.biz-hero-desc { font-size: 0.88rem; margin-top: 6px; line-height: 1.4; }
+.biz-hero-metrics {
+  font-size: 0.92rem;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.biz-hero-owned-badge {
+  font-size: 0.82rem;
+  padding: 6px 10px;
+}
+.biz-qty-btn, .biz-hero-buy, .biz-hero-info {
+  min-height: 44px;
+  font-size: 0.9rem;
+  padding: 10px 12px;
+}
+.biz-hero-extra button {
+  min-height: 44px;
+  font-size: 0.88rem;
+}
+.biz-franchise-block {
+  padding: 14px;
+  border-radius: 12px;
+  margin-top: 6px;
+}
+.biz-franchise-title { font-size: 0.95rem; gap: 6px; }
+.biz-franchise-title small { font-size: 0.8rem; }
+.biz-franchise-btn {
+  min-height: 42px;
+  font-size: 0.85rem;
+  padding: 8px 10px;
+  flex: 1 1 calc(50% - 6px);
+}
+.biz-franchise-btn-blocked {
+  opacity: 0.78;
+  border-style: dashed;
+  border-color: rgba(251, 191, 36, 0.45);
+}
+.tier-band-header { padding: 14px 16px; }
+.tier-band-label { font-size: 1rem; }
+.tier-band-meta { font-size: 0.8rem; }
+.tier-band-body { gap: 14px; padding: 0 12px 14px; }
+.shop-context-business .biz-tier-list { padding: 0 10px 24px; }
+.skyline-emoji { font-size: 1.15rem; }
+.skyline-night .skyline-buildings { filter: brightness(0.92) saturate(1.15); }
+.skyline-night .skyline-sky {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(88, 28, 135, 0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 35% at 75% 20%, rgba(30, 58, 95, 0.5) 0%, transparent 50%),
+    linear-gradient(180deg, #0f172a 0%, #0a1220 60%, rgba(6, 13, 24, 0.95) 100%);
+}
+.baron-profile-hero {
+  padding: 16px;
+  border-radius: 16px;
+  margin-bottom: 4px;
+}
+.baron-profile-hero-top strong { font-size: 1.15rem; }
+.baron-profile-hero-top small { font-size: 0.85rem; }
+.baron-profile-hero-meta { font-size: 0.85rem; }

@@ -7,6 +7,14 @@ export interface IAPProduct {
   priceLabel: string
 }
 
+import {
+  initNativeBilling,
+  isNativePlatform,
+  nativePurchaseProduct,
+  nativeRestorePurchases,
+  fetchNativeStorePrices,
+} from './NativeBillingBridge'
+
 const PRODUCTS: Record<IAPProductId, IAPProduct> = {
   season_premium: {
     id: 'season_premium',
@@ -23,12 +31,6 @@ const PRODUCTS: Record<IAPProductId, IAPProduct> = {
 }
 
 const RECEIPTS_KEY = 'is_imparatorlugu_iap_receipts'
-
-function isNative(): boolean {
-  return typeof window !== 'undefined'
-    && 'Capacitor' in window
-    && (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.() === true
-}
 
 function loadReceipts(): IAPProductId[] {
   try {
@@ -59,18 +61,19 @@ export class IAPManager {
     return Object.values(PRODUCTS)
   }
 
-  /** Native billing stub — gerçek mağaza entegrasyonu için hook noktası */
+  /** Native: Google Play / App Store — Web: onay diyaloğu */
   async purchase(productId: IAPProductId): Promise<{ success: boolean; reason?: string }> {
-    if (isNative()) {
+    if (isNativePlatform()) {
       try {
-        // @capacitor-community/in-app-purchases veya Play Billing buraya bağlanır
-        const ok = await this.tryNativePurchase(productId)
+        await initNativeBilling()
+        const ok = await nativePurchaseProduct(productId)
         if (ok) {
           this.grantReceipt(productId)
           return { success: true }
         }
+        return { success: false, reason: 'Mağaza satın alması tamamlanamadı. Play Console SKU tanımlı mı?' }
       } catch {
-        // fallback mock
+        return { success: false, reason: 'Ödeme sistemi hazır değil' }
       }
     }
 
@@ -83,9 +86,10 @@ export class IAPManager {
   }
 
   async restorePurchases(): Promise<IAPProductId[]> {
-    if (isNative()) {
+    if (isNativePlatform()) {
       try {
-        await this.tryNativeRestore()
+        const restored = await nativeRestorePurchases()
+        for (const id of restored) this.grantReceipt(id)
       } catch {
         // ignore
       }
@@ -97,6 +101,12 @@ export class IAPManager {
     return loadReceipts().includes(productId)
   }
 
+  async refreshStorePrices(): Promise<void> {
+    const prices = await fetchNativeStorePrices()
+    if (prices.season_premium) PRODUCTS.season_premium.priceLabel = prices.season_premium
+    if (prices.chest_pack_5) PRODUCTS.chest_pack_5.priceLabel = prices.chest_pack_5
+  }
+
   private grantReceipt(productId: IAPProductId): void {
     if (productId === 'chest_pack_5') return
     const receipts = loadReceipts()
@@ -104,15 +114,6 @@ export class IAPManager {
       receipts.push(productId)
       saveReceipts(receipts)
     }
-  }
-
-  private async tryNativePurchase(_productId: IAPProductId): Promise<boolean> {
-    void _productId
-    return false
-  }
-
-  private async tryNativeRestore(): Promise<void> {
-    // native restore hook
   }
 }
 

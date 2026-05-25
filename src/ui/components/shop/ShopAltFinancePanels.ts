@@ -101,9 +101,9 @@ export function renderOpportunitiesPanel(
   card.className = 'shop-card investment-offer-card'
   card.innerHTML = `
     <strong>⏰ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} kaldı</strong>
-    <h4>${offer.title}</h4>
-    <p>${offer.description}</p>
-    <p>Maliyet: ${formatMoney(offer.cost)}</p>
+    <h4>${offer.emoji ?? '💡'} ${offer.title}</h4>
+    <p><small>${offer.sector ?? 'Startup'}</small> · ${offer.description}</p>
+    <p>Maliyet: ${formatMoney(offer.cost)} · Getiri: %${Math.round(offer.minReturn * 100)}–${Math.round(offer.maxReturn * 100)}</p>
   `
   const invest = document.createElement('button')
   invest.type = 'button'

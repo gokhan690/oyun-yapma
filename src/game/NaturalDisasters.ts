@@ -12,8 +12,8 @@ export interface DisasterDef {
 
 export const DISASTERS: DisasterDef[] = [
   { id: 'earthquake', title: 'Deprem', emoji: '⚡', affectedCities: ['izmir', 'istanbul'], baseDamage: 180_000 },
-  { id: 'flood', title: 'Sel', emoji: '🌊', affectedCities: ['ankara', 'izmir'], baseDamage: 120_000 },
-  { id: 'storm', title: 'Fırtına', emoji: '🌪️', affectedCities: ['istanbul', 'london'], baseDamage: 95_000 },
+  { id: 'flood', title: 'Sel', emoji: '🌊', affectedCities: ['ankara', 'izmir', 'london'], baseDamage: 120_000 },
+  { id: 'storm', title: 'Fırtına', emoji: '🌪️', affectedCities: ['istanbul', 'london', 'dubai'], baseDamage: 95_000 },
 ]
 
 export function pickDisaster(activeCity: CityId): DisasterDef | null {
