@@ -39,7 +39,7 @@ import { EventDirector } from '../game/EventDirector'
 import type { GameEventDef } from '../game/Events'
 import { activeTicker } from '../game/StockMarket'
 import { parseFranchiseAction } from './components/shop/FranchiseBlock'
-import { FRANCHISE_CITIES } from '../game/Franchise'
+import { FRANCHISE_CITIES, franchiseOpenFailureReason } from '../game/Franchise'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
 import { navLockReason, isShopHubLocked, shopHubLockReason } from '../game/ProgressiveUnlock'
@@ -581,7 +581,11 @@ export class HUD {
   }
 
   private bindEvents(): void {
-    this.tapArea.addEventListener('click', (e) => {
+    let lastTapMs = 0
+    const performTap = (clientX: number, clientY: number): void => {
+      const now = Date.now()
+      if (now - lastTapMs < 80) return
+      lastTapMs = now
       this.sound.resume()
       void hapticLight()
       this.tapArea.classList.remove('tap-ripple')
@@ -589,8 +593,18 @@ export class HUD {
       this.tapArea.classList.add('tap-ripple')
       window.setTimeout(() => this.tapArea.classList.remove('tap-ripple'), 450)
       const rect = this.tapArea.getBoundingClientRect()
-      this.state.click(e.clientX - rect.left, e.clientY - rect.top)
+      this.state.click(clientX - rect.left, clientY - rect.top)
       this.tutorial.onTapMade()
+    }
+    this.tapArea.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return
+      performTap(e.clientX, e.clientY)
+    })
+    this.tapArea.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return
+      e.preventDefault()
+      const rect = this.tapArea.getBoundingClientRect()
+      performTap(rect.left + rect.width / 2, rect.top + rect.height / 2)
     })
 
     const onActionClick = (e: Event): void => {
@@ -603,6 +617,7 @@ export class HUD {
       void this.handleAction(el.dataset.action, el.dataset.id, el.dataset.count)
     }
     this.root.addEventListener('click', onActionClick)
+    this.shop.root.addEventListener('click', onActionClick)
     this.bottomNav.root.addEventListener('click', onActionClick)
     this.eventsPanel.root.addEventListener('click', onActionClick)
     this.modals.layer.addEventListener('click', onActionClick)
@@ -1817,11 +1832,22 @@ export class HUD {
         break
       case 'open-franchise': {
         const parsed = id ? parseFranchiseAction(id) : null
-        if (parsed && this.state.openFranchise(parsed.producerId, parsed.city)) {
+        if (!parsed) {
+          this.modals.showToast(this.root, 'Franchise seçimi geçersiz')
+          break
+        }
+        const fail = franchiseOpenFailureReason(this.state, parsed.producerId, parsed.city)
+        if (fail) {
+          this.modals.showToast(this.root, `🏪 ${fail}`)
+          break
+        }
+        if (this.state.openFranchise(parsed.producerId, parsed.city)) {
           const city = FRANCHISE_CITIES.find((c) => c.id === parsed.city)
           const p = PRODUCERS.find((x) => x.id === parsed.producerId)
           this.modals.showToast(this.root, `🏪 ${p?.name ?? 'İşletme'} — ${city?.label ?? parsed.city} franchise açıldı!`)
           this.refreshShop(true)
+        } else {
+          this.modals.showToast(this.root, '🏪 Franchise açılamadı — tekrar dene')
         }
         break
       }

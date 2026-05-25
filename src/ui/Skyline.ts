@@ -6,7 +6,7 @@ import type { WorldStageId } from '../game/WorldStage'
 const MAX_BUILDINGS = 16
 
 const TIER_HEIGHTS: Record<number, number> = {
-  1: 36, 2: 44, 3: 52, 4: 58, 5: 68, 6: 76, 7: 84, 8: 92, 9: 100, 10: 108, 11: 116,
+  1: 48, 2: 56, 3: 64, 4: 72, 5: 82, 6: 92, 7: 102, 8: 112, 9: 122, 10: 132, 11: 142,
 }
 
 const TIER_COLORS: Record<number, [string, string]> = {
@@ -48,7 +48,8 @@ export class Skyline {
   private gameTimeMs = 0
   private parallaxRaf: number | null = null
   private prevProducerIds = new Set<string>()
-  private onBuildingClick?: (producerId: string) => void
+  private hillsEl: HTMLElement
+  private moonEl: HTMLElement
 
   constructor(container: HTMLElement) {
     this.el = document.createElement('div')
@@ -62,7 +63,7 @@ export class Skyline {
 
     this.starsEl = document.createElement('div')
     this.starsEl.className = 'skyline-stars'
-    for (let i = 0; i < 24; i++) {
+    for (let i = 0; i < 36; i++) {
       const star = document.createElement('span')
       star.className = 'skyline-star'
       star.style.left = `${Math.random() * 100}%`
@@ -78,19 +79,27 @@ export class Skyline {
     this.silhouetteEl.className = 'skyline-silhouette'
     this.silhouetteEl.setAttribute('aria-hidden', 'true')
 
+    this.hillsEl = document.createElement('div')
+    this.hillsEl.className = 'skyline-hills'
+    this.hillsEl.setAttribute('aria-hidden', 'true')
+
+    this.moonEl = document.createElement('div')
+    this.moonEl.className = 'skyline-moon'
+    this.moonEl.setAttribute('aria-hidden', 'true')
+
     this.layerFront = document.createElement('div')
     this.layerFront.className = 'skyline-layer skyline-front'
 
     const ground = document.createElement('div')
     ground.className = 'skyline-ground'
 
-    this.el.append(this.layerBack, this.skyEl, this.starsEl, this.silhouetteEl, this.buildingsEl, this.layerFront, ground)
+    this.el.append(this.layerBack, this.skyEl, this.starsEl, this.moonEl, this.hillsEl, this.silhouetteEl, this.buildingsEl, this.layerFront, ground)
     container.prepend(this.el)
     this.animateParallax()
   }
 
-  setBuildingClickHandler(handler: (producerId: string) => void): void {
-    this.onBuildingClick = handler
+  setBuildingClickHandler(_handler: (producerId: string) => void): void {
+    /* skyline dekoratif — tıklama tap alanında */
   }
 
   update(
@@ -129,8 +138,7 @@ export class Skyline {
       const height = TIER_HEIGHTS[b.tier] ?? 48
       const [top, bottom] = TIER_COLORS[b.tier] ?? TIER_COLORS[1]!
 
-      const el = document.createElement('button')
-      el.type = 'button'
+      const el = document.createElement('div')
       el.className = `skyline-building skyline-tier-${b.tier}${isNew ? ' skyline-building-new' : ''}`
       el.style.animationDelay = `${i * 0.08}s`
       el.title = `${b.name} · ${Math.floor(b.income).toLocaleString('tr-TR')}/sn`
@@ -157,10 +165,6 @@ export class Skyline {
 
       tower.append(windows, emoji)
       el.appendChild(tower)
-      el.addEventListener('click', (ev) => {
-        ev.stopPropagation()
-        this.onBuildingClick?.(b.producerId)
-      })
       this.buildingsEl.appendChild(el)
     }
 
@@ -198,9 +202,11 @@ export class Skyline {
   private animateParallax(): void {
     const tick = (): void => {
       const t = (Date.now() - this.startTime) / 1000
-      this.layerBack.style.transform = `translateX(${Math.sin(t * 0.2) * 8}px)`
-      this.layerFront.style.transform = `translateX(${Math.sin(t * 0.3 + 1) * 12}px)`
-      this.starsEl.style.transform = `translateX(${Math.sin(t * 0.1) * 4}px)`
+      this.layerBack.style.transform = `translateX(${Math.sin(t * 0.2) * 10}px)`
+      this.layerFront.style.transform = `translateX(${Math.sin(t * 0.3 + 1) * 14}px)`
+      this.starsEl.style.transform = `translateX(${Math.sin(t * 0.1) * 5}px)`
+      this.hillsEl.style.transform = `translateX(${Math.sin(t * 0.15) * 6}px)`
+      this.moonEl.style.transform = `translateY(${Math.sin(t * 0.08) * 3}px)`
       this.updateDayNight()
       this.parallaxRaf = requestAnimationFrame(tick)
     }

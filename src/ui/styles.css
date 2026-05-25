@@ -313,13 +313,15 @@ html.theme-night .tap-wrap {
 
 .tap-area {
   position: relative;
-  z-index: 2;
+  z-index: 5;
   width: 100%;
   flex: 1;
-  min-height: 160px;
+  min-height: 180px;
   border: none;
   background: transparent;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .tap-area.tap-ripple::after {
@@ -1717,8 +1719,10 @@ html.theme-night body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  gap: 8px;
-  padding-bottom: calc(var(--nav-h) + var(--ad-h) + 8px);
+  scroll-behavior: smooth;
+  gap: 12px;
+  padding: 8px 10px calc(var(--nav-h) + var(--ad-h) + 16px);
+  scroll-padding-bottom: calc(var(--nav-h) + var(--ad-h) + 16px);
 }
 
 .game-main.earn-active {
@@ -2990,13 +2994,13 @@ button.shop-card {
     margin-bottom: 0;
   }
   .tap-wrap {
-    min-height: 140px;
+    min-height: 200px;
   }
   .tap-inner {
-    min-height: 130px;
+    min-height: 170px;
   }
   .tap-area {
-    min-height: 130px;
+    min-height: 170px;
   }
   .quick-ad-card {
     min-height: 52px;
@@ -4035,22 +4039,24 @@ html.theme-galactic {
 }
 .codex-card { padding: 6px; font-size: 0.68rem; }
 
-.shop-card {
-  padding: 8px 10px;
-  gap: 8px;
+@media (max-width: 360px) {
+  .shop-card:not(.manager-card):not(.biz-hero-card) {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .shop-card:not(.manager-card) .shop-card-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+    border-radius: 8px;
+  }
+  .shop-card:not(.manager-card) .shop-card-body strong { font-size: 0.82rem; }
+  .shop-card:not(.manager-card) .shop-card-body small {
+    font-size: 0.68rem;
+    -webkit-line-clamp: 3;
+  }
+  .shop-card:not(.manager-card) .shop-card-price { font-size: 0.82rem; }
 }
-.shop-card-icon {
-  width: 36px;
-  height: 36px;
-  font-size: 1.1rem;
-  border-radius: 8px;
-}
-.shop-card-body strong { font-size: 0.82rem; }
-.shop-card-body small {
-  font-size: 0.68rem;
-  -webkit-line-clamp: 3;
-}
-.shop-card-price { font-size: 0.82rem; }
 
 .biz-list-grid {
   display: flex;
@@ -5543,7 +5549,7 @@ html.theme-galactic {
 .skyline-stage-forbes .skyline-buildings { filter: saturate(1.2) brightness(1.08); }
 .skyline-stage-endgame .skyline-buildings { filter: saturate(1.35) brightness(1.12); }
 .skyline-building-new { animation: buildingRise 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); }
-.skyline-building { cursor: pointer; border: none; background: transparent; padding: 0; }
+.skyline-building { border: none; background: transparent; padding: 0; }
 .skyline-placeholder { font-size: 1.6rem; opacity: 0.75; align-self: flex-end; }
 @keyframes buildingRise { from { transform: translateY(100%) scaleY(0); opacity: 0; } to { transform: none; opacity: 1; } }
 .skyline-night .skyline-building { box-shadow: 0 0 8px rgba(251, 191, 36, 0.25); }
@@ -5648,11 +5654,13 @@ html.theme-galactic {
   .biz-hero-info { grid-column: 1 / -1; width: 100%; }
 }
 
-/* Skyline v2 — CSS kuleler */
+/* Skyline v2 — CSS kuleler (dekoratif, tıklamayı engellemez) */
 .skyline-buildings {
-  pointer-events: auto;
+  pointer-events: none;
   overflow: hidden;
-  gap: 3px;
+  gap: 4px;
+  min-height: 120px;
+  padding-bottom: 2px;
 }
 
 .skyline-building {
@@ -5660,12 +5668,13 @@ html.theme-galactic {
   background: transparent;
   border: none;
   padding: 0;
-  pointer-events: auto;
+  pointer-events: none;
+  cursor: default;
 }
 
 .skyline-tower {
-  width: 34px;
-  min-width: 28px;
+  width: 42px;
+  min-width: 32px;
   border-radius: 4px 4px 0 0;
   position: relative;
   display: flex;
@@ -5969,7 +5978,173 @@ html.theme-galactic {
 .skyline-placeholder strong { display: block; font-size: 0.78rem; margin-top: 4px; }
 .skyline-placeholder small { font-size: 0.68rem; opacity: 0.85; }
 
-.tap-wrap { min-height: 220px; }
-.skyline { z-index: 1; }
-.skyline-buildings { z-index: 2; }
-.skyline-ground { z-index: 1; height: 22px; background: linear-gradient(180deg, #1a2d4a, #0a1525); }
+.tap-wrap { min-height: 280px; }
+.skyline { z-index: 0; }
+.skyline-buildings { z-index: 1; bottom: 4px; }
+.skyline-sky {
+  background:
+    radial-gradient(ellipse 90% 55% at 50% 0%, rgba(96, 165, 250, 0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 80% 15%, rgba(251, 191, 36, 0.18) 0%, transparent 50%),
+    linear-gradient(180deg, #1a3a5c 0%, #122035 55%, rgba(18, 32, 53, 0.85) 100%);
+}
+.skyline-ground { z-index: 1; height: 26px; background: linear-gradient(180deg, #1a2d4a, #060d18); }
+.skyline-hills {
+  position: absolute;
+  bottom: 18px;
+  left: 0;
+  right: 0;
+  height: 56px;
+  pointer-events: none;
+  opacity: 0.55;
+  background:
+    radial-gradient(ellipse 45% 100% at 15% 100%, rgba(15, 23, 42, 0.95) 0%, transparent 70%),
+    radial-gradient(ellipse 55% 100% at 55% 100%, rgba(15, 23, 42, 0.9) 0%, transparent 72%),
+    radial-gradient(ellipse 40% 100% at 88% 100%, rgba(15, 23, 42, 0.85) 0%, transparent 68%);
+}
+.skyline-moon {
+  position: absolute;
+  top: 14px;
+  right: 18%;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fef9c3, #fde68a 45%, rgba(253, 224, 71, 0.2) 70%);
+  box-shadow: 0 0 18px rgba(253, 224, 71, 0.35);
+  opacity: 0;
+  transition: opacity 0.5s;
+  pointer-events: none;
+}
+.skyline-night .skyline-moon { opacity: 0.9; }
+.skyline-silhouette { height: 64px; bottom: 18px; opacity: 0.55; }
+.skyline-building { cursor: default; pointer-events: none !important; }
+
+/* v2.9 — büyük iş/yönetim, scroll, franchise */
+.shop-panel .tab-panel {
+  padding: 14px 14px 28px;
+  gap: 14px;
+}
+.baron-view .stats-embedded .panel-body {
+  padding: 12px 14px calc(var(--nav-h) + var(--ad-h) + 20px);
+  gap: 14px;
+  scroll-behavior: smooth;
+  scroll-padding-bottom: calc(var(--nav-h) + var(--ad-h) + 20px);
+}
+.baron-view .events-panel {
+  padding: 0 12px calc(var(--nav-h) + var(--ad-h) + 20px);
+  scroll-behavior: smooth;
+}
+.shop-section-title {
+  font-size: 1rem;
+  margin: 18px 0 10px;
+  font-weight: 700;
+}
+.manager-card {
+  min-height: 96px;
+  padding: 16px 18px;
+  gap: 16px;
+  border-radius: 18px;
+  margin-bottom: 12px;
+  align-items: flex-start;
+}
+.manager-portrait {
+  width: 56px;
+  height: 56px;
+  font-size: 2rem;
+  border-radius: 14px;
+}
+.manager-card .shop-card-body strong,
+.manager-card > strong {
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+.manager-card .shop-card-body small,
+.manager-card > p {
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin: 4px 0 0;
+}
+.manager-card .btn-primary,
+.manager-card .btn-secondary,
+.manager-card .btn-ad {
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+}
+.manager-income-chip {
+  font-size: 0.85rem;
+  padding: 4px 8px;
+}
+.manager-summary-banner {
+  font-size: 0.9rem;
+  padding: 12px 14px;
+}
+.biz-hero-card {
+  padding: 18px;
+  gap: 14px;
+  border-radius: 18px;
+}
+.biz-hero-icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+}
+.biz-hero-emoji { font-size: 2.2rem; }
+.biz-hero-name { font-size: 1.18rem; font-weight: 700; }
+.biz-hero-desc { font-size: 0.88rem; margin-top: 6px; line-height: 1.4; }
+.biz-hero-metrics {
+  font-size: 0.92rem;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.biz-hero-owned-badge {
+  font-size: 0.82rem;
+  padding: 6px 10px;
+}
+.biz-qty-btn, .biz-hero-buy, .biz-hero-info {
+  min-height: 44px;
+  font-size: 0.9rem;
+  padding: 10px 12px;
+}
+.biz-hero-extra button {
+  min-height: 44px;
+  font-size: 0.88rem;
+}
+.biz-franchise-block {
+  padding: 14px;
+  border-radius: 12px;
+  margin-top: 6px;
+}
+.biz-franchise-title { font-size: 0.95rem; gap: 6px; }
+.biz-franchise-title small { font-size: 0.8rem; }
+.biz-franchise-btn {
+  min-height: 42px;
+  font-size: 0.85rem;
+  padding: 8px 10px;
+  flex: 1 1 calc(50% - 6px);
+}
+.biz-franchise-btn-blocked {
+  opacity: 0.78;
+  border-style: dashed;
+  border-color: rgba(251, 191, 36, 0.45);
+}
+.tier-band-header { padding: 14px 16px; }
+.tier-band-label { font-size: 1rem; }
+.tier-band-meta { font-size: 0.8rem; }
+.tier-band-body { gap: 14px; padding: 0 12px 14px; }
+.shop-context-business .biz-tier-list { padding: 0 10px 24px; }
+.skyline-emoji { font-size: 1.15rem; }
+.skyline-night .skyline-buildings { filter: brightness(0.92) saturate(1.15); }
+.skyline-night .skyline-sky {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(88, 28, 135, 0.35) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 35% at 75% 20%, rgba(30, 58, 95, 0.5) 0%, transparent 50%),
+    linear-gradient(180deg, #0f172a 0%, #0a1220 60%, rgba(6, 13, 24, 0.95) 100%);
+}
+.baron-profile-hero {
+  padding: 16px;
+  border-radius: 16px;
+  margin-bottom: 4px;
+}
+.baron-profile-hero-top strong { font-size: 1.15rem; }
+.baron-profile-hero-top small { font-size: 0.85rem; }
+.baron-profile-hero-meta { font-size: 0.85rem; }

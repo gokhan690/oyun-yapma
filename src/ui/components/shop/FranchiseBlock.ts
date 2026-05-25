@@ -63,10 +63,12 @@ export function appendFranchiseSection(
       } else {
         const repOk = state.reputation >= city.repReq
         const afford = state.canAfford(FRANCHISE_COST)
-        btn.textContent = `${city.label} · ${formatMoney(FRANCHISE_COST)}`
-        btn.disabled = !repOk || !afford
-        if (!repOk) btn.title = `Min itibar ${city.repReq}`
-        else if (!afford) btn.title = 'Yetersiz para'
+        btn.textContent = repOk
+          ? `${city.label} · ${formatMoney(FRANCHISE_COST)}`
+          : `${city.label} · ⭐${city.repReq}`
+        btn.classList.toggle('biz-franchise-btn-blocked', !repOk || !afford)
+        if (!repOk) btn.title = `Min itibar ${city.repReq} (sen: ${Math.floor(state.reputation)})`
+        else if (!afford) btn.title = `${formatMoney(FRANCHISE_COST)} gerekli`
       }
       cities.appendChild(btn)
     }
