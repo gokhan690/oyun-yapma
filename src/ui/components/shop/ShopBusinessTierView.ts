@@ -26,9 +26,9 @@ export interface TierBand {
 
 export const BIZ_TIER_BANDS: TierBand[] = [
   { id: 'starter', label: 'Başlangıç', emoji: '🌱', minTier: 1, maxTier: 3, unlockAt: 0 },
-  { id: 'growth', label: 'Büyüme', emoji: '📈', minTier: 4, maxTier: 6, unlockAt: 120_000 },
-  { id: 'peak', label: 'Zirve', emoji: '🏙️', minTier: 7, maxTier: 9, unlockAt: 10_000_000 },
-  { id: 'legend', label: 'Efsane', emoji: '👑', minTier: 10, maxTier: 11, unlockAt: 900_000_000 },
+  { id: 'growth', label: 'Büyüme', emoji: '📈', minTier: 4, maxTier: 6, unlockAt: 480_000 },
+  { id: 'peak', label: 'Zirve', emoji: '🏙️', minTier: 7, maxTier: 9, unlockAt: 40_000_000 },
+  { id: 'legend', label: 'Efsane', emoji: '👑', minTier: 10, maxTier: 11, unlockAt: 3_600_000_000 },
 ]
 
 const MILESTONES = [1, 10, 25, 50, 100]
