@@ -8,6 +8,8 @@ import { SoundManager } from './audio/SoundManager'
 import { HUD } from './ui/HUD'
 import { scheduleDailyReminder, registerServiceWorker } from './notifications/NotificationManager'
 import { applyDocumentTheme } from './utils/themeApply'
+import { applyCountry } from './game/Countries'
+import { OnboardingOverlay } from './ui/components/OnboardingOverlay'
 import { i18n } from './i18n'
 i18n.init()
 
@@ -56,8 +58,21 @@ function bootstrap(): void {
 
     ads.syncRewardedCount(state.rewardedAdsToday, state.rewardedAdsDay)
     applyDocumentTheme(state.activeTheme)
+    applyCountry(state.country)
 
     const hud = new HUD(state, ads, sound, saveManager, app)
+
+    const setupDone = localStorage.getItem('baron_setup_done') === '1'
+    if (!saveLoaded && !setupDone) {
+      const onboarding = new OnboardingOverlay((country) => {
+        state.country = country
+        applyCountry(country)
+        localStorage.setItem('baron_setup_done', '1')
+        saveManager.save(state)
+        hud.renderAll()
+      })
+      onboarding.show()
+    }
 
     if (saveLoaded) {
       if (loaded.source === 'backup') {

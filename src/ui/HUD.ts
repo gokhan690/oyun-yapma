@@ -1168,8 +1168,10 @@ export class HUD {
       case 'set-language': {
         if (id) {
           i18n.setLang(id as LangCode)
-          this.modals.showToast(this.root, `🌐 ${id.toUpperCase()}`)
+          this.bottomNav.relabel()
+          this.renderAll()
           this.settings.rebuild()
+          this.modals.showToast(this.root, `🌐 ${id.toUpperCase()}`)
         }
         break
       }
@@ -2899,6 +2901,7 @@ export class HUD {
 
   renderAll(): void {
     applyDocumentTheme(this.state.activeTheme)
+    this.bottomNav.relabel()
     this.root.classList.toggle('owner-session-active', isOwnerSession())
     this.statsBar.render()
     this.renderProfileQuickBtn()
@@ -2910,6 +2913,7 @@ export class HUD {
       this.patchShopAffordability()
     }
     this.refreshSkyline()
+    this.renderCityStrip()
     this.goalsSheet.render(this.state)
     if (this.bottomNav.getActive() === 'profile') {
       this.syncBaronTab()

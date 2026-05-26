@@ -316,6 +316,7 @@ import {
   type CityState,
   type CityId,
 } from './ExpansionMap'
+import type { CountryId } from './Countries'
 import {
   createTorpilState,
   torpilDef,
@@ -371,6 +372,7 @@ export interface SerializableState {
   gamePaused?: boolean
   tutorialDone: boolean
   onboardingComplete?: boolean
+  country?: CountryId
   ipoCount: number
   lifetimeTotalEarned: number
   managers: Record<string, boolean>
@@ -616,6 +618,7 @@ export class GameState {
   gamePaused = false
   tutorialDone = false
   onboardingComplete = false
+  country: CountryId = 'tr'
   ipoCount = 0
   lifetimeTotalEarned = 0
   managers: Record<string, boolean> = {}
@@ -4254,6 +4257,7 @@ export class GameState {
       gamePaused: this.gamePaused,
       tutorialDone: this.tutorialDone,
       onboardingComplete: this.onboardingComplete,
+      country: this.country,
       ipoCount: this.ipoCount,
       lifetimeTotalEarned: this.lifetimeTotalEarned,
       managers: { ...this.managers },
@@ -4421,6 +4425,7 @@ export class GameState {
     this.gamePaused = data.gamePaused ?? false
     this.tutorialDone = data.tutorialDone ?? false
     this.onboardingComplete = data.onboardingComplete ?? data.tutorialDone ?? false
+    this.country = data.country ?? 'tr'
     this.ipoCount = data.ipoCount ?? 0
     this.lifetimeTotalEarned = data.lifetimeTotalEarned ?? data.totalEarned ?? 0
     this.managers = { ...(data.managers ?? {}) }
