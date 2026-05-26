@@ -662,17 +662,19 @@ html.theme-night .tap-wrap {
 
 .biz-info-btn {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
+  top: 6px;
+  right: 6px;
+  bottom: auto;
+  left: auto;
+  z-index: 20;
   flex-shrink: 0;
   border: 1px solid var(--border);
   background: rgba(96, 165, 250, 0.15);
   border-radius: 8px;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   line-height: 1;
   padding: 0;
 }
@@ -5050,6 +5052,7 @@ html.theme-galactic {
 .shop-context-market .shop-body .tab-panel { padding: 10px 12px 20px; }
 .shop-context-business .shop-body .tab-panel[data-panel="businesses"] {
   padding: 10px 14px 24px;
+  overflow-x: hidden;
 }
 .shop-context-business .shop-body .tab-panel[data-panel^="empire_"] {
   padding: 10px 14px 24px;
