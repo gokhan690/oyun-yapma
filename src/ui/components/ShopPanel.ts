@@ -43,6 +43,7 @@ import { UNDERGROUND_TREE_NODES, treeNodeCost } from '../../game/UndergroundTree
 import { modernizeCost } from '../../game/TechObsolescence'
 import { appendFranchiseSection, franchiseNearCount, franchiseReadyCount } from './shop/FranchiseBlock'
 import { ADVISOR_FEE } from '../../game/AdvisorNPC'
+import { t as i18nT } from '../../i18n'
 
 export type BuyMode = 1 | 10 | 100 | 'max'
 export type ShopHub = 'growth' | 'powerup' | 'finance' | 'empire'
@@ -88,6 +89,7 @@ export class ShopPanel {
   private expandedBands = new Set<string>(['starter'])
   private tierBandsInit = false
   private synergyEl: HTMLElement | null = null
+  private hubLabelEls = new Map<ShopHub, HTMLElement>()
   private ipoSubTab: IpoSubTab = 'stock'
   private upgradeFilter: UpgradeFilter = 'all'
   private researchBranch: ResearchBranch | 'all' = 'all'
@@ -170,27 +172,28 @@ export class ShopPanel {
 
     const tabs = document.createElement('div')
     tabs.className = 'shop-tabs-pill shop-hub-tabs'
-    const hubDefs: { id: ShopHub; label: string; shopOnly?: boolean }[] = [
-      { id: 'growth', label: 'Büyüme' },
-      { id: 'powerup', label: 'Güçlendir' },
-      { id: 'empire', label: 'İmparatorluk' },
+    const hubDefs: { id: ShopHub; label: string }[] = [
+      { id: 'growth', label: i18nT('shop_growth') },
+      { id: 'powerup', label: i18nT('shop_powerup') },
+      { id: 'empire', label: i18nT('shop_empire') },
     ]
-    for (const t of hubDefs) {
+    for (const hd of hubDefs) {
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = 'tab-btn shop-hub-btn'
       btn.dataset.action = 'shop-tab'
-      btn.dataset.id = t.id
-      btn.dataset.tab = t.id
+      btn.dataset.id = hd.id
+      btn.dataset.tab = hd.id
       const img = document.createElement('img')
-      img.src = HUB_ICONS[t.id]
+      img.src = HUB_ICONS[hd.id]
       img.alt = ''
       img.width = 18
       img.height = 18
       const label = document.createElement('span')
-      label.textContent = t.label
+      label.textContent = hd.label
+      this.hubLabelEls.set(hd.id, label)
       btn.append(img, label)
-      if (t.id === 'growth') btn.classList.add('active')
+      if (hd.id === 'growth') btn.classList.add('active')
       this.tabButtons.push(btn)
       tabs.appendChild(btn)
     }
@@ -250,12 +253,19 @@ export class ShopPanel {
     this.root.className = `shop-panel shop-hub-${hub} shop-context-${this.shopContextClass()}`
   }
 
+  private relabelHubTabs(): void {
+    this.hubLabelEls.get('growth')!.textContent = i18nT('shop_growth')
+    this.hubLabelEls.get('powerup')!.textContent = i18nT('shop_powerup')
+    this.hubLabelEls.get('empire')!.textContent = i18nT('shop_empire')
+  }
+
   private applyViewChrome(state?: GameState): void {
     const isMarket = this.viewContext === 'market'
     this.applyRootClasses()
-    this.titleEl.textContent = isMarket ? '📈 Borsa & Finans' : '🏢 İşletmeler'
+    this.relabelHubTabs()
+    this.titleEl.textContent = isMarket ? `📈 ${i18nT('market_stocks')} & ${i18nT('market_bank')}` : `🏢 ${i18nT('shop_context_business')}`
     this.shopSubEl.textContent = isMarket
-      ? 'Hisse al/sat · banka · prestij · run birleşmesi'
+      ? `${i18nT('market_stocks')} · ${i18nT('market_bank')} · ${i18nT('stat_prestige')} · ${i18nT('tab_merge')}`
       : HUB_SUBTITLES[this.activeHub === 'finance' ? 'growth' : this.activeHub]
     this.buyModesEl.classList.toggle('is-hidden', isMarket)
     this.advisorEl.classList.toggle('is-hidden', isMarket)
@@ -371,11 +381,17 @@ export class ShopPanel {
     this.subTabsEl.replaceChildren()
     this.subTabButtons = []
     if (this.viewContext === 'market' || this.activeHub === 'finance') {
-      for (const [id, label] of [
-        ['stock', 'Borsa'], ['bank', 'Banka'], ['insurance', 'Sigorta'],
-        ['commodities', 'Emtia'], ['opportunities', 'Fırsatlar'],
-        ['underground_market', 'Kara'], ['prestige', 'Prestij'], ['ipo', 'Birleşme'],
-      ] as const) {
+      const finTabs: [IpoSubTab, string][] = [
+        ['stock', i18nT('market_stocks')],
+        ['bank', i18nT('market_bank')],
+        ['insurance', i18nT('market_insurance')],
+        ['commodities', i18nT('tab_commodities')],
+        ['opportunities', i18nT('tab_opportunities')],
+        ['underground_market', i18nT('tab_underground_market')],
+        ['prestige', i18nT('stat_prestige')],
+        ['ipo', i18nT('tab_merge')],
+      ]
+      for (const [id, label] of finTabs) {
         const btn = document.createElement('button')
         btn.type = 'button'
         btn.className = `shop-sub-tab ipo-nav-tab${this.ipoSubTab === id ? ' active' : ''}`
@@ -394,7 +410,7 @@ export class ShopPanel {
       return
     }
     if (this.activeHub === 'growth') {
-      for (const [id, label] of [['businesses', 'İşletme'], ['management', 'Yönetim']] as const) {
+      for (const [id, label] of [['businesses', i18nT('shop_context_business')], ['management', i18nT('tab_management')]] as [GrowthSub, string][]) {
         const btn = document.createElement('button')
         btn.type = 'button'
         btn.className = `shop-sub-tab${this.growthSub === id ? ' active' : ''}`
@@ -405,7 +421,7 @@ export class ShopPanel {
         this.subTabsEl.appendChild(btn)
       }
     } else if (this.activeHub === 'powerup') {
-      for (const [id, label] of [['upgrades', 'Yükseltme'], ['research', 'Ar-Ge']] as const) {
+      for (const [id, label] of [['upgrades', i18nT('shop_context_upgrades')], ['research', i18nT('shop_context_research')]] as [PowerupSub, string][]) {
         const btn = document.createElement('button')
         btn.type = 'button'
         btn.className = `shop-sub-tab${this.powerupSub === id ? ' active' : ''}`
@@ -416,10 +432,15 @@ export class ShopPanel {
         this.subTabsEl.appendChild(btn)
       }
     } else if (this.activeHub === 'empire') {
-      for (const [id, label] of [
-        ['sport', 'Spor'], ['politics', 'Siyaset'], ['dark', 'Yeraltı'],
-        ['luxury', 'Lüks'], ['finance', 'Finans'], ['science', 'Bilim'],
-      ] as const) {
+      const empTabs: [EmpireSub, string][] = [
+        ['sport', i18nT('tab_sport')],
+        ['politics', i18nT('tab_politics')],
+        ['dark', i18nT('tab_dark')],
+        ['luxury', i18nT('tab_luxury')],
+        ['finance', i18nT('tab_finance_empire')],
+        ['science', i18nT('tab_science')],
+      ]
+      for (const [id, label] of empTabs) {
         const btn = document.createElement('button')
         btn.type = 'button'
         btn.className = `shop-sub-tab${this.empireSub === id ? ' active' : ''}`

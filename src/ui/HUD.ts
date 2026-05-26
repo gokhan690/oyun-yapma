@@ -518,6 +518,21 @@ export class HUD {
     this.statsScreen.renderSection(this.baronSubTab)
   }
 
+  private static readonly BARON_TAB_KEYS: Record<string, keyof import('../i18n/keys').Translations> = {
+    profile: 'tab_profile',
+    dynasty: 'tab_dynasty',
+    world: 'tab_world',
+    lifestyle: 'tab_lifestyle',
+    events: 'tab_events',
+  }
+
+  private relabelBaronNav(): void {
+    this.baronView.querySelectorAll<HTMLElement>('.baron-subnav-btn').forEach((btn) => {
+      const key = HUD.BARON_TAB_KEYS[btn.dataset.id ?? '']
+      if (key) btn.textContent = i18n.t(key)
+    })
+  }
+
   private syncBaronTab(): void {
     const tab = this.baronSubTab
     const isEvents = tab === 'events'
@@ -2902,6 +2917,7 @@ export class HUD {
   renderAll(): void {
     applyDocumentTheme(this.state.activeTheme)
     this.bottomNav.relabel()
+    this.relabelBaronNav()
     this.root.classList.toggle('owner-session-active', isOwnerSession())
     this.statsBar.render()
     this.renderProfileQuickBtn()
