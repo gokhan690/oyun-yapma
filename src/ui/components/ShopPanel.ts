@@ -46,7 +46,7 @@ import { modernizeCost } from '../../game/TechObsolescence'
 import { appendFranchiseSection, franchiseNearCount, franchiseReadyCount } from './shop/FranchiseBlock'
 import { ADVISOR_FEE } from '../../game/AdvisorNPC'
 
-export type BuyMode = 1 | 10 | 'max'
+export type BuyMode = 1 | 10 | 100 | 'max'
 export type ShopHub = 'growth' | 'powerup' | 'finance' | 'empire'
 export type GrowthSub = 'businesses' | 'management'
 export type PowerupSub = 'upgrades' | 'research'
@@ -149,13 +149,13 @@ export class ShopPanel {
     const buyModes = document.createElement('div')
     buyModes.className = 'buy-modes'
     this.buyModesEl = buyModes
-    for (const mode of ['1', '10', 'max'] as const) {
+    for (const mode of ['1', '10', '100', 'max'] as const) {
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = 'buy-mode-btn'
       btn.dataset.action = 'buy-mode'
       btn.dataset.count = mode
-      btn.textContent = mode === 'max' ? 'Hepsi' : mode
+      btn.textContent = mode === 'max' ? 'MAX' : `×${mode}`
       if (mode === '1') btn.classList.add('active')
       buyModes.appendChild(btn)
     }

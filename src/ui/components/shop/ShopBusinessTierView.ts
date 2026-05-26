@@ -151,7 +151,7 @@ export function updateHeroBusinessCard(
 ): void {
   const owned = state.producers[p.id] ?? 0
   const maxCount = state.countMaxAffordable(p.id)
-  const buyCount = buyMode === 'max' ? Math.max(1, maxCount) : buyMode === 10 ? 10 : 1
+  const buyCount = buyMode === 'max' ? Math.max(1, maxCount) : (typeof buyMode === 'number' ? buyMode : 1)
   const cost = state.producerCostFor(p, owned, buyMode === 'max' ? Math.max(1, maxCount) : buyCount)
   const affordable = maxCount >= 1 && state.canAfford(cost)
 
@@ -218,13 +218,23 @@ export function updateHeroBusinessCard(
   const extra = card.querySelector('.biz-hero-extra')!
   extra.replaceChildren()
   if (owned > 0) {
-    const sellBtn = document.createElement('button')
-    sellBtn.type = 'button'
-    sellBtn.className = 'btn-secondary biz-sell-btn'
-    sellBtn.dataset.action = 'sell-producer'
-    sellBtn.dataset.id = p.id
-    sellBtn.textContent = 'Sat (1)'
-    extra.appendChild(sellBtn)
+    // Sell quantity selector
+    const sellWrap = document.createElement('div')
+    sellWrap.className = 'biz-sell-wrap'
+
+    const sellAmounts = owned >= 10 ? [1, 10, owned] : [1, owned]
+    for (const amt of [...new Set(sellAmounts)]) {
+      const sellBtn = document.createElement('button')
+      sellBtn.type = 'button'
+      sellBtn.className = `btn-secondary biz-sell-btn${amt === 1 ? ' biz-sell-active' : ''}`
+      sellBtn.dataset.action = 'sell-producer'
+      sellBtn.dataset.id = p.id
+      sellBtn.dataset.count = String(amt)
+      const refundEst = Math.floor(state.producerCostFor(p, owned - amt, amt) * 0.55)
+      sellBtn.textContent = amt === owned ? `Hepsini Sat (${owned}) · +${formatMoney(refundEst)}` : `Sat ×${amt} · +${formatMoney(refundEst)}`
+      sellWrap.appendChild(sellBtn)
+    }
+    extra.appendChild(sellWrap)
     if (obsLabel && !state.producerModernized[p.id]) {
       const modCost = modernizeCost(p.tier, owned)
       const modBtn = document.createElement('button')

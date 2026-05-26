@@ -4,21 +4,21 @@ export interface InsuranceState {
   dynasty: boolean
 }
 
-export const INSURANCE_DAILY_COST = {
-  business: 500,
-  illegal: 2000,
-  dynasty: 5000,
+export const INSURANCE_BASE_COST = {
+  business: 200,
+  illegal: 800,
+  dynasty: 2000,
 } as const
 
 export function createInsuranceState(): InsuranceState {
   return { business: false, illegal: false, dynasty: false }
 }
 
-export function insuranceDailyCost(ins: InsuranceState): number {
+export function insuranceDailyCost(ins: InsuranceState, totalBusinesses = 0, ipoCount = 0): number {
   let c = 0
-  if (ins.business) c += INSURANCE_DAILY_COST.business
-  if (ins.illegal) c += INSURANCE_DAILY_COST.illegal
-  if (ins.dynasty) c += INSURANCE_DAILY_COST.dynasty
+  if (ins.business) c += INSURANCE_BASE_COST.business + totalBusinesses * 60
+  if (ins.illegal) c += INSURANCE_BASE_COST.illegal + totalBusinesses * 250
+  if (ins.dynasty) c += INSURANCE_BASE_COST.dynasty + totalBusinesses * 800 + ipoCount * 3000
   return c
 }
 

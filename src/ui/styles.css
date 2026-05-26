@@ -227,19 +227,20 @@ body {
   min-height: 260px;
   border-radius: var(--radius-lg, 24px);
   overflow: hidden;
-  border: 1px solid rgba(251, 191, 36, 0.35);
-  box-shadow: var(--shadow-md, 0 8px 32px rgba(0, 0, 0, 0.25)), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  box-shadow: 0 0 0 1px rgba(245,158,11,0.08), 0 8px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(245,158,11,0.08);
   flex-shrink: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(251, 191, 36, 0.15) 0%, transparent 70%),
-    linear-gradient(180deg, rgba(30, 58, 95, 0.6) 0%, rgba(20, 12, 0, 0.95) 100%);
+    radial-gradient(ellipse 90% 55% at 50% 105%, rgba(245, 158, 11, 0.22) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 40% at 30% 80%, rgba(180, 83, 9, 0.12) 0%, transparent 60%),
+    linear-gradient(180deg, #050200 0%, #0a0500 50%, #000000 100%);
   transition: box-shadow 0.3s ease, border-color 0.4s ease;
 }
 html.theme-night .tap-wrap {
   background:
-    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(167, 139, 250, 0.12) 0%, transparent 70%),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.8) 0%, rgba(10, 15, 30, 0.98) 100%);
-  border-color: rgba(167, 139, 250, 0.35);
+    radial-gradient(ellipse 90% 55% at 50% 105%, rgba(245, 158, 11, 0.15) 0%, transparent 65%),
+    linear-gradient(180deg, #030100 0%, #000000 100%);
+  border-color: rgba(245, 158, 11, 0.28);
 }
 .tap-wrap.combo-glow {
   animation: combo-edge-pulse 1.2s ease-in-out infinite;
@@ -260,20 +261,20 @@ html.theme-night .tap-wrap {
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg,
-    #0a0e1a 0%,
-    #0f1e3a 25%,
-    #1a2d4f 50%,
-    #2a3f5c 70%,
-    #1f2a38 85%,
-    transparent 100%
+    #000000 0%,
+    #040100 15%,
+    #0d0600 35%,
+    #1a0d00 60%,
+    #2a1500 80%,
+    #3d2000 100%
   );
 }
 .skyline-sky-night {
   background: linear-gradient(180deg,
-    #03050d 0%,
-    #080c1a 30%,
-    #0d1229 55%,
-    #121826 75%,
+    #000000 0%,
+    #020100 25%,
+    #070300 50%,
+    #100700 75%,
     transparent 100%
   ) !important;
 }
@@ -308,23 +309,23 @@ html.theme-night .tap-wrap {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 32px;
+  height: 36px;
   z-index: 2;
   background: linear-gradient(180deg,
-    rgba(10, 20, 40, 0) 0%,
-    rgba(10, 18, 32, 0.85) 40%,
-    #07101e 100%
+    rgba(0, 0, 0, 0) 0%,
+    rgba(15, 8, 0, 0.88) 40%,
+    #080400 100%
   );
 }
-/* Şehir ışığı parlaması — zemin üzerinde */
+/* Şehir ışığı parlaması — sıcak amber/altın */
 .skyline-ground::before {
   content: '';
   position: absolute;
-  bottom: 24px;
-  left: 10%;
-  right: 10%;
-  height: 12px;
-  background: radial-gradient(ellipse at center, rgba(80, 140, 255, 0.18) 0%, transparent 70%);
+  bottom: 28px;
+  left: 5%;
+  right: 5%;
+  height: 18px;
+  background: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.28) 0%, rgba(180, 83, 9, 0.12) 50%, transparent 75%);
   pointer-events: none;
 }
 
@@ -828,11 +829,11 @@ html.theme-night body {
 }
 
 .skyline-night .skyline-building {
-  filter: brightness(0.75) drop-shadow(0 0 8px rgba(251, 191, 36, 0.35));
+  filter: brightness(0.82) drop-shadow(0 0 12px rgba(245, 158, 11, 0.45));
 }
 
 .skyline-night .skyline-ground {
-  background: linear-gradient(180deg, #0d0900, #000000);
+  background: linear-gradient(180deg, transparent, #060300, #000000);
 }
 
 .biz-cost {
@@ -1388,13 +1389,13 @@ html.theme-night body {
 }
 
 .skyline-back {
-  opacity: 0.3;
-  background: linear-gradient(180deg, transparent 40%, rgba(96,165,250,0.1) 100%);
+  opacity: 0.5;
+  background: linear-gradient(180deg, transparent 30%, rgba(245, 158, 11, 0.08) 80%, rgba(180, 83, 9, 0.14) 100%);
 }
 
 .skyline-front {
-  opacity: 0.2;
-  background: linear-gradient(0deg, rgba(251,191,36,0.08) 0%, transparent 60%);
+  opacity: 0.35;
+  background: linear-gradient(0deg, rgba(245, 158, 11, 0.12) 0%, rgba(180, 83, 9, 0.06) 40%, transparent 70%);
 }
 
 /* v4 — İmparatorluk Çağı */
@@ -1680,10 +1681,13 @@ html.theme-night body {
 .tree-node.owned { border-color: var(--green); }
 .tree-node.available { border-color: var(--accent); }
 .tap-mascot { width: 72px; height: 72px; object-fit: contain; }
-.skyline-stars { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.5s; }
+.skyline-stars { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.2s; }
 .skyline-stars.visible { opacity: 1; }
-.skyline-star { position: absolute; width: 2px; height: 2px; background: #fff; border-radius: 50%; animation: twinkle 2s ease-in-out infinite; }
-@keyframes twinkle { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+.skyline-star { position: absolute; width: 1.5px; height: 1.5px; background: #fffde8; border-radius: 50%; animation: twinkle 2.5s ease-in-out infinite; }
+.skyline-star:nth-child(3n) { width: 2.5px; height: 2.5px; background: #fde68a; }
+.skyline-star:nth-child(5n) { width: 1px; height: 1px; opacity: 0.5; }
+.skyline-star:nth-child(7n) { width: 3px; height: 3px; background: #fff; box-shadow: 0 0 4px rgba(255,255,200,0.8); animation-duration: 1.8s; }
+@keyframes twinkle { 0%, 100% { opacity: 0.2; transform: scale(1); } 50% { opacity: 1; transform: scale(1.3); } }
 .svg-building svg { width: 100%; height: 100%; }
 .skyline-night .svg-building .win { fill: #fbbf24; opacity: 0.8; }
 .market-event-banner { background: rgba(251,191,36,0.15); border: 1px solid var(--accent); border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; font-weight: 600; font-size: 0.85rem; }
@@ -4393,12 +4397,19 @@ html.theme-galactic {
 .empire-action-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .empire-owned-chip {
   font-size: 0.72rem;
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
   background: var(--surface2);
   border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
-.empire-owned-dark { border-color: rgba(239, 68, 68, 0.35); }
+.empire-owned-chip > span:first-child { flex: 1; font-weight: 600; }
+.empire-chip-income { color: var(--green); font-size: 0.68rem; margin-right: auto; }
+.empire-sell-btn { font-size: 0.65rem; padding: 4px 10px; border-radius: 8px; flex-shrink: 0; }
+.empire-owned-dark { border-color: rgba(239, 68, 68, 0.35); background: rgba(239,68,68,0.06); }
 .empire-hint, .empire-election-note {
   font-size: 0.75rem;
   color: var(--muted);
@@ -6193,29 +6204,29 @@ html.theme-galactic {
   bottom: 22px;
   left: 0;
   right: 0;
-  height: 48px;
-  opacity: 0.45;
+  height: 64px;
+  opacity: 0.55;
   pointer-events: none;
-  background: linear-gradient(180deg, transparent, rgba(15,23,42,0.5));
+  background: linear-gradient(180deg, transparent, rgba(12,6,0,0.6));
 }
 .skyline.city-istanbul .skyline-silhouette {
-  background-image: linear-gradient(180deg, transparent 0%, rgba(15,23,42,0.4) 100%),
-    repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(148,163,184,0.25) 8px, rgba(148,163,184,0.25) 12px);
+  background-image: linear-gradient(180deg, transparent 0%, rgba(12,6,0,0.5) 100%),
+    repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(245,158,11,0.12) 8px, rgba(245,158,11,0.12) 12px);
   background-size: auto, 24px 100%;
   background-position: center bottom;
 }
 .skyline.city-dubai .skyline-silhouette {
-  background: linear-gradient(180deg, transparent, rgba(180,83,9,0.25)),
-    radial-gradient(ellipse 8px 40px at 50% 100%, rgba(251,191,36,0.5), transparent 70%);
+  background: linear-gradient(180deg, transparent, rgba(180,83,9,0.3)),
+    radial-gradient(ellipse 8px 40px at 50% 100%, rgba(245,158,11,0.55), transparent 70%);
 }
 .skyline.city-london .skyline-silhouette {
-  background: linear-gradient(180deg, transparent, rgba(30,58,95,0.35)),
-    repeating-linear-gradient(90deg, transparent 0, transparent 14px, rgba(148,163,184,0.2) 14px, rgba(148,163,184,0.2) 18px);
+  background: linear-gradient(180deg, transparent, rgba(12,6,0,0.4)),
+    repeating-linear-gradient(90deg, transparent 0, transparent 14px, rgba(245,158,11,0.1) 14px, rgba(245,158,11,0.1) 18px);
 }
 .skyline.city-ankara .skyline-silhouette,
 .skyline.city-izmir .skyline-silhouette {
-  background: linear-gradient(180deg, transparent, rgba(30,58,95,0.3)),
-    repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(96,165,250,0.15) 10px, rgba(96,165,250,0.15) 14px);
+  background: linear-gradient(180deg, transparent, rgba(12,6,0,0.35)),
+    repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(245,158,11,0.08) 10px, rgba(245,158,11,0.08) 14px);
 }
 
 .baron-history-card-head { margin-bottom: 6px; }
@@ -6243,13 +6254,13 @@ html.theme-galactic {
   bottom: 18px;
   left: 0;
   right: 0;
-  height: 56px;
+  height: 72px;
   pointer-events: none;
-  opacity: 0.55;
+  opacity: 0.7;
   background:
-    radial-gradient(ellipse 45% 100% at 15% 100%, rgba(15, 23, 42, 0.95) 0%, transparent 70%),
-    radial-gradient(ellipse 55% 100% at 55% 100%, rgba(15, 23, 42, 0.9) 0%, transparent 72%),
-    radial-gradient(ellipse 40% 100% at 88% 100%, rgba(15, 23, 42, 0.85) 0%, transparent 68%);
+    radial-gradient(ellipse 50% 100% at 12% 100%, rgba(18, 10, 0, 0.97) 0%, transparent 68%),
+    radial-gradient(ellipse 60% 100% at 52% 100%, rgba(14, 7, 0, 0.92) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 100% at 90% 100%, rgba(16, 8, 0, 0.88) 0%, transparent 66%);
 }
 .skyline-moon {
   position: absolute;
@@ -6383,12 +6394,12 @@ html.theme-galactic {
 .tier-band-body { gap: 14px; padding: 0 12px 14px; }
 .shop-context-business .biz-tier-list { padding: 0 10px 24px; }
 .skyline-emoji { font-size: 1.15rem; }
-.skyline-night .skyline-buildings { filter: brightness(0.92) saturate(1.15); }
+.skyline-night .skyline-buildings { filter: brightness(0.88) saturate(1.2); }
 .skyline-night .skyline-sky {
   background:
-    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(88, 28, 135, 0.35) 0%, transparent 55%),
-    radial-gradient(ellipse 50% 35% at 75% 20%, rgba(30, 58, 95, 0.5) 0%, transparent 50%),
-    linear-gradient(180deg, #1a0e00 0%, #0d0800 60%, rgba(0, 0, 0, 0.95) 100%);
+    radial-gradient(ellipse 60% 45% at 50% 0%, rgba(20, 5, 60, 0.5) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 30% at 80% 15%, rgba(60, 20, 0, 0.3) 0%, transparent 50%),
+    linear-gradient(180deg, #000000 0%, #060200 40%, #0d0600 70%, #180b00 100%);
 }
 .baron-profile-hero {
   padding: 16px;
@@ -7290,4 +7301,213 @@ html.theme-galactic {
   border-radius: 99px;
   background: linear-gradient(90deg, #f59e0b, #ef4444);
   transition: width 0.5s;
+}
+
+/* ═══════════════════════════════════════════
+   SKYLINE v3 — Altın/Siyah Dramatik Revizyon
+   ═══════════════════════════════════════════ */
+
+/* Anten ışığı — tier 8+ binalarda kırmızı yanıp sönen nokta */
+.skyline-antenna-light {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 6px 2px rgba(239, 68, 68, 0.8);
+  animation: antennaBlip 2s ease-in-out infinite;
+  z-index: 5;
+}
+@keyframes antennaBlip {
+  0%, 85%, 100% { opacity: 0.2; box-shadow: 0 0 3px rgba(239,68,68,0.4); }
+  90% { opacity: 1; box-shadow: 0 0 8px 3px rgba(239,68,68,0.9); }
+}
+
+/* Yüksek tier binalarda altın parıltı */
+.skyline-tier-5 .skyline-tower,
+.skyline-tier-6 .skyline-tower,
+.skyline-tier-7 .skyline-tower,
+.skyline-tier-8 .skyline-tower,
+.skyline-tier-9 .skyline-tower,
+.skyline-tier-10 .skyline-tower,
+.skyline-tier-11 .skyline-tower {
+  box-shadow: 2px 0 10px rgba(0,0,0,0.5), inset -4px 0 8px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.3);
+}
+
+/* Gece modunda pencere sıcak altın parıltısı */
+.skyline-night .skyline-window-row span:not(.win-dark) {
+  background: rgba(253, 210, 60, 1);
+  box-shadow: 0 0 6px 1px rgba(253, 180, 20, 0.7), 0 0 12px rgba(253, 150, 0, 0.3);
+}
+
+/* Binalara hover efekti — yakınlaş */
+.skyline-building:hover .skyline-tower {
+  transform: scaleY(1.03);
+  transition: transform 0.2s ease;
+}
+
+/* Tier 1-4 binalara hafif warm glow */
+.skyline-tier-1 .skyline-tower { box-shadow: 2px 0 6px rgba(0,0,0,0.4), 0 8px 16px rgba(0,0,0,0.6); }
+.skyline-tier-2 .skyline-tower { box-shadow: 2px 0 6px rgba(0,0,0,0.4), 0 8px 18px rgba(0,0,0,0.6); }
+.skyline-tier-3 .skyline-tower { box-shadow: 2px 0 8px rgba(0,0,0,0.45), 0 8px 20px rgba(0,0,0,0.65); }
+.skyline-tier-4 .skyline-tower { box-shadow: 2px 0 8px rgba(0,0,0,0.5), 0 10px 22px rgba(0,0,0,0.65); }
+
+/* Tier 5 (altın) — özel parıltı */
+.skyline-tier-5 .skyline-tower {
+  box-shadow: 0 0 16px rgba(251,191,36,0.35), 2px 0 8px rgba(0,0,0,0.5), inset -4px 0 8px rgba(0,0,0,0.2);
+}
+
+/* Mega şehir filtresi güçlendir */
+.skyline-mega .skyline-buildings { filter: saturate(1.3) brightness(1.08); }
+
+/* Şehir zemin arka planı — amber gradient şerit */
+.skyline-building { opacity: 0.92; }
+.skyline-tier-1 { opacity: 0.82; }
+.skyline-tier-2 { opacity: 0.86; }
+.skyline-tier-3 { opacity: 0.90; }
+
+/* Tap-wrap çerçevesi altın border glow animasyonu */
+.tap-wrap {
+  animation: tapWrapBreath 4s ease-in-out infinite;
+}
+@keyframes tapWrapBreath {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(245,158,11,0.08), 0 8px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(245,158,11,0.08); }
+  50% { box-shadow: 0 0 0 1px rgba(245,158,11,0.15), 0 8px 50px rgba(0,0,0,0.75), 0 0 30px rgba(245,158,11,0.08), inset 0 1px 0 rgba(245,158,11,0.12); }
+}
+.tap-wrap.combo-glow { animation: combo-edge-pulse 1.2s ease-in-out infinite; }
+
+/* ═══════════════════════
+   SELL QUANTITY SELECTOR
+   ═══════════════════════ */
+.biz-sell-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  padding-top: 2px;
+}
+.biz-sell-wrap .biz-sell-btn {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.72rem;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(239,68,68,0.35);
+  background: rgba(239,68,68,0.08);
+  color: #fca5a5;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.biz-sell-wrap .biz-sell-btn:active { background: rgba(239,68,68,0.2); }
+
+/* ═══════════════════════
+   BUY MODE BUTTONS — x100
+   ═══════════════════════ */
+.buy-modes { gap: 4px; }
+.buy-mode-btn {
+  font-size: 0.72rem;
+  min-width: 38px;
+  padding: 5px 8px;
+}
+
+/* ═══════════════════════
+   BOOST ACTIVATE — feedback
+   ═══════════════════════ */
+.boost-item-activate-btn {
+  position: relative;
+  overflow: hidden;
+}
+.boost-item-activate-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.2);
+  transform: scale(0);
+  border-radius: inherit;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+.boost-item-activate-btn:active::after {
+  transform: scale(1);
+  opacity: 1;
+}
+@keyframes boostActivate {
+  0% { transform: scale(1); box-shadow: 0 0 0 rgba(245,158,11,0); }
+  30% { transform: scale(1.05); box-shadow: 0 0 20px rgba(245,158,11,0.6); }
+  100% { transform: scale(1); box-shadow: 0 0 0 rgba(245,158,11,0); }
+}
+.boost-activate-flash { animation: boostActivate 0.5s ease; }
+
+/* ═══════════════════════
+   EVENTS panel — altta boşluk
+   ═══════════════════════ */
+.baron-view .events-panel {
+  flex: 1;
+  overflow: auto;
+  padding: 0;
+}
+.baron-view .events-scroll-body {
+  padding-bottom: calc(var(--nav-h) + var(--ad-h) + var(--safe-bottom) + 48px);
+}
+
+/* ═══════════════════════
+   DİL SEÇİCİ
+   ═══════════════════════ */
+.settings-lang-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.settings-lang-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  touch-action: manipulation;
+}
+.settings-lang-btn:active { transform: scale(0.97); }
+.settings-lang-btn.active {
+  border-color: var(--accent);
+  background: rgba(245,158,11,0.15);
+  color: var(--accent);
+}
+.lang-native {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.lang-label {
+  font-size: 0.65rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+.settings-lang-btn.active .lang-label { color: var(--accent); opacity: 0.8; }
+
+/* RTL dil desteği */
+html[dir="rtl"] .baron-subnav,
+html[dir="rtl"] .shop-tabs-pill,
+html[dir="rtl"] .buy-modes,
+html[dir="rtl"] .biz-hero-actions,
+html[dir="rtl"] .bottom-nav {
+  direction: rtl;
+}
+html[dir="rtl"] .panel-body,
+html[dir="rtl"] .events-scroll-body,
+html[dir="rtl"] .stats-embedded {
+  direction: rtl;
+  text-align: right;
 }

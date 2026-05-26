@@ -4,6 +4,7 @@ import type { SaveManager } from '../../security/SaveManager'
 import { THEMES, type ThemeId } from '../../game/Themes'
 import { APP_TITLE, APP_VERSION } from '../../appVersion'
 import { rescheduleFromPrefs, isWebPushSupported, isNativePlatform } from '../../notifications/NotificationManager'
+import { i18n, LANG_META, type LangCode } from '../../i18n'
 
 export class SettingsPanel {
   readonly layer: HTMLElement
@@ -109,6 +110,20 @@ export class SettingsPanel {
     restoreBtn.dataset.action = 'restore-save-backup'
     restoreBtn.textContent = '💾 Yedekten geri yükle'
     body.appendChild(restoreBtn)
+
+    body.appendChild(this.sectionTitle('🌐 Dil / Language'))
+    const langGrid = document.createElement('div')
+    langGrid.className = 'settings-lang-grid'
+    for (const [code, meta] of Object.entries(LANG_META) as [LangCode, typeof LANG_META[LangCode]][]) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `settings-lang-btn${i18n.getLang() === code ? ' active' : ''}`
+      btn.dataset.action = 'set-language'
+      btn.dataset.id = code
+      btn.innerHTML = `<span class="lang-native">${meta.nativeLabel}</span><span class="lang-label">${meta.label}</span>`
+      langGrid.appendChild(btn)
+    }
+    body.appendChild(langGrid)
 
     body.appendChild(this.sectionTitle('Görünüm'))
 
@@ -328,5 +343,11 @@ export class SettingsPanel {
   toggle(): void {
     if (!this.layer.classList.contains('is-open')) this.show()
     else this.hide()
+  }
+
+  rebuild(): void {
+    this.layer.replaceChildren()
+    this.build()
+    this.show()
   }
 }

@@ -8,6 +8,8 @@ import { SoundManager } from './audio/SoundManager'
 import { HUD } from './ui/HUD'
 import { scheduleDailyReminder, registerServiceWorker } from './notifications/NotificationManager'
 import { applyDocumentTheme } from './utils/themeApply'
+import { i18n } from './i18n'
+i18n.init()
 
 declare global {
   interface Window {

@@ -44,6 +44,7 @@ import { FRANCHISE_CITIES, franchiseOpenFailureReason } from '../game/Franchise'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
 import { navLockReason, isShopHubLocked, shopHubLockReason } from '../game/ProgressiveUnlock'
+import { i18n, type LangCode } from '../i18n'
 
 export class HUD {
   private root: HTMLElement
@@ -1120,7 +1121,7 @@ export class HUD {
         this.setView('profile')
         break
       case 'baron-tab':
-        if (id === 'events' || id === 'profile' || id === 'dynasty' || id === 'world') {
+        if (id === 'events' || id === 'profile' || id === 'dynasty' || id === 'world' || id === 'lifestyle') {
           this.baronSubTab = id
           if (this.bottomNav.getActive() !== 'profile') this.setView('profile')
           else this.syncBaronTab()
@@ -1159,6 +1160,14 @@ export class HUD {
           this.setView('earn')
         }
         break
+      case 'set-language': {
+        if (id) {
+          i18n.setLang(id as LangCode)
+          this.modals.showToast(this.root, `🌐 ${id.toUpperCase()}`)
+          this.settings.rebuild()
+        }
+        break
+      }
       case 'restart-tutorial':
         this.settings.hide()
         this.tutorial.restart()
@@ -1500,6 +1509,7 @@ export class HUD {
         break
       case 'buy-mode':
         if (count === 'max') this.shop.setBuyMode('max')
+        else if (count === '100') this.shop.setBuyMode(100)
         else if (count === '10') this.shop.setBuyMode(10)
         else this.shop.setBuyMode(1)
         this.refreshShop(true)
@@ -1708,7 +1718,10 @@ export class HUD {
         break
       case 'activate-boost':
         if (id && this.state.activatePendingBoost(id)) {
-          this.modals.showToast(this.root, 'Bonus aktifleştirildi')
+          // Visual feedback: flash the tap wrap
+          this.tapWrap.classList.add('boost-activate-flash')
+          window.setTimeout(() => this.tapWrap.classList.remove('boost-activate-flash'), 500)
+          this.modals.showToast(this.root, '⚡ Bonus aktifleştirildi! Gelir artıyor...')
           this.eventsPanel.render(this.state)
           this.statsBar.updateMeta()
           this.refreshShop(true)
@@ -1943,7 +1956,7 @@ export class HUD {
         }
         break
       case 'sell-producer':
-        if (id && this.state.sellProducer(id)) {
+        if (id && this.state.sellProducer(id, count ? Number(count) : 1)) {
           this.refreshShop(true)
         }
         break

@@ -1,7 +1,7 @@
 import type { GameState } from '../../../game/GameState'
 import { formatMoney } from '../../../game/Economy'
 import { COMMODITIES, commodityChangePct } from '../../../game/Commodities'
-import { INSURANCE_DAILY_COST } from '../../../game/Insurance'
+import { INSURANCE_BASE_COST } from '../../../game/Insurance'
 import { UNDERGROUND_MARKET } from '../../../game/UndergroundMarket'
 import { ADVISOR_FEE } from '../../../game/AdvisorNPC'
 
@@ -19,7 +19,7 @@ export function renderInsurancePanel(
     ['dynasty', 'Hanedan Sigortası', 'Mirasçısız ölümde %50 varlık korunur'] as const,
   ]) {
     const active = state.insurance[kind]
-    const cost = INSURANCE_DAILY_COST[kind]
+    const cost = INSURANCE_BASE_COST[kind]
     const card = document.createElement('div')
     card.className = `shop-card${active ? ' manager-active' : ''}`
     card.innerHTML = `<strong>${label}</strong><p>${desc}</p><span>${formatMoney(cost)}/gün</span>`

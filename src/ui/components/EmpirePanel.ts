@@ -200,9 +200,14 @@ export class EmpirePanel {
 
     const owned = PRODUCERS.filter((p) => p.category === 'politics' && (state.producers[p.id] ?? 0) > 0)
     for (const p of owned) {
+      const cnt = state.producers[p.id] ?? 0
       const row = document.createElement('div')
       row.className = 'empire-owned-chip'
-      row.textContent = `${p.emoji} ${p.name} ×${state.producers[p.id]}`
+      row.innerHTML = `
+        <span>${p.emoji} ${p.name} ×${cnt}</span>
+        <span class="empire-chip-income">${formatIncomeRate(state.producerIncome(p))}</span>
+        <button type="button" class="btn-secondary btn-sm empire-sell-btn" data-action="sell-producer" data-id="${p.id}" data-count="1">Sat</button>
+      `
       this.contentEl.appendChild(row)
     }
 
@@ -237,9 +242,14 @@ export class EmpirePanel {
     this.contentEl.appendChild(card)
 
     for (const p of owned) {
+      const cnt = state.producers[p.id] ?? 0
       const row = document.createElement('div')
       row.className = 'empire-owned-chip empire-owned-dark'
-      row.textContent = `${p.emoji} ${p.name} ×${state.producers[p.id]} · ${formatIncomeRate(state.producerIncome(p))}`
+      row.innerHTML = `
+        <span>${p.emoji} ${p.name} ×${cnt}</span>
+        <span class="empire-chip-income">${formatIncomeRate(state.producerIncome(p))}</span>
+        <button type="button" class="btn-secondary btn-sm empire-sell-btn" data-action="sell-producer" data-id="${p.id}" data-count="1">Sat</button>
+      `
       this.contentEl.appendChild(row)
     }
 
