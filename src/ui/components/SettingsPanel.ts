@@ -5,6 +5,7 @@ import { THEMES, type ThemeId } from '../../game/Themes'
 import { APP_TITLE, APP_VERSION } from '../../appVersion'
 import { rescheduleFromPrefs, isWebPushSupported, isNativePlatform } from '../../notifications/NotificationManager'
 import { i18n, LANG_META, t, type LangCode } from '../../i18n'
+import { COUNTRIES } from '../../game/Countries'
 
 export class SettingsPanel {
   readonly layer: HTMLElement
@@ -124,6 +125,20 @@ export class SettingsPanel {
       langGrid.appendChild(btn)
     }
     body.appendChild(langGrid)
+
+    body.appendChild(this.sectionTitle('🌍 Ülke / Country'))
+    const countryGrid = document.createElement('div')
+    countryGrid.className = 'settings-country-grid'
+    for (const c of COUNTRIES) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `settings-country-btn${this.state.country === c.id ? ' active' : ''}`
+      btn.dataset.action = 'set-country'
+      btn.dataset.id = c.id
+      btn.innerHTML = `<span class="country-flag">${c.flag}</span><span class="country-name">${c.name}</span>`
+      countryGrid.appendChild(btn)
+    }
+    body.appendChild(countryGrid)
 
     body.appendChild(this.sectionTitle('Görünüm'))
 

@@ -293,6 +293,8 @@ export const ECONOMY_TIER_COST_BONUS = 0.075
 /** Gelir maliyetle aynı ölçekte — ROI korunur */
 export const ECONOMY_INCOME_SCALE = ECONOMY_COST_SCALE
 export const ECONOMY_BASE_INCOME_MULT = ECONOMY_BASE_COST_MULT * 1.35
+/** Gelir/maliyet oranı — BitLife benzeri uzun ROI için düşürüldü */
+export const ECONOMY_INCOME_RATIO = 0.10
 export const ECONOMY_UPGRADE_COST_SCALE = 1.45
 export const EARLY_UNLOCK_COST_SCALE = 1.65
 
@@ -330,7 +332,9 @@ export function scaledUnlockAt(def: ProducerDef): number {
 }
 
 export function scaledBaseIncome(baseIncome: number, def?: ProducerDef): number {
-  const mult = def ? producerEconomyMult(def) : ECONOMY_INCOME_SCALE * ECONOMY_BASE_INCOME_MULT
+  const mult = def
+    ? producerEconomyMult(def) * ECONOMY_INCOME_RATIO
+    : ECONOMY_INCOME_SCALE * ECONOMY_BASE_INCOME_MULT * ECONOMY_INCOME_RATIO
   return Math.max(1, Math.floor(baseIncome * mult))
 }
 

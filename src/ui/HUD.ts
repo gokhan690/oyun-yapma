@@ -45,6 +45,7 @@ import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
 import { navLockReason, isShopHubLocked, shopHubLockReason } from '../game/ProgressiveUnlock'
 import { i18n, type LangCode } from '../i18n'
+import { applyCountry, type CountryId } from '../game/Countries'
 
 export class HUD {
   private root: HTMLElement
@@ -1190,6 +1191,16 @@ export class HUD {
         }
         break
       }
+      case 'set-country': {
+        if (id) {
+          this.state.country = id as CountryId
+          applyCountry(id as CountryId)
+          this.saveManager.save(this.state)
+          this.settings.rebuild()
+          this.modals.showToast(this.root, `🌍 Ülke değiştirildi`)
+        }
+        break
+      }
       case 'restart-tutorial':
         this.settings.hide()
         this.tutorial.restart()
@@ -1656,14 +1667,48 @@ export class HUD {
       }
       case 'buy-residence': {
         const ok = id ? this.state.buyResidence(id as import('../game/Lifestyle').ResidenceId) : false
-        if (ok) { this.modals.showToast(this.root, '🏠 Konut değiştirildi!'); this.lifestylePanel.render(this.state) }
+        if (ok) { this.modals.showToast(this.root, '🏠 Mülk satın alındı!'); this.lifestylePanel.render(this.state) }
         else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
+        break
+      }
+      case 'move-to-residence': {
+        if (id) { this.state.lifestyle.residence = id as import('../game/Lifestyle').ResidenceId; this.lifestylePanel.render(this.state) }
+        break
+      }
+      case 'sell-residence': {
+        const ok = id ? this.state.sellResidence(id as import('../game/Lifestyle').ResidenceId) : false
+        if (ok) { this.modals.showToast(this.root, '💰 Mülk satıldı!'); this.lifestylePanel.render(this.state); this.statsBar.render() }
+        break
+      }
+      case 'rent-out-residence': {
+        if (id) { this.state.setRentResidence(id as import('../game/Lifestyle').ResidenceId, true); this.lifestylePanel.render(this.state) }
+        break
+      }
+      case 'stop-rent-residence': {
+        if (id) { this.state.setRentResidence(id as import('../game/Lifestyle').ResidenceId, false); this.lifestylePanel.render(this.state) }
         break
       }
       case 'buy-vehicle': {
         const ok = id ? this.state.buyVehicle(id as import('../game/Lifestyle').VehicleId) : false
         if (ok) { this.modals.showToast(this.root, '🚗 Araç alındı!'); this.lifestylePanel.render(this.state) }
         else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
+        break
+      }
+      case 'use-vehicle': {
+        if (id) { this.state.lifestyle.vehicle = id as import('../game/Lifestyle').VehicleId; this.lifestylePanel.render(this.state) }
+        break
+      }
+      case 'sell-vehicle': {
+        const ok = id ? this.state.sellVehicle(id as import('../game/Lifestyle').VehicleId) : false
+        if (ok) { this.modals.showToast(this.root, '💰 Araç satıldı!'); this.lifestylePanel.render(this.state); this.statsBar.render() }
+        break
+      }
+      case 'rent-out-vehicle': {
+        if (id) { this.state.setRentVehicle(id as import('../game/Lifestyle').VehicleId, true); this.lifestylePanel.render(this.state) }
+        break
+      }
+      case 'stop-rent-vehicle': {
+        if (id) { this.state.setRentVehicle(id as import('../game/Lifestyle').VehicleId, false); this.lifestylePanel.render(this.state) }
         break
       }
       case 'buy-pet': {

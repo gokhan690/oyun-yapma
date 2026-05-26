@@ -220,6 +220,13 @@ export const WELLBEING_ACTIVITIES: WellbeingActivityDef[] = [
   },
 ]
 
+export interface OwnedPropertyEntry {
+  id: string
+  purchasedDay: number
+  isRenting: boolean
+  rentalMonthlyIncome: number
+}
+
 export interface LifestyleState {
   residence: ResidenceId
   vehicle: VehicleId
@@ -229,6 +236,8 @@ export interface LifestyleState {
   meditationLevel: number
   therapyActiveUntilDay: number
   vacationActiveUntilDay: number
+  ownedResidences: OwnedPropertyEntry[]
+  ownedVehicles: OwnedPropertyEntry[]
 }
 
 export function createLifestyleState(): LifestyleState {
@@ -241,7 +250,44 @@ export function createLifestyleState(): LifestyleState {
     meditationLevel: 0,
     therapyActiveUntilDay: 0,
     vacationActiveUntilDay: 0,
+    ownedResidences: [],
+    ownedVehicles: [],
   }
+}
+
+export function lifestyleRentalIncome(ls: LifestyleState): number {
+  let income = 0
+  for (const entry of ls.ownedResidences) {
+    if (entry.isRenting) income += entry.rentalMonthlyIncome
+  }
+  for (const entry of ls.ownedVehicles) {
+    if (entry.isRenting) income += entry.rentalMonthlyIncome
+  }
+  return income
+}
+
+export function residenceSellValue(id: ResidenceId): number {
+  const def = RESIDENCES.find((r) => r.id === id)
+  if (!def || def.buyCost <= 0) return 0
+  return Math.floor(def.buyCost * 0.75)
+}
+
+export function vehicleSellValue(id: VehicleId): number {
+  const def = VEHICLES.find((v) => v.id === id)
+  if (!def || def.buyCost <= 0) return 0
+  return Math.floor(def.buyCost * 0.65)
+}
+
+export function defaultRentalIncome(id: ResidenceId): number {
+  const def = RESIDENCES.find((r) => r.id === id)
+  if (!def || def.buyCost <= 0) return 0
+  return Math.floor(def.buyCost * 0.005)
+}
+
+export function defaultVehicleRentalIncome(id: VehicleId): number {
+  const def = VEHICLES.find((v) => v.id === id)
+  if (!def || def.buyCost <= 0) return 0
+  return Math.floor(def.buyCost * 0.003)
 }
 
 export function residenceDef(id: ResidenceId): ResidenceDef {

@@ -6,9 +6,14 @@ import {
   PETS,
   WELLBEING_ACTIVITIES,
   lifestyleMonthlyExpense,
+  lifestyleRentalIncome,
+  residenceSellValue,
+  vehicleSellValue,
   stressIncomePenalty,
   stressLabel,
   stressEmoji,
+  type ResidenceId,
+  type VehicleId,
 } from '../../game/Lifestyle'
 import { gameDay } from '../../game/GameClock'
 
@@ -33,12 +38,16 @@ export class LifestylePanel {
     // Stres barı
     this.root.appendChild(this.renderStressBar(state))
 
-    // Aylık yaşam giderleri
+    // Aylık yaşam giderleri ve kira geliri
     const monthlyExp = lifestyleMonthlyExpense(ls)
-    if (monthlyExp > 0) {
+    const rentalInc = lifestyleRentalIncome(ls)
+    if (monthlyExp > 0 || rentalInc > 0) {
       const expChip = document.createElement('div')
       expChip.className = 'lifestyle-expense-chip'
-      expChip.innerHTML = `<span>💸 Aylık yaşam gideri:</span><strong>${formatMoney(monthlyExp)}</strong>`
+      let txt = ''
+      if (monthlyExp > 0) txt += `<span>💸 Aylık gider: <strong>${formatMoney(monthlyExp)}</strong></span>`
+      if (rentalInc > 0) txt += `<span>🏠 Kira geliri: <strong>+${formatMoney(rentalInc)}</strong>/ay</span>`
+      expChip.innerHTML = txt
       this.root.appendChild(expChip)
     }
 
@@ -99,13 +108,86 @@ export class LifestylePanel {
 
   private renderResidences(state: GameState): HTMLElement {
     const section = this.sectionBlock('🏠 Konut')
+    const ls = state.lifestyle
+
+    // Owned properties portfolio
+    if (ls.ownedResidences.length > 0) {
+      const portfolioTitle = document.createElement('p')
+      portfolioTitle.className = 'lifestyle-portfolio-title'
+      portfolioTitle.textContent = '📋 Portföyündeki Mülkler'
+      section.appendChild(portfolioTitle)
+
+      const portfolioGrid = document.createElement('div')
+      portfolioGrid.className = 'lifestyle-portfolio-grid'
+      for (const entry of ls.ownedResidences) {
+        const res = RESIDENCES.find((r) => r.id === entry.id)
+        if (!res) continue
+        const isLiving = ls.residence === entry.id
+        const pCard = document.createElement('div')
+        pCard.className = `lifestyle-portfolio-card${isLiving ? ' current' : ''}${entry.isRenting ? ' renting' : ''}`
+        const pTop = document.createElement('div')
+        pTop.className = 'lifestyle-portfolio-top'
+        pTop.innerHTML = `<span class="lp-emoji">${res.emoji}</span><span class="lp-name">${res.name}</span>`
+        if (isLiving) pTop.innerHTML += `<span class="lp-badge live">🏠 Yaşıyorsun</span>`
+        if (entry.isRenting) pTop.innerHTML += `<span class="lp-badge rent">💰 Kirada +${formatMoney(entry.rentalMonthlyIncome)}/ay</span>`
+        pCard.appendChild(pTop)
+        const pActions = document.createElement('div')
+        pActions.className = 'lifestyle-portfolio-actions'
+        if (!isLiving) {
+          const moveBtn = document.createElement('button')
+          moveBtn.type = 'button'
+          moveBtn.className = 'btn-sm btn-outline'
+          moveBtn.dataset.action = 'move-to-residence'
+          moveBtn.dataset.id = entry.id
+          moveBtn.textContent = 'Taşın'
+          pActions.appendChild(moveBtn)
+        }
+        if (!entry.isRenting && !isLiving) {
+          const rentBtn = document.createElement('button')
+          rentBtn.type = 'button'
+          rentBtn.className = 'btn-sm btn-accent'
+          rentBtn.dataset.action = 'rent-out-residence'
+          rentBtn.dataset.id = entry.id
+          rentBtn.textContent = `Kiraya Ver (+${formatMoney(entry.rentalMonthlyIncome)}/ay)`
+          pActions.appendChild(rentBtn)
+        } else if (entry.isRenting) {
+          const stopRentBtn = document.createElement('button')
+          stopRentBtn.type = 'button'
+          stopRentBtn.className = 'btn-sm btn-outline'
+          stopRentBtn.dataset.action = 'stop-rent-residence'
+          stopRentBtn.dataset.id = entry.id
+          stopRentBtn.textContent = 'Kiralamayı Durdur'
+          pActions.appendChild(stopRentBtn)
+        }
+        if (!isLiving) {
+          const sellBtn = document.createElement('button')
+          sellBtn.type = 'button'
+          sellBtn.className = 'btn-sm btn-danger'
+          sellBtn.dataset.action = 'sell-residence'
+          sellBtn.dataset.id = entry.id
+          sellBtn.textContent = `Sat (${formatMoney(residenceSellValue(entry.id as ResidenceId))})`
+          pActions.appendChild(sellBtn)
+        }
+        pCard.appendChild(pActions)
+        portfolioGrid.appendChild(pCard)
+      }
+      section.appendChild(portfolioGrid)
+    }
+
+    const buyTitle = document.createElement('p')
+    buyTitle.className = 'lifestyle-portfolio-title'
+    buyTitle.textContent = '🏗️ Yeni Mülk Satın Al'
+    section.appendChild(buyTitle)
+
     const grid = document.createElement('div')
     grid.className = 'lifestyle-grid'
 
     for (const res of RESIDENCES) {
-      const owned = state.lifestyle.residence === res.id
+      const isCurrentLiving = ls.residence === res.id
+      const alreadyOwned = ls.ownedResidences.some((e) => e.id === res.id)
+      if (alreadyOwned && res.buyCost > 0) continue // Hide already-owned ones from buy list
       const card = document.createElement('div')
-      card.className = `lifestyle-card${owned ? ' owned' : ''}`
+      card.className = `lifestyle-card${isCurrentLiving ? ' owned' : ''}`
 
       const emoji = document.createElement('div')
       emoji.className = 'lifestyle-card-emoji'
@@ -131,7 +213,7 @@ export class LifestylePanel {
 
       card.append(emoji, info, cost)
 
-      if (!owned) {
+      if (!isCurrentLiving) {
         const btn = document.createElement('button')
         btn.type = 'button'
         btn.className = 'btn-primary btn-sm lifestyle-buy-btn'
@@ -156,13 +238,85 @@ export class LifestylePanel {
 
   private renderVehicles(state: GameState): HTMLElement {
     const section = this.sectionBlock('🚗 Araç')
+    const ls = state.lifestyle
+
+    if (ls.ownedVehicles.length > 0) {
+      const portfolioTitle = document.createElement('p')
+      portfolioTitle.className = 'lifestyle-portfolio-title'
+      portfolioTitle.textContent = '🚘 Araç Portföyün'
+      section.appendChild(portfolioTitle)
+
+      const portfolioGrid = document.createElement('div')
+      portfolioGrid.className = 'lifestyle-portfolio-grid'
+      for (const entry of ls.ownedVehicles) {
+        const veh = VEHICLES.find((v) => v.id === entry.id)
+        if (!veh) continue
+        const isCurrent = ls.vehicle === entry.id
+        const pCard = document.createElement('div')
+        pCard.className = `lifestyle-portfolio-card${isCurrent ? ' current' : ''}${entry.isRenting ? ' renting' : ''}`
+        const pTop = document.createElement('div')
+        pTop.className = 'lifestyle-portfolio-top'
+        pTop.innerHTML = `<span class="lp-emoji">${veh.emoji}</span><span class="lp-name">${veh.name}</span>`
+        if (isCurrent) pTop.innerHTML += `<span class="lp-badge live">🚗 Kullanıyorsun</span>`
+        if (entry.isRenting) pTop.innerHTML += `<span class="lp-badge rent">💰 Kirada +${formatMoney(entry.rentalMonthlyIncome)}/ay</span>`
+        pCard.appendChild(pTop)
+        const pActions = document.createElement('div')
+        pActions.className = 'lifestyle-portfolio-actions'
+        if (!isCurrent) {
+          const useBtn = document.createElement('button')
+          useBtn.type = 'button'
+          useBtn.className = 'btn-sm btn-outline'
+          useBtn.dataset.action = 'use-vehicle'
+          useBtn.dataset.id = entry.id
+          useBtn.textContent = 'Kullan'
+          pActions.appendChild(useBtn)
+        }
+        if (!entry.isRenting && !isCurrent) {
+          const rentBtn = document.createElement('button')
+          rentBtn.type = 'button'
+          rentBtn.className = 'btn-sm btn-accent'
+          rentBtn.dataset.action = 'rent-out-vehicle'
+          rentBtn.dataset.id = entry.id
+          rentBtn.textContent = `Kiraya Ver (+${formatMoney(entry.rentalMonthlyIncome)}/ay)`
+          pActions.appendChild(rentBtn)
+        } else if (entry.isRenting) {
+          const stopRentBtn = document.createElement('button')
+          stopRentBtn.type = 'button'
+          stopRentBtn.className = 'btn-sm btn-outline'
+          stopRentBtn.dataset.action = 'stop-rent-vehicle'
+          stopRentBtn.dataset.id = entry.id
+          stopRentBtn.textContent = 'Kiralamayı Durdur'
+          pActions.appendChild(stopRentBtn)
+        }
+        if (!isCurrent) {
+          const sellBtn = document.createElement('button')
+          sellBtn.type = 'button'
+          sellBtn.className = 'btn-sm btn-danger'
+          sellBtn.dataset.action = 'sell-vehicle'
+          sellBtn.dataset.id = entry.id
+          sellBtn.textContent = `Sat (${formatMoney(vehicleSellValue(entry.id as VehicleId))})`
+          pActions.appendChild(sellBtn)
+        }
+        pCard.appendChild(pActions)
+        portfolioGrid.appendChild(pCard)
+      }
+      section.appendChild(portfolioGrid)
+    }
+
+    const buyTitle = document.createElement('p')
+    buyTitle.className = 'lifestyle-portfolio-title'
+    buyTitle.textContent = '🏎️ Yeni Araç Al'
+    section.appendChild(buyTitle)
+
     const grid = document.createElement('div')
     grid.className = 'lifestyle-grid'
 
     for (const veh of VEHICLES) {
-      const owned = state.lifestyle.vehicle === veh.id
+      const isCurrent = ls.vehicle === veh.id
+      const alreadyOwned = ls.ownedVehicles.some((e) => e.id === veh.id)
+      if (alreadyOwned && veh.buyCost > 0) continue
       const card = document.createElement('div')
-      card.className = `lifestyle-card${owned ? ' owned' : ''}`
+      card.className = `lifestyle-card${isCurrent ? ' owned' : ''}`
 
       const emoji = document.createElement('div')
       emoji.className = 'lifestyle-card-emoji'
@@ -194,7 +348,7 @@ export class LifestylePanel {
 
       card.append(emoji, info, cost)
 
-      if (!owned) {
+      if (!isCurrent) {
         const btn = document.createElement('button')
         btn.type = 'button'
         btn.className = 'btn-primary btn-sm lifestyle-buy-btn'

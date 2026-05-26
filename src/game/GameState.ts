@@ -286,9 +286,14 @@ import type { RivalAllianceOffer } from './Rivals'
 import {
   createLifestyleState,
   lifestyleMonthlyExpense,
+  lifestyleRentalIncome,
   lifestyleVehicleIncomeMult,
   stressIncomePenalty,
   dailyStressDelta,
+  residenceSellValue,
+  vehicleSellValue,
+  defaultRentalIncome,
+  defaultVehicleRentalIncome,
   RESIDENCES,
   VEHICLES,
   PETS,
@@ -3580,6 +3585,11 @@ export class GameState {
         this.money -= expense
         this.emit({ type: 'money_changed' })
       }
+      const rentalInc = lifestyleRentalIncome(ls)
+      if (rentalInc > 0) {
+        this.money += rentalInc
+        this.emit({ type: 'money_changed' })
+      }
     }
   }
 
@@ -3648,6 +3658,42 @@ export class GameState {
       this.emit({ type: 'money_changed' })
     }
     this.lifestyle.residence = id
+    // Add to owned list (keep old ones)
+    const alreadyOwned = this.lifestyle.ownedResidences.some((e) => e.id === id)
+    if (!alreadyOwned && res.buyCost > 0) {
+      this.lifestyle.ownedResidences.push({
+        id,
+        purchasedDay: gameDay(this.gameTimeMs),
+        isRenting: false,
+        rentalMonthlyIncome: defaultRentalIncome(id),
+      })
+    }
+    return true
+  }
+
+  sellResidence(id: ResidenceId): boolean {
+    const idx = this.lifestyle.ownedResidences.findIndex((e) => e.id === id)
+    if (idx < 0) return false
+    if (this.lifestyle.residence === id) {
+      this.lifestyle.residence = 'kira'
+    }
+    const sellVal = residenceSellValue(id)
+    if (sellVal > 0) {
+      this.money += sellVal
+      this.emit({ type: 'money_changed' })
+    }
+    this.lifestyle.ownedResidences.splice(idx, 1)
+    return true
+  }
+
+  setRentResidence(id: ResidenceId, renting: boolean): boolean {
+    const entry = this.lifestyle.ownedResidences.find((e) => e.id === id)
+    if (!entry) return false
+    if (renting && this.lifestyle.residence === id) {
+      // Can't rent out the one you live in
+      return false
+    }
+    entry.isRenting = renting
     return true
   }
 
@@ -3660,6 +3706,38 @@ export class GameState {
       this.emit({ type: 'money_changed' })
     }
     this.lifestyle.vehicle = id
+    const alreadyOwned = this.lifestyle.ownedVehicles.some((e) => e.id === id)
+    if (!alreadyOwned && veh.buyCost > 0) {
+      this.lifestyle.ownedVehicles.push({
+        id,
+        purchasedDay: gameDay(this.gameTimeMs),
+        isRenting: false,
+        rentalMonthlyIncome: defaultVehicleRentalIncome(id),
+      })
+    }
+    return true
+  }
+
+  sellVehicle(id: VehicleId): boolean {
+    const idx = this.lifestyle.ownedVehicles.findIndex((e) => e.id === id)
+    if (idx < 0) return false
+    if (this.lifestyle.vehicle === id) {
+      this.lifestyle.vehicle = 'yuruyus'
+    }
+    const sellVal = vehicleSellValue(id)
+    if (sellVal > 0) {
+      this.money += sellVal
+      this.emit({ type: 'money_changed' })
+    }
+    this.lifestyle.ownedVehicles.splice(idx, 1)
+    return true
+  }
+
+  setRentVehicle(id: VehicleId, renting: boolean): boolean {
+    const entry = this.lifestyle.ownedVehicles.find((e) => e.id === id)
+    if (!entry) return false
+    if (renting && this.lifestyle.vehicle === id) return false
+    entry.isRenting = renting
     return true
   }
 
@@ -4478,7 +4556,30 @@ export class GameState {
     this.removeAdsOwned = data.removeAdsOwned ?? false
     this.vipPassActive = data.vipPassActive ?? false
     if (data.lifestyle) {
-      this.lifestyle = { ...createLifestyleState(), ...data.lifestyle, pets: [...(data.lifestyle.pets ?? [])] }
+      this.lifestyle = {
+        ...createLifestyleState(),
+        ...data.lifestyle,
+        pets: [...(data.lifestyle.pets ?? [])],
+        ownedResidences: [...(data.lifestyle.ownedResidences ?? [])],
+        ownedVehicles: [...(data.lifestyle.ownedVehicles ?? [])],
+      }
+      // Migrate: if old save has residence != 'kira' and no ownedResidences, backfill
+      if (this.lifestyle.ownedResidences.length === 0 && this.lifestyle.residence !== 'kira') {
+        this.lifestyle.ownedResidences = [{
+          id: this.lifestyle.residence,
+          purchasedDay: 0,
+          isRenting: false,
+          rentalMonthlyIncome: defaultRentalIncome(this.lifestyle.residence as ResidenceId),
+        }]
+      }
+      if (this.lifestyle.ownedVehicles.length === 0 && this.lifestyle.vehicle !== 'yuruyus') {
+        this.lifestyle.ownedVehicles = [{
+          id: this.lifestyle.vehicle,
+          purchasedDay: 0,
+          isRenting: false,
+          rentalMonthlyIncome: defaultVehicleRentalIncome(this.lifestyle.vehicle as VehicleId),
+        }]
+      }
     }
     this.lifeEvents = data.lifeEvents ?? []
     this.pendingConsequences = data.pendingConsequences ?? []
