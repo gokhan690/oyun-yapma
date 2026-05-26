@@ -1,3 +1,5 @@
+import { tRaw } from '../i18n'
+
 export interface SynergyDef {
   id: string
   name: string
@@ -5,6 +7,10 @@ export interface SynergyDef {
   effect: 'global' | 'producer'
   targetProducer?: string
   bonus: number
+}
+
+export function synergyName(s: SynergyDef): string {
+  return tRaw('syn_' + s.id) ?? s.name
 }
 
 export const SYNERGIES: SynergyDef[] = [

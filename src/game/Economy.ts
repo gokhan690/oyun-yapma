@@ -1,3 +1,5 @@
+import { tRaw } from '../i18n'
+
 export type ProducerCategory = 'sport' | 'politics' | 'dark' | 'luxury' | 'finance' | 'science'
 
 export interface ProducerDef {
@@ -428,4 +430,20 @@ export function formatIncomeRate(value: number): string {
 export function formatIncomeRateHint(value: number): string {
   if (value <= 0) return 'Pasif gelir yok'
   return `${formatIncomeRate(value)} pasif · 5 sn = 1 oyun günü (tıklama ayrı)`
+}
+
+export function producerName(p: ProducerDef): string {
+  return tRaw('biz_' + p.id) ?? p.name
+}
+
+export function producerDesc(p: ProducerDef): string {
+  return tRaw('biz_' + p.id + '_desc') ?? p.description
+}
+
+export function upgradeName(u: UpgradeDef): string {
+  return tRaw('upg_' + u.id) ?? u.name
+}
+
+export function upgradeDesc(u: UpgradeDef): string {
+  return tRaw('upg_' + u.id + '_desc') ?? u.description
 }

@@ -1,3 +1,5 @@
+import { tRaw } from '../i18n'
+
 export type ResearchBranch = 'operasyon' | 'finans' | 'imparatorluk'
 
 export interface ResearchNode {
@@ -307,4 +309,12 @@ export function researchHeatGainReduction(levels: Record<string, number>): numbe
 
 export function researchNodesByBranch(branch: ResearchBranch): ResearchNode[] {
   return RESEARCH_NODES.filter((n) => n.branch === branch)
+}
+
+export function researchNodeName(n: ResearchNode): string {
+  return tRaw('res_' + n.id) ?? n.name
+}
+
+export function researchNodeDesc(n: ResearchNode): string {
+  return tRaw('res_' + n.id + '_desc') ?? n.description
 }

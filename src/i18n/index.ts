@@ -59,7 +59,12 @@ class I18nManager {
   t(key: keyof Translations): string {
     return (this.dict[key] as string) ?? (LOCALES.tr[key] as string) ?? key
   }
+
+  tRaw(key: string): string | undefined {
+    return (this.dict as unknown as Record<string, string>)[key] ?? (LOCALES.tr as unknown as Record<string, string>)[key]
+  }
 }
 
 export const i18n = new I18nManager()
 export const t = (key: keyof Translations): string => i18n.t(key)
+export const tRaw = (key: string): string | undefined => i18n.tRaw(key)

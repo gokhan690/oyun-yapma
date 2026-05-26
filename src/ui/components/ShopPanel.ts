@@ -1,9 +1,10 @@
 import type { GameState } from '../../game/GameState'
-import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, producerIconPath, earlyUnlockCost, isProducerUnlocked, scaledUnlockAt, scaledBaseIncome, producerCategory, type ProducerDef, type UpgradeDef } from '../../game/Economy'
-import { RESEARCH_NODES, researchCost, researchNodesByBranch, researchIsUnlocked, researchPrereqName, type ResearchBranch } from '../../game/Research'
+import { PRODUCERS, UPGRADES, formatMoney, formatIncomeRate, producerIconPath, earlyUnlockCost, isProducerUnlocked, scaledUnlockAt, scaledBaseIncome, producerCategory, producerName, producerDesc, upgradeName, upgradeDesc, type ProducerDef, type UpgradeDef } from '../../game/Economy'
+import { RESEARCH_NODES, researchCost, researchNodesByBranch, researchIsUnlocked, researchPrereqName, researchNodeName, researchNodeDesc, type ResearchBranch } from '../../game/Research'
 import { reputationLoanBlocked } from '../../game/Reputation'
 import { NAMED_MANAGERS } from '../../game/NamedManagers'
-import { getActiveSynergies, getNearSynergies } from '../../game/Synergies'
+import { getActiveSynergies, getNearSynergies, synergyName } from '../../game/Synergies'
+import { tRaw } from '../../i18n'
 import {
   isShopHubLocked,
   shopHubLockReason,
@@ -743,7 +744,7 @@ export class ShopPanel {
     const ownedBiz = PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0).length
     const nextUnlock = PRODUCERS.find((p) => !isProducerUnlocked(p, state.totalEarned, state.forcedUnlocks))
     const goalPct = Math.floor(dailyGoalProgress(state.dailyGoalEarned, scaledDailyGoalTarget(state.incomePerDay())))
-    const nextText = nextUnlock ? `${nextUnlock.emoji} ${nextUnlock.name}` : 'Hepsi açık'
+    const nextText = nextUnlock ? `${nextUnlock.emoji} ${producerName(nextUnlock)}` : (tRaw('shop_all_unlocked') ?? 'Hepsi açık')
     const hasIllegal = illegalIpd > 0
     const heatPct = Math.round(state.illegalHeat)
     const illegalStat = hasIllegal
@@ -831,7 +832,7 @@ export class ShopPanel {
       seg.className = 'revenue-seg'
       seg.style.flex = String(e.income / total)
       seg.style.background = colors[i] ?? 'var(--muted)'
-      seg.title = `${e.p.name}: ${formatIncomeRate(e.income)}`
+      seg.title = `${producerName(e.p)}: ${formatIncomeRate(e.income)}`
       bar.appendChild(seg)
     })
     el.appendChild(bar)
@@ -1044,16 +1045,16 @@ export class ShopPanel {
     panel.querySelector('.empire-shop-hero')?.remove()
     const hero = document.createElement('div')
     hero.className = 'shop-tab-hero empire-shop-hero'
-    const titles: Record<EmpireSub, { icon: string; title: string; desc: string }> = {
-      sport: { icon: '⚽', title: 'Futbol İmparatorluğu', desc: 'Kulüp satın al, İmparatorluk sekmesinden yönet.' },
-      politics: { icon: '🏛️', title: 'Siyasi Kariyer', desc: 'Meclisten küresel lobi gücüne.' },
-      dark: { icon: '🏭', title: 'Siyah Endüstri', desc: 'Yüksek gelir, yüksek radar riski.' },
-      luxury: { icon: '💎', title: 'Lüks İmparatorluk', desc: 'Yat, F1, casino — milyarder oyuncakları.' },
-      finance: { icon: '📈', title: 'Finans Gücü', desc: 'Fon, banka, PE — sermaye ile hükmet.' },
-      science: { icon: '🔬', title: 'Bilim & Uzay', desc: 'Ar-Ge, uzay istasyonu, biyotek.' },
+    const titles: Record<EmpireSub, { icon: string; titleKey: string; title: string; desc: string }> = {
+      sport: { icon: '⚽', titleKey: 'cat_sport', title: 'Futbol İmparatorluğu', desc: 'Kulüp satın al, İmparatorluk sekmesinden yönet.' },
+      politics: { icon: '🏛️', titleKey: 'cat_politics', title: 'Siyasi Kariyer', desc: 'Meclisten küresel lobi gücüne.' },
+      dark: { icon: '🏭', titleKey: 'cat_dark', title: 'Siyah Endüstri', desc: 'Yüksek gelir, yüksek radar riski.' },
+      luxury: { icon: '💎', titleKey: 'cat_luxury', title: 'Lüks İmparatorluk', desc: 'Yat, F1, casino — milyarder oyuncakları.' },
+      finance: { icon: '📈', titleKey: 'cat_finance', title: 'Finans Gücü', desc: 'Fon, banka, PE — sermaye ile hükmet.' },
+      science: { icon: '🔬', titleKey: 'cat_science', title: 'Bilim & Uzay', desc: 'Ar-Ge, uzay istasyonu, biyotek.' },
     }
     const t = titles[category]
-    hero.innerHTML = `<span class="shop-tab-hero-icon">${t.icon}</span><div class="shop-tab-hero-text"><strong>${t.title}</strong><small>${t.desc}</small></div>`
+    hero.innerHTML = `<span class="shop-tab-hero-icon">${t.icon}</span><div class="shop-tab-hero-text"><strong>${tRaw(t.titleKey) ?? t.title}</strong><small>${t.desc}</small></div>`
     panel.prepend(hero)
 
     const grid = this.getCardsGrid(panel)
@@ -1101,7 +1102,7 @@ export class ShopPanel {
         inner.innerHTML = `
           <span class="biz-emoji-display">${p.emoji}</span>
           <div class="biz-locked-info">
-            <strong>🔒 ${p.name}</strong>
+            <strong>🔒 ${producerName(p)}</strong>
             <small>${formatMoney(unlockAt)} kazançta açılır</small>
             <small class="biz-locked-tier">Tier ${p.tier} · +${formatIncomeRate(scaledBaseIncome(p.baseIncome, p))}</small>
           </div>
@@ -1144,7 +1145,7 @@ export class ShopPanel {
     panel.querySelector('.underground-tree-section')?.remove()
     const section = document.createElement('div')
     section.className = 'underground-tree-section'
-    section.appendChild(this.createSectionHeader('Underground Ağacı', 'Gelir · Risk · Gizlilik'))
+    section.appendChild(this.createSectionHeader(tRaw('cat_underground') ?? 'Underground Ağacı', 'Gelir · Risk · Gizlilik'))
     const grid = document.createElement('div')
     grid.className = 'underground-tree-grid'
     for (const node of UNDERGROUND_TREE_NODES) {
@@ -1157,7 +1158,7 @@ export class ShopPanel {
       card.dataset.action = 'buy-underground-node'
       card.dataset.id = node.id
       card.disabled = maxed || !state.canAfford(cost)
-      card.innerHTML = `<span class="shop-card-icon">${node.emoji}</span><div class="shop-card-body"><strong>${node.name}</strong><small>${node.description}</small><span class="shop-level-label">${level}/${node.maxLevel}</span></div><span class="shop-card-price">${maxed ? 'Tamam' : formatMoney(cost)}</span>`
+      card.innerHTML = `<span class="shop-card-icon">${node.emoji}</span><div class="shop-card-body"><strong>${tRaw('res_' + node.id) ?? node.name}</strong><small>${tRaw('res_' + node.id + '_desc') ?? node.description}</small><span class="shop-level-label">${level}/${node.maxLevel}</span></div><span class="shop-card-price">${maxed ? (tRaw('res_maxed') ?? 'Tamam') : formatMoney(cost)}</span>`
       grid.appendChild(card)
     }
     section.appendChild(grid)
@@ -1186,10 +1187,11 @@ export class ShopPanel {
         this.synergyEl.className = 'synergy-bar synergy-card'
         panel.prepend(this.synergyEl)
       }
-      const activeDetail = synergies.map((s) => `${s.def.name} (+${Math.round(s.def.bonus * 100)}%)`).join(' · ')
+      const activeDetail = synergies.map((s) => `${synergyName(s.def)} (+${Math.round(s.def.bonus * 100)}%)`).join(' · ')
       const nearDetail = near.slice(0, 3).map((n) => {
-        const missingName = PRODUCERS.find((p) => p.id === n.missing[0])?.name ?? n.missing[0]
-        return `${n.def.name} → ${missingName}`
+        const missingP = PRODUCERS.find((p) => p.id === n.missing[0])
+        const missingName = missingP ? producerName(missingP) : n.missing[0]
+        return `${synergyName(n.def)} → ${missingName}`
       }).join(' · ')
       this.synergyEl.innerHTML = [
         synergies.length > 0 ? `<strong>⚡ Sinerji aktif</strong><span>${activeDetail}</span>` : '',
@@ -1402,9 +1404,9 @@ export class ShopPanel {
     const info = document.createElement('div')
     info.className = 'biz-info-block'
     const name = document.createElement('strong')
-    name.textContent = p.name
+    name.textContent = producerName(p)
     const desc = document.createElement('small')
-    desc.textContent = p.description
+    desc.textContent = producerDesc(p)
     info.append(name, desc)
     left.append(iconWrap, info)
     const countEl = document.createElement('span')
@@ -1504,7 +1506,7 @@ export class ShopPanel {
         synBadge.className = 'biz-synergy-badge'
         card.appendChild(synBadge)
       }
-      synBadge.textContent = `⚡ +${Math.round(s.def.bonus * 100)}% ${s.def.name}`
+      synBadge.textContent = `⚡ +${Math.round(s.def.bonus * 100)}% ${synergyName(s.def)}`
       synBadge.title = 'Aktif sinerji bonusu'
       synBadge.hidden = false
     } else if (synBadge) synBadge.hidden = true
@@ -1518,8 +1520,8 @@ export class ShopPanel {
         nearBadge.className = 'biz-synergy-near'
         card.appendChild(nearBadge)
       }
-      nearBadge.textContent = `⚡ ${n.def.name}`
-      nearBadge.title = `Sinerji için ${n.def.name} — 1 işletme eksik`
+      nearBadge.textContent = `⚡ ${synergyName(n.def)}`
+      nearBadge.title = `Sinerji için ${synergyName(n.def)} — 1 işletme eksik`
       nearBadge.hidden = false
     } else if (nearBadge) nearBadge.hidden = true
 
@@ -1591,7 +1593,7 @@ export class ShopPanel {
         card.appendChild(franchiseBlock)
       }
       franchiseBlock.replaceChildren()
-      appendFranchiseSection(franchiseBlock, p.id, p.name, ownedForFranchise, state)
+      appendFranchiseSection(franchiseBlock, p.id, producerName(p), ownedForFranchise, state)
       franchiseBlock.hidden = franchiseBlock.childElementCount === 0
     } else if (franchiseBlock) {
       franchiseBlock.hidden = true
@@ -1618,7 +1620,7 @@ export class ShopPanel {
       const hired = state.namedManagers.some((h) => h.id === m.id)
       const card = document.createElement('div')
       card.className = `shop-card manager-card${hired ? ' manager-active' : ''}`
-      card.innerHTML = `<strong>${m.emoji} ${m.name}</strong><p>${m.specialty}</p><span>Maaş: ${formatMoney(m.dailySalary)}/gün</span>`
+      card.innerHTML = `<strong>${m.emoji} ${tRaw('mgr_' + m.id + '_name') ?? m.name}</strong><p>${tRaw('mgr_' + m.id + '_specialty') ?? m.specialty}</p><span>Maaş: ${formatMoney(m.dailySalary)}/gün</span>`
       if (!hired) {
         const btn = document.createElement('button')
         btn.type = 'button'
@@ -1666,7 +1668,7 @@ export class ShopPanel {
       const info = document.createElement('div')
       info.className = 'manager-info'
       const name = document.createElement('strong')
-      name.textContent = p.name
+      name.textContent = producerName(p)
       const desc = document.createElement('small')
       desc.textContent = hired ? 'Yönetici aktif (+25% gelir, yokken +50% birikim)' : 'Yönetici işe al — pasif gelir artar'
       const incomeChip = document.createElement('span')
@@ -1787,9 +1789,9 @@ export class ShopPanel {
       const body = document.createElement('div')
       body.className = 'shop-card-body'
       const name = document.createElement('strong')
-      name.textContent = u.name
+      name.textContent = upgradeName(u)
       const desc = document.createElement('small')
-      desc.textContent = u.description
+      desc.textContent = upgradeDesc(u)
       const tag = document.createElement('span')
       tag.className = 'shop-effect-tag'
       tag.textContent = this.upgradeEffectLabel(u)
@@ -1813,7 +1815,7 @@ export class ShopPanel {
       for (const u of purchased) {
         const row = document.createElement('div')
         row.className = 'purchased-upgrade-row'
-        row.innerHTML = `<span>${this.upgradeEffectIcon(u)} ${u.name}</span><small>${this.upgradeEffectLabel(u)}</small>`
+        row.innerHTML = `<span>${this.upgradeEffectIcon(u)} ${upgradeName(u)}</span><small>${this.upgradeEffectLabel(u)}</small>`
         details.appendChild(row)
       }
       panel.appendChild(details)
@@ -1923,9 +1925,9 @@ export class ShopPanel {
         const body = document.createElement('div')
         body.className = 'shop-card-body'
         const name = document.createElement('strong')
-        name.textContent = node.name
+        name.textContent = researchNodeName(node)
         const desc = document.createElement('small')
-        desc.textContent = node.description
+        desc.textContent = researchNodeDesc(node)
 
         if (!prereqMet) {
           const prereqHint = document.createElement('span')
@@ -2320,7 +2322,7 @@ export class ShopPanel {
           const reqNode = PRESTIGE_TREE_NODES.find((n) => n.id === node.requires)
           const reqLine = document.createElement('div')
           reqLine.className = 'prestige-requires-line'
-          reqLine.textContent = reqNode ? `↑ ${reqNode.name}` : '↑ ön koşul'
+          reqLine.textContent = reqNode ? `↑ ${tRaw('res_' + reqNode.id) ?? reqNode.name}` : '↑ ön koşul'
           chain.appendChild(reqLine)
         }
         const card = document.createElement('button')
@@ -2329,7 +2331,7 @@ export class ShopPanel {
         card.dataset.action = owned ? '' : 'buy-tree-node'
         card.dataset.id = node.id
         card.disabled = owned || !canBuy
-        card.innerHTML = `<strong>${node.name}</strong><small>${node.description}</small><span class="tree-node-cost">${owned ? '✓ Alındı' : `${node.cost} puan`}</span>`
+        card.innerHTML = `<strong>${tRaw('res_' + node.id) ?? node.name}</strong><small>${tRaw('res_' + node.id + '_desc') ?? node.description}</small><span class="tree-node-cost">${owned ? '✓ Alındı' : `${node.cost} puan`}</span>`
         chain.appendChild(card)
       }
       col.appendChild(chain)
