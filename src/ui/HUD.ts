@@ -45,6 +45,7 @@ import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
 import { navLockReason, isShopHubLocked, shopHubLockReason } from '../game/ProgressiveUnlock'
 import { i18n, type LangCode } from '../i18n'
+import { applyCountry, type CountryId } from '../game/Countries'
 
 export class HUD {
   private root: HTMLElement
@@ -1187,6 +1188,16 @@ export class HUD {
           this.renderAll()
           this.settings.rebuild()
           this.modals.showToast(this.root, `🌐 ${id.toUpperCase()}`)
+        }
+        break
+      }
+      case 'set-country': {
+        if (id) {
+          this.state.country = id as CountryId
+          applyCountry(id as CountryId)
+          this.saveManager.save(this.state)
+          this.settings.rebuild()
+          this.modals.showToast(this.root, `🌍 Ülke değiştirildi`)
         }
         break
       }

@@ -133,7 +133,11 @@ export class Leaderboard {
       }
       const res = await fetch(`${SUPABASE_URL}/rest/v1/game_leaderboard`, {
         method: 'POST',
-        headers: { ...HEADERS, Prefer: 'return=minimal' },
+        headers: {
+          ...HEADERS,
+          Prefer: 'return=minimal,resolution=merge-duplicates',
+          'on_conflict': 'player_id',
+        },
         body: JSON.stringify(body),
       })
       return res.ok
