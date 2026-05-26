@@ -3699,7 +3699,8 @@ export class GameState {
   private tickInsurance(day: number): void {
     if (day === this.lastInsuranceChargeDay) return
     this.lastInsuranceChargeDay = day
-    const cost = insuranceDailyCost(this.insurance)
+    const totalBiz = Object.values(this.producers).reduce((a, b) => a + (b ?? 0), 0)
+    const cost = insuranceDailyCost(this.insurance, totalBiz, this.ipoCount)
     if (cost > 0 && this.money >= cost) {
       this.money -= cost
       this.emit({ type: 'money_changed' })

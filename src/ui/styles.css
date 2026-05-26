@@ -4397,12 +4397,19 @@ html.theme-galactic {
 .empire-action-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .empire-owned-chip {
   font-size: 0.72rem;
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
   background: var(--surface2);
   border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
-.empire-owned-dark { border-color: rgba(239, 68, 68, 0.35); }
+.empire-owned-chip > span:first-child { flex: 1; font-weight: 600; }
+.empire-chip-income { color: var(--green); font-size: 0.68rem; margin-right: auto; }
+.empire-sell-btn { font-size: 0.65rem; padding: 4px 10px; border-radius: 8px; flex-shrink: 0; }
+.empire-owned-dark { border-color: rgba(239, 68, 68, 0.35); background: rgba(239,68,68,0.06); }
 .empire-hint, .empire-election-note {
   font-size: 0.75rem;
   color: var(--muted);
@@ -7371,3 +7378,79 @@ html.theme-galactic {
   50% { box-shadow: 0 0 0 1px rgba(245,158,11,0.15), 0 8px 50px rgba(0,0,0,0.75), 0 0 30px rgba(245,158,11,0.08), inset 0 1px 0 rgba(245,158,11,0.12); }
 }
 .tap-wrap.combo-glow { animation: combo-edge-pulse 1.2s ease-in-out infinite; }
+
+/* ═══════════════════════
+   SELL QUANTITY SELECTOR
+   ═══════════════════════ */
+.biz-sell-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  padding-top: 2px;
+}
+.biz-sell-wrap .biz-sell-btn {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.72rem;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(239,68,68,0.35);
+  background: rgba(239,68,68,0.08);
+  color: #fca5a5;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.biz-sell-wrap .biz-sell-btn:active { background: rgba(239,68,68,0.2); }
+
+/* ═══════════════════════
+   BUY MODE BUTTONS — x100
+   ═══════════════════════ */
+.buy-modes { gap: 4px; }
+.buy-mode-btn {
+  font-size: 0.72rem;
+  min-width: 38px;
+  padding: 5px 8px;
+}
+
+/* ═══════════════════════
+   BOOST ACTIVATE — feedback
+   ═══════════════════════ */
+.boost-item-activate-btn {
+  position: relative;
+  overflow: hidden;
+}
+.boost-item-activate-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.2);
+  transform: scale(0);
+  border-radius: inherit;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+.boost-item-activate-btn:active::after {
+  transform: scale(1);
+  opacity: 1;
+}
+@keyframes boostActivate {
+  0% { transform: scale(1); box-shadow: 0 0 0 rgba(245,158,11,0); }
+  30% { transform: scale(1.05); box-shadow: 0 0 20px rgba(245,158,11,0.6); }
+  100% { transform: scale(1); box-shadow: 0 0 0 rgba(245,158,11,0); }
+}
+.boost-activate-flash { animation: boostActivate 0.5s ease; }
+
+/* ═══════════════════════
+   EVENTS panel — altta boşluk
+   ═══════════════════════ */
+.baron-view .events-panel {
+  flex: 1;
+  overflow: auto;
+  padding: 0;
+}
+.baron-view .events-scroll-body {
+  padding-bottom: calc(var(--nav-h) + var(--ad-h) + var(--safe-bottom) + 48px);
+}
