@@ -5059,7 +5059,7 @@ html.theme-galactic {
   gap: 10px;
 }
 .shop-context-business .biz-cards-grid .biz-card {
-  min-height: 140px;
+  min-height: 160px;
 }
 .shop-context-business .biz-icon-wrap {
   width: 68px;
@@ -5067,7 +5067,11 @@ html.theme-galactic {
 }
 .shop-context-business .biz-emoji-display { font-size: 2.2rem; }
 .shop-context-business .biz-buy-btn {
-  min-height: 140px;
+  min-height: 158px;
+  padding: 14px 12px;
+}
+.shop-context-business .tier-band-body .biz-buy-btn {
+  min-height: 158px;
   padding: 14px 12px;
 }
 .shop-context-business .biz-left strong { font-size: 0.92rem; line-height: 1.2; }
@@ -5085,10 +5089,11 @@ html.theme-galactic {
 
 @media (max-width: 640px) {
   .shop-context-business .biz-cards-grid .biz-card {
-    min-height: 130px;
+    min-height: 145px;
   }
-  .shop-context-business .biz-buy-btn {
-    min-height: 130px;
+  .shop-context-business .biz-buy-btn,
+  .shop-context-business .tier-band-body .biz-buy-btn {
+    min-height: 143px;
   }
   .tap-mascot {
     width: 72px;
