@@ -10,17 +10,17 @@ const TIER_HEIGHTS: Record<number, number> = {
 }
 
 const TIER_COLORS: Record<number, [string, string]> = {
-  1: ['#4a6fa5', '#2d4a6f'],
-  2: ['#5b7eb8', '#3a5580'],
-  3: ['#6b8fc4', '#455f8a'],
-  4: ['#7a9fd0', '#4f6a94'],
-  5: ['#fbbf24', '#b45309'],
-  6: ['#34d399', '#047857'],
-  7: ['#a78bfa', '#6d28d9'],
-  8: ['#f472b6', '#be185d'],
-  9: ['#38bdf8', '#0369a1'],
-  10: ['#fcd34d', '#92400e'],
-  11: ['#e879f9', '#86198f'],
+  1:  ['#4a4038', '#211a12'],  // koyu beton / eski ahşap
+  2:  ['#5c4f43', '#2e241a'],  // sıcak çimento
+  3:  ['#6b5a48', '#3a2c1e'],  // kahverengi tuğla
+  4:  ['#7d6a52', '#44321e'],  // sıcak taş
+  5:  ['#fbbf24', '#b45309'],  // altın
+  6:  ['#34d399', '#047857'],  // zümrüt
+  7:  ['#a78bfa', '#6d28d9'],  // mor
+  8:  ['#f472b6', '#be185d'],  // pembe
+  9:  ['#38bdf8', '#0369a1'],  // gökyüzü
+  10: ['#fcd34d', '#92400e'],  // derin altın
+  11: ['#e879f9', '#86198f'],  // fuşya
 }
 
 function isNightHour(hour: number): boolean {
@@ -173,11 +173,16 @@ export class Skyline {
       ledge.style.background = top
       tower.appendChild(ledge)
 
-      // Spire for tier 6+
+      // Spire + antenna light for tier 6+
       if (b.tier >= 6) {
         const spire = document.createElement('div')
         spire.className = 'skyline-spire'
         tower.appendChild(spire)
+        if (b.tier >= 8) {
+          const light = document.createElement('div')
+          light.className = 'skyline-antenna-light'
+          tower.appendChild(light)
+        }
       }
 
       // Side shadow stripe for depth
