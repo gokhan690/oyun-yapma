@@ -4,7 +4,7 @@ import type { SaveManager } from '../../security/SaveManager'
 import { THEMES, type ThemeId } from '../../game/Themes'
 import { APP_TITLE, APP_VERSION } from '../../appVersion'
 import { rescheduleFromPrefs, isWebPushSupported, isNativePlatform } from '../../notifications/NotificationManager'
-import { i18n, LANG_META, type LangCode } from '../../i18n'
+import { i18n, LANG_META, t, type LangCode } from '../../i18n'
 
 export class SettingsPanel {
   readonly layer: HTMLElement
@@ -38,7 +38,7 @@ export class SettingsPanel {
     const header = document.createElement('div')
     header.className = 'panel-header'
     const title = document.createElement('h2')
-    title.textContent = 'Ayarlar'
+    title.textContent = t('settings_title')
     const close = document.createElement('button')
     close.type = 'button'
     close.className = 'icon-btn'

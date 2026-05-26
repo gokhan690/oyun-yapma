@@ -1,6 +1,7 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney, formatIncomeRate, formatMoneyHero, moneyHeroTier } from '../../game/Economy'
 import { prestigeMultiplier } from '../../game/Prestige'
+import { t } from '../../i18n'
 
 export class StatsBar {
   readonly root: HTMLElement
@@ -8,6 +9,7 @@ export class StatsBar {
   private incomeChip!: HTMLElement
   private prestigeChip!: HTMLElement
   private boostChip!: HTMLElement
+  private walletLabel!: HTMLElement
   private state: GameState
   private lastIncomeText = ''
   private lastPrestigeText = ''
@@ -33,7 +35,8 @@ export class StatsBar {
     moneyBlock.className = 'stats-hero-money'
     const moneyLabel = document.createElement('span')
     moneyLabel.className = 'stats-hero-label'
-    moneyLabel.textContent = 'Cüzdan'
+    moneyLabel.textContent = t('stat_wallet')
+    this.walletLabel = moneyLabel
     this.moneyEl = document.createElement('span')
     this.moneyEl.className = 'stats-hero-value money-stat-value'
     this.moneyEl.textContent = '0'
@@ -64,6 +67,7 @@ export class StatsBar {
 
   /** Cüzdan anında güncellenir; chip'ler sadece updateMeta=true iken yenilenir */
   render(updateMeta = true): void {
+    this.walletLabel.textContent = t('stat_wallet')
     const formatted = formatMoneyHero(this.state.money)
     if (this.moneyEl.textContent !== formatted) {
       this.moneyEl.textContent = formatted

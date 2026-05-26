@@ -7554,3 +7554,103 @@ html[dir="rtl"] .stats-embedded {
   direction: rtl;
   text-align: right;
 }
+
+/* ── First-run onboarding (language + country) ─────────────────── */
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: radial-gradient(circle at 50% 0%, #1a1407 0%, #060503 70%);
+  overflow-y: auto;
+}
+.onboarding-card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface, #14110a);
+  border: 1px solid var(--accent, #d4af37);
+  border-radius: 18px;
+  padding: 26px 22px 22px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+  text-align: center;
+}
+.onboarding-title {
+  margin: 0 0 6px;
+  font-size: 1.4rem;
+  color: var(--accent, #d4af37);
+}
+.onboarding-sub {
+  margin: 0 0 18px;
+  font-size: 0.88rem;
+  color: var(--text-dim, #b9ad8c);
+}
+.onboarding-lang-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.onboarding-lang-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 8px;
+  background: var(--surface2, #1f1a10);
+  border: 1px solid var(--border, #3a3220);
+  border-radius: 10px;
+  color: var(--text, #efe6cf);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.onboarding-lang-btn.active {
+  border-color: var(--accent, #d4af37);
+  box-shadow: 0 0 0 1px var(--accent, #d4af37) inset;
+}
+.ob-lang-native { font-size: 0.95rem; font-weight: 600; }
+.ob-lang-label { font-size: 0.7rem; color: var(--text-dim, #b9ad8c); }
+.onboarding-country-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.onboarding-country-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 12px 8px;
+  background: var(--surface2, #1f1a10);
+  border: 1px solid var(--border, #3a3220);
+  border-radius: 10px;
+  color: var(--text, #efe6cf);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.onboarding-country-btn.active {
+  border-color: var(--accent, #d4af37);
+  box-shadow: 0 0 0 1px var(--accent, #d4af37) inset;
+}
+.ob-flag { font-size: 1.6rem; line-height: 1; }
+.ob-country-name { font-size: 0.86rem; font-weight: 600; }
+.ob-country-capital { font-size: 0.72rem; color: var(--text-dim, #b9ad8c); }
+.onboarding-next-btn,
+.onboarding-start-btn {
+  width: 100%;
+  padding: 13px;
+  background: var(--accent, #d4af37);
+  color: #1a1407;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+.onboarding-next-btn { font-size: 1.3rem; }

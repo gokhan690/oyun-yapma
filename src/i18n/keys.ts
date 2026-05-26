@@ -151,4 +151,23 @@ export interface Translations {
   loading: string
   game_day: string
   offline_earnings: string
+  // Empire sub-tabs (no emoji)
+  tab_sport: string
+  tab_politics: string
+  tab_dark: string
+  tab_luxury: string
+  tab_finance_empire: string
+  tab_science: string
+
+  // Market / Finance sub-tabs
+  tab_commodities: string
+  tab_opportunities: string
+  tab_underground_market: string
+  tab_merge: string
+
+  // Growth sub-tab
+  tab_management: string
+
+  // Stats
+  stat_wallet: string
 }

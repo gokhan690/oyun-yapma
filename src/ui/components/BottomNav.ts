@@ -1,6 +1,8 @@
 export type NavView = 'earn' | 'shop' | 'market' | 'profile'
 
 import { assetUrl } from '../../utils/assetUrl'
+import { t } from '../../i18n'
+import type { Translations } from '../../i18n/keys'
 
 const NAV_ICONS: Record<NavView, string> = {
   earn: assetUrl('icons/nav/earn.svg'),
@@ -17,15 +19,22 @@ export class BottomNav {
   private badgeBaron!: HTMLElement
   private badgeShop!: HTMLElement
   private badgeMarket!: HTMLElement
+  private labels = new Map<NavView, HTMLElement>()
+  private static readonly LABEL_KEYS: Record<NavView, keyof Translations> = {
+    earn: 'nav_city',
+    shop: 'nav_business',
+    market: 'nav_market',
+    profile: 'nav_baron',
+  }
 
   constructor() {
     this.root = document.createElement('nav')
     this.root.className = 'bottom-nav bottom-nav-four'
     const defs: { id: NavView; label: string }[] = [
-      { id: 'earn', label: 'Şehir' },
-      { id: 'shop', label: 'İş' },
-      { id: 'market', label: 'Piyasa' },
-      { id: 'profile', label: 'Baron' },
+      { id: 'earn', label: t('nav_city') },
+      { id: 'shop', label: t('nav_business') },
+      { id: 'market', label: t('nav_market') },
+      { id: 'profile', label: t('nav_baron') },
     ]
     for (const d of defs) {
       const btn = document.createElement('button')
@@ -45,6 +54,7 @@ export class BottomNav {
       const label = document.createElement('span')
       label.className = 'nav-label'
       label.textContent = d.label
+      this.labels.set(d.id, label)
       btn.append(iconWrap, label)
       if (d.id === 'profile') {
         const badge = document.createElement('span')
@@ -81,6 +91,12 @@ export class BottomNav {
 
   getActive(): NavView {
     return this.active
+  }
+
+  relabel(): void {
+    for (const [id, el] of this.labels) {
+      el.textContent = t(BottomNav.LABEL_KEYS[id])
+    }
   }
 
   setBadges(baron: boolean, shop: boolean, market = false): void {
