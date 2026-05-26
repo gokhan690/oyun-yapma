@@ -16,6 +16,7 @@ import {
   type VehicleId,
 } from '../../game/Lifestyle'
 import { gameDay } from '../../game/GameClock'
+import { t } from '../../i18n'
 
 export class LifestylePanel {
   readonly root: HTMLElement
@@ -45,8 +46,8 @@ export class LifestylePanel {
       const expChip = document.createElement('div')
       expChip.className = 'lifestyle-expense-chip'
       let txt = ''
-      if (monthlyExp > 0) txt += `<span>💸 Aylık gider: <strong>${formatMoney(monthlyExp)}</strong></span>`
-      if (rentalInc > 0) txt += `<span>🏠 Kira geliri: <strong>+${formatMoney(rentalInc)}</strong>/ay</span>`
+      if (monthlyExp > 0) txt += `<span>${t('lp_monthly_expense')}: <strong>${formatMoney(monthlyExp)}</strong></span>`
+      if (rentalInc > 0) txt += `<span>${t('lp_rental_income')}: <strong>+${formatMoney(rentalInc)}</strong>/ay</span>`
       expChip.innerHTML = txt
       this.root.appendChild(expChip)
     }
@@ -114,7 +115,7 @@ export class LifestylePanel {
     if (ls.ownedResidences.length > 0) {
       const portfolioTitle = document.createElement('p')
       portfolioTitle.className = 'lifestyle-portfolio-title'
-      portfolioTitle.textContent = '📋 Portföyündeki Mülkler'
+      portfolioTitle.textContent = t('lp_portfolio_residences')
       section.appendChild(portfolioTitle)
 
       const portfolioGrid = document.createElement('div')
@@ -128,8 +129,8 @@ export class LifestylePanel {
         const pTop = document.createElement('div')
         pTop.className = 'lifestyle-portfolio-top'
         pTop.innerHTML = `<span class="lp-emoji">${res.emoji}</span><span class="lp-name">${res.name}</span>`
-        if (isLiving) pTop.innerHTML += `<span class="lp-badge live">🏠 Yaşıyorsun</span>`
-        if (entry.isRenting) pTop.innerHTML += `<span class="lp-badge rent">💰 Kirada +${formatMoney(entry.rentalMonthlyIncome)}/ay</span>`
+        if (isLiving) pTop.innerHTML += `<span class="lp-badge live">${t('lp_living_here')}</span>`
+        if (entry.isRenting) pTop.innerHTML += `<span class="lp-badge rent">💰 ${t('lp_rental_income')} +${formatMoney(entry.rentalMonthlyIncome)}/ay</span>`
         pCard.appendChild(pTop)
         const pActions = document.createElement('div')
         pActions.className = 'lifestyle-portfolio-actions'
@@ -139,7 +140,7 @@ export class LifestylePanel {
           moveBtn.className = 'btn-sm btn-outline'
           moveBtn.dataset.action = 'move-to-residence'
           moveBtn.dataset.id = entry.id
-          moveBtn.textContent = 'Taşın'
+          moveBtn.textContent = t('lp_move_in')
           pActions.appendChild(moveBtn)
         }
         if (!entry.isRenting && !isLiving) {
@@ -148,7 +149,7 @@ export class LifestylePanel {
           rentBtn.className = 'btn-sm btn-accent'
           rentBtn.dataset.action = 'rent-out-residence'
           rentBtn.dataset.id = entry.id
-          rentBtn.textContent = `Kiraya Ver (+${formatMoney(entry.rentalMonthlyIncome)}/ay)`
+          rentBtn.textContent = `${t('lp_rent_out')} (+${formatMoney(entry.rentalMonthlyIncome)}/ay)`
           pActions.appendChild(rentBtn)
         } else if (entry.isRenting) {
           const stopRentBtn = document.createElement('button')
@@ -156,7 +157,7 @@ export class LifestylePanel {
           stopRentBtn.className = 'btn-sm btn-outline'
           stopRentBtn.dataset.action = 'stop-rent-residence'
           stopRentBtn.dataset.id = entry.id
-          stopRentBtn.textContent = 'Kiralamayı Durdur'
+          stopRentBtn.textContent = t('lp_stop_renting')
           pActions.appendChild(stopRentBtn)
         }
         if (!isLiving) {
@@ -165,7 +166,7 @@ export class LifestylePanel {
           sellBtn.className = 'btn-sm btn-danger'
           sellBtn.dataset.action = 'sell-residence'
           sellBtn.dataset.id = entry.id
-          sellBtn.textContent = `Sat (${formatMoney(residenceSellValue(entry.id as ResidenceId))})`
+          sellBtn.textContent = `${t('lp_sell')} (${formatMoney(residenceSellValue(entry.id as ResidenceId))})`
           pActions.appendChild(sellBtn)
         }
         pCard.appendChild(pActions)
@@ -176,7 +177,7 @@ export class LifestylePanel {
 
     const buyTitle = document.createElement('p')
     buyTitle.className = 'lifestyle-portfolio-title'
-    buyTitle.textContent = '🏗️ Yeni Mülk Satın Al'
+    buyTitle.textContent = t('lp_buy_new_residence')
     section.appendChild(buyTitle)
 
     const grid = document.createElement('div')
@@ -225,7 +226,7 @@ export class LifestylePanel {
       } else {
         const badge = document.createElement('span')
         badge.className = 'lifestyle-owned-badge'
-        badge.textContent = '✅ Şu an burada yaşıyorsun'
+        badge.textContent = `✅ ${t('lp_living_here')}`
         card.appendChild(badge)
       }
 
@@ -243,7 +244,7 @@ export class LifestylePanel {
     if (ls.ownedVehicles.length > 0) {
       const portfolioTitle = document.createElement('p')
       portfolioTitle.className = 'lifestyle-portfolio-title'
-      portfolioTitle.textContent = '🚘 Araç Portföyün'
+      portfolioTitle.textContent = t('lp_portfolio_vehicles')
       section.appendChild(portfolioTitle)
 
       const portfolioGrid = document.createElement('div')
@@ -257,8 +258,8 @@ export class LifestylePanel {
         const pTop = document.createElement('div')
         pTop.className = 'lifestyle-portfolio-top'
         pTop.innerHTML = `<span class="lp-emoji">${veh.emoji}</span><span class="lp-name">${veh.name}</span>`
-        if (isCurrent) pTop.innerHTML += `<span class="lp-badge live">🚗 Kullanıyorsun</span>`
-        if (entry.isRenting) pTop.innerHTML += `<span class="lp-badge rent">💰 Kirada +${formatMoney(entry.rentalMonthlyIncome)}/ay</span>`
+        if (isCurrent) pTop.innerHTML += `<span class="lp-badge live">${t('lp_using_now')}</span>`
+        if (entry.isRenting) pTop.innerHTML += `<span class="lp-badge rent">💰 ${t('lp_rental_income')} +${formatMoney(entry.rentalMonthlyIncome)}/ay</span>`
         pCard.appendChild(pTop)
         const pActions = document.createElement('div')
         pActions.className = 'lifestyle-portfolio-actions'
@@ -268,7 +269,7 @@ export class LifestylePanel {
           useBtn.className = 'btn-sm btn-outline'
           useBtn.dataset.action = 'use-vehicle'
           useBtn.dataset.id = entry.id
-          useBtn.textContent = 'Kullan'
+          useBtn.textContent = t('lp_use')
           pActions.appendChild(useBtn)
         }
         if (!entry.isRenting && !isCurrent) {
@@ -277,7 +278,7 @@ export class LifestylePanel {
           rentBtn.className = 'btn-sm btn-accent'
           rentBtn.dataset.action = 'rent-out-vehicle'
           rentBtn.dataset.id = entry.id
-          rentBtn.textContent = `Kiraya Ver (+${formatMoney(entry.rentalMonthlyIncome)}/ay)`
+          rentBtn.textContent = `${t('lp_rent_out')} (+${formatMoney(entry.rentalMonthlyIncome)}/ay)`
           pActions.appendChild(rentBtn)
         } else if (entry.isRenting) {
           const stopRentBtn = document.createElement('button')
@@ -285,7 +286,7 @@ export class LifestylePanel {
           stopRentBtn.className = 'btn-sm btn-outline'
           stopRentBtn.dataset.action = 'stop-rent-vehicle'
           stopRentBtn.dataset.id = entry.id
-          stopRentBtn.textContent = 'Kiralamayı Durdur'
+          stopRentBtn.textContent = t('lp_stop_renting')
           pActions.appendChild(stopRentBtn)
         }
         if (!isCurrent) {
@@ -294,7 +295,7 @@ export class LifestylePanel {
           sellBtn.className = 'btn-sm btn-danger'
           sellBtn.dataset.action = 'sell-vehicle'
           sellBtn.dataset.id = entry.id
-          sellBtn.textContent = `Sat (${formatMoney(vehicleSellValue(entry.id as VehicleId))})`
+          sellBtn.textContent = `${t('lp_sell')} (${formatMoney(vehicleSellValue(entry.id as VehicleId))})`
           pActions.appendChild(sellBtn)
         }
         pCard.appendChild(pActions)
@@ -305,7 +306,7 @@ export class LifestylePanel {
 
     const buyTitle = document.createElement('p')
     buyTitle.className = 'lifestyle-portfolio-title'
-    buyTitle.textContent = '🏎️ Yeni Araç Al'
+    buyTitle.textContent = t('lp_buy_new_vehicle')
     section.appendChild(buyTitle)
 
     const grid = document.createElement('div')
@@ -360,7 +361,7 @@ export class LifestylePanel {
       } else {
         const badge = document.createElement('span')
         badge.className = 'lifestyle-owned-badge'
-        badge.textContent = '✅ Kullanıyorsun'
+        badge.textContent = `✅ ${t('lp_using_now')}`
         card.appendChild(badge)
       }
 

@@ -969,6 +969,7 @@ export class ShopPanel {
         btn.dataset.action = action
         btn.dataset.count = 'custom'
         btn.textContent = label
+        btn.addEventListener('pointerdown', (e) => e.preventDefault())
         customRow.appendChild(btn)
       }
       wrap.appendChild(customRow)
@@ -2151,12 +2152,14 @@ export class ShopPanel {
     stockBuyCustom.dataset.action = 'stock-buy'
     stockBuyCustom.dataset.count = 'custom'
     stockBuyCustom.textContent = 'Al'
+    stockBuyCustom.addEventListener('pointerdown', (e) => e.preventDefault())
     const stockSellCustom = document.createElement('button')
     stockSellCustom.type = 'button'
     stockSellCustom.className = 'btn-sell-stock btn-sm'
     stockSellCustom.dataset.action = 'stock-sell'
     stockSellCustom.dataset.count = 'custom'
     stockSellCustom.textContent = 'Sat'
+    stockSellCustom.addEventListener('pointerdown', (e) => e.preventDefault())
     stockCustomRow.append(stockInput, stockBuyCustom, stockSellCustom)
     stockActions.appendChild(stockCustomRow)
     tradePanel.appendChild(stockActions)

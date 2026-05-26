@@ -170,4 +170,55 @@ export interface Translations {
 
   // Stats
   stat_wallet: string
+
+  // Lifestyle panel
+  lp_portfolio_residences: string
+  lp_buy_new_residence: string
+  lp_portfolio_vehicles: string
+  lp_buy_new_vehicle: string
+  lp_living_here: string
+  lp_using_now: string
+  lp_rent_out: string
+  lp_stop_renting: string
+  lp_sell: string
+  lp_move_in: string
+  lp_use: string
+  lp_monthly_expense: string
+  lp_rental_income: string
+
+  // Business card / shop
+  biz_roi_label: string
+  biz_info_tooltip: string
+
+  // Common labels
+  lbl_new: string
+  lbl_units: string
+  lbl_per_day: string
+  lbl_per_month: string
+
+  // Leaderboard / profile
+  lb_global_top: string
+  lb_my_rank: string
+  lb_submit: string
+  lb_player_name: string
+  lb_friends: string
+  lb_loading: string
+  lb_no_scores: string
+
+  // Events panel labels
+  ev_daily_reward: string
+  ev_weekly_goal: string
+  ev_season_pass: string
+  ev_missions: string
+  ev_active_boosts: string
+
+  // Settings country
+  settings_country: string
+
+  // Toast / feedback
+  toast_country_changed: string
+  toast_property_bought: string
+  toast_property_sold: string
+  toast_vehicle_bought: string
+  toast_vehicle_sold: string
 }

@@ -5059,29 +5059,36 @@ html.theme-galactic {
   gap: 10px;
 }
 .shop-context-business .biz-cards-grid .biz-card {
-  min-height: 130px;
+  min-height: 160px;
 }
 .shop-context-business .biz-icon-wrap {
-  width: 52px;
-  height: 52px;
+  width: 68px;
+  height: 68px;
 }
-.shop-context-business .biz-emoji-display { font-size: 1.8rem; }
+.shop-context-business .biz-emoji-display { font-size: 2.2rem; }
 .shop-context-business .biz-buy-btn {
-  min-height: 128px;
-  padding: 12px 10px;
+  min-height: 158px;
+  padding: 14px 12px;
 }
-.shop-context-business .biz-left strong { font-size: 0.88rem; line-height: 1.2; }
-.shop-context-business .biz-bottom { font-size: 0.82rem; }
-.shop-context-business .biz-cost { font-size: 0.82rem !important; }
-.shop-context-business .biz-income { font-size: 0.78rem; font-weight: 700; color: var(--green); }
-.shop-context-business .biz-left small { display: none; }
+.shop-context-business .biz-left strong { font-size: 0.92rem; line-height: 1.2; }
+.shop-context-business .biz-left small {
+  -webkit-line-clamp: 2;
+  font-size: 0.68rem;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.shop-context-business .biz-bottom { font-size: 0.85rem; }
+.shop-context-business .biz-cost { font-size: 0.85rem !important; }
+.shop-context-business .biz-income { font-size: 0.82rem; font-weight: 700; color: var(--green); }
 
 @media (max-width: 640px) {
   .shop-context-business .biz-cards-grid .biz-card {
-    min-height: 120px;
+    min-height: 145px;
   }
   .shop-context-business .biz-buy-btn {
-    min-height: 118px;
+    min-height: 143px;
   }
   .tap-mascot {
     width: 72px;
