@@ -1,7 +1,8 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
 import { EXPANSION_CITIES, canUnlockCity } from '../../game/ExpansionMap'
-import { TORPIL_CONTACTS } from '../../game/TorpilNetwork'
+import { TORPIL_CONTACTS, torpilRelationScore } from '../../game/TorpilNetwork'
+import { gameDay } from '../../game/GameClock'
 import {
   attitudeLabel,
   mergeRivalCost,
@@ -234,24 +235,51 @@ export class WorldMetaPanel {
     const block = document.createElement('div')
     block.className = 'meta-block torpil-block'
     block.innerHTML = '<h3>🤝 Torpil Ağı</h3>'
+    const currentDay = gameDay(this.state.gameTimeMs)
     for (const def of TORPIL_CONTACTS) {
       const st = this.state.torpil.find((t) => t.id === def.id)
       const card = document.createElement('div')
-      card.className = 'torpil-card'
-      card.innerHTML = `<strong>${def.emoji} ${def.name}</strong><small>${def.role}</small><p>${def.description}</p>`
+      card.className = 'torpil-contact-card'
+      const header = document.createElement('div')
+      header.className = 'torpil-contact-header'
+      header.innerHTML = `<span class="torpil-contact-emoji">${def.emoji}</span><div class="torpil-contact-info"><strong>${def.name}</strong><small>${def.role}</small></div>`
+      card.appendChild(header)
+      const desc = document.createElement('p')
+      desc.className = 'torpil-contact-desc'
+      desc.textContent = def.description
+      card.appendChild(desc)
       if (st?.active) {
+        const score = torpilRelationScore(st, def, currentDay)
+        const relationRow = document.createElement('div')
+        relationRow.className = 'torpil-relation-row'
+        const label = document.createElement('small')
+        label.className = 'torpil-relation-label'
+        label.textContent = `İlişki: ${score}%`
+        const bar = document.createElement('div')
+        bar.className = 'torpil-relation-bar'
+        const fill = document.createElement('div')
+        fill.className = 'torpil-relation-fill'
+        fill.style.width = `${score}%`
+        fill.style.background = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--accent)' : '#ef4444'
+        bar.appendChild(fill)
+        relationRow.append(label, bar)
+        card.appendChild(relationRow)
         if (st.giftDue) {
+          const giftWarn = document.createElement('p')
+          giftWarn.className = 'torpil-gift-warn'
+          giftWarn.textContent = '⚠️ Hediye gecikti — bonus askıya alındı'
+          card.appendChild(giftWarn)
           const gift = document.createElement('button')
           gift.type = 'button'
           gift.className = 'btn-sm btn-secondary'
           gift.dataset.action = 'pay-torpil-gift'
           gift.dataset.id = def.id
-          gift.textContent = `Hediye ${formatMoney(def.giftCost)}`
+          gift.textContent = `🎁 Hediye Gönder · ${formatMoney(def.giftCost)}`
           card.appendChild(gift)
         } else {
           const ok = document.createElement('span')
           ok.className = 'torpil-active'
-          ok.textContent = '✅ Aktif'
+          ok.textContent = '✅ Aktif — bonus çalışıyor'
           card.appendChild(ok)
         }
       } else {
@@ -260,7 +288,7 @@ export class WorldMetaPanel {
         hire.className = 'btn-sm btn-primary'
         hire.dataset.action = 'hire-torpil'
         hire.dataset.id = def.id
-        hire.textContent = `Tanış ${formatMoney(def.hireCost)}`
+        hire.textContent = `Tanış · ${formatMoney(def.hireCost)}`
         hire.disabled = !this.state.canAfford(def.hireCost)
         card.appendChild(hire)
       }

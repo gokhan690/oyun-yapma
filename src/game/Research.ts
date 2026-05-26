@@ -11,6 +11,23 @@ export interface ResearchNode {
   effect: 'click' | 'passive' | 'offline' | 'synergy' | 'efficiency' | 'heat_reduce' | 'football'
   valuePerLevel: number
   branch: ResearchBranch
+  /** Önkoşul: bu node ID'si max seviyeye ulaşmadan kilit */
+  prerequisite?: string
+}
+
+export function researchIsUnlocked(nodeId: string, levels: Record<string, number>): boolean {
+  const node = RESEARCH_NODES.find(n => n.id === nodeId)
+  if (!node?.prerequisite) return true
+  const prereqNode = RESEARCH_NODES.find(n => n.id === node.prerequisite)
+  if (!prereqNode) return true
+  return (levels[node.prerequisite] ?? 0) >= 1
+}
+
+export function researchPrereqName(nodeId: string): string | null {
+  const node = RESEARCH_NODES.find(n => n.id === nodeId)
+  if (!node?.prerequisite) return null
+  const prereq = RESEARCH_NODES.find(n => n.id === node.prerequisite)
+  return prereq?.name ?? null
 }
 
 export const RESEARCH_NODES: ResearchNode[] = [
@@ -98,6 +115,7 @@ export const RESEARCH_NODES: ResearchNode[] = [
     effect: 'passive',
     valuePerLevel: 0.06,
     branch: 'operasyon',
+    prerequisite: 'automation',
   },
   {
     id: 'energy_eff',
@@ -135,6 +153,7 @@ export const RESEARCH_NODES: ResearchNode[] = [
     effect: 'passive',
     valuePerLevel: 0.03,
     branch: 'finans',
+    prerequisite: 'finance_interest',
   },
   {
     id: 'stock_analysis',
@@ -147,6 +166,7 @@ export const RESEARCH_NODES: ResearchNode[] = [
     effect: 'click',
     valuePerLevel: 0.08,
     branch: 'finans',
+    prerequisite: 'credit_mgmt',
   },
   {
     id: 'tax_shield',
@@ -184,6 +204,7 @@ export const RESEARCH_NODES: ResearchNode[] = [
     effect: 'football',
     valuePerLevel: 0.08,
     branch: 'imparatorluk',
+    prerequisite: 'football_fan',
   },
   {
     id: 'politics_lobby_r',
@@ -220,6 +241,7 @@ export const RESEARCH_NODES: ResearchNode[] = [
     effect: 'passive',
     valuePerLevel: 0.04,
     branch: 'imparatorluk',
+    prerequisite: 'dark_stealth',
   },
 ]
 

@@ -93,7 +93,46 @@ export class ModalManager {
     const modal = document.createElement('div')
     modal.className = 'game-modal daily-reward-modal modal-enter'
     const lostNote = streakLost ? '<p class="streak-lost-warn">⚠️ Serin sıfırlandı — yeniden başlıyorsun!</p>' : ''
-    modal.innerHTML = `<div class="reward-box">🎁</div><h2>Günlük Ödül</h2>${lostNote}<p>${streak}. gün streak!</p><strong class="reward-amount">+${amount}</strong>`
+
+    const title = document.createElement('h2')
+    title.textContent = 'Günlük Ödül'
+    modal.innerHTML = lostNote
+    modal.prepend(title)
+
+    const streakNote = document.createElement('p')
+    streakNote.textContent = `${streak}. gün serisi!`
+    modal.appendChild(streakNote)
+
+    // Spin wheel
+    const wheelWrap = document.createElement('div')
+    wheelWrap.className = 'spin-wheel-wrap'
+    const pointer = document.createElement('div')
+    pointer.className = 'spin-pointer'
+    pointer.textContent = '▼'
+    const wheel = document.createElement('div')
+    wheel.className = 'spin-wheel'
+    const inner = document.createElement('div')
+    inner.className = 'spin-wheel-inner'
+    const segs = document.createElement('div')
+    segs.className = 'spin-wheel-segments'
+    const segData = [
+      { emoji: '💰', label: amount },
+      { emoji: '🎁', label: 'Sandık' },
+      { emoji: '⚡', label: 'Boost' },
+      { emoji: '💰', label: `2x ${amount}` },
+    ]
+    for (const s of segData) {
+      const seg = document.createElement('div')
+      seg.className = 'spin-seg'
+      seg.textContent = s.emoji
+      segs.appendChild(seg)
+    }
+    inner.appendChild(segs)
+    wheel.appendChild(inner)
+    const resultEl = document.createElement('div')
+    resultEl.className = 'spin-result'
+    wheelWrap.append(pointer, wheel, resultEl)
+    modal.appendChild(wheelWrap)
 
     const dayInCycle = streak % 7 || 7
     const calendar = document.createElement('div')
@@ -115,15 +154,53 @@ export class ModalManager {
       modal.appendChild(ms)
     }
 
-    const btn = document.createElement('button')
-    btn.type = 'button'
-    btn.className = 'btn-primary'
-    btn.textContent = 'Topla!'
-    btn.addEventListener('click', () => {
-      onClaim()
-      this.close()
+    const spinBtn = document.createElement('button')
+    spinBtn.type = 'button'
+    spinBtn.className = 'btn-primary'
+    spinBtn.textContent = '🎡 Çarkı Çevir!'
+    let spun = false
+    let claimedResult: { emoji: string; label: string } | null = null
+    const doSpin = (isPremium: boolean) => {
+      if (spun) return
+      spun = true
+      spinBtn.disabled = true
+      if (premiumBtn) premiumBtn.disabled = true
+      inner.classList.remove('spinning')
+      void inner.offsetWidth
+      const deg = 720 + Math.floor(Math.random() * 1080) + (isPremium ? 180 : 0)
+      inner.style.setProperty('--spin-deg', `${deg}deg`)
+      inner.classList.add('spinning')
+      window.setTimeout(() => {
+        const pool = isPremium
+          ? [segData[1]!, segData[2]!, segData[3]!, segData[3]!]
+          : segData
+        claimedResult = pool[Math.floor(Math.random() * pool.length)]!
+        resultEl.textContent = `${claimedResult.emoji} ${claimedResult.label} kazandın!`
+        spinBtn.textContent = '✅ Topla!'
+        spinBtn.disabled = false
+        if (premiumBtn) premiumBtn.hidden = true
+        spinBtn.addEventListener('click', () => {
+          onClaim()
+          this.close()
+        }, { once: true })
+      }, 3100)
+    }
+    spinBtn.addEventListener('click', () => doSpin(false))
+    modal.appendChild(spinBtn)
+
+    const premiumBtn = document.createElement('button')
+    premiumBtn.type = 'button'
+    premiumBtn.className = 'btn-secondary spin-premium-btn'
+    premiumBtn.innerHTML = '📺 Reklam İzle → <strong>Premium Çark</strong> (2x Ödül!)'
+    premiumBtn.addEventListener('click', () => {
+      premiumBtn.disabled = true
+      premiumBtn.textContent = '📺 Reklam yükleniyor...'
+      window.setTimeout(() => {
+        doSpin(true)
+      }, 1500)
     })
-    modal.appendChild(btn)
+    modal.appendChild(premiumBtn)
+
     this.layer.append(scrim, modal)
     this.openLayer()
   }

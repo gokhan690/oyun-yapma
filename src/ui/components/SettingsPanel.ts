@@ -146,6 +146,13 @@ export class SettingsPanel {
       body.appendChild(notifWeb)
     }
 
+    body.appendChild(this.sectionTitle('Zorluk'))
+    const diffHint = document.createElement('p')
+    diffHint.className = 'settings-hint'
+    diffHint.textContent = 'Zorluk seviyesi oyun içinde seçilebilir. Daha yüksek zorlukta özel rozetler kazanırsın.'
+    body.appendChild(diffHint)
+    body.appendChild(this.buildDifficultyGrid())
+
     body.appendChild(this.sectionTitle('Oyun'))
 
     const soundRow = this.toggleRow('Ses efektleri', this.sound.isEnabled(), () => {
@@ -195,6 +202,28 @@ export class SettingsPanel {
     body.appendChild(motionRow)
 
     this.layer.append(header, body)
+  }
+
+  private buildDifficultyGrid(): HTMLElement {
+    const grid = document.createElement('div')
+    grid.className = 'difficulty-grid'
+    const diffs: { id: 'easy' | 'normal' | 'hard'; emoji: string; name: string; desc: string }[] = [
+      { id: 'easy', emoji: '😌', name: 'Kolay', desc: 'Pasif gelir +20%, mortalite düşük' },
+      { id: 'normal', emoji: '💼', name: 'Normal', desc: 'Varsayılan denge' },
+      { id: 'hard', emoji: '🔥', name: 'Zor', desc: 'Rakipler agresif, özel rozet kazanırsın' },
+    ]
+    for (const d of diffs) {
+      const card = document.createElement('div')
+      card.className = `difficulty-card${this.state.difficulty === d.id ? ' selected' : ''}`
+      card.innerHTML = `<span class="diff-emoji">${d.emoji}</span><strong class="diff-name">${d.name}</strong><small class="diff-desc">${d.desc}</small>`
+      card.addEventListener('click', () => {
+        this.state.difficulty = d.id
+        grid.querySelectorAll('.difficulty-card').forEach((c) => c.classList.remove('selected'))
+        card.classList.add('selected')
+      })
+      grid.appendChild(card)
+    }
+    return grid
   }
 
   private sectionTitle(text: string): HTMLElement {

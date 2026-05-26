@@ -39,6 +39,7 @@ import { EventDirector } from '../game/EventDirector'
 import type { GameEventDef } from '../game/Events'
 import { activeTicker } from '../game/StockMarket'
 import { parseFranchiseAction } from './components/shop/FranchiseBlock'
+import { LifestylePanel } from './components/LifestylePanel'
 import { FRANCHISE_CITIES, franchiseOpenFailureReason } from '../game/Franchise'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
@@ -94,6 +95,7 @@ export class HUD {
   private modals: ModalManager
   private settings: SettingsPanel
   private statsScreen: StatsScreen
+  private lifestylePanel: LifestylePanel
   private tutorial: Tutorial
   private leaderboard: Leaderboard
   private skyline!: Skyline
@@ -141,6 +143,7 @@ export class HUD {
       applyDocumentTheme(themeId)
     })
     this.statsScreen = new StatsScreen(state, this.leaderboard)
+    this.lifestylePanel = new LifestylePanel()
     this.tutorial = new Tutorial(state)
     this.tutorial.setTabHandler((tab) => this.shop.setTab(tab, this.state))
     this.build()
@@ -456,6 +459,7 @@ export class HUD {
     }
     this.baronView.append(baronSubNav)
     this.baronView.appendChild(this.eventsPanel.root)
+    this.baronView.appendChild(this.lifestylePanel.root)
     this.statsScreen.embedIn(this.baronView)
 
     this.earnView.append(this.weeklyBanner, this.eraStrip, this.cityStrip, this.earnModifiersEl, tapWrap, comboWrap, sessionPanel, progressStrip, adsPanel)
@@ -508,17 +512,24 @@ export class HUD {
   }
 
   private refreshBaronPanel(): void {
-    if (this.bottomNav.getActive() !== 'profile' || this.baronSubTab === 'events') return
+    if (this.bottomNav.getActive() !== 'profile') return
+    if (this.baronSubTab === 'events' || this.baronSubTab === 'lifestyle') return
     this.statsScreen.renderSection(this.baronSubTab)
   }
 
   private syncBaronTab(): void {
     const tab = this.baronSubTab
     const isEvents = tab === 'events'
+    const isLifestyle = tab === 'lifestyle'
     this.eventsPanel.root.hidden = !isEvents
+    this.lifestylePanel.root.hidden = !isLifestyle
     if (isEvents) {
       this.statsScreen.hide()
+      this.lifestylePanel.root.hidden = true
       this.eventsPanel.render(this.state)
+    } else if (isLifestyle) {
+      this.statsScreen.hide()
+      this.lifestylePanel.render(this.state)
     } else {
       this.statsScreen.show(tab)
     }
@@ -705,14 +716,29 @@ export class HUD {
         } else {
           this.particles.spawnCoins(ev.x, ev.y)
         }
-        this.spawnFloat(ev.amount, ev.x, ev.y, ev.critical)
+        this.spawnFloat(ev.amount, ev.x, ev.y, ev.critical, ev.combo)
         this.renderCombo(ev.combo, this.state.comboMultiplier)
+        // Mascot bounce animasyonu
+        const mascotEl = this.tapArea.querySelector('.tap-mascot, .tap-emoji') as HTMLElement | null
+        if (mascotEl) {
+          mascotEl.classList.remove('mascot-bounce')
+          void mascotEl.offsetWidth
+          mascotEl.classList.add('mascot-bounce')
+          window.setTimeout(() => mascotEl.classList.remove('mascot-bounce'), 400)
+        }
         if (ev.combo >= 25) {
           this.tapWrap.classList.add('combo-fire')
           window.setTimeout(() => this.tapWrap.classList.remove('combo-fire'), 400)
         } else if (ev.combo >= 10) {
           this.tapWrap.classList.add('combo-heat')
           window.setTimeout(() => this.tapWrap.classList.remove('combo-heat'), 300)
+        }
+        // Her 10 combo'da ekrana ışık çakması
+        if (ev.combo > 0 && ev.combo % 10 === 0) {
+          const flash = document.createElement('div')
+          flash.className = 'combo-flash'
+          this.root.appendChild(flash)
+          window.setTimeout(() => flash.remove(), 600)
         }
       }
       if (ev.type === 'combo_changed') this.renderCombo(ev.combo, ev.multiplier)
@@ -793,6 +819,13 @@ export class HUD {
         if (this.baronShowsEvents()) {
           if (!this.eventsPanel.patchLive(this.state)) this.eventsPanel.render(this.state)
         }
+      }
+      if (ev.type === 'life_event_triggered') {
+        this.showLifeEventModal(ev.eventDef)
+      }
+      if (ev.type === 'life_event_consequence') {
+        this.modals.showToast(this.root, ev.headline)
+        if (this.baronSubTab === 'lifestyle') this.lifestylePanel.render(this.state)
       }
       if (ev.type === 'market_news') {
         this.renderMarketNewsBanner()
@@ -1048,19 +1081,26 @@ export class HUD {
 
   private showMilestone(amount: number): void {
     this.particles.spawnConfetti()
+    const messages: Record<number, { text: string; emoji: string }> = {
+      1_000:         { text: 'İlk binliğin!', emoji: '🎉' },
+      10_000:        { text: 'On bin baron! İş dünyasına giriyorsun', emoji: '💼' },
+      100_000:       { text: 'Küçük imparatorluk! Şehir seni konuşuyor', emoji: '🏙️' },
+      1_000_000:     { text: 'Milyoner oldun! Forbes seni takip ediyor', emoji: '👑' },
+      10_000_000:    { text: 'On milyoncu! Türkiye\'nin zirvesine çıktın', emoji: '🏆' },
+      100_000_000:   { text: 'Yüz milyon! Dünya seni tanıyor', emoji: '🌍' },
+      1_000_000_000: { text: 'MİLYARDER! Tarihe geçtin', emoji: '💎' },
+    }
+    const info = messages[amount]
     const overlay = document.createElement('div')
     overlay.className = 'milestone-overlay'
-    const labels: Record<number, string> = {
-      1_000: 'İlk binliğin! 🎉',
-      10_000: 'On bin baron! 💼',
-      100_000: 'Küçük imparatorluk! 🏙️',
-      1_000_000: 'Milyoner oldun! 👑',
-      10_000_000: 'On milyonluk güç! 💎',
-      100_000_000: 'Yüz milyonluk efsane! 🚀',
-    }
-    overlay.textContent = labels[amount] ?? `${formatMoney(amount)} kilometre taşı! 🎉`
+    overlay.innerHTML = info
+      ? `<span class="milestone-emoji">${info.emoji}</span><span class="milestone-text">${info.text}</span><span class="milestone-amount">${formatMoney(amount)}</span>`
+      : `<span class="milestone-emoji">🎉</span><span class="milestone-text">${formatMoney(amount)} kilometre taşı!</span>`
     this.root.appendChild(overlay)
-    window.setTimeout(() => overlay.remove(), 2800)
+    // Altın parlama arka plan efekti
+    this.root.classList.add('milestone-glow')
+    window.setTimeout(() => this.root.classList.remove('milestone-glow'), 2000)
+    window.setTimeout(() => overlay.remove(), 3200)
   }
 
   private async handleAction(action: string, id?: string, count?: string): Promise<void> {
@@ -1548,6 +1588,64 @@ export class HUD {
       case 'iap-chest-pack':
         await this.handleIAPChestPack()
         break
+      case 'iap-remove-ads': {
+        void iapManager.purchase('remove_ads').then((r) => {
+          if (r.success) {
+            this.state.removeAdsOwned = true
+            this.modals.showToast(this.root, '🚫📺 Reklamlar kaldırıldı!')
+            this.renderAll()
+          } else {
+            this.modals.showToast(this.root, r.reason ?? 'Satın alma başarısız')
+          }
+        })
+        break
+      }
+      case 'iap-vip-pass': {
+        void iapManager.purchase('vip_pass').then((r) => {
+          if (r.success) {
+            this.state.vipPassActive = true
+            this.modals.showToast(this.root, '👑 VIP Baron Pasaportu aktif!')
+            this.renderAll()
+          } else {
+            this.modals.showToast(this.root, r.reason ?? 'Satın alma başarısız')
+          }
+        })
+        break
+      }
+      case 'wellbeing-ad-boost': {
+        const adBoostBtn = document.querySelector(`[data-action="wellbeing-ad-boost"][data-id="${id}"]`) as HTMLButtonElement | null
+        if (adBoostBtn) { adBoostBtn.disabled = true; adBoostBtn.textContent = '📺 Reklam yükleniyor...' }
+        window.setTimeout(() => {
+          this.state.lifestyle.stress = Math.max(0, this.state.lifestyle.stress - 10)
+          this.modals.showToast(this.root, '📺 Reklam izlendi! Stres -10 düştü 🧘')
+          this.lifestylePanel.render(this.state)
+        }, 1500)
+        break
+      }
+      case 'buy-residence': {
+        const ok = id ? this.state.buyResidence(id as import('../game/Lifestyle').ResidenceId) : false
+        if (ok) { this.modals.showToast(this.root, '🏠 Konut değiştirildi!'); this.lifestylePanel.render(this.state) }
+        else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
+        break
+      }
+      case 'buy-vehicle': {
+        const ok = id ? this.state.buyVehicle(id as import('../game/Lifestyle').VehicleId) : false
+        if (ok) { this.modals.showToast(this.root, '🚗 Araç alındı!'); this.lifestylePanel.render(this.state) }
+        else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
+        break
+      }
+      case 'buy-pet': {
+        const ok = id ? this.state.buyPet(id as import('../game/Lifestyle').PetId) : false
+        if (ok) { this.modals.showToast(this.root, '🐾 Evcil hayvan sahiplenildi!'); this.lifestylePanel.render(this.state) }
+        else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
+        break
+      }
+      case 'buy-wellbeing': {
+        const ok = id ? this.state.buyWellbeing(id as import('../game/Lifestyle').WellbeingActivityId) : false
+        if (ok) { this.modals.showToast(this.root, '🧘 Refah aktivitesi başladı!'); this.lifestylePanel.render(this.state) }
+        else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
+        break
+      }
       case 'open-free-chest':
         this.handleOpenFreeChest()
         break
@@ -1717,6 +1815,17 @@ export class HUD {
       case 'crisis-choice':
         if (id) this.state.resolveCrisis(id)
         break
+      case 'life-event-choice': {
+        if (id) {
+          const [eventId, choiceId] = id.split(':')
+          if (eventId && choiceId) {
+            this.state.resolveLifeEventChoice(eventId as import('../game/LifeEvents').LifeEventId, choiceId)
+            this.modals.close()
+            this.closeModalAndPump()
+          }
+        }
+        break
+      }
       case 'rival-alliance-accept':
         if (this.state.acceptRivalAllianceOffer()) {
           this.modals.showToast(this.root, '🤝 Sektör anlaşması imzalandı')
@@ -2018,6 +2127,7 @@ export class HUD {
       return p ? this.state.producerIncome(p) : 0
     })
     this.skyline.update(buildings, this.state.skylineWorldStageId(), this.state.gameTimeMs, this.state.legacyMonuments, cityDef(this.state.activeCityId()).skylineClass)
+    this.skyline.setCrisis(this.state.activeCrisis !== null)
   }
 
   private showCrisisModal(crisisId: import('../game/CrisisEvents').CrisisId, title: string): void {
@@ -2035,6 +2145,30 @@ export class HUD {
       id: `crisis-${crisisId}`,
       priority: 1,
       run: () => this.modals.show(`${def.emoji} ${title}`, def.description, buttons),
+    })
+  }
+
+  private showLifeEventModal(def: import('../game/LifeEvents').LifeEventDef): void {
+    const buttons = def.choices.map((choice) => {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'btn-secondary life-event-choice-btn'
+      b.dataset.action = 'life-event-choice'
+      b.dataset.id = `${def.id}:${choice.id}`
+      const delta = []
+      if (choice.moneyDelta > 0) delta.push(`+${formatMoney(choice.moneyDelta)}`)
+      else if (choice.moneyDelta < 0) delta.push(formatMoney(choice.moneyDelta))
+      if (choice.reputationDelta > 0) delta.push(`İtibar +${choice.reputationDelta}`)
+      else if (choice.reputationDelta < 0) delta.push(`İtibar ${choice.reputationDelta}`)
+      if (choice.stressDelta > 0) delta.push(`Stres +${choice.stressDelta}`)
+      else if (choice.stressDelta < 0) delta.push(`Stres ${choice.stressDelta}`)
+      b.innerHTML = `<strong>${choice.emoji} ${choice.label}</strong><small>${delta.join(' · ')}</small>`
+      return b
+    })
+    this.eventDirector.enqueue({
+      id: `life-event-${def.id}`,
+      priority: 2,
+      run: () => this.modals.show(`${def.emoji} ${def.title}`, def.description, buttons),
     })
   }
 
@@ -2085,10 +2219,14 @@ export class HUD {
     }
   }
 
-  private spawnFloat(amount: number, x: number, y: number, critical: boolean): void {
+  private spawnFloat(amount: number, x: number, y: number, critical: boolean, combo = 0): void {
     const el = document.createElement('span')
     el.className = `float-text${critical ? ' critical' : ''}`
-    el.textContent = `+${formatMoney(amount)}`
+    let comboEmoji = ''
+    if (combo >= 20) comboEmoji = ' 💥'
+    else if (combo >= 10) comboEmoji = ' ⚡'
+    else if (combo >= 5) comboEmoji = ' 🔥'
+    el.textContent = `+${formatMoney(amount)}${comboEmoji}`
     el.style.left = `${x}px`
     el.style.top = `${y}px`
     this.floatLayer.appendChild(el)

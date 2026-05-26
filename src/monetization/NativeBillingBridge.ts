@@ -4,6 +4,8 @@ import type { IAPProductId } from './IAPManager'
 export const PLAY_PRODUCT_SKUS: Record<IAPProductId, string> = {
   season_premium: 'com.paratuzaqi.game.season_premium',
   chest_pack_5: 'com.paratuzaqi.game.chest_pack_5',
+  remove_ads: 'com.paratuzaqi.game.remove_ads',
+  vip_pass: 'com.paratuzaqi.game.vip_pass',
 }
 
 export function isNativePlatform(): boolean {

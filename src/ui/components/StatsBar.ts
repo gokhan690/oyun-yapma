@@ -15,6 +15,8 @@ export class StatsBar {
   private lastPassiveValue = -1
   private lastClickValue = -1
   private lastBoostWasTimer = false
+  private lastActiveBizCount = -1
+  private activeBizChip!: HTMLElement
 
   constructor(state: GameState) {
     this.state = state
@@ -44,7 +46,10 @@ export class StatsBar {
     this.prestigeChip = this.chip('📊', 'x1.00')
     this.boostChip = this.chip('👆', '—')
     this.boostChip.title = 'Tıklama başına baz gelir (combo/krit hariç)'
-    chips.append(this.incomeChip, this.prestigeChip, this.boostChip)
+    this.activeBizChip = document.createElement('span')
+    this.activeBizChip.className = 'active-biz-chip'
+    this.activeBizChip.title = 'Aktif işletme sayısı'
+    chips.append(this.incomeChip, this.prestigeChip, this.boostChip, this.activeBizChip)
 
     heroEl.append(moneyBlock, chips)
     this.root.appendChild(heroEl)
@@ -75,9 +80,23 @@ export class StatsBar {
       const incomeText = formatIncomeRate(passiveValue)
       if (incomeText !== this.lastIncomeText) {
         this.setChip(this.incomeChip, incomeText)
+        // Income büyüme animasyonu
+        if (this.lastIncomeText && passiveValue > this.lastPassiveValue) {
+          this.incomeChip.classList.remove('income-grew')
+          void this.incomeChip.offsetWidth
+          this.incomeChip.classList.add('income-grew')
+          window.setTimeout(() => this.incomeChip.classList.remove('income-grew'), 1200)
+        }
         this.lastIncomeText = incomeText
       }
       this.lastPassiveValue = passiveValue
+    }
+    // Aktif işletme sayısı
+    const activeBiz = Object.values(this.state.producers as Record<string, number>).filter(v => v > 0).length
+    if (activeBiz !== this.lastActiveBizCount) {
+      this.lastActiveBizCount = activeBiz
+      this.activeBizChip.textContent = `🏢 ${activeBiz}`
+      this.activeBizChip.style.display = activeBiz > 0 ? '' : 'none'
     }
 
     const prestigeText = `x${prestigeMultiplier(this.state.prestigePoints).toFixed(2)}`

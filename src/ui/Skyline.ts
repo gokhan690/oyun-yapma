@@ -52,6 +52,8 @@ export class Skyline {
   private windowCache = new Map<string, boolean[][]>()
   private hillsEl: HTMLElement
   private moonEl: HTMLElement
+  private rainEl: HTMLElement
+  private lastCrisis = false
 
   constructor(container: HTMLElement) {
     this.el = document.createElement('div')
@@ -89,13 +91,27 @@ export class Skyline {
     this.moonEl.className = 'skyline-moon'
     this.moonEl.setAttribute('aria-hidden', 'true')
 
+    this.rainEl = document.createElement('div')
+    this.rainEl.className = 'skyline-rain'
+    this.rainEl.setAttribute('aria-hidden', 'true')
+    this.rainEl.hidden = true
+    for (let i = 0; i < 18; i++) {
+      const drop = document.createElement('span')
+      drop.className = 'skyline-rain-drop'
+      drop.style.left = `${Math.random() * 100}%`
+      drop.style.height = `${10 + Math.random() * 14}px`
+      drop.style.animationDelay = `${Math.random() * 1.2}s`
+      drop.style.animationDuration = `${0.9 + Math.random() * 0.6}s`
+      this.rainEl.appendChild(drop)
+    }
+
     this.layerFront = document.createElement('div')
     this.layerFront.className = 'skyline-layer skyline-front'
 
     const ground = document.createElement('div')
     ground.className = 'skyline-ground'
 
-    this.el.append(this.layerBack, this.skyEl, this.starsEl, this.moonEl, this.hillsEl, this.silhouetteEl, this.buildingsEl, this.layerFront, ground)
+    this.el.append(this.layerBack, this.skyEl, this.starsEl, this.moonEl, this.hillsEl, this.silhouetteEl, this.buildingsEl, this.layerFront, ground, this.rainEl)
     container.prepend(this.el)
     this.animateParallax()
   }
@@ -232,6 +248,13 @@ export class Skyline {
     this.el.classList.remove('skyline-flash')
     void this.el.offsetWidth
     this.el.classList.add('skyline-flash')
+  }
+
+  setCrisis(hasCrisis: boolean): void {
+    if (hasCrisis === this.lastCrisis) return
+    this.lastCrisis = hasCrisis
+    this.rainEl.hidden = !hasCrisis
+    this.el.classList.toggle('skyline-crisis', hasCrisis)
   }
 
   private animateParallax(): void {

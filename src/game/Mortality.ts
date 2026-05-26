@@ -68,16 +68,21 @@ function traitMult(ctx: MortalityContext): number {
   return 1
 }
 
+const PLAYER_LIFESPAN = 100
+
+export function playerLifespan(): number { return PLAYER_LIFESPAN }
+
 function ageBaseRisk(age: number): number {
-  if (age < 22) return 0.0000048
-  if (age < 30) return 0.0000072
-  if (age < 40) return 0.0000112
-  if (age < 50) return 0.000018
-  if (age < 60) return 0.00003
-  if (age < 70) return 0.000048
-  if (age < 80) return 0.000088
-  if (age < 90) return 0.000168
-  return 0.0003
+  // 0.35x multiplier — BitLife gibi uzun yaşam
+  if (age < 22) return 0.0000048 * 0.35
+  if (age < 30) return 0.0000072 * 0.35
+  if (age < 40) return 0.0000112 * 0.35
+  if (age < 50) return 0.000018 * 0.35
+  if (age < 60) return 0.00003 * 0.35
+  if (age < 70) return 0.000048 * 0.35
+  if (age < 80) return 0.000088 * 0.35
+  if (age < 90) return 0.000168 * 0.35
+  return 0.0003 * 0.35
 }
 
 const DEATH_CAUSES: DeathCauseDef[] = [
@@ -252,7 +257,7 @@ export function totalDailyMortalityRisk(ctx: MortalityContext): number {
   for (const { risk } of entries) {
     combined = combined + risk - combined * risk
   }
-  return Math.min(0.015, combined)
+  return Math.min(0.008, combined)
 }
 
 export function estimatedYearsRemaining(ctx: MortalityContext): number {

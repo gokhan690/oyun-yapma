@@ -26,9 +26,9 @@ export interface TierBand {
 
 export const BIZ_TIER_BANDS: TierBand[] = [
   { id: 'starter', label: 'Başlangıç', emoji: '🌱', minTier: 1, maxTier: 3, unlockAt: 0 },
-  { id: 'growth', label: 'Büyüme', emoji: '📈', minTier: 4, maxTier: 6, unlockAt: 120_000 },
-  { id: 'peak', label: 'Zirve', emoji: '🏙️', minTier: 7, maxTier: 9, unlockAt: 10_000_000 },
-  { id: 'legend', label: 'Efsane', emoji: '👑', minTier: 10, maxTier: 11, unlockAt: 900_000_000 },
+  { id: 'growth', label: 'Büyüme', emoji: '📈', minTier: 4, maxTier: 6, unlockAt: 480_000 },
+  { id: 'peak', label: 'Zirve', emoji: '🏙️', minTier: 7, maxTier: 9, unlockAt: 40_000_000 },
+  { id: 'legend', label: 'Efsane', emoji: '👑', minTier: 10, maxTier: 11, unlockAt: 3_600_000_000 },
 ]
 
 const MILESTONES = [1, 10, 25, 50, 100]
@@ -101,7 +101,30 @@ export function createHeroBusinessCard(p: ProducerDef): HTMLDivElement {
     btn.dataset.id = p.id
   }
 
-  if (p.illegal) card.classList.add('biz-hero-illegal')
+  if (p.illegal) {
+    card.classList.add('biz-hero-illegal')
+    const badgeWrap = document.createElement('div')
+    badgeWrap.className = 'biz-illegal-header-badges'
+    badgeWrap.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;'
+    const illBadge = document.createElement('span')
+    illBadge.className = 'biz-illegal-badge'
+    illBadge.textContent = '🚨 GAYRİRESMİ'
+    const riskBadge = document.createElement('span')
+    riskBadge.className = 'biz-illegal-risk'
+    riskBadge.dataset.illegalRisk = '1'
+    riskBadge.textContent = `⚠️ Baskın: ~${Math.round((p.riskChance ?? 0) * 100)}%`
+    const heatWrap = document.createElement('div')
+    heatWrap.className = 'biz-illegal-heat-bar'
+    heatWrap.style.width = '100%'
+    const heatFill = document.createElement('div')
+    heatFill.className = 'biz-illegal-heat-fill'
+    heatFill.dataset.heatFill = '1'
+    heatFill.style.width = '0%'
+    heatWrap.appendChild(heatFill)
+    badgeWrap.append(illBadge, riskBadge)
+    card.insertBefore(badgeWrap, card.querySelector('.biz-hero-head'))
+    card.insertBefore(heatWrap, card.querySelector('.biz-hero-metrics'))
+  }
 
   const msWrap = card.querySelector('.biz-hero-milestones')!
   for (const ms of MILESTONES) {
@@ -186,10 +209,10 @@ export function updateHeroBusinessCard(
   }
   if (p.illegal && p.riskChance) {
     const chancePct = Math.round(p.riskChance * 100 * (1 + state.illegalHeat / 100))
-    const b = document.createElement('span')
-    b.className = 'biz-risk-badge'
-    b.textContent = `🕶️ Baskın ~${chancePct}%/dk`
-    badges.appendChild(b)
+    const riskEl = card.querySelector('[data-illegal-risk]') as HTMLElement | null
+    if (riskEl) riskEl.textContent = `⚠️ Baskın: ~${chancePct}%/gün · Ceza: -%${Math.round((p.riskFinePct ?? 0) * 100)} gelir`
+    const heatFill = card.querySelector('[data-heat-fill]') as HTMLElement | null
+    if (heatFill) heatFill.style.width = `${Math.min(100, state.illegalHeat)}%`
   }
 
   const extra = card.querySelector('.biz-hero-extra')!

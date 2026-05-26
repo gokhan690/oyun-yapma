@@ -34,6 +34,31 @@ export function appendFranchiseSection(
     block.appendChild(hint)
   }
 
+  if (branches.length > 0 || canOpen) {
+    const mapWrap = document.createElement('div')
+    mapWrap.className = 'franchise-map-wrap'
+    const mapTitle = document.createElement('div')
+    mapTitle.className = 'franchise-map-title'
+    mapTitle.textContent = '🗺️ Şube haritası'
+    mapWrap.appendChild(mapTitle)
+    const cities = document.createElement('div')
+    cities.className = 'franchise-map-cities'
+    for (const c of FRANCHISE_CITIES) {
+      const isActive = branches.some((b) => b.city === c.id)
+      const dotWrap = document.createElement('span')
+      dotWrap.className = `franchise-city-dot${isActive ? ' active' : ''}`
+      dotWrap.title = `${c.label}${isActive ? ' ✓' : ''}`
+      const dotCircle = document.createElement('span')
+      dotCircle.className = 'dot'
+      const label = document.createElement('span')
+      label.textContent = c.label
+      dotWrap.append(dotCircle, label)
+      cities.appendChild(dotWrap)
+    }
+    mapWrap.appendChild(cities)
+    block.appendChild(mapWrap)
+  }
+
   if (branches.length > 0) {
     const open = document.createElement('div')
     open.className = 'biz-franchise-open'

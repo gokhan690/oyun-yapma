@@ -13,6 +13,7 @@ import {
   isChapterUnlocked,
 } from '../../game/Campaign'
 import { iapManager } from '../../monetization/IAPManager'
+import type { GazetteCategory } from '../../game/BaronGazette'
 
 function formatRemainingMs(ms: number): string {
   if (ms <= 0) return 'bitti'
@@ -86,6 +87,8 @@ export class EventsPanel {
     this.scrollBody.appendChild(this.renderGacha(state))
     this.scrollBody.appendChild(this.renderSeason(state))
     this.scrollBody.appendChild(this.renderMissions(state))
+    const gazette = this.renderGazette(state)
+    if (gazette) this.scrollBody.appendChild(gazette)
 
     const iapFooter = document.createElement('div')
     iapFooter.className = 'iap-restore-footer'
@@ -95,6 +98,63 @@ export class EventsPanel {
     restoreBtn.dataset.action = 'iap-restore'
     restoreBtn.textContent = '🔄 Satın almaları geri yükle (Google Play / App Store)'
     iapFooter.appendChild(restoreBtn)
+
+    const monetSection = document.createElement('section')
+    monetSection.className = 'events-block events-block-monetization'
+    const monetHead = document.createElement('div')
+    monetHead.className = 'events-block-head'
+    monetHead.innerHTML = `
+      <span class="events-hero-icon">💎</span>
+      <div class="events-hero-text">
+        <strong>Baron Premium</strong>
+        <small>Deneyimini geliştir</small>
+      </div>
+    `
+    monetSection.appendChild(monetHead)
+
+    const monetCards = document.createElement('div')
+    monetCards.className = 'events-monet-cards'
+
+    if (!state.removeAdsOwned) {
+      const noAdsCard = document.createElement('div')
+      noAdsCard.className = 'iap-value-card'
+      const noAdsProd = iapManager.getProduct('remove_ads')
+      noAdsCard.innerHTML = `
+        <strong>🚫📺 Reklamları Kaldır</strong>
+        <p>Tüm reklam banner'larından kurtul — tek seferlik ödeme.</p>
+      `
+      const noAdsBtn = this.actionBtn('iap-remove-ads', `${noAdsProd.priceLabel} · Satın Al`, 'btn-premium')
+      noAdsCard.appendChild(noAdsBtn)
+      monetCards.appendChild(noAdsCard)
+    }
+
+    if (!state.vipPassActive) {
+      const vipCard = document.createElement('div')
+      vipCard.className = 'iap-value-card'
+      const vipProd = iapManager.getProduct('vip_pass')
+      vipCard.innerHTML = `
+        <strong>👑 VIP Baron Pasaportu</strong>
+        <p>+%25 pasif gelir · Her gün ücretsiz sandık · VIP rozeti</p>
+        <ul class="iap-perks">
+          <li>Pasif gelir kalıcı +%25 artışı</li>
+          <li>Her gün ücretsiz şans sandığı</li>
+          <li>Reklamsız haftalık bonus</li>
+        </ul>
+      `
+      const vipBtn = this.actionBtn('iap-vip-pass', `${vipProd.priceLabel} · Abone Ol`, 'btn-premium')
+      vipCard.appendChild(vipBtn)
+      monetCards.appendChild(vipCard)
+    }
+
+    if (state.vipPassActive) {
+      const activeVip = document.createElement('div')
+      activeVip.className = 'events-vip-active'
+      activeVip.textContent = '👑 VIP Baron — Tüm avantajlar aktif'
+      monetCards.appendChild(activeVip)
+    }
+
+    monetSection.appendChild(monetCards)
+    this.scrollBody.insertBefore(monetSection, iapFooter)
     this.scrollBody.appendChild(iapFooter)
   }
 
@@ -422,7 +482,29 @@ export class EventsPanel {
       `T${prog.tier}`,
       `${prog.current} / ${prog.needed} XP · Para kazanınca XP gelir`,
     ))
-    wrap.appendChild(this.progressBar(prog.pct))
+
+    // Prominent progress bar with tier/30 label
+    const progWrap = document.createElement('div')
+    progWrap.className = 'season-progress-prominent'
+    const progLabel = document.createElement('div')
+    progLabel.className = 'season-progress-label'
+    progLabel.innerHTML = `<span>Tier <strong>${prog.tier}</strong> / ${SEASON_MAX_TIER}</span><span>${prog.current} / ${prog.needed} XP</span>`
+    const progStrip = document.createElement('div')
+    progStrip.className = 'season-progress-strip'
+    const progFill = document.createElement('div')
+    progFill.className = 'season-progress-strip-fill'
+    progFill.style.width = `${Math.min(100, (prog.tier / SEASON_MAX_TIER) * 100).toFixed(1)}%`
+    progStrip.appendChild(progFill)
+    progWrap.append(progLabel, progStrip)
+    wrap.appendChild(progWrap)
+
+    // Season ending warning
+    if (tier >= 28) {
+      const warning = document.createElement('div')
+      warning.className = 'season-ending-warning'
+      warning.textContent = `⏰ Sezon sona yaklaşıyor! Son ${SEASON_MAX_TIER - tier} tier kaldı`
+      wrap.appendChild(warning)
+    }
 
     if (!state.season.premiumUnlocked) {
       const premiumCta = document.createElement('div')
@@ -478,12 +560,13 @@ export class EventsPanel {
     const locked = track === 'premium' && !state.season.premiumUnlocked
     for (let i = 1; i <= Math.min(SEASON_MAX_TIER, tier + 3); i++) {
       const node = document.createElement('div')
-      node.className = 'season-node'
+      const isBigReward = i % 5 === 0
+      node.className = `season-node${isBigReward ? ' season-node-big' : ''}`
       if (i <= tier) node.classList.add('unlocked')
       if (claimed.includes(i)) node.classList.add('claimed')
       if (locked) node.classList.add('locked')
       const rw = rewardForTier(i, track)
-      node.innerHTML = `<span class="season-node-tier">${i}</span><small>${rw.label}</small>`
+      node.innerHTML = `${isBigReward ? '<span class="season-big-badge">⭐ BÜYÜK ÖDÜL</span>' : ''}<span class="season-node-tier">${i}</span><small>${rw.label}</small>`
       if (i <= tier && !claimed.includes(i) && !locked) {
         const claim = document.createElement('button')
         claim.type = 'button'
@@ -638,6 +721,54 @@ export class EventsPanel {
     }
     section.appendChild(list)
     return section
+  }
+
+  private renderGazette(state: GameState): HTMLElement | null {
+    const entries = state.latestGazetteHeadlines(10)
+    if (entries.length === 0) return null
+    const wrap = document.createElement('section')
+    wrap.className = 'events-block events-block-gazette'
+    const head = document.createElement('div')
+    head.className = 'events-block-head'
+    head.innerHTML = `
+      <span class="events-hero-icon">📰</span>
+      <div class="events-hero-text">
+        <strong>Baron Gazetesi</strong>
+        <small>İmparatorluğunun son gelişmeleri</small>
+      </div>
+      <span class="events-hero-stat">${entries.length}</span>
+    `
+    wrap.appendChild(head)
+    const feed = document.createElement('div')
+    feed.className = 'gazette-feed'
+    const catColors: Record<GazetteCategory, string> = {
+      player: 'var(--accent)',
+      rival: 'var(--accent2, #f59e0b)',
+      market: 'var(--green)',
+      politics: '#8b5cf6',
+      crisis: '#ef4444',
+      calendar: '#06b6d4',
+    }
+    for (const entry of entries) {
+      const row = document.createElement('div')
+      row.className = 'gazette-entry'
+      const dot = document.createElement('span')
+      dot.className = `gazette-cat-dot ${entry.category}`
+      dot.style.background = catColors[entry.category] ?? 'var(--accent)'
+      const text = document.createElement('div')
+      text.className = 'gazette-text'
+      const headline = document.createElement('div')
+      headline.className = 'gazette-headline'
+      headline.textContent = entry.headline
+      const date = document.createElement('div')
+      date.className = 'gazette-date'
+      date.textContent = `Gün ${entry.gameDay}`
+      text.append(headline, date)
+      row.append(dot, text)
+      feed.appendChild(row)
+    }
+    wrap.appendChild(feed)
+    return wrap
   }
 
   private blockHeader(icon: string, title: string, subtitle: string, stat: string, hint?: string): HTMLElement {

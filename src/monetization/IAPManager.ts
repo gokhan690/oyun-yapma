@@ -1,4 +1,4 @@
-export type IAPProductId = 'season_premium' | 'chest_pack_5'
+export type IAPProductId = 'season_premium' | 'chest_pack_5' | 'remove_ads' | 'vip_pass'
 
 export interface IAPProduct {
   id: IAPProductId
@@ -28,6 +28,18 @@ const PRODUCTS: Record<IAPProductId, IAPProduct> = {
     description: 'Reklamsız 5 premium sandık açma hakkı.',
     priceLabel: '₺29,99',
   },
+  remove_ads: {
+    id: 'remove_ads',
+    name: 'Reklamları Kaldır',
+    description: 'Tüm reklam çıkış banner\'larını kaldır — tek seferlik ödeme.',
+    priceLabel: '₺34,99',
+  },
+  vip_pass: {
+    id: 'vip_pass',
+    name: 'VIP Baron Pasaportu',
+    description: 'Aylık abonelik: +%25 pasif gelir, her gün ücretsiz sandık, özel VIP rozeti.',
+    priceLabel: '₺29,99/ay',
+  },
 }
 
 const RECEIPTS_KEY = 'is_imparatorlugu_iap_receipts'
@@ -38,7 +50,7 @@ function loadReceipts(): IAPProductId[] {
     if (!raw) return []
     const parsed = JSON.parse(raw) as unknown
     if (!Array.isArray(parsed)) return []
-    return parsed.filter((id): id is IAPProductId => id === 'season_premium' || id === 'chest_pack_5')
+    return parsed.filter((id): id is IAPProductId => ['season_premium', 'chest_pack_5', 'remove_ads', 'vip_pass'].includes(id as string))
   } catch {
     return []
   }
@@ -105,6 +117,8 @@ export class IAPManager {
     const prices = await fetchNativeStorePrices()
     if (prices.season_premium) PRODUCTS.season_premium.priceLabel = prices.season_premium
     if (prices.chest_pack_5) PRODUCTS.chest_pack_5.priceLabel = prices.chest_pack_5
+    if (prices.remove_ads) PRODUCTS.remove_ads.priceLabel = prices.remove_ads
+    if (prices.vip_pass) PRODUCTS.vip_pass.priceLabel = prices.vip_pass
   }
 
   private grantReceipt(productId: IAPProductId): void {
