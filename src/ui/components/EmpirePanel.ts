@@ -1,5 +1,6 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney, formatIncomeRate, PRODUCERS } from '../../game/Economy'
+import { t } from '../../i18n'
 import {
   leagueName,
   politicsLevelLabel,
@@ -31,15 +32,15 @@ export class EmpirePanel {
     header.className = 'empire-header'
     header.innerHTML = `
       <div class="empire-header-top">
-        <h2>İmparatorluk Yönetimi</h2>
-        <button type="button" class="btn-secondary btn-sm" data-action="close-empire-manage">✕ Kapat</button>
+        <h2>${t('empire_manage_title')}</h2>
+        <button type="button" class="btn-secondary btn-sm" data-action="close-empire-manage">✕ ${t('btn_close')}</button>
       </div>
-      <p class="empire-sub">Satın aldığın varlıkları yönet, gücünü artır</p>
+      <p class="empire-sub">${t('empire_manage_sub')}</p>
     `
 
     const tabs = document.createElement('div')
     tabs.className = 'empire-section-tabs'
-    for (const [id, label] of [['football', '⚽ Spor'], ['politics', '🏛️ Siyaset'], ['dark', '🏭 Yeraltı']] as const) {
+    for (const [id, label] of [['football', t('empire_football')], ['politics', t('empire_politics_tab')], ['dark', t('empire_dark_tab')]] as const) {
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = `empire-section-tab${id === 'football' ? ' active' : ''}`
@@ -81,7 +82,7 @@ export class EmpirePanel {
 
   private renderFootball(state: GameState, clock: string): void {
     if (state.empire.football.length === 0) {
-      this.contentEl.innerHTML = `<div class="empire-empty"><span>⚽</span><p>Henüz futbol kulübün yok.</p><small>Mağaza → İmparatorluk → Spor'dan kulüp satın al.</small></div>`
+      this.contentEl.innerHTML = `<div class="empire-empty"><span>⚽</span><p>${t('empire_no_clubs')}</p><small>${t('empire_no_clubs_hint')}</small></div>`
       return
     }
     const meta = document.createElement('p')
@@ -175,7 +176,7 @@ export class EmpirePanel {
     if (pol.level === 'none') {
       const empty = document.createElement('p')
       empty.className = 'empire-hint'
-      empty.textContent = 'Mağaza → İmparatorluk → Siyaset\'ten belediye meclisi satın al.'
+      empty.textContent = t('empire_politics_hint')
       this.contentEl.appendChild(empty)
       return
     }
@@ -206,7 +207,7 @@ export class EmpirePanel {
       row.innerHTML = `
         <span>${p.emoji} ${p.name} ×${cnt}</span>
         <span class="empire-chip-income">${formatIncomeRate(state.producerIncome(p))}</span>
-        <button type="button" class="btn-secondary btn-sm empire-sell-btn" data-action="sell-producer" data-id="${p.id}" data-count="1">Sat</button>
+        <button type="button" class="btn-secondary btn-sm empire-sell-btn" data-action="sell-producer" data-id="${p.id}" data-count="1">${t('empire_sell')}</button>
       `
       this.contentEl.appendChild(row)
     }
@@ -223,7 +224,7 @@ export class EmpirePanel {
     const dark = state.empire.darkIndustry
     const owned = PRODUCERS.filter((p) => p.category === 'dark' && (state.producers[p.id] ?? 0) > 0)
     if (owned.length === 0) {
-      this.contentEl.innerHTML = `<div class="empire-empty"><span>🏭</span><p>Siyah endüstri yok.</p><small>Mağaza → İmparatorluk → Yeraltı'dan satın al.</small></div>`
+      this.contentEl.innerHTML = `<div class="empire-empty"><span>🏭</span><p>${t('empire_no_dark')}</p><small>${t('empire_no_dark_hint')}</small></div>`
       return
     }
 
@@ -248,7 +249,7 @@ export class EmpirePanel {
       row.innerHTML = `
         <span>${p.emoji} ${p.name} ×${cnt}</span>
         <span class="empire-chip-income">${formatIncomeRate(state.producerIncome(p))}</span>
-        <button type="button" class="btn-secondary btn-sm empire-sell-btn" data-action="sell-producer" data-id="${p.id}" data-count="1">Sat</button>
+        <button type="button" class="btn-secondary btn-sm empire-sell-btn" data-action="sell-producer" data-id="${p.id}" data-count="1">${t('empire_sell')}</button>
       `
       this.contentEl.appendChild(row)
     }

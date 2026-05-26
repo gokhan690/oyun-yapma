@@ -1,5 +1,6 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
+import { t } from '../../i18n'
 import { EXPANSION_CITIES, canUnlockCity } from '../../game/ExpansionMap'
 import { TORPIL_CONTACTS, torpilRelationScore } from '../../game/TorpilNetwork'
 import { gameDay } from '../../game/GameClock'
@@ -47,12 +48,12 @@ export class WorldMetaPanel {
     block.className = 'meta-block reputation-block'
     const rep = this.state.reputation
     block.innerHTML = `
-      <h3>⭐ İtibar · ${reputationLabel(rep)}</h3>
+      <h3>${t('world_reputation')} · ${reputationLabel(rep)}</h3>
       <div class="reputation-bar-wrap">
         <div class="reputation-bar"><div class="reputation-fill" style="width:${rep}%"></div></div>
         <span>${rep}/100</span>
       </div>
-      <p class="meta-hint">Yasal işletme ↑ · Baskın & illegal ↓. Düşük itibarda banka reddeder — sayı değil mesaj hissettirir.</p>
+      <p class="meta-hint">${t('world_rep_hint')}</p>
     `
     this.root.appendChild(block)
   }
@@ -62,7 +63,7 @@ export class WorldMetaPanel {
     if (headlines.length === 0) return
     const block = document.createElement('div')
     block.className = 'meta-block gazette-block'
-    block.innerHTML = '<h3>📰 Baron Gazetesi</h3>'
+    block.innerHTML = `<h3>${t('world_gazette')}</h3>`
     const list = document.createElement('ul')
     list.className = 'gazette-list'
     for (const h of headlines) {
@@ -75,10 +76,10 @@ export class WorldMetaPanel {
   }
 
   private renderPlayerTitle(): void {
-    const t = this.state.playerTitle()
+    const title = this.state.playerTitle()
     const block = document.createElement('div')
     block.className = 'meta-block title-block'
-    block.innerHTML = `<h3>${t.emoji} Lakap · ${t.label}</h3><p class="meta-hint">Oyun tarzına göre profilinde görünür</p>`
+    block.innerHTML = `<h3>${title.emoji} Lakap · ${title.label}</h3><p class="meta-hint">${t('world_gazette_style')}</p>`
     this.root.appendChild(block)
   }
 
@@ -92,8 +93,8 @@ export class WorldMetaPanel {
     block.innerHTML = `
       <h3>${stage.emoji} Dünya · ${stage.name}</h3>
       <p class="meta-headline">${stage.headline}</p>
-      <p class="meta-threat">Tehdit: ${stage.threat}</p>
-      ${next ? `<div class="progress-bar meta-progress"><div class="progress-fill" style="width:${pct}%"></div></div><small>Sonraki: ${next.name} · ${formatMoney(next.minNetWorth)} net değer</small>` : '<small>Maksimum aşama!</small>'}
+      <p class="meta-threat">${t('world_threat')}: ${stage.threat}</p>
+      ${next ? `<div class="progress-bar meta-progress"><div class="progress-fill" style="width:${pct}%"></div></div><small>${t('world_next_rival').replace('{val}', next.name + ' · ' + formatMoney(next.minNetWorth))}</small>` : `<small>${t('rank_max')}</small>`}
     `
     this.root.appendChild(block)
   }
@@ -102,7 +103,7 @@ export class WorldMetaPanel {
     const block = document.createElement('div')
     block.className = 'meta-block victories-block'
     const h = document.createElement('h3')
-    h.textContent = '🏁 Zafer Yolları'
+    h.textContent = t('world_victory')
     block.appendChild(h)
     const grid = document.createElement('div')
     grid.className = 'victory-grid'
@@ -129,7 +130,7 @@ export class WorldMetaPanel {
     const block = document.createElement('div')
     block.className = 'meta-block rivals-block'
     const h = document.createElement('h3')
-    h.textContent = '⚔️ Rakip Aileler'
+    h.textContent = t('world_rivals')
     block.appendChild(h)
     const list = document.createElement('div')
     list.className = 'rival-list'
@@ -166,13 +167,13 @@ export class WorldMetaPanel {
       lobby.className = 'btn-sm btn-secondary'
       lobby.dataset.action = 'rival-lobby'
       lobby.dataset.id = rival.id
-      lobby.textContent = '🏛️ Lobi'
+      lobby.textContent = t('world_lobby')
       const coop = document.createElement('button')
       coop.type = 'button'
       coop.className = 'btn-sm btn-secondary'
       coop.dataset.action = 'rival-coop'
       coop.dataset.id = rival.id
-      coop.textContent = '🤝 İşbirliği'
+      coop.textContent = t('world_cooperate')
       const merge = document.createElement('button')
       merge.type = 'button'
       merge.className = 'btn-sm btn-primary'
@@ -185,7 +186,7 @@ export class WorldMetaPanel {
     } else {
       const badge = document.createElement('span')
       badge.className = 'rival-merged-badge'
-      badge.textContent = '✓ Birleşti'
+      badge.textContent = t('world_merged')
       card.appendChild(badge)
     }
     return card
@@ -194,7 +195,7 @@ export class WorldMetaPanel {
   private renderExpansionMap(): void {
     const block = document.createElement('div')
     block.className = 'meta-block expansion-block'
-    block.innerHTML = '<h3>🗺️ Genişleme Haritası</h3>'
+    block.innerHTML = `<h3>${t('world_expansion')}</h3>`
     const list = document.createElement('div')
     list.className = 'expansion-city-list'
     for (const c of EXPANSION_CITIES) {
@@ -211,7 +212,7 @@ export class WorldMetaPanel {
         btn.className = 'btn-sm btn-secondary'
         btn.dataset.action = 'set-active-city'
         btn.dataset.id = c.id
-        btn.textContent = 'Git'
+        btn.textContent = t('world_go')
         row.appendChild(btn)
       } else if (!unlocked) {
         const check = canUnlockCity(c.id, this.state.cities, this.state.money, this.state.reputation, this.state.ipoCount)
@@ -220,7 +221,7 @@ export class WorldMetaPanel {
         btn.className = 'btn-sm btn-primary'
         btn.dataset.action = 'unlock-city'
         btn.dataset.id = c.id
-        btn.textContent = 'Aç'
+        btn.textContent = t('world_open')
         btn.disabled = !check.ok
         btn.title = check.reason ?? ''
         row.appendChild(btn)
@@ -234,10 +235,10 @@ export class WorldMetaPanel {
   private renderTorpilNetwork(): void {
     const block = document.createElement('div')
     block.className = 'meta-block torpil-block'
-    block.innerHTML = '<h3>🤝 Torpil Ağı</h3>'
+    block.innerHTML = `<h3>${t('world_torpil')}</h3>`
     const currentDay = gameDay(this.state.gameTimeMs)
     for (const def of TORPIL_CONTACTS) {
-      const st = this.state.torpil.find((t) => t.id === def.id)
+      const st = this.state.torpil.find((tp) => tp.id === def.id)
       const card = document.createElement('div')
       card.className = 'torpil-contact-card'
       const header = document.createElement('div')
@@ -254,7 +255,7 @@ export class WorldMetaPanel {
         relationRow.className = 'torpil-relation-row'
         const label = document.createElement('small')
         label.className = 'torpil-relation-label'
-        label.textContent = `İlişki: ${score}%`
+        label.textContent = t('world_torpil_relation').replace('{pct}', String(score))
         const bar = document.createElement('div')
         bar.className = 'torpil-relation-bar'
         const fill = document.createElement('div')
@@ -267,7 +268,7 @@ export class WorldMetaPanel {
         if (st.giftDue) {
           const giftWarn = document.createElement('p')
           giftWarn.className = 'torpil-gift-warn'
-          giftWarn.textContent = '⚠️ Hediye gecikti — bonus askıya alındı'
+          giftWarn.textContent = t('world_torpil_late')
           card.appendChild(giftWarn)
           const gift = document.createElement('button')
           gift.type = 'button'
@@ -279,7 +280,7 @@ export class WorldMetaPanel {
         } else {
           const ok = document.createElement('span')
           ok.className = 'torpil-active'
-          ok.textContent = '✅ Aktif — bonus çalışıyor'
+          ok.textContent = t('world_torpil_active')
           card.appendChild(ok)
         }
       } else {
@@ -302,7 +303,7 @@ export class WorldMetaPanel {
     const block = document.createElement('div')
     block.className = 'meta-block baron-history-block'
     const h = document.createElement('h3')
-    h.textContent = '📜 Hanedan Tarihi'
+    h.textContent = t('world_dynasty_history')
     block.appendChild(h)
     const intro = document.createElement('p')
     intro.className = 'meta-hint'
@@ -339,12 +340,12 @@ export class WorldMetaPanel {
     const block = document.createElement('div')
     block.className = 'meta-block chronicle-block'
     const h = document.createElement('h3')
-    h.textContent = '📜 İmparatorluk Tarihi'
+    h.textContent = t('world_empire_history')
     block.appendChild(h)
     if (this.state.chronicle.length === 0) {
       const empty = document.createElement('p')
       empty.className = 'meta-hint'
-      empty.textContent = 'Henüz tarih yok — işletme al, IPO yap, nesil devret.'
+      empty.textContent = t('world_no_history')
       block.appendChild(empty)
     } else {
       const timeline = document.createElement('div')

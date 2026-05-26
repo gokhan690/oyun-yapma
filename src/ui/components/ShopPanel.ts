@@ -54,12 +54,12 @@ export type IpoSubTab = 'stock' | 'bank' | 'prestige' | 'ipo' | 'insurance' | 'c
 export type UpgradeFilter = 'all' | 'click' | 'global' | 'producer'
 export type BizTypeFilter = 'all' | 'legal' | 'illegal' | 'sport' | 'politics' | 'dark' | 'luxury' | 'finance' | 'science'
 
-const HUB_SUBTITLES: Record<ShopHub, string> = {
-  growth: 'İşletme satın al, yönetici işe al',
-  powerup: 'Yükseltme ve Ar-Ge',
-  finance: 'Borsa, banka, prestij ve IPO',
-  empire: 'Spor, siyaset ve yeraltı yatırımları',
-}
+const HUB_SUBTITLES = (): Record<ShopHub, string> => ({
+  growth: i18nT('shop_sub_growth'),
+  powerup: i18nT('shop_sub_powerup'),
+  finance: i18nT('shop_sub_finance'),
+  empire: i18nT('shop_sub_empire'),
+})
 
 const HUB_ICONS: Record<ShopHub, string> = {
   growth: assetUrl('icons/nav/shop.svg'),
@@ -143,7 +143,7 @@ export class ShopPanel {
     this.titleEl = title
     this.shopSubEl = document.createElement('span')
     this.shopSubEl.className = 'shop-sub'
-    this.shopSubEl.textContent = HUB_SUBTITLES.growth
+    this.shopSubEl.textContent = HUB_SUBTITLES().growth
     header.append(title, this.shopSubEl)
 
     const buyModes = document.createElement('div')
@@ -266,7 +266,7 @@ export class ShopPanel {
     this.titleEl.textContent = isMarket ? `📈 ${i18nT('market_stocks')} & ${i18nT('market_bank')}` : `🏢 ${i18nT('shop_context_business')}`
     this.shopSubEl.textContent = isMarket
       ? `${i18nT('market_stocks')} · ${i18nT('market_bank')} · ${i18nT('stat_prestige')} · ${i18nT('tab_merge')}`
-      : HUB_SUBTITLES[this.activeHub === 'finance' ? 'growth' : this.activeHub]
+      : HUB_SUBTITLES()[this.activeHub === 'finance' ? 'growth' : this.activeHub]
     this.buyModesEl.classList.toggle('is-hidden', isMarket)
     this.advisorEl.classList.toggle('is-hidden', isMarket)
     const hubTabs = this.root.querySelector('.shop-hub-tabs') as HTMLElement | null
@@ -348,7 +348,7 @@ export class ShopPanel {
     const showBuy = (this.activeHub === 'growth' && this.growthSub === 'businesses')
     this.buyModesEl.hidden = !showBuy
     this.buyModesEl.classList.toggle('is-hidden', !showBuy)
-    this.shopSubEl.textContent = HUB_SUBTITLES[this.activeHub]
+    this.shopSubEl.textContent = HUB_SUBTITLES()[this.activeHub]
     this.applyViewChrome(state)
     const activeBtn = this.tabButtons.find((b) => b.dataset.tab === this.activeHub)
     activeBtn?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })

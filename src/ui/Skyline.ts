@@ -2,6 +2,7 @@ import { PRODUCERS } from '../game/Economy'
 import { isGameWeekend } from '../game/GameClock'
 import type { LegacyMonument } from '../game/Chronicle'
 import type { WorldStageId } from '../game/WorldStage'
+import { t } from '../i18n'
 
 const MAX_BUILDINGS = 16
 
@@ -145,7 +146,7 @@ export class Skyline {
     if (overflow > 0) {
       const cluster = document.createElement('div')
       cluster.className = 'skyline-building skyline-cluster'
-      cluster.title = `+${overflow} işletme daha`
+      cluster.title = t('skyline_more').replace('{n}', String(overflow))
       cluster.innerHTML = `<div class="skyline-tower" style="height:52px"><span class="skyline-emoji">🏙️</span><span class="skyline-cluster-count">+${overflow}</span></div>`
       this.buildingsEl.appendChild(cluster)
     }
@@ -241,7 +242,7 @@ export class Skyline {
     if (visible.length === 0 && monuments.length === 0) {
       const placeholder = document.createElement('div')
       placeholder.className = 'skyline-placeholder'
-      placeholder.innerHTML = `<span>${worldStageId === 'local' ? '🏘️' : '🌆'}</span><strong>Şehir silüeti</strong><small>İşletme al — kuleler yükselsin</small>`
+      placeholder.innerHTML = `<span>${worldStageId === 'local' ? '🏘️' : '🌆'}</span><strong>Şehir silüeti</strong><small>${t('skyline_placeholder')}</small>`
       this.buildingsEl.appendChild(placeholder)
     }
 

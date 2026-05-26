@@ -1,5 +1,6 @@
 import type { GameState } from '../game/GameState'
 import type { NavView } from './components/BottomNav'
+import { t } from '../i18n'
 
 export interface TutorialStep {
   target: string
@@ -183,7 +184,7 @@ export class Tutorial {
         const skip = document.createElement('button')
         skip.type = 'button'
         skip.className = 'btn-secondary'
-        skip.textContent = 'Atla'
+        skip.textContent = t('tutorial_skip')
         skip.addEventListener('click', () => {
           this.state.tutorialDone = true
           this.state.onboardingComplete = true
@@ -196,7 +197,7 @@ export class Tutorial {
         const next = document.createElement('button')
         next.type = 'button'
         next.className = 'btn-primary'
-        next.textContent = this.stepIndex >= steps.length - 1 ? 'Bitir' : 'Devam'
+        next.textContent = this.stepIndex >= steps.length - 1 ? t('btn_finish') : t('btn_continue')
         next.addEventListener('click', () => {
           this.stepIndex++
           if (this.stepIndex >= MANDATORY_STEPS.length) {
@@ -209,7 +210,7 @@ export class Tutorial {
       } else {
         const hint = document.createElement('span')
         hint.className = 'tutorial-wait-hint'
-        hint.textContent = current.waitFor === 'tap' ? 'Tıkla ve devam et →' : 'Satın al ve devam et →'
+        hint.textContent = current.waitFor === 'tap' ? t('tutorial_click_hint') : t('tutorial_buy_hint')
         row.appendChild(hint)
       }
 

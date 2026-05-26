@@ -221,4 +221,137 @@ export interface Translations {
   toast_property_sold: string
   toast_vehicle_bought: string
   toast_vehicle_sold: string
+
+  // HUD / tap area
+  hud_tap_hero_title: string
+  hud_tap_hero_desc: string
+  hud_ad_double: string
+  hud_ad_double_desc: string
+  hud_chest: string
+  hud_chest_desc: string
+  hud_combo_init: string
+  hud_passive_label: string
+  hud_click_label: string
+  hud_radar_label: string
+  hud_radar_clean: string
+  hud_goals: string
+  hud_pause: string
+  hud_resume: string
+  hud_weekend_bonus: string
+  hud_weekday_bonus: string
+
+  // Modal / dialog buttons
+  btn_accept: string
+  btn_decline: string
+  btn_continue: string
+  btn_finish: string
+  btn_discover: string
+  btn_restore_save: string
+  btn_new_game: string
+  btn_ok_confirm: string
+
+  // Stats screen
+  stats_title: string
+  stats_baron: string
+  stats_age: string
+  stats_rank: string
+  stats_wallet: string
+  stats_run_earned: string
+  stats_lifetime: string
+  stats_clicks: string
+  stats_best_combo: string
+  stats_ipo_count: string
+  stats_share_score: string
+  stats_playtime: string
+  stats_achievements: string
+  stats_record_earn: string
+  stats_record_combo: string
+  stats_edit_profile: string
+  stats_synergy_guide: string
+  stats_synergy_count: string
+  stats_badges: string
+  stats_badge_count: string
+
+  // World / meta panel
+  world_reputation: string
+  world_gazette: string
+  world_gazette_style: string
+  world_victory: string
+  world_rivals: string
+  world_expansion: string
+  world_torpil: string
+  world_dynasty_history: string
+  world_empire_history: string
+  world_no_history: string
+  world_torpil_relation: string
+  world_torpil_late: string
+  world_torpil_active: string
+  world_go: string
+  world_open: string
+  world_threat: string
+  world_next_rival: string
+  world_lobby: string
+  world_cooperate: string
+  world_merged: string
+  world_rep_hint: string
+
+  // Lifestyle panel extra
+  lp_stress_label: string
+  lp_income_penalty: string
+  lp_burnout: string
+  lp_buy_cost: string
+  lp_monthly_rent: string
+  lp_free: string
+  lp_buy_btn: string
+  lp_get_btn: string
+  lp_adopt_btn: string
+  lp_walk: string
+  lp_living_at: string
+  lp_using_vehicle: string
+  lp_pet_lives: string
+  lp_pets_hint: string
+  lp_stress_reduce: string
+  lp_ad_watch: string
+  lp_wellbeing_active: string
+  lp_rep_bonus: string
+  lp_income_mult: string
+
+  // Empire manage panel
+  empire_manage_title: string
+  empire_manage_sub: string
+  empire_politics_tab: string
+  empire_dark_tab: string
+  empire_no_clubs: string
+  empire_no_clubs_hint: string
+  empire_no_dark: string
+  empire_no_dark_hint: string
+  empire_politics_hint: string
+  empire_sell: string
+
+  // Tutorial
+  tutorial_tap_title: string
+  tutorial_tap_desc: string
+  tutorial_biz_title: string
+  tutorial_biz_desc: string
+  tutorial_buy_title: string
+  tutorial_buy_desc: string
+  tutorial_skip: string
+  tutorial_click_hint: string
+  tutorial_buy_hint: string
+
+  // Shop panel subtitles
+  shop_sub_growth: string
+  shop_sub_powerup: string
+  shop_sub_finance: string
+  shop_sub_empire: string
+
+  // Skyline
+  skyline_placeholder: string
+  skyline_more: string
+
+  // Offline / misc
+  offline_title: string
+  ad_loading: string
+  rank_max: string
+  rank_progress: string
 }

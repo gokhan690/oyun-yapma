@@ -44,7 +44,7 @@ import { FRANCHISE_CITIES, franchiseOpenFailureReason } from '../game/Franchise'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
 import { navLockReason, isShopHubLocked, shopHubLockReason } from '../game/ProgressiveUnlock'
-import { i18n, type LangCode } from '../i18n'
+import { i18n, t, type LangCode } from '../i18n'
 import { applyCountry, type CountryId } from '../game/Countries'
 
 export class HUD {
@@ -244,7 +244,7 @@ export class HUD {
     this.goalsChip.type = 'button'
     this.goalsChip.className = 'goals-chip'
     this.goalsChip.dataset.action = 'open-goals'
-    this.goalsChip.textContent = '🎯 Hedefler'
+    this.goalsChip.textContent = t('hud_goals')
 
     this.dayNightChip = document.createElement('span')
     this.dayNightChip.className = 'day-night-chip'
@@ -373,7 +373,7 @@ export class HUD {
     clickBlock.className = 'session-stat'
     const clickLabel = document.createElement('span')
     clickLabel.className = 'session-label'
-    clickLabel.textContent = 'Tıklama'
+    clickLabel.textContent = t('hud_click_label')
     this.sessionClickIncome = document.createElement('strong')
     this.sessionClickIncome.className = 'session-value'
     clickBlock.append(clickLabel, this.sessionClickIncome)
@@ -389,7 +389,7 @@ export class HUD {
     passiveBlock.className = 'session-stat session-stat-wide'
     const passiveLabel = document.createElement('span')
     passiveLabel.className = 'session-label'
-    passiveLabel.textContent = 'Pasif / sn'
+    passiveLabel.textContent = t('hud_passive_label')
     this.sessionPassiveIncome = document.createElement('strong')
     this.sessionPassiveIncome.className = 'session-value session-passive'
     passiveBlock.append(passiveLabel, this.sessionPassiveIncome)
@@ -402,7 +402,7 @@ export class HUD {
     this.heatMeterRow = heatRow
     const heatLabel = document.createElement('span')
     heatLabel.className = 'heat-meter-title'
-    heatLabel.textContent = '🕶️ Radar'
+    heatLabel.textContent = t('hud_radar_label')
     this.heatMeterLabel = document.createElement('span')
     this.heatMeterLabel.className = 'heat-meter-status'
     const heatBar = document.createElement('div')
@@ -415,7 +415,7 @@ export class HUD {
     heatCleanBtn.type = 'button'
     heatCleanBtn.className = 'btn-underground-open'
     heatCleanBtn.dataset.action = 'open-underground'
-    heatCleanBtn.textContent = 'Temizle'
+    heatCleanBtn.textContent = t('hud_radar_clean')
     heatRow.appendChild(heatCleanBtn)
     sessionPanel.appendChild(heatRow)
 
@@ -425,17 +425,17 @@ export class HUD {
     adDouble.type = 'button'
     adDouble.className = 'quick-ad-card'
     adDouble.dataset.action = 'ad-double'
-    adDouble.innerHTML = '<span class="quick-ad-icon">📺</span><span class="quick-ad-text"><strong>2x Gelir</strong><small>30 sn reklam izle</small></span>'
+    adDouble.innerHTML = `<span class="quick-ad-icon">📺</span><span class="quick-ad-text"><strong>${t('hud_ad_double')}</strong><small>${t('hud_ad_double_desc')}</small></span>`
     const adChest = document.createElement('button')
     adChest.type = 'button'
     adChest.className = `quick-ad-card${this.state.luckyChestReady ? ' chest-ready' : ''}`
     adChest.dataset.action = 'ad-chest'
-    adChest.innerHTML = '<span class="quick-ad-icon">🎁</span><span class="quick-ad-text"><strong>Sandık</strong><small>Rastgele ödül kazan</small></span>'
+    adChest.innerHTML = `<span class="quick-ad-icon">🎁</span><span class="quick-ad-text"><strong>${t('hud_chest')}</strong><small>${t('hud_chest_desc')}</small></span>`
     adsPanel.append(adDouble, adChest)
 
     const earnHero = document.createElement('div')
     earnHero.className = 'earn-tab-hero'
-    earnHero.innerHTML = '<h2>Tıkla & Kazan</h2><p>Tıkla, combo yap · Sandık ve 2x gelir aşağıda</p>'
+    earnHero.innerHTML = `<h2>${t('hud_tap_hero_title')}</h2><p>${t('hud_tap_hero_desc')}</p>`
 
     this.eraStrip = document.createElement('div')
     this.eraStrip.className = 'era-strip'
@@ -603,9 +603,11 @@ export class HUD {
     this.pauseBtn.setAttribute('aria-label', 'Oyunu duraklat')
     this.pauseBtn.classList.remove('is-paused')
     if (this.state.isNight) {
-      this.dayNightChip.textContent = `🌙 ${clock} · Hafta sonu pasif +${Math.round((0.15 + nightBonusExtra(this.state.prestigeTree)) * 100)}%`
+      const pct = Math.round((0.15 + nightBonusExtra(this.state.prestigeTree)) * 100)
+      this.dayNightChip.textContent = `${clock} · ` + t('hud_weekend_bonus').replace('{pct}', String(pct))
     } else {
-      this.dayNightChip.textContent = `☀️ ${clock} · Hafta içi tık +${Math.round((0.1 + dayBonusExtra(this.state.prestigeTree)) * 100)}%`
+      const pct = Math.round((0.1 + dayBonusExtra(this.state.prestigeTree)) * 100)
+      this.dayNightChip.textContent = `${clock} · ` + t('hud_weekday_bonus').replace('{pct}', String(pct))
     }
   }
 
@@ -919,7 +921,7 @@ export class HUD {
                 b.type = 'button'
                 b.className = 'btn-primary'
                 b.dataset.action = 'close-modal'
-                b.textContent = 'Devam!'
+                b.textContent = t('btn_continue')
                 return b
               })()],
             )
@@ -1096,7 +1098,7 @@ export class HUD {
       btn.type = 'button'
       btn.className = 'weekly-claim'
       btn.dataset.action = 'claim-weekly'
-      btn.textContent = 'Topla'
+      btn.textContent = t('btn_collect')
       this.weeklyBanner.appendChild(btn)
     }
   }
@@ -1657,7 +1659,7 @@ export class HUD {
       }
       case 'wellbeing-ad-boost': {
         const adBoostBtn = document.querySelector(`[data-action="wellbeing-ad-boost"][data-id="${id}"]`) as HTMLButtonElement | null
-        if (adBoostBtn) { adBoostBtn.disabled = true; adBoostBtn.textContent = '📺 Reklam yükleniyor...' }
+        if (adBoostBtn) { adBoostBtn.disabled = true; adBoostBtn.textContent = t('ad_loading') }
         window.setTimeout(() => {
           this.state.lifestyle.stress = Math.max(0, this.state.lifestyle.stress - 10)
           this.modals.showToast(this.root, '📺 Reklam izlendi! Stres -10 düştü 🧘')
@@ -2113,10 +2115,10 @@ export class HUD {
     this.rankRing.style.background = `conic-gradient(var(--accent) ${prog.pct}%, rgba(255,255,255,0.08) ${prog.pct}%)`
 
     if (prog.next) {
-      this.rankProgressLabel.textContent = `Rütbe → ${prog.next.emoji} ${prog.next.name}`
+      this.rankProgressLabel.textContent = t('rank_progress').replace('{next}', `${prog.next.emoji} ${prog.next.name}`)
       this.rankProgressFill.style.width = `${prog.pct}%`
     } else {
-      this.rankProgressLabel.textContent = 'Maksimum rütbe!'
+      this.rankProgressLabel.textContent = t('rank_max')
       this.rankProgressFill.style.width = '100%'
     }
 
@@ -2257,12 +2259,12 @@ export class HUD {
     accept.type = 'button'
     accept.className = 'btn-primary'
     accept.dataset.action = 'rival-alliance-accept'
-    accept.textContent = 'Kabul et'
+    accept.textContent = t('btn_accept')
     const decline = document.createElement('button')
     decline.type = 'button'
     decline.className = 'btn-secondary'
     decline.dataset.action = 'rival-alliance-decline'
-    decline.textContent = 'Reddet'
+    decline.textContent = t('btn_decline')
     this.modals.show('🤝 İttifak Teklifi', offer.message, [accept, decline])
   }
 
@@ -2322,7 +2324,7 @@ export class HUD {
     close.type = 'button'
     close.className = 'btn-primary'
     close.dataset.action = 'close-modal'
-    close.textContent = 'Tamam'
+    close.textContent = t('btn_ok_confirm')
     this.modals.show('Kayıt Hatası', 'Kayıt dosyası okunamadı. Yedekten geri yüklemeyi dene.', [close])
   }
 
@@ -2331,7 +2333,7 @@ export class HUD {
     close.type = 'button'
     close.className = 'btn-primary'
     close.dataset.action = 'close-modal'
-    close.textContent = 'Tamam'
+    close.textContent = t('btn_ok_confirm')
     this.modals.show(
       'Yeni oyun',
       'Kayıt bulunamadı veya okunamadı. Eski kaydın silinmedi — Ayarlar → Miras kodu ile yükleyebilirsin.',
@@ -2343,7 +2345,7 @@ export class HUD {
     const restore = document.createElement('button')
     restore.type = 'button'
     restore.className = 'btn-primary'
-    restore.textContent = 'Yedekten geri yükle'
+    restore.textContent = t('btn_restore_save')
     restore.addEventListener('click', () => {
       this.modals.close()
       onRestore()
@@ -2352,7 +2354,7 @@ export class HUD {
     close.type = 'button'
     close.className = 'btn-secondary'
     close.dataset.action = 'close-modal'
-    close.textContent = 'Yeni oyunla devam'
+    close.textContent = t('btn_new_game')
     close.addEventListener('click', () => {
       this.saveManager.setSaveEnabled(true)
     })
@@ -2499,7 +2501,7 @@ export class HUD {
     cont.type = 'button'
     cont.className = 'btn-primary'
     cont.dataset.action = hasHeir ? 'eulogy-succession' : 'eulogy-continue'
-    cont.textContent = hasHeir ? 'Varis seç →' : 'Devam et'
+    cont.textContent = hasHeir ? 'Varis seç →' : t('btn_continue')
     this.eventDirector.enqueue({
       id: 'baron-eulogy',
       priority: 1,
@@ -2521,7 +2523,7 @@ export class HUD {
     ok.type = 'button'
     ok.className = 'btn-primary'
     ok.dataset.action = 'close-modal'
-    ok.textContent = 'Devam'
+    ok.textContent = t('btn_continue')
     this.modals.showContent('Doğal Afet', body, [ok])
   }
 

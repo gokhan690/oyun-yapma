@@ -11,6 +11,7 @@ import { SYNERGIES } from '../../game/Synergies'
 import type { BaronSection } from './BaronSections'
 import { BARON_SECTION_TITLES } from './BaronSections'
 import { RIVAL_FAMILY_DEFS } from '../../game/Rivals'
+import { t } from '../../i18n'
 
 export class StatsScreen {
   readonly layer: HTMLElement
@@ -37,7 +38,7 @@ export class StatsScreen {
     const header = document.createElement('div')
     header.className = 'panel-header'
     const title = document.createElement('h2')
-    title.textContent = 'İstatistikler'
+    title.textContent = t('stats_title')
     const settingsBtn = document.createElement('button')
     settingsBtn.type = 'button'
     settingsBtn.className = 'icon-btn'
@@ -113,7 +114,7 @@ export class StatsScreen {
     editBtn.type = 'button'
     editBtn.className = 'btn-secondary btn-sm'
     editBtn.dataset.action = 'open-settings'
-    editBtn.textContent = '✏️ İsim & ayarlar'
+    editBtn.textContent = t('stats_edit_profile')
     const dynastyBtn = document.createElement('button')
     dynastyBtn.type = 'button'
     dynastyBtn.className = 'btn-secondary btn-sm'
@@ -129,12 +130,12 @@ export class StatsScreen {
     const section = document.createElement('div')
     section.className = 'stats-section synergy-guide-section'
     const h = document.createElement('h3')
-    h.textContent = '⚡ Sinerji Rehberi'
+    h.textContent = t('stats_synergy_guide')
     section.appendChild(h)
     const active = SYNERGIES.filter((s) => s.requires.every((id) => (this.state.producers[id] ?? 0) > 0))
     const meta = document.createElement('p')
     meta.className = 'meta-hint'
-    meta.textContent = `${active.length}/${SYNERGIES.length} sinerji aktif — iki işletme birlikte bonus verir`
+    meta.textContent = t('stats_synergy_count').replace('{active}', String(active.length)).replace('{total}', String(SYNERGIES.length))
     section.appendChild(meta)
     const list = document.createElement('div')
     list.className = 'synergy-guide-list'
@@ -158,7 +159,7 @@ export class StatsScreen {
     const section = document.createElement('div')
     section.className = 'stats-section badges-section'
     const title = document.createElement('h3')
-    title.textContent = 'Rozetler'
+    title.textContent = t('stats_badges')
     section.appendChild(title)
     const grid = document.createElement('div')
     grid.className = 'badges-grid'
@@ -174,7 +175,7 @@ export class StatsScreen {
     const earnedCount = [...this.state.earnedBadges].filter((id) => badgeDef(id)).length
     const meta = document.createElement('p')
     meta.className = 'badges-meta'
-    meta.textContent = `${earnedCount}/${BADGES.length} rozet`
+    meta.textContent = t('stats_badge_count').replace('{earned}', String(earnedCount)).replace('{total}', String(BADGES.length))
     section.appendChild(meta)
     this.content.appendChild(section)
   }
@@ -184,20 +185,20 @@ export class StatsScreen {
     const rank = currentRank(this.state.lifetimeTotalEarned)
     const age = this.state.playerAge()
     const rows: [string, string][] = [
-      ['Baron', this.state.playerName || 'Baron'],
-      ['Yaş', `${age} · ~${this.state.estimatedYearsRemaining()} yıl`],
-      ['Rütbe', `${rank.emoji} ${rank.name}`],
-      ['Cüzdan', formatMoney(this.state.money)],
-      ['Toplam kazanç (run)', formatMoney(this.state.totalEarned)],
-      ['Yaşam boyu kazanç', formatMoney(this.state.lifetimeTotalEarned)],
-      ['Tıklama', this.state.totalClicks.toLocaleString('tr-TR')],
-      ['En iyi combo', String(this.state.comboBest)],
-      ['IPO sayısı', String(this.state.ipoCount)],
-      ['Hisse puanı', String(Math.floor(this.state.prestigePoints))],
-      ['Oyun süresi', formatTime(this.state.playTimeMs)],
-      ['Başarım', `${this.state.achievements.size}/${ACHIEVEMENTS.length}`],
-      ['Rekor kazanç', formatMoney(lb.bestLifetimeEarned)],
-      ['Rekor combo', String(lb.bestCombo)],
+      [t('stats_baron'), this.state.playerName || 'Baron'],
+      [t('stats_age'), `${age} · ~${this.state.estimatedYearsRemaining()} yıl`],
+      [t('stats_rank'), `${rank.emoji} ${rank.name}`],
+      [t('stats_wallet'), formatMoney(this.state.money)],
+      [t('stats_run_earned'), formatMoney(this.state.totalEarned)],
+      [t('stats_lifetime'), formatMoney(this.state.lifetimeTotalEarned)],
+      [t('stats_clicks'), this.state.totalClicks.toLocaleString('tr-TR')],
+      [t('stats_best_combo'), String(this.state.comboBest)],
+      [t('stats_ipo_count'), String(this.state.ipoCount)],
+      [t('stats_share_score'), String(Math.floor(this.state.prestigePoints))],
+      [t('stats_playtime'), formatTime(this.state.playTimeMs)],
+      [t('stats_achievements'), `${this.state.achievements.size}/${ACHIEVEMENTS.length}`],
+      [t('stats_record_earn'), formatMoney(lb.bestLifetimeEarned)],
+      [t('stats_record_combo'), String(lb.bestCombo)],
     ]
 
     const section = document.createElement('div')
