@@ -20,11 +20,9 @@ import {
   BIZ_TIER_BANDS,
   activeTierBandId,
   bandUnlocked,
-  createHeroBusinessCard,
   filterProducersForShop,
   producersInBand,
   renderLockedPreviewCard,
-  updateHeroBusinessCard,
 } from './shop/ShopBusinessTierView'
 import { prestigeMultiplier } from '../../game/Prestige'
 import { managerCost, hasManager } from '../../game/Managers'
@@ -338,7 +336,6 @@ export class ShopPanel {
     }
     this.renderSubTabs(state)
     const showBuy = (this.activeHub === 'growth' && this.growthSub === 'businesses')
-      || (this.activeHub === 'empire')
     this.buyModesEl.hidden = !showBuy
     this.buyModesEl.classList.toggle('is-hidden', !showBuy)
     this.shopSubEl.textContent = HUB_SUBTITLES[this.activeHub]
@@ -454,8 +451,8 @@ export class ShopPanel {
       btn.classList.toggle('active', btn.dataset.tab === 'empire')
       btn.hidden = this.viewContext === 'market'
     }
-    this.buyModesEl.hidden = false
-    this.buyModesEl.classList.remove('is-hidden')
+    this.buyModesEl.hidden = true
+    this.buyModesEl.classList.add('is-hidden')
     this.applyViewChrome()
   }
 
@@ -915,6 +912,7 @@ export class ShopPanel {
     title: string,
     hint: string,
     btns: [string, string, string][],
+    customActions?: [string, string][],
   ): HTMLElement {
     const wrap = document.createElement('div')
     wrap.className = 'finance-action-panel'
@@ -934,6 +932,26 @@ export class ShopPanel {
       row.appendChild(btn)
     }
     wrap.appendChild(row)
+    if (customActions && customActions.length > 0) {
+      const customRow = document.createElement('div')
+      customRow.className = 'finance-custom-row'
+      const input = document.createElement('input')
+      input.type = 'number'
+      input.min = '1'
+      input.placeholder = 'Özel miktar...'
+      input.className = 'finance-custom-input'
+      customRow.appendChild(input)
+      for (const [action, label] of customActions) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = action.includes('loan') || action.includes('deposit') || action.includes('buy') ? 'btn-buy-stock btn-sm' : 'btn-secondary btn-sm'
+        btn.dataset.action = action
+        btn.dataset.count = 'custom'
+        btn.textContent = label
+        customRow.appendChild(btn)
+      }
+      wrap.appendChild(customRow)
+    }
     return wrap
   }
 
@@ -1276,10 +1294,12 @@ export class ShopPanel {
         visibleIds.add(p.id)
         let card = this.businessCards.get(p.id)
         if (!card) {
-          card = createHeroBusinessCard(p)
+          card = this.createBusinessCard(p)
           this.businessCards.set(p.id, card)
         }
-        updateHeroBusinessCard(card, p, state, this.buyMode)
+        const ownedCount = state.producers[p.id] ?? 0
+        const buyCountForCard = this.buyMode === 'max' ? Math.max(1, state.countMaxAffordable(p.id)) : (this.buyMode as number)
+        this.updateBusinessCard(card, p, state, ownedCount, buyCountForCard)
         body.appendChild(card)
       }
 
@@ -2097,6 +2117,27 @@ export class ShopPanel {
       btn.textContent = label
       stockActions.appendChild(btn)
     }
+    const stockCustomRow = document.createElement('div')
+    stockCustomRow.className = 'finance-custom-row stock-custom-row'
+    const stockInput = document.createElement('input')
+    stockInput.type = 'number'
+    stockInput.min = '1'
+    stockInput.placeholder = 'Adet...'
+    stockInput.className = 'finance-custom-input'
+    const stockBuyCustom = document.createElement('button')
+    stockBuyCustom.type = 'button'
+    stockBuyCustom.className = 'btn-buy-stock btn-sm'
+    stockBuyCustom.dataset.action = 'stock-buy'
+    stockBuyCustom.dataset.count = 'custom'
+    stockBuyCustom.textContent = 'Al'
+    const stockSellCustom = document.createElement('button')
+    stockSellCustom.type = 'button'
+    stockSellCustom.className = 'btn-sell-stock btn-sm'
+    stockSellCustom.dataset.action = 'stock-sell'
+    stockSellCustom.dataset.count = 'custom'
+    stockSellCustom.textContent = 'Sat'
+    stockCustomRow.append(stockInput, stockBuyCustom, stockSellCustom)
+    stockActions.appendChild(stockCustomRow)
     tradePanel.appendChild(stockActions)
     panel.appendChild(tradePanel)
 
@@ -2208,20 +2249,20 @@ export class ShopPanel {
       ['bank-deposit', 'Yatır 1K', '1000'],
       ['bank-deposit', 'Yatır 10K', '10000'],
       ['bank-deposit', 'Yatır max', 'max'],
-      ['bank-withdraw', 'Çek 1K', '1000'],
+      ['bank-withdraw', 'Çek 10K', '10000'],
       ['bank-withdraw', 'Çek max', 'max'],
-    ]))
+    ], [['bank-deposit', 'Yatır'], ['bank-withdraw', 'Çek']]))
     panel.appendChild(this.createBankActions('Tahvil işlemleri', 'Uzun vadeli getiri', [
       ['bank-buy-bonds', 'Al 5K', '5000'],
       ['bank-buy-bonds', 'Al max', 'max'],
       ['bank-sell-bonds', 'Sat max', 'max'],
-    ]))
+    ], [['bank-buy-bonds', 'Al'], ['bank-sell-bonds', 'Sat']]))
     panel.appendChild(this.createBankActions('Kredi işlemleri', 'Limit skora ve net değere bağlı', [
       ['bank-loan', 'Çek 25K', '25000'],
       ['bank-loan', 'Çek max', 'max'],
       ['bank-repay', 'Öde 10K', '10000'],
       ['bank-repay', 'Öde max', 'max'],
-    ]))
+    ], [['bank-loan', 'Çek'], ['bank-repay', 'Öde']]))
   }
 
   private renderIpoPrestige(state: GameState, panel: HTMLElement): void {

@@ -627,7 +627,12 @@ export class HUD {
       if (!el?.dataset.action) return
       if (el instanceof HTMLButtonElement && el.disabled) return
       e.preventDefault()
-      void this.handleAction(el.dataset.action, el.dataset.id, el.dataset.count)
+      let countVal = el.dataset.count
+      if (countVal === 'custom') {
+        const inputEl = el.closest('.finance-custom-row, .stock-custom-row')?.querySelector<HTMLInputElement>('.finance-custom-input')
+        countVal = inputEl?.value && Number(inputEl.value) > 0 ? inputEl.value : undefined
+      }
+      void this.handleAction(el.dataset.action, el.dataset.id, countVal)
     }
     this.root.addEventListener('click', onActionClick)
     this.shop.root.addEventListener('click', onActionClick)
@@ -2181,7 +2186,7 @@ export class HUD {
     this.eventDirector.enqueue({
       id: `life-event-${def.id}`,
       priority: 2,
-      run: () => this.modals.show(`${def.emoji} ${def.title}`, def.description, buttons),
+      run: () => this.modals.showContent(`${def.emoji} ${def.title}`, (() => { const p = document.createElement('p'); p.textContent = def.description; return p })(), buttons, true),
     })
   }
 

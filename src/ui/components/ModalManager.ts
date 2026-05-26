@@ -68,11 +68,19 @@ export class ModalManager {
     this.showContent('İflas ettin', body, actions)
   }
 
-  showContent(title: string, bodyEl: HTMLElement, actions: HTMLElement[]): void {
+  showContent(title: string, bodyEl: HTMLElement, actions: HTMLElement[], lockScrim = false): void {
     this.layer.replaceChildren()
     const scrim = document.createElement('div')
     scrim.className = 'modal-scrim'
-    scrim.dataset.action = 'close-modal'
+    if (!lockScrim) {
+      scrim.dataset.action = 'close-modal'
+    } else {
+      scrim.classList.add('modal-scrim-locked')
+      window.setTimeout(() => {
+        scrim.dataset.action = 'close-modal'
+        scrim.classList.remove('modal-scrim-locked')
+      }, 2000)
+    }
     const modal = document.createElement('div')
     modal.className = 'game-modal modal-enter'
     const h2 = document.createElement('h2')

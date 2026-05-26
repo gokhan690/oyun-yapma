@@ -4914,6 +4914,32 @@ html.theme-galactic {
   border-top: 1px solid var(--border);
 }
 
+.finance-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.finance-custom-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.85rem;
+  padding: 7px 10px;
+  font-family: inherit;
+  -moz-appearance: textfield;
+}
+.finance-custom-input::-webkit-inner-spin-button,
+.finance-custom-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.finance-custom-input:focus { outline: none; border-color: var(--accent); }
+.finance-custom-input::placeholder { color: var(--muted); }
+.modal-scrim-locked { pointer-events: none !important; }
+
 .stock-portfolio-compact {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -5921,10 +5947,27 @@ html.theme-galactic {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
-  gap: 12px;
+  gap: 10px;
   padding: 0 10px 12px;
   position: relative;
   z-index: 1;
+}
+.tier-band-body .biz-card {
+  margin-bottom: 0;
+}
+.tier-band-body .biz-buy-btn {
+  min-height: 140px;
+  padding: 14px 14px 12px;
+}
+.tier-band-body .biz-action-row {
+  padding: 0 10px 10px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tier-band-body .biz-sell-btn {
+  font-size: 0.72rem;
+  padding: 5px 10px;
 }
 
 .tier-band-body button,
