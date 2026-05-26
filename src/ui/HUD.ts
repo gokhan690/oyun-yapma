@@ -44,6 +44,7 @@ import { FRANCHISE_CITIES, franchiseOpenFailureReason } from '../game/Franchise'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
 import { navLockReason, isShopHubLocked, shopHubLockReason } from '../game/ProgressiveUnlock'
+import { i18n, type LangCode } from '../i18n'
 
 export class HUD {
   private root: HTMLElement
@@ -1159,6 +1160,14 @@ export class HUD {
           this.setView('earn')
         }
         break
+      case 'set-language': {
+        if (id) {
+          i18n.setLang(id as LangCode)
+          this.modals.showToast(this.root, `🌐 ${id.toUpperCase()}`)
+          this.settings.rebuild()
+        }
+        break
+      }
       case 'restart-tutorial':
         this.settings.hide()
         this.tutorial.restart()

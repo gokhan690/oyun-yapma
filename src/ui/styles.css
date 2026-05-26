@@ -7454,3 +7454,60 @@ html.theme-galactic {
 .baron-view .events-scroll-body {
   padding-bottom: calc(var(--nav-h) + var(--ad-h) + var(--safe-bottom) + 48px);
 }
+
+/* ═══════════════════════
+   DİL SEÇİCİ
+   ═══════════════════════ */
+.settings-lang-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.settings-lang-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  touch-action: manipulation;
+}
+.settings-lang-btn:active { transform: scale(0.97); }
+.settings-lang-btn.active {
+  border-color: var(--accent);
+  background: rgba(245,158,11,0.15);
+  color: var(--accent);
+}
+.lang-native {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.lang-label {
+  font-size: 0.65rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+.settings-lang-btn.active .lang-label { color: var(--accent); opacity: 0.8; }
+
+/* RTL dil desteği */
+html[dir="rtl"] .baron-subnav,
+html[dir="rtl"] .shop-tabs-pill,
+html[dir="rtl"] .buy-modes,
+html[dir="rtl"] .biz-hero-actions,
+html[dir="rtl"] .bottom-nav {
+  direction: rtl;
+}
+html[dir="rtl"] .panel-body,
+html[dir="rtl"] .events-scroll-body,
+html[dir="rtl"] .stats-embedded {
+  direction: rtl;
+  text-align: right;
+}
