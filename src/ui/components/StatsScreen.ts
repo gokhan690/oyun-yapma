@@ -121,7 +121,30 @@ export class StatsScreen {
     dynastyBtn.dataset.action = 'baron-tab'
     dynastyBtn.dataset.id = 'dynasty'
     dynastyBtn.textContent = '👑 Hanedan'
-    actions.append(editBtn, dynastyBtn)
+    const shareBtn = document.createElement('button')
+    shareBtn.type = 'button'
+    shareBtn.className = 'btn-secondary btn-sm'
+    shareBtn.textContent = '📤 Paylaş'
+    shareBtn.addEventListener('click', () => {
+      const { playerName, ipoCount, lifetimeTotalEarned, dynasty } = this.state
+      const name = playerName.trim() || 'Baron'
+      const text = [
+        `🏆 İş İmparatorluğu`,
+        `👤 ${name} — ${title.emoji} ${title.label}`,
+        `💰 Ömür boyu kazanç: ${formatMoney(lifetimeTotalEarned)}`,
+        `👑 ${rank.emoji} ${rank.name} · ${ipoCount} IPO · Nesil ${dynasty.generation}`,
+        `📱 Kendi imparatorluğunu kur!`,
+      ].join('\n')
+      if (navigator.share) {
+        void navigator.share({ text })
+      } else {
+        void navigator.clipboard.writeText(text).then(() => {
+          shareBtn.textContent = '✅ Kopyalandı!'
+          window.setTimeout(() => { shareBtn.textContent = '📤 Paylaş' }, 2000)
+        })
+      }
+    })
+    actions.append(editBtn, dynastyBtn, shareBtn)
     hero.appendChild(actions)
     this.content.appendChild(hero)
   }
