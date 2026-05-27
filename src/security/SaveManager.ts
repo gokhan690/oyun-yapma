@@ -177,6 +177,7 @@ export class SaveManager {
     localStorage.removeItem(SAVE_KEY_V3)
     localStorage.removeItem(SAVE_KEY_V2)
     localStorage.removeItem(SAVE_KEY_V1)
+    localStorage.removeItem('baron_setup_done')
   }
 
   startAutoSave(state: GameState, intervalMs = 15_000): void {

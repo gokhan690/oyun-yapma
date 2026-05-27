@@ -7,19 +7,19 @@
 }
 
 :root {
-  --bg: #080808;
-  --surface: #131313;
-  --surface2: #1c1c1c;
-  --accent: #f59e0b;
-  --accent2: #fcd34d;
-  --green: #34d399;
-  --blue: #60a5fa;
-  --text: #f5f0e8;
-  --muted: #a89070;
-  --border: #2c2200;
+  --bg: #121417;
+  --surface: #1b2227;
+  --surface2: #253039;
+  --accent: #f8b84e;
+  --accent2: #ff7a7a;
+  --green: #5ee0a0;
+  --blue: #72b7ff;
+  --text: #fff8ec;
+  --muted: #c2b7a2;
+  --border: #3b4652;
   --radius: 16px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --glow: 0 0 28px rgba(245, 158, 11, 0.35);
+  --glow: 0 0 28px rgba(248, 184, 78, 0.28);
   --shop-header-h: 44px;
   --buy-modes-h: 36px;
   --nav-h: 68px;
@@ -33,7 +33,7 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: linear-gradient(180deg, #1a1000 0%, var(--bg) 40%, #000000 100%);
+  background: linear-gradient(180deg, #26372f 0%, var(--bg) 42%, #171310 100%);
   color: var(--text);
   font-family: Outfit, Segoe UI, system-ui, sans-serif;
   touch-action: manipulation;
@@ -73,7 +73,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: linear-gradient(180deg, #1a1000 0%, var(--bg) 85%);
+  background: linear-gradient(180deg, #24322d 0%, var(--bg) 88%);
   transition: padding 0.2s ease;
 }
 
@@ -595,11 +595,11 @@ html.theme-night .tap-wrap {
   width: 100%;
   text-align: left;
   border: 1px solid var(--border);
-  background: linear-gradient(135deg, var(--surface2) 0%, rgba(28, 18, 0, 0.6) 100%);
+  background: linear-gradient(135deg, rgba(37, 48, 57, 0.98) 0%, rgba(30, 38, 34, 0.9) 100%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   color: var(--text);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 0;
   margin-bottom: 8px;
   display: flex;
@@ -616,13 +616,13 @@ html.theme-night .tap-wrap {
   background: transparent;
   color: inherit;
   text-align: left;
-  padding: 18px 18px 16px;
+  padding: 16px 16px 14px;
   cursor: pointer;
   font-family: inherit;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 168px;
+  min-height: 148px;
   justify-content: space-between;
 }
 
@@ -2416,7 +2416,7 @@ html.theme-night .tap-wrap { border-color: rgba(167,139,250,0.45); }
   width: 100%;
   text-align: left;
   border: 1px solid var(--border);
-  background: linear-gradient(135deg, var(--surface2) 0%, rgba(28, 18, 0, 0.6) 100%);
+  background: linear-gradient(135deg, rgba(37, 48, 57, 0.98) 0%, rgba(30, 38, 34, 0.9) 100%);
   color: var(--text);
   border-radius: 16px;
   padding: 14px 16px;
@@ -4187,9 +4187,9 @@ html.theme-red .skyline-building {
   margin-bottom: 0;
   min-width: 0;
   height: auto;
-  min-height: 196px;
-  border-radius: 18px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  min-height: 148px;
+  border-radius: 16px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
 }
 
 .biz-cards-grid .biz-left strong {
@@ -4954,22 +4954,40 @@ html.theme-red .skyline-building {
 .finance-custom-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--border);
 }
 .finance-custom-input {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 9rem;
+  min-width: 8rem;
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
-  font-size: 0.85rem;
-  padding: 7px 10px;
+  font-size: 0.95rem;
+  min-height: 42px;
+  padding: 9px 12px;
   font-family: inherit;
   -moz-appearance: textfield;
+}
+.finance-custom-row > button {
+  flex: 1 0 auto;
+  min-height: 40px;
+}
+.stock-custom-row .finance-custom-input,
+.commodity-custom-row .finance-custom-input {
+  flex-basis: 100%;
+  min-width: 100%;
+}
+@media (min-width: 420px) {
+  .stock-custom-row .finance-custom-input,
+  .commodity-custom-row .finance-custom-input {
+    flex: 1 1 8rem;
+    min-width: 7.5rem;
+  }
 }
 .finance-custom-input::-webkit-inner-spin-button,
 .finance-custom-input::-webkit-outer-spin-button { -webkit-appearance: none; }
@@ -6101,18 +6119,29 @@ html.theme-red .skyline-building {
 
 .tier-band-body {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   align-items: start;
-  gap: 10px;
+  gap: 12px;
   padding: 0 10px 12px;
   position: relative;
   z-index: 1;
 }
 .tier-band-body .biz-card {
   margin-bottom: 0;
+  min-height: 116px;
+}
+.shop-card.stock-board-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.stock-board-card .finance-custom-row {
+  width: 100%;
+  flex-basis: 100%;
 }
 .tier-band-body .biz-buy-btn {
-  min-height: 140px;
+  min-height: 116px;
   padding: 14px 14px 12px;
 }
 .tier-band-body .biz-action-row {
@@ -6979,6 +7008,12 @@ html.theme-red .skyline-building {
 .rival-card.threat-high  { border-left: 3px solid var(--accent2); }
 .rival-card.threat-med   { border-left: 3px solid var(--accent); }
 .rival-card.threat-low   { border-left: 3px solid var(--green); }
+.rival-card.rival-locked {
+  opacity: 0.72;
+  border-style: dashed;
+  border-left: 3px solid var(--blue);
+  background: rgba(114, 183, 255, 0.08);
+}
 
 .rival-emoji  { font-size: 2rem; flex-shrink: 0; }
 .rival-info   { flex: 1; min-width: 0; }

@@ -207,10 +207,13 @@ export class SettingsPanel {
     resetBtn.textContent = t('settings_reset_save')
     resetBtn.addEventListener('click', () => {
       if (confirm(t('settings_reset_confirm'))) {
+        this.saveManager.stopAutoSave()
+        this.saveManager.setSaveEnabled(false)
         this.saveManager.clear()
         this.state.resetProgress()
         this.hide()
         this.onReset()
+        window.setTimeout(() => window.location.reload(), 50)
       }
     })
     body.appendChild(resetBtn)

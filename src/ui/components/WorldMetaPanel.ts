@@ -6,11 +6,14 @@ import { TORPIL_CONTACTS, torpilRelationScore } from '../../game/TorpilNetwork'
 import { gameDay } from '../../game/GameClock'
 import {
   attitudeLabel,
+  isRivalUnlocked,
   mergeRivalCost,
+  nextLockedRivalDef,
   personalityLabel,
   playerSectorShare,
   rivalSectorPressure,
   sectorConflict,
+  type RivalFamilyDef,
   type RivalFamilyState,
 } from '../../game/Rivals'
 import { mechanicForVictory } from '../../game/VictoryUnlocks'
@@ -143,11 +146,27 @@ export class WorldMetaPanel {
     block.appendChild(h)
     const list = document.createElement('div')
     list.className = 'rival-list'
-    for (const rival of this.state.rivals) {
+    for (const rival of this.state.rivals.filter((r) => isRivalUnlocked(r.id, this.state.totalEarned))) {
       list.appendChild(this.rivalCard(rival))
     }
+    const next = nextLockedRivalDef(this.state.totalEarned)
+    if (next) list.appendChild(this.lockedRivalCard(next))
     block.appendChild(list)
     this.root.appendChild(block)
+  }
+
+  private lockedRivalCard(def: RivalFamilyDef): HTMLElement {
+    const card = document.createElement('div')
+    card.className = 'rival-card rival-locked'
+    card.innerHTML = `
+      <div class="rival-head">
+        <span>${def.emoji}</span>
+        <strong>${def.name}</strong>
+        <span class="rival-attitude">Kilitli</span>
+      </div>
+      <small>${def.stageLabel} · ${formatMoney(def.minPlayerEarned)} toplam kazançta açılır</small>
+    `
+    return card
   }
 
   private rivalCard(rival: RivalFamilyState): HTMLElement {

@@ -29,10 +29,10 @@ export class SoundManager {
   /** Tok, tatmin edici tık — para sesi değil */
   playClick(critical = false, combo = 1): void {
     if (!this.enabled) return
-    const base = 180 + Math.min(combo, 30) * 8
-    this.thump(base, critical ? 0.14 : 0.1, critical ? 0.07 : 0.045)
+    const base = 150 + Math.min(combo, 30) * 5
+    this.thump(base, critical ? 0.12 : 0.085, critical ? 0.055 : 0.032)
     if (combo >= 10 && combo % 5 === 0) {
-      this.beep(base * 1.5, 0.06, 0.06, 'triangle')
+      this.beep(base * 1.45, 0.07, 0.026, 'sine')
     }
     if (combo >= 25) this.playComboMelody()
   }
@@ -40,42 +40,42 @@ export class SoundManager {
   playComboMelody(): void {
     if (!this.enabled) return
     ;[523, 659, 784, 988].forEach((f, i) => {
-      window.setTimeout(() => this.beep(f, 0.08, 0.08, 'sine'), i * 55)
+      window.setTimeout(() => this.beep(f, 0.09, 0.045, 'sine'), i * 60)
     })
   }
 
   playPurchase(): void {
     if (!this.enabled) return
-    ;[880, 1175, 1318].forEach((f, i) => {
-      window.setTimeout(() => this.beep(f, 0.12, 0.09, 'triangle'), i * 45)
+    ;[523, 659, 784].forEach((f, i) => {
+      window.setTimeout(() => this.beep(f, 0.13, 0.05, 'sine'), i * 70)
     })
   }
 
   playPrestige(): void {
     if (!this.enabled) return
     ;[392, 494, 587, 784, 988, 1175].forEach((freq, i) => {
-      window.setTimeout(() => this.beep(freq, 0.2, 0.12, 'sine'), i * 85)
+      window.setTimeout(() => this.beep(freq, 0.2, 0.075, 'sine'), i * 85)
     })
   }
 
   playDeath(): void {
     if (!this.enabled) return
     ;[220, 165, 130, 98].forEach((f, i) => {
-      window.setTimeout(() => this.beep(f, 0.35, 0.14, 'sawtooth'), i * 120)
+      window.setTimeout(() => this.beep(f, 0.32, 0.07, 'triangle'), i * 130)
     })
   }
 
   playLegendaryChest(): void {
     if (!this.enabled) return
     ;[440, 554, 659, 880, 1108, 1318].forEach((f, i) => {
-      window.setTimeout(() => this.beep(f, 0.15, 0.1, 'triangle'), i * 65)
+      window.setTimeout(() => this.beep(f, 0.16, 0.065, 'sine'), i * 68)
     })
   }
 
   playReward(): void {
     if (!this.enabled) return
-    ;[660, 880, 1100].forEach((freq, i) => {
-      window.setTimeout(() => this.beep(freq, 0.1, 0.1), i * 80)
+    ;[587, 740, 880].forEach((freq, i) => {
+      window.setTimeout(() => this.beep(freq, 0.12, 0.045, 'sine'), i * 82)
     })
   }
 
@@ -84,26 +84,26 @@ export class SoundManager {
     const freq = 400 + Math.min(combo, 30) * 15
     if (Math.abs(freq - this.lastComboPitch) > 20) {
       this.lastComboPitch = freq
-      this.beep(freq, 0.1, 0.08, 'triangle')
+      this.beep(freq, 0.11, 0.035, 'sine')
     }
   }
 
   playEvent(): void {
     if (!this.enabled) return
-    ;[880, 1175].forEach((f, i) => window.setTimeout(() => this.beep(f, 0.1, 0.1), i * 70))
+    ;[740, 988].forEach((f, i) => window.setTimeout(() => this.beep(f, 0.12, 0.04, 'sine'), i * 80))
   }
 
   playAchievement(): void {
     if (!this.enabled) return
     ;[523, 659, 784, 1047].forEach((f, i) => {
-      window.setTimeout(() => this.beep(f, 0.14, 0.11), i * 75)
+      window.setTimeout(() => this.beep(f, 0.15, 0.055, 'sine'), i * 78)
     })
   }
 
   playDisaster(): void {
     if (!this.enabled) return
-    this.thump(80, 0.25, 0.12)
-    window.setTimeout(() => this.thump(60, 0.3, 0.1), 150)
+    this.thump(80, 0.24, 0.065)
+    window.setTimeout(() => this.thump(60, 0.28, 0.055), 150)
   }
 
   setAmbient(mode: AmbientMode): void {
@@ -151,10 +151,11 @@ export class SoundManager {
       const ctx = this.getContext()
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
-      osc.type = 'triangle'
+      osc.type = 'sine'
       osc.frequency.setValueAtTime(frequency, ctx.currentTime)
       osc.frequency.exponentialRampToValueAtTime(frequency * 0.4, ctx.currentTime + duration)
-      gain.gain.setValueAtTime(volume, ctx.currentTime)
+      gain.gain.setValueAtTime(0.001, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(Math.max(volume, 0.002), ctx.currentTime + 0.012)
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration)
       osc.connect(gain)
       gain.connect(ctx.destination)
@@ -175,8 +176,9 @@ export class SoundManager {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
       osc.type = type
-      osc.frequency.value = frequency
-      gain.gain.setValueAtTime(volume, ctx.currentTime)
+      osc.frequency.setValueAtTime(frequency, ctx.currentTime)
+      gain.gain.setValueAtTime(0.001, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(Math.max(volume, 0.002), ctx.currentTime + 0.014)
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration)
       osc.connect(gain)
       gain.connect(ctx.destination)

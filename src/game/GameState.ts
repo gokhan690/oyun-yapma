@@ -204,6 +204,7 @@ import {
   mergeRivalCost,
   acceptRivalAlliance,
   rivalDef,
+  isRivalUnlocked,
   type RivalFamilyState,
 } from './Rivals'
 import {
@@ -582,8 +583,6 @@ const MILESTONE_THRESHOLDS = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100
 const CRIT_CHANCE = 0.1
 const CRIT_MULT = 5
 const BASE_CLICK = 5
-/** Sekme arka plana düşünce tek karede işlenecek max pasif süre (sn) */
-const PASSIVE_TICK_DT_CAP = 30
 const BASE_OFFLINE_CAP_GAME_DAYS = 365
 const BASE_OFFLINE_CAP_MS = BASE_OFFLINE_CAP_GAME_DAYS * MS_PER_GAME_DAY
 const AD_BOOST_DURATION_MS = 5 * 60 * 1000
@@ -770,7 +769,6 @@ export class GameState {
   private lastAutoBuyTick = 0
   private lastDayNightCheck = 0
   private lastMarketEventCheck = 0
-  private passiveAccrued = 0
   private passiveRecent: { at: number; amount: number }[] = []
   private lastGameClockEmit = 0
   private lastDynastyGameDay = 0
@@ -838,7 +836,7 @@ export class GameState {
   startTick(): void {
     if (this.tickHandle !== null) return
     let last = performance.now()
-    let lastPassiveEmit = 0
+    let lastPassiveGameDay = gameDay(this.gameTimeMs)
     const loop = (now: number) => {
       const dt = (now - last) / 1000
       last = now
@@ -847,10 +845,18 @@ export class GameState {
         this.playTimeMs += dt * 1000
       }
       const gameDt = flowReady && !this.gamePaused && dt > 0 && dt < 2 ? dt : 0
-      const passiveDt = flowReady && !this.gamePaused && dt > 0 ? Math.min(dt, PASSIVE_TICK_DT_CAP) : 0
       if (gameDt > 0) {
-        this.gameTimeMs += realSecondsToGameMs(gameDt)
-        this.tickChildEducation(realSecondsToGameMs(gameDt))
+        const gameMsDelta = realSecondsToGameMs(gameDt)
+        this.gameTimeMs += gameMsDelta
+        this.tickChildEducation(gameMsDelta)
+        const currentPassiveGameDay = gameDay(this.gameTimeMs)
+        if (currentPassiveGameDay < lastPassiveGameDay) lastPassiveGameDay = currentPassiveGameDay
+        const passiveDays = currentPassiveGameDay - lastPassiveGameDay
+        if (passiveDays > 0) {
+          lastPassiveGameDay = currentPassiveGameDay
+          const income = this.incomePerDay() * passiveDays
+          if (income > 0) this.addMoney(income, true)
+        }
       }
       this.updateComboDecay(now)
       if (flowReady && !this.gamePaused) {
@@ -860,17 +866,6 @@ export class GameState {
         this.tickIllegalRisk(now)
         this.tickIllegalHeat(now)
         this.tickNearMiss(now)
-      }
-      if (passiveDt > 0) {
-        const gameDaysDelta = realSecondsToGameMs(passiveDt) / MS_PER_GAME_DAY
-        const income = this.incomePerDay() * gameDaysDelta
-        if (income > 0) this.passiveAccrued += income
-      }
-      if (now - lastPassiveEmit > 250 && this.passiveAccrued >= 0.01) {
-        lastPassiveEmit = now
-        const batch = this.passiveAccrued
-        this.passiveAccrued = 0
-        this.addMoney(batch, true)
       }
       if (flowReady && !this.gamePaused && now - this.lastGameClockEmit > 1000) {
         this.lastGameClockEmit = now
@@ -3254,6 +3249,7 @@ export class GameState {
     this.weekly = createWeeklyState()
     this.milestonesReached = []
     this.playTimeMs = 0
+    this.gameTimeMs = 0
     this.tutorialDone = false
     this.onboardingComplete = false
     this.dailyGoalEarned = 0
@@ -3287,6 +3283,11 @@ export class GameState {
     this.streakMilestonesClaimed = []
     this.reputation = REPUTATION_START
     this.rivals = createRivalsState()
+    this.rivalWasAhead.clear()
+    this.lastRivalTickDay = 0
+    this.lastDynastyGameDay = 0
+    this.lastMarketNewsGameDay = 0
+    this.passiveRecent = []
     this.chronicle = []
     this.legacyMonuments = []
     this.victoriesUnlocked = []
@@ -3412,6 +3413,7 @@ export class GameState {
       this.producers,
       this.reputation,
       this.playerName,
+      this.totalEarned,
     )
     for (const ev of events) {
       this.addGazette(ev.headline, ev.kind === 'alliance' ? 'rival' : 'rival')
@@ -3419,6 +3421,10 @@ export class GameState {
     }
     const playerNW = this.financeNetWorth()
     for (const rival of this.rivals) {
+      if (!isRivalUnlocked(rival.id, this.totalEarned)) {
+        this.rivalWasAhead.delete(rival.id)
+        continue
+      }
       if (rival.relation === 'merged' || rival.relation === 'bankrupt') continue
       const isAhead = rival.netWorth > playerNW
       const wasAhead = this.rivalWasAhead.has(rival.id)
@@ -4743,6 +4749,17 @@ export class GameState {
           copiedSector: r.copiedSector ?? null,
         }))
       : createRivalsState()
+    for (const rival of this.rivals) {
+      const def = rivalDef(rival.id)
+      if (!def) continue
+      if (!isRivalUnlocked(rival.id, this.totalEarned)) {
+        rival.netWorth = def.startNetWorth
+        rival.attitude = 0
+        rival.copiedSector = null
+      } else if (this.totalEarned < 10_000 && rival.netWorth > Math.max(def.startNetWorth * 2, 5_000)) {
+        rival.netWorth = def.startNetWorth
+      }
+    }
     this.chronicle = data.chronicle ?? []
     this.legacyMonuments = data.legacyMonuments ?? []
     this.victoriesUnlocked = data.victoriesUnlocked ?? []

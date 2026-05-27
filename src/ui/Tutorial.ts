@@ -22,7 +22,7 @@ const MANDATORY_STEPS: TutorialStep[] = [
     waitFor: 'tap',
   },
   {
-    target: '[data-id="shop"]',
+    target: '[data-action="nav-view"][data-id="shop"]',
     title: 'İlk işletmen',
     text: 'İşletme sekmesine git — Limonata Tezgahı ile başla.',
     view: 'shop',
@@ -67,6 +67,7 @@ export class Tutorial {
   private state: GameState
   private currentView: NavView = 'earn'
   private mandatoryComplete = false
+  private active = false
 
   constructor(state: GameState) {
     this.state = state
@@ -89,7 +90,7 @@ export class Tutorial {
   }
 
   onPurchaseMade(): void {
-    if (!this.shouldShow()) return
+    if (!this.active || !this.shouldShow()) return
     const step = allSteps()[this.stepIndex]
     if (step?.waitFor === 'purchase') {
       this.completeMandatoryPhase()
@@ -99,7 +100,7 @@ export class Tutorial {
   }
 
   onTapMade(): void {
-    if (!this.shouldShow()) return
+    if (!this.active || !this.shouldShow()) return
     const step = allSteps()[this.stepIndex]
     if (step?.waitFor === 'tap') {
       this.stepIndex++
@@ -110,9 +111,11 @@ export class Tutorial {
   onViewChange(view: NavView): void {
     this.currentView = view
     if (this.state.tutorialDone) {
+      this.active = false
       this.cleanup()
       return
     }
+    if (!this.active) return
     this.cleanup()
     if (this.stepIndex >= allSteps().length) return
     const step = allSteps()[this.stepIndex]!
@@ -127,11 +130,13 @@ export class Tutorial {
   }
 
   dismiss(): void {
+    this.active = false
     this.cleanup()
   }
 
   start(): void {
     if (!this.shouldShow()) return
+    this.active = true
     this.mandatoryComplete = this.state.onboardingComplete
     if (this.mandatoryComplete) {
       this.stepIndex = MANDATORY_STEPS.length
@@ -145,15 +150,18 @@ export class Tutorial {
     this.state.tutorialDone = false
     this.state.onboardingComplete = false
     this.mandatoryComplete = false
+    this.active = true
     this.stepIndex = 0
     this.showStep()
   }
 
   private showStep(): void {
+    if (!this.active) return
     this.cleanup()
     const steps = allSteps()
     if (this.stepIndex >= steps.length) {
       this.state.tutorialDone = true
+      this.active = false
       this.completeMandatoryPhase()
       return
     }
@@ -175,6 +183,7 @@ export class Tutorial {
       const target = document.querySelector(current.target) as HTMLElement | null
       if (!this.isTargetVisible(target)) return
 
+      this.ensureTargetInView(target!)
       const rect = target!.getBoundingClientRect()
 
       this.overlay = document.createElement('div')
@@ -205,6 +214,7 @@ export class Tutorial {
         skip.textContent = t('tutorial_skip')
         skip.addEventListener('click', () => {
           this.state.tutorialDone = true
+          this.active = false
           this.completeMandatoryPhase()
           this.cleanup()
         })
@@ -265,6 +275,15 @@ export class Tutorial {
     if (rect.width < 1 || rect.height < 1) return false
     const style = window.getComputedStyle(target)
     return style.display !== 'none' && style.visibility !== 'hidden'
+  }
+
+  private ensureTargetInView(target: HTMLElement): void {
+    const rect = target.getBoundingClientRect()
+    const margin = 24
+    const fullyInView = rect.top >= margin && rect.bottom <= window.innerHeight - margin
+    if (!fullyInView) {
+      target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' })
+    }
   }
 
   private completeMandatoryPhase(): void {

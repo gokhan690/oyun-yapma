@@ -117,7 +117,34 @@ export function renderCommoditiesPanel(
     sell.dataset.id = c.id
     sell.textContent = t('btn_sell')
     sell.disabled = held <= 0
-    card.append(buy, sell)
+    const customRow = document.createElement('div')
+    customRow.className = 'finance-custom-row commodity-custom-row'
+    const input = document.createElement('input')
+    input.type = 'number'
+    input.inputMode = 'numeric'
+    input.min = '1'
+    input.step = '1'
+    input.placeholder = t('stock_qty_hint')
+    input.className = 'finance-custom-input'
+    const buyCustom = document.createElement('button')
+    buyCustom.type = 'button'
+    buyCustom.className = 'btn-primary btn-sm'
+    buyCustom.dataset.action = 'commodity-buy'
+    buyCustom.dataset.id = c.id
+    buyCustom.dataset.count = 'custom'
+    buyCustom.textContent = t('btn_buy')
+    buyCustom.addEventListener('pointerdown', (e) => e.preventDefault())
+    const sellCustom = document.createElement('button')
+    sellCustom.type = 'button'
+    sellCustom.className = 'btn-secondary btn-sm'
+    sellCustom.dataset.action = 'commodity-sell'
+    sellCustom.dataset.id = c.id
+    sellCustom.dataset.count = 'custom'
+    sellCustom.textContent = t('btn_sell')
+    sellCustom.disabled = held <= 0
+    sellCustom.addEventListener('pointerdown', (e) => e.preventDefault())
+    customRow.append(input, buyCustom, sellCustom)
+    card.append(buy, sell, customRow)
     panel.appendChild(card)
   }
 }

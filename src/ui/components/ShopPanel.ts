@@ -1273,7 +1273,7 @@ export class ShopPanel {
     for (const band of BIZ_TIER_BANDS) {
       const unlocked = bandUnlocked(band, state.totalEarned)
       const expanded = unlocked && this.expandedBands.has(band.id)
-      const bandProducers = producersInBand(band).filter((p) => allFiltered.some((x) => x.id === p.id))
+      const bandProducers = allFiltered.filter((p) => p.tier >= band.minTier && p.tier <= band.maxTier)
       const ownedInBand = bandProducers.filter((p) => (state.producers[p.id] ?? 0) > 0).length
 
       let section = tierList.querySelector(`[data-tier-band="${band.id}"]`) as HTMLElement | null
@@ -1313,7 +1313,7 @@ export class ShopPanel {
       }
       body.hidden = !expanded
       if (!expanded) continue
-      if (!patchOnly) body.replaceChildren()
+      body.replaceChildren()
 
       for (const p of bandProducers) {
         visibleIds.add(p.id)
@@ -1345,8 +1345,6 @@ export class ShopPanel {
         body.appendChild(renderLockedPreviewCard(p, state))
       }
     }
-
-    panel.querySelector('.biz-card-locked-preview')?.remove()
 
     for (const [id, card] of this.businessCards) {
       if (!visibleIds.has(id)) {
@@ -2188,7 +2186,9 @@ export class ShopPanel {
     stockCustomRow.className = 'finance-custom-row stock-custom-row'
     const stockInput = document.createElement('input')
     stockInput.type = 'number'
+    stockInput.inputMode = 'numeric'
     stockInput.min = '1'
+    stockInput.step = '1'
     stockInput.placeholder = i18nT('stock_qty_hint')
     stockInput.className = 'finance-custom-input'
     const stockBuyCustom = document.createElement('button')

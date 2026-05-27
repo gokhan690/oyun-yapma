@@ -74,8 +74,11 @@ async function bootstrap(): Promise<void> {
         localStorage.setItem('baron_setup_done', '1')
         saveManager.save(state)
         hud.renderAll()
+        hud.startTutorial(300)
       })
       onboarding.show()
+    } else {
+      hud.startTutorial()
     }
 
     if (saveLoaded) {

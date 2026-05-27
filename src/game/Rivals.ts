@@ -34,6 +34,8 @@ export interface RivalFamilyDef {
   emoji: string
   sectorFocus: BusinessSector[]
   startNetWorth: number
+  minPlayerEarned: number
+  stageLabel: string
   personality: RivalPersonality
   personalityLabel: string
 }
@@ -44,7 +46,9 @@ export const RIVAL_FAMILY_DEFS: RivalFamilyDef[] = [
     name: 'Koçak Holding',
     emoji: '🏗️',
     sectorFocus: ['industry', 'finance'],
-    startNetWorth: 80_000,
+    startNetWorth: 18_000,
+    minPlayerEarned: 10_000,
+    stageLabel: 'Yerel holding',
     personality: 'aggressive',
     personalityLabel: 'Agresif — sektör kopyalar, fiyat savaşı açar',
   },
@@ -53,7 +57,9 @@ export const RIVAL_FAMILY_DEFS: RivalFamilyDef[] = [
     name: 'Sabanoğlu Grubu',
     emoji: '⚡',
     sectorFocus: ['tech', 'industry'],
-    startNetWorth: 120_000,
+    startNetWorth: 1_200_000,
+    minPlayerEarned: 1_000_000,
+    stageLabel: 'Ulusal dev',
     personality: 'conservative',
     personalityLabel: 'Muhafazakar — yavaş büyür, güvenli hamleler',
   },
@@ -61,8 +67,10 @@ export const RIVAL_FAMILY_DEFS: RivalFamilyDef[] = [
     id: 'demirhan',
     name: 'Demirhan Ailesi',
     emoji: '🏭',
-    sectorFocus: ['illegal', 'industry'],
-    startNetWorth: 60_000,
+    sectorFocus: ['retail', 'illegal'],
+    startNetWorth: 1_500,
+    minPlayerEarned: 0,
+    stageLabel: 'Mahalle rakibi',
     personality: 'shadow',
     personalityLabel: 'Gölge — zayıf noktalarını avlar',
   },
@@ -71,7 +79,9 @@ export const RIVAL_FAMILY_DEFS: RivalFamilyDef[] = [
     name: 'Yıldız Medya',
     emoji: '📺',
     sectorFocus: ['media', 'politics'],
-    startNetWorth: 95_000,
+    startNetWorth: 120_000,
+    minPlayerEarned: 100_000,
+    stageLabel: 'Medya gücü',
     personality: 'media',
     personalityLabel: 'Medya gücü — itibar ve siyaset oynar',
   },
@@ -102,6 +112,17 @@ export function createRivalsState(): RivalFamilyState[] {
 
 export function rivalDef(id: string): RivalFamilyDef | undefined {
   return RIVAL_FAMILY_DEFS.find((d) => d.id === id)
+}
+
+export function isRivalUnlocked(id: string, totalEarned: number): boolean {
+  const def = rivalDef(id)
+  return !def || totalEarned >= def.minPlayerEarned
+}
+
+export function nextLockedRivalDef(totalEarned: number): RivalFamilyDef | null {
+  return RIVAL_FAMILY_DEFS
+    .filter((d) => totalEarned < d.minPlayerEarned)
+    .sort((a, b) => a.minPlayerEarned - b.minPlayerEarned)[0] ?? null
 }
 
 export function producerSector(p: ProducerDef): BusinessSector {
@@ -189,6 +210,7 @@ export function tickRivals(
   producers: Record<string, number>,
   playerReputation: number,
   playerName: string,
+  playerProgressEarned = playerNetWorth,
 ): { events: RivalTickResult[]; allianceOffer: RivalAllianceOffer | null } {
   const events: RivalTickResult[] = []
   let allianceOffer: RivalAllianceOffer | null = null
@@ -196,6 +218,7 @@ export function tickRivals(
   const who = playerName.trim() || 'Baron'
 
   for (const rival of rivals) {
+    if (!isRivalUnlocked(rival.id, playerProgressEarned)) continue
     if (rival.relation === 'merged') continue
 
     // Rival net worth decay when hostile attitude is very negative

@@ -3,7 +3,7 @@ import { chromium } from 'playwright'
 const url = process.argv[2] || 'http://localhost:5173/'
 const fresh = process.argv.includes('--fresh')
 const browser = await chromium.launch()
-const context = await browser.newContext()
+const context = await browser.newContext({ serviceWorkers: 'block' })
 if (fresh) {
   await context.addInitScript(() => {
     const keep = ['baron_setup_done']

@@ -10,7 +10,7 @@ import { BADGES, badgeDef } from '../../game/Badges'
 import { SYNERGIES } from '../../game/Synergies'
 import type { BaronSection } from './BaronSections'
 import { getBaronSectionTitle } from './BaronSections'
-import { RIVAL_FAMILY_DEFS } from '../../game/Rivals'
+import { RIVAL_FAMILY_DEFS, isRivalUnlocked, nextLockedRivalDef } from '../../game/Rivals'
 import { t } from '../../i18n'
 import { PRESTIGE_TREE_NODES, hasNode, ownedNodeCount } from '../../game/PrestigeTree'
 import { ipoThreshold } from '../../game/Prestige'
@@ -661,7 +661,7 @@ export class StatsScreen {
     section.appendChild(title)
     const panel = document.createElement('div')
     panel.className = 'rivals-panel'
-    for (const rs of rivalStates) {
+    for (const rs of rivalStates.filter((r) => isRivalUnlocked(r.id, this.state.totalEarned))) {
       const def = RIVAL_FAMILY_DEFS.find(d => d.id === rs.id)
       if (!def) continue
       const playerWorth = this.state.financeNetWorth()
@@ -688,7 +688,7 @@ export class StatsScreen {
         .join('')
 
       card.innerHTML = `
-        <span class="rival-emoji">🏦</span>
+        <span class="rival-emoji">${def.emoji}</span>
         <div class="rival-info">
           <div class="rival-name-row">
             <span class="rival-name">${def.name}</span>
@@ -718,6 +718,23 @@ export class StatsScreen {
         card.appendChild(acquireBtn)
       }
       panel.appendChild(card)
+    }
+    const next = nextLockedRivalDef(this.state.totalEarned)
+    if (next) {
+      const locked = document.createElement('div')
+      locked.className = 'rival-card rival-locked'
+      locked.innerHTML = `
+        <span class="rival-emoji">${next.emoji}</span>
+        <div class="rival-info">
+          <div class="rival-name-row">
+            <span class="rival-name">${next.name}</span>
+            <span class="rival-relation-badge">Kilitli</span>
+          </div>
+          <div class="rival-sector">${next.stageLabel}</div>
+          <div class="rival-worth">${formatMoney(next.minPlayerEarned)} toplam kazançta açılır</div>
+        </div>
+      `
+      panel.appendChild(locked)
     }
     section.appendChild(panel)
     this.content.appendChild(section)

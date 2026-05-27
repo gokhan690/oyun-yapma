@@ -165,9 +165,6 @@ export class HUD {
     this.renderAll()
     this.updateNavBadges()
     this.setView('earn')
-    if (this.tutorial.shouldShow()) {
-      window.setTimeout(() => this.tutorial.start(), 600)
-    }
     if (this.state.hasPendingBankruptcyRecovery()) {
       window.setTimeout(() => {
         this.showBankruptcyPopup(
@@ -179,6 +176,12 @@ export class HUD {
       }, 900)
     }
     this.bindOwnerAccess()
+  }
+
+  startTutorial(delayMs = 600): void {
+    if (this.tutorial.shouldShow()) {
+      window.setTimeout(() => this.tutorial.start(), delayMs)
+    }
   }
 
   openOwnerPanel(): void {
@@ -487,10 +490,14 @@ export class HUD {
   }
 
   private setView(view: NavView): void {
+    const previousView = this.bottomNav.getActive()
     this.goalsSheet.close()
     this.closeModalAndPump()
     this.tutorial.onViewChange(view)
     this.bottomNav.setActive(view)
+    if (previousView === 'events' && view !== 'events' && this.baronSubTab === 'events') {
+      this.baronSubTab = 'profile'
+    }
     this.earnView.hidden = view !== 'earn'
     this.shop.root.hidden = view !== 'shop' && view !== 'market'
     this.baronView.hidden = view !== 'profile' && view !== 'events'
@@ -513,6 +520,8 @@ export class HUD {
     } else if (view === 'profile') {
       this.syncBaronTab()
     } else {
+      this.eventsPanel.root.hidden = true
+      this.baronView.classList.remove('events-standalone')
       this.settings.hide()
     }
   }
@@ -2011,11 +2020,17 @@ export class HUD {
         }
         break
       case 'commodity-buy':
-        if (id) this.state.buyCommodity(id as import('../game/Commodities').CommodityId, 1)
+        if (id) {
+          const units = Math.max(1, Math.floor(Number(count ?? 1)))
+          this.state.buyCommodity(id as import('../game/Commodities').CommodityId, Number.isFinite(units) ? units : 1)
+        }
         this.refreshShop(true)
         break
       case 'commodity-sell':
-        if (id) this.state.sellCommodity(id as import('../game/Commodities').CommodityId, 1)
+        if (id) {
+          const units = Math.max(1, Math.floor(Number(count ?? 1)))
+          this.state.sellCommodity(id as import('../game/Commodities').CommodityId, Number.isFinite(units) ? units : 1)
+        }
         this.refreshShop(true)
         break
       case 'investment-accept':
@@ -2089,12 +2104,19 @@ export class HUD {
         if (id && this.state.unlockCity(id as import('../game/ExpansionMap').CityId)) {
           this.modals.showToast(this.root, '🗺️ Yeni şehir açıldı!')
           this.refreshSkyline()
+          this.renderCityStrip()
+          this.refreshBaronPanel()
           this.refreshShop(true)
+        } else if (id) {
+          const check = canUnlockCity(id as import('../game/ExpansionMap').CityId, this.state.cities, this.state.money, this.state.reputation, this.state.ipoCount)
+          if (check.reason) this.modals.showToast(this.root, check.reason)
         }
         break
       case 'set-active-city':
         if (id && this.state.setActiveCity(id as import('../game/ExpansionMap').CityId)) {
           this.refreshSkyline()
+          this.renderCityStrip()
+          this.refreshBaronPanel()
           this.modals.showToast(this.root, `📍 ${id} aktif`)
         }
         break
