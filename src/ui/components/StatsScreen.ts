@@ -124,7 +124,7 @@ export class StatsScreen {
     const shareBtn = document.createElement('button')
     shareBtn.type = 'button'
     shareBtn.className = 'btn-secondary btn-sm'
-    shareBtn.textContent = '📤 Paylaş'
+    shareBtn.textContent = t('btn_share')
     shareBtn.addEventListener('click', () => {
       const { playerName, ipoCount, lifetimeTotalEarned, dynasty } = this.state
       const name = playerName.trim() || 'Baron'
@@ -139,8 +139,8 @@ export class StatsScreen {
         void navigator.share({ text })
       } else {
         void navigator.clipboard.writeText(text).then(() => {
-          shareBtn.textContent = '✅ Kopyalandı!'
-          window.setTimeout(() => { shareBtn.textContent = '📤 Paylaş' }, 2000)
+          shareBtn.textContent = t('btn_copied')
+          window.setTimeout(() => { shareBtn.textContent = t('btn_share') }, 2000)
         })
       }
     })

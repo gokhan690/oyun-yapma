@@ -611,4 +611,27 @@ export interface Translations {
   biz_fulfillment: string
   biz_online_egitim: string
   biz_biyoteknoloji: string
+
+  // Codex panel
+  codex_title: string
+  codex_discovered: string
+  codex_locked: string
+  codex_unlocked_empty: string
+  codex_synergy_summary: string
+  codex_tab_businesses: string
+  codex_tab_synergies: string
+  codex_synergy_global: string
+
+  // Share button
+  btn_share: string
+  btn_copied: string
+
+  // Franchise block
+  franchise_title_meta: string
+  franchise_unlock_hint: string
+  franchise_map_title: string
+  franchise_milestone_3: string
+  franchise_milestone_5: string
+  franchise_milestone_10: string
+  franchise_milestone_20: string
 }

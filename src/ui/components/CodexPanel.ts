@@ -2,6 +2,7 @@ import type { GameState } from '../../game/GameState'
 import { PRODUCERS, formatIncomeRate, producerIconPath, isProducerUnlocked } from '../../game/Economy'
 import { producerLore } from '../../game/CodexLore'
 import { SYNERGIES, synergyName } from '../../game/Synergies'
+import { t } from '../../i18n'
 
 type CodexTab = 'businesses' | 'synergies'
 
@@ -19,7 +20,7 @@ export class CodexPanel {
     const bonus = state.codexCompletionBonus()
     const header = document.createElement('div')
     header.className = 'codex-header'
-    header.innerHTML = `<strong>İmparatorluk Defteri</strong><small>${PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0).length}/${PRODUCERS.length} keşfedildi</small>`
+    header.innerHTML = `<strong>${t('codex_title')}</strong><small>${PRODUCERS.filter((p) => (state.producers[p.id] ?? 0) > 0).length}/${PRODUCERS.length} ${t('codex_discovered')}</small>`
     if (bonus.legal) header.innerHTML += '<span class="codex-bonus">Yasal tamam: +%5 global</span>'
     if (bonus.all) header.innerHTML += '<span class="codex-bonus">Tam koleksiyon!</span>'
     this.root.appendChild(header)
@@ -28,8 +29,8 @@ export class CodexPanel {
     const tabs = document.createElement('div')
     tabs.className = 'codex-tabs'
     const tabDefs: { id: CodexTab; label: string }[] = [
-      { id: 'businesses', label: '🏢 İşletmeler' },
-      { id: 'synergies', label: '🔗 Sinerjiler' },
+      { id: 'businesses', label: t('codex_tab_businesses') },
+      { id: 'synergies', label: t('codex_tab_synergies') },
     ]
     for (const td of tabDefs) {
       const btn = document.createElement('button')
@@ -72,8 +73,8 @@ export class CodexPanel {
       const name = document.createElement('strong')
       name.textContent = unlocked ? p.name : '???'
       const meta = document.createElement('small')
-      if (!unlocked) meta.textContent = 'Kilitli'
-      else if (owned <= 0) meta.textContent = 'Açık · sahip değil'
+      if (!unlocked) meta.textContent = t('codex_locked')
+      else if (owned <= 0) meta.textContent = t('codex_unlocked_empty')
       else {
         const date = state.codexUnlockDates[p.id]
         const income = state.producerIncome(p)
@@ -108,7 +109,7 @@ export class CodexPanel {
     const total = SYNERGIES.length
     const summary = document.createElement('p')
     summary.className = 'codex-synergy-summary'
-    summary.textContent = `${activeCnt}/${total} sinerji aktif — kombinasyonları keşfet!`
+    summary.textContent = `${activeCnt}/${total} ${t('codex_synergy_summary')}`
     list.appendChild(summary)
 
     for (const s of SYNERGIES) {
@@ -124,7 +125,7 @@ export class CodexPanel {
 
       const bonusPct = Math.round(s.bonus * 100)
       const effectLabel = s.effect === 'global'
-        ? `Tüm gelir +${bonusPct}%`
+        ? t('codex_synergy_global').replace('{pct}', String(bonusPct))
         : `${PRODUCERS.find((p) => p.id === s.targetProducer)?.name ?? s.targetProducer} +${bonusPct}%`
 
       row.innerHTML = `

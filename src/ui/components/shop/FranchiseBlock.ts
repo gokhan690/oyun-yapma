@@ -6,6 +6,7 @@ import {
   FRANCHISE_UNLOCK_COUNT,
   type FranchiseCity,
 } from '../../../game/Franchise'
+import { t } from '../../../i18n'
 
 export function appendFranchiseSection(
   container: HTMLElement,
@@ -24,13 +25,13 @@ export function appendFranchiseSection(
 
   const title = document.createElement('div')
   title.className = 'biz-franchise-title'
-  title.innerHTML = `<strong>🏪 Franchise</strong><small>+8% pasif gelir / şube · ${formatMoney(FRANCHISE_COST)}/açılış</small>`
+  title.innerHTML = `<strong>🏪 Franchise</strong><small>${t('franchise_title_meta').replace('{cost}', formatMoney(FRANCHISE_COST))}</small>`
   block.appendChild(title)
 
   if (showHint && !canOpen) {
     const hint = document.createElement('p')
     hint.className = 'biz-franchise-hint'
-    hint.textContent = `${FRANCHISE_UNLOCK_COUNT - owned} adet daha al → ${producerName} franchise açılabilir`
+    hint.textContent = t('franchise_unlock_hint').replace('{n}', String(FRANCHISE_UNLOCK_COUNT - owned)).replace('{name}', producerName)
     block.appendChild(hint)
   }
 
@@ -39,7 +40,7 @@ export function appendFranchiseSection(
     mapWrap.className = 'franchise-map-wrap'
     const mapTitle = document.createElement('div')
     mapTitle.className = 'franchise-map-title'
-    mapTitle.textContent = '🗺️ Şube haritası'
+    mapTitle.textContent = t('franchise_map_title')
     mapWrap.appendChild(mapTitle)
     const cities = document.createElement('div')
     cities.className = 'franchise-map-cities'
@@ -74,10 +75,10 @@ export function appendFranchiseSection(
     // Franchise milestone badges
     const totalFranchises = state.franchises.length
     const milestones = [
-      { count: 3, emoji: '🥉', label: '3 Şube' },
-      { count: 5, emoji: '🥈', label: '5 Şube' },
-      { count: 10, emoji: '🥇', label: '10 Şube' },
-      { count: 20, emoji: '💎', label: '20 Şube' },
+      { count: 3, emoji: '🥉', label: t('franchise_milestone_3') },
+      { count: 5, emoji: '🥈', label: t('franchise_milestone_5') },
+      { count: 10, emoji: '🥇', label: t('franchise_milestone_10') },
+      { count: 20, emoji: '💎', label: t('franchise_milestone_20') },
     ]
     const earned = milestones.filter((m) => totalFranchises >= m.count)
     if (earned.length > 0) {
