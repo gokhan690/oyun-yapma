@@ -5747,8 +5747,15 @@ html.theme-red .skyline-building {
 .advisor-card { padding: 12px; border-radius: 12px; background: rgba(59, 130, 246, 0.1); margin-bottom: 12px; }
 .shop-section-title { font-size: 0.9rem; margin: 16px 0 8px; color: var(--muted); }
 .child-risk-warn { color: #fb923c; font-size: 0.78rem; display: block; margin-top: 4px; }
-.gazette-list { margin: 8px 0 0; padding-left: 18px; font-size: 0.82rem; line-height: 1.45; }
-.gazette-list li { margin-bottom: 6px; }
+.gazette-list { margin: 8px 0 0; padding: 0; list-style: none; font-size: 0.8rem; line-height: 1.4; }
+.gazette-item { display: flex; gap: 6px; margin-bottom: 6px; align-items: flex-start; }
+.gazette-icon { flex-shrink: 0; font-size: 0.9em; opacity: 0.85; }
+.gazette-player { color: #fbbf24; }
+.gazette-rival { color: #f87171; }
+.gazette-market { color: #34d399; }
+.gazette-politics { color: #a78bfa; }
+.gazette-crisis { color: #ef4444; font-weight: 600; }
+.gazette-calendar { color: #60a5fa; }
 
 .progress-path-widget {
   margin: 6px 0 8px;

@@ -59,16 +59,25 @@ export class WorldMetaPanel {
   }
 
   private renderGazette(): void {
-    const headlines = this.state.latestGazetteHeadlines(5)
+    const headlines = this.state.latestGazetteHeadlines(8)
     if (headlines.length === 0) return
     const block = document.createElement('div')
     block.className = 'meta-block gazette-block'
     block.innerHTML = `<h3>${t('world_gazette')}</h3>`
     const list = document.createElement('ul')
     list.className = 'gazette-list'
+    const categoryIcons: Record<string, string> = {
+      player: '👑', rival: '⚔️', market: '📈', politics: '🎖️', crisis: '⚠️', calendar: '📅',
+    }
     for (const h of headlines) {
       const li = document.createElement('li')
-      li.textContent = h.headline
+      li.className = `gazette-item gazette-${h.category}`
+      const icon = document.createElement('span')
+      icon.className = 'gazette-icon'
+      icon.textContent = categoryIcons[h.category] ?? '📰'
+      const text = document.createElement('span')
+      text.textContent = h.headline
+      li.append(icon, text)
       list.appendChild(li)
     }
     block.appendChild(list)
