@@ -23,7 +23,7 @@ export function isStarterBusiness(id: string): boolean {
 
 export function navLockReason(view: NavView, producers: Record<string, number>, totalEarned: number): string | null {
   const owned = ownedBusinessCount(producers)
-  if (view === 'earn' || view === 'shop' || view === 'profile') return null
+  if (view === 'earn' || view === 'shop' || view === 'events' || view === 'profile') return null
   if (owned === 0) {
     return 'Önce İş sekmesinden bir işletme satın al.'
   }

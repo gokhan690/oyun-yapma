@@ -44,10 +44,7 @@ class MockAdProvider implements IAdProvider {
 
   showBanner(container: HTMLElement): void {
     container.replaceChildren()
-    const banner = document.createElement('div')
-    banner.className = 'ad-banner-mock'
-    banner.setAttribute('aria-hidden', 'true')
-    container.appendChild(banner)
+    container.hidden = true
   }
 
   hideBanner(): void {
@@ -191,6 +188,10 @@ export class AdManager {
     return Date.now() - this.lastInterstitialAt >= INTERSTITIAL_COOLDOWN_MS
   }
 
+  hasBannerPlacement(): boolean {
+    return !this.adsRemoved && isCapacitorNative() && !!import.meta.env.VITE_ADMOB_BANNER_ID
+  }
+
   async showRewarded(type: RewardedAdType): Promise<AdRewardResult> {
     const check = this.canShowRewarded()
     if (!check.ok) return { success: false, type, reason: check.reason }
@@ -215,7 +216,7 @@ export class AdManager {
   }
 
   showBanner(container: HTMLElement): void {
-    if (this.adsRemoved) {
+    if (!this.hasBannerPlacement()) {
       container.replaceChildren()
       container.hidden = true
       return

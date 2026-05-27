@@ -18,7 +18,7 @@ function localizedMonth(monthIndex: number): string {
 
 /** Gerçek saniyeyi oyun zamanına çevir */
 export function realSecondsToGameMs(dtSec: number): number {
-  return dtSec * MS_PER_GAME_DAY
+  return dtSec * 1000
 }
 
 export function gameDay(gameTimeMs: number): number {

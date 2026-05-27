@@ -8,7 +8,6 @@ export function getBaronTabs(): { id: BaronSection; label: string }[] {
     { id: 'dynasty', label: t('tab_dynasty') },
     { id: 'world', label: t('tab_world') },
     { id: 'lifestyle', label: t('tab_lifestyle') },
-    { id: 'events', label: t('tab_events') },
   ]
 }
 

@@ -755,7 +755,7 @@ export class ShopPanel {
     this.shopHubEl.innerHTML = `
       <span class="hub-stat hub-stat-wallet"><strong>${formatMoney(state.money)}</strong><small>Cüzdan</small></span>
       <span class="hub-stat"><strong>${formatMoney(state.totalEarned)}</strong><small>Toplam kazanç</small></span>
-      <span class="hub-stat"><strong>${formatIncomeRate(ipd)}</strong><small>Pasif / sn</small></span>
+      <span class="hub-stat"><strong>${formatIncomeRate(ipd)}</strong><small>Pasif / gün</small></span>
       <span class="hub-stat"><strong>${formatMoney(click)}</strong><small>Tık / vuruş</small></span>
       ${illegalStat}
       <span class="hub-stat"><strong>${ownedBiz}</strong><small>İşletme</small></span>

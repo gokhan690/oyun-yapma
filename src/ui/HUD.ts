@@ -118,6 +118,7 @@ export class HUD {
   private eventDirector = new EventDirector()
   private adPromptShown = false
   private lastUserTapMs = Date.now()
+  private postIntroTasks = new Map<string, () => void>()
 
   constructor(
     state: GameState,
@@ -150,6 +151,7 @@ export class HUD {
     this.lifestylePanel = new LifestylePanel()
     this.tutorial = new Tutorial(state)
     this.tutorial.setTabHandler((tab) => this.shop.setTab(tab, this.state))
+    this.tutorial.setMandatoryCompleteHandler(() => this.handleIntroFlowReady())
     this.build()
     this.skyline = new Skyline(this.tapArea.parentElement!)
     this.skyline.setBuildingClickHandler((producerId) => {
@@ -486,16 +488,16 @@ export class HUD {
 
   private setView(view: NavView): void {
     this.goalsSheet.close()
-    this.modals.close()
+    this.closeModalAndPump()
     this.tutorial.onViewChange(view)
     this.bottomNav.setActive(view)
     this.earnView.hidden = view !== 'earn'
     this.shop.root.hidden = view !== 'shop' && view !== 'market'
-    this.baronView.hidden = view !== 'profile'
+    this.baronView.hidden = view !== 'profile' && view !== 'events'
     this.empirePanel.root.hidden = true
     this.empirePanel.root.classList.remove('empire-overlay-open')
     this.gameMain.classList.toggle('earn-active', view === 'earn')
-    this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'market' || view === 'profile')
+    this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'market' || view === 'events' || view === 'profile')
     this.root.dataset.view = view
     if (view === 'shop') {
       this.shop.setViewContext('shop', this.state)
@@ -505,7 +507,10 @@ export class HUD {
       this.shop.setViewContext('market', this.state)
       this.refreshShop(true)
     }
-    if (view === 'profile') {
+    if (view === 'events') {
+      this.baronSubTab = 'events'
+      this.syncBaronTab()
+    } else if (view === 'profile') {
       this.syncBaronTab()
     } else {
       this.settings.hide()
@@ -513,11 +518,11 @@ export class HUD {
   }
 
   private baronShowsEvents(): boolean {
-    return this.bottomNav.getActive() === 'profile' && this.baronSubTab === 'events'
+    return this.bottomNav.getActive() === 'events' || (this.bottomNav.getActive() === 'profile' && this.baronSubTab === 'events')
   }
 
   private refreshBaronPanel(): void {
-    if (this.bottomNav.getActive() !== 'profile') return
+    if (this.bottomNav.getActive() !== 'profile' && this.bottomNav.getActive() !== 'events') return
     if (this.baronSubTab === 'events' || this.baronSubTab === 'lifestyle') return
     this.statsScreen.renderSection(this.baronSubTab)
   }
@@ -541,6 +546,7 @@ export class HUD {
     const tab = this.baronSubTab
     const isEvents = tab === 'events'
     const isLifestyle = tab === 'lifestyle'
+    this.baronView.classList.toggle('events-standalone', isEvents && this.bottomNav.getActive() === 'events')
     this.eventsPanel.root.hidden = !isEvents
     this.lifestylePanel.root.hidden = !isLifestyle
     if (isEvents) {
@@ -558,16 +564,46 @@ export class HUD {
     })
   }
 
+  private isIntroFlowReady(): boolean {
+    return this.state.onboardingComplete || this.state.tutorialDone
+  }
+
+  private runWhenIntroReady(id: string, task: () => void): boolean {
+    if (this.isIntroFlowReady()) return true
+    this.postIntroTasks.set(id, task)
+    return false
+  }
+
+  private handleIntroFlowReady(): void {
+    this.state.startTick()
+    this.state.startEventLoop()
+    this.saveManager.save(this.state)
+    const tasks = [...this.postIntroTasks.values()]
+    this.postIntroTasks.clear()
+    for (const task of tasks) task()
+    this.eventDirector.release()
+    this.renderAll()
+  }
+
   private renderProfileQuickBtn(): void {
     const name = this.state.playerName.trim() || 'Baron'
     const title = this.state.playerTitle()
-    this.profileQuickBtn.innerHTML = `<span class="header-profile-emoji">${title.emoji}</span><span class="header-profile-text">${name}</span>`
+    const emoji = document.createElement('span')
+    emoji.className = 'header-profile-emoji'
+    emoji.textContent = title.emoji
+    const text = document.createElement('span')
+    text.className = 'header-profile-text'
+    text.textContent = name
+    this.profileQuickBtn.replaceChildren(emoji, text)
   }
 
   private updateNavBadges(): void {
     const target = this.state.dailyGoalTarget()
     const dailyGoalReady = this.state.dailyGoalEarned >= target && !this.state.dailyGoalClaimed
     this.bottomNav.setBadges(
+      false,
+      this.shop.hasShopBadge(this.state),
+      this.shop.hasMarketBadge(this.state),
       this.state.hasClaimableSeasonReward()
         || this.state.hasClaimableCampaignReward()
         || this.state.luckyChestReady
@@ -575,8 +611,6 @@ export class HUD {
         || dailyGoalReady
         || this.state.canClaimDaily()
         || this.state.hasPendingBoosts(),
-      this.shop.hasShopBadge(this.state),
-      this.shop.hasMarketBadge(this.state),
     )
   }
 
@@ -898,7 +932,7 @@ export class HUD {
       }
       if (ev.type === 'crisis_resolved') {
         this.sound.setAmbient(this.state.isNight ? 'night' : 'day')
-        this.modals.close()
+        this.closeModalAndPump()
       }
       if (ev.type === 'victory_mechanic_unlocked') {
         this.eventDirector.enqueue({
@@ -1001,7 +1035,7 @@ export class HUD {
         this.eventDirector.enqueue({
           id: 'bankruptcy',
           priority: 1,
-          run: () => this.showBankruptcyPopup(reason, loss, recoveryPool, seizedBusinesses),
+          run: () => this.renderBankruptcyPopup(reason, loss, recoveryPool, seizedBusinesses),
         })
         this.refreshShop(true)
       }
@@ -1310,11 +1344,11 @@ export class HUD {
         break
       case 'skip-bankruptcy-recovery':
         this.state.discardBankruptcyRecovery()
-        this.modals.close()
+        this.closeModalAndPump()
         break
       case 'skip-comeback':
         this.state.discardComeback()
-        this.modals.close()
+        this.closeModalAndPump()
         break
       case 'early-unlock':
         if (id && this.state.earlyUnlockProducer(id)) {
@@ -1864,7 +1898,7 @@ export class HUD {
       case 'skip-offline':
         this.state.discardPendingOffline()
         this.pendingOffline = 0
-        this.modals.close()
+        this.closeModalAndPump()
         break
       case 'ad-offline':
         await this.handleAdOffline(1)
@@ -1938,7 +1972,6 @@ export class HUD {
           const [eventId, choiceId] = id.split(':')
           if (eventId && choiceId) {
             this.state.resolveLifeEventChoice(eventId as import('../game/LifeEvents').LifeEventId, choiceId)
-            this.modals.close()
             this.closeModalAndPump()
           }
         }
@@ -1964,12 +1997,12 @@ export class HUD {
       case 'rival-alliance-accept':
         if (this.state.acceptRivalAllianceOffer()) {
           this.modals.showToast(this.root, '🤝 Sektör anlaşması imzalandı')
-          this.modals.close()
+          this.closeModalAndPump()
         }
         break
       case 'rival-alliance-decline':
         this.state.declineRivalAlliance()
-        this.modals.close()
+        this.closeModalAndPump()
         break
       case 'insurance-toggle':
         if (id === 'business' || id === 'illegal' || id === 'dynasty') {
@@ -2318,7 +2351,11 @@ export class HUD {
     decline.className = 'btn-secondary'
     decline.dataset.action = 'rival-alliance-decline'
     decline.textContent = t('btn_decline')
-    this.modals.show('🤝 İttifak Teklifi', offer.message, [accept, decline])
+    this.eventDirector.enqueue({
+      id: `rival-alliance-${offer.rivalId}`,
+      priority: 2,
+      run: () => this.modals.show('🤝 İttifak Teklifi', offer.message, [accept, decline]),
+    })
   }
 
   private renderHeatMeter(): void {
@@ -2428,13 +2465,22 @@ export class HUD {
 
   private updateProgressiveUnlock(): void {
     const locks: Partial<Record<NavView, string | null>> = {}
-    for (const view of ['earn', 'shop', 'market', 'profile'] as NavView[]) {
+    for (const view of ['earn', 'shop', 'market', 'events', 'profile'] as NavView[]) {
       locks[view] = navLockReason(view, this.state.producers, this.state.totalEarned)
     }
     this.bottomNav.setNavLocked(locks)
   }
 
   showOfflinePopup(amount: number): void {
+    if (!this.runWhenIntroReady('offline-popup', () => this.showOfflinePopup(amount))) return
+    this.eventDirector.enqueue({
+      id: 'offline-popup',
+      priority: 3,
+      run: () => this.renderOfflinePopup(amount),
+    })
+  }
+
+  private renderOfflinePopup(amount: number): void {
     this.pendingOffline = amount
     const hero = document.createElement('div')
     hero.className = 'offline-popup-hero offline-popup-animated'
@@ -2834,7 +2880,7 @@ export class HUD {
 
   private async handleAdOffline(multiplier = 1): Promise<void> {
     if (this.pendingOffline <= 0 && this.state.pendingOfflineEarnings <= 0) {
-      this.modals.close()
+      this.closeModalAndPump()
       return
     }
     const result = await this.ads.showRewarded('offline_bonus')
@@ -2845,7 +2891,7 @@ export class HUD {
     this.state.incrementRewardedAdCount()
     const amount = this.state.claimOfflineViaAd(multiplier)
     this.pendingOffline = 0
-    this.modals.close()
+    this.closeModalAndPump()
     this.modals.showToast(this.root, `Offline: +${formatMoney(amount)}`)
     this.statsBar.render()
     this.renderAll()
@@ -2853,7 +2899,7 @@ export class HUD {
 
   private async handleAdBankruptcyRecovery(multiplier = 1): Promise<void> {
     if (!this.state.hasPendingBankruptcyRecovery()) {
-      this.modals.close()
+      this.closeModalAndPump()
       return
     }
     const result = await this.ads.showRewarded('bankruptcy_recovery')
@@ -2863,14 +2909,14 @@ export class HUD {
     }
     this.state.incrementRewardedAdCount()
     const amount = this.state.claimBankruptcyRecovery(multiplier)
-    this.modals.close()
+    this.closeModalAndPump()
     this.modals.showToast(this.root, `İflas kurtarma: +${formatMoney(amount)}`)
     this.renderAll()
   }
 
   private async handleAdComeback(multiplier = 1): Promise<void> {
     if (!this.state.hasPendingComeback()) {
-      this.modals.close()
+      this.closeModalAndPump()
       return
     }
     const result = await this.ads.showRewarded('offline_bonus')
@@ -2880,7 +2926,7 @@ export class HUD {
     }
     this.state.incrementRewardedAdCount()
     const amount = this.state.claimComebackViaAd(multiplier)
-    this.modals.close()
+    this.closeModalAndPump()
     this.modals.showToast(this.root, `Geri dönüş: +${formatMoney(amount)}`)
     this.renderAll()
   }
@@ -2962,26 +3008,46 @@ export class HUD {
   }
 
   showDailyRewardIfAvailable(): void {
+    if (!this.runWhenIntroReady('daily-reward', () => this.showDailyRewardIfAvailable())) return
     if (!this.state.canClaimDaily()) return
     const streakLost = this.state.peekDailyStreakReset()
     const nextStreak = this.state.dailyLastClaim && !streakLost
       ? this.state.dailyStreak + 1
       : 1
     const preview = this.state.dailyLoginRewardPreview(nextStreak)
-    this.modals.showDailyReward(
-      nextStreak,
-      formatMoney(preview),
-      () => {
-        const amount = this.state.claimDailyReward()
-        if (amount > 0) this.modals.showToast(this.root, `+${formatMoney(amount)}`)
-        this.renderAll()
+    this.eventDirector.enqueue({
+      id: 'daily-reward',
+      priority: 4,
+      run: () => {
+        this.modals.showDailyReward(
+          nextStreak,
+          formatMoney(preview),
+          () => {
+            const amount = this.state.claimDailyReward()
+            if (amount > 0) this.modals.showToast(this.root, `+${formatMoney(amount)}`)
+            this.renderAll()
+            this.eventDirector.release()
+          },
+          streakLost,
+        )
       },
-      streakLost,
-    )
+    })
   }
 
   showBankruptcyPopup(reason: string, loss: number, recoveryPool: number, seizedIds: string[]): void {
-    if (!this.state.hasPendingBankruptcyRecovery() && recoveryPool <= 0) return
+    if (!this.runWhenIntroReady('bankruptcy-popup', () => this.showBankruptcyPopup(reason, loss, recoveryPool, seizedIds))) return
+    this.eventDirector.enqueue({
+      id: 'bankruptcy-popup',
+      priority: 1,
+      run: () => this.renderBankruptcyPopup(reason, loss, recoveryPool, seizedIds),
+    })
+  }
+
+  private renderBankruptcyPopup(reason: string, loss: number, recoveryPool: number, seizedIds: string[]): void {
+    if (!this.state.hasPendingBankruptcyRecovery() && recoveryPool <= 0) {
+      this.eventDirector.release()
+      return
+    }
     const seizedLines = this.state.bankruptcySeizedSnapshot.map(
       (item) => `${item.emoji} ${item.name} ×${item.units} (${formatMoney(item.value)})`,
     )
@@ -3021,7 +3087,19 @@ export class HUD {
   }
 
   showComebackPopup(): void {
-    if (!this.state.hasPendingComeback()) return
+    if (!this.runWhenIntroReady('comeback-popup', () => this.showComebackPopup())) return
+    this.eventDirector.enqueue({
+      id: 'comeback-popup',
+      priority: 3,
+      run: () => this.renderComebackPopup(),
+    })
+  }
+
+  private renderComebackPopup(): void {
+    if (!this.state.hasPendingComeback()) {
+      this.eventDirector.release()
+      return
+    }
     const amount = this.state.comebackPending
     const ad = document.createElement('button')
     ad.type = 'button'
@@ -3051,7 +3129,9 @@ export class HUD {
       this.state.removeAdsOwned = true
     }
     this.ads.setAdsRemoved(removed)
-    if (removed) {
+    const showBanner = this.ads.hasBannerPlacement()
+    this.root.classList.toggle('has-ad-banner', showBanner)
+    if (!showBanner) {
       this.adBannerSlot.hidden = true
       this.ads.hideBanner()
     } else {

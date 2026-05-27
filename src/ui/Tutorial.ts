@@ -9,7 +9,7 @@ export interface TutorialStep {
   tab?: string
   view?: NavView
   mandatory?: boolean
-  waitFor?: 'tap' | 'purchase'
+  waitFor?: 'tap' | 'purchase' | 'nav'
 }
 
 const MANDATORY_STEPS: TutorialStep[] = [
@@ -27,9 +27,10 @@ const MANDATORY_STEPS: TutorialStep[] = [
     text: 'İşletme sekmesine git — Limonata Tezgahı ile başla.',
     view: 'shop',
     mandatory: true,
+    waitFor: 'nav',
   },
   {
-    target: '.biz-hero-card:not(.biz-hero-locked)',
+    target: '[data-action="buy-business"][data-id="stajyer"]',
     title: 'Satın al',
     text: 'Bir işletme seç — pasif gelir kazanmaya başlarsın.',
     tab: 'growth',
@@ -62,6 +63,7 @@ export class Tutorial {
   private stepIndex = 0
   private pendingStepTimer: number | null = null
   private onTab: ((tab: string) => void) | null = null
+  private onMandatoryComplete: (() => void) | null = null
   private state: GameState
   private currentView: NavView = 'earn'
   private mandatoryComplete = false
@@ -72,6 +74,10 @@ export class Tutorial {
 
   setTabHandler(handler: (tab: string) => void): void {
     this.onTab = handler
+  }
+
+  setMandatoryCompleteHandler(handler: () => void): void {
+    this.onMandatoryComplete = handler
   }
 
   shouldShow(): boolean {
@@ -86,8 +92,7 @@ export class Tutorial {
     if (!this.shouldShow()) return
     const step = allSteps()[this.stepIndex]
     if (step?.waitFor === 'purchase') {
-      this.mandatoryComplete = true
-      this.state.onboardingComplete = true
+      this.completeMandatoryPhase()
       this.stepIndex++
       this.showStep()
     }
@@ -111,6 +116,11 @@ export class Tutorial {
     this.cleanup()
     if (this.stepIndex >= allSteps().length) return
     const step = allSteps()[this.stepIndex]!
+    if (step.waitFor === 'nav' && step.view === view) {
+      this.stepIndex++
+      window.setTimeout(() => this.showStep(), 120)
+      return
+    }
     if (!step.view || step.view === view) {
       window.setTimeout(() => this.showStep(), 120)
     }
@@ -144,11 +154,11 @@ export class Tutorial {
     const steps = allSteps()
     if (this.stepIndex >= steps.length) {
       this.state.tutorialDone = true
-      this.state.onboardingComplete = true
+      this.completeMandatoryPhase()
       return
     }
     const step = steps[this.stepIndex]!
-    if (step.view && step.view !== this.currentView) return
+    if (step.view && step.view !== this.currentView && step.waitFor !== 'nav') return
 
     if (step.tab && this.onTab) this.onTab(step.tab)
 
@@ -157,7 +167,7 @@ export class Tutorial {
       this.pendingStepTimer = null
       if (this.state.tutorialDone || this.stepIndex >= steps.length) return
       const current = steps[this.stepIndex]!
-      if (current.view && current.view !== this.currentView) return
+      if (current.view && current.view !== this.currentView && current.waitFor !== 'nav') return
       if (current.waitFor === 'tap' || current.waitFor === 'purchase') {
         // Overlay göster; ilerleme olayla gelir
       }
@@ -172,6 +182,14 @@ export class Tutorial {
 
       const card = document.createElement('div')
       card.className = 'tutorial-card'
+      if (current.waitFor) card.classList.add('tutorial-card-passive')
+      const appRect = document.querySelector<HTMLElement>('.app-root')?.getBoundingClientRect()
+      const shellLeft = appRect?.left ?? 0
+      const shellWidth = appRect?.width ?? window.innerWidth
+      const cardInset = 16
+      card.style.left = `${Math.max(cardInset, shellLeft + cardInset)}px`
+      card.style.right = 'auto'
+      card.style.width = `${Math.max(260, shellWidth - cardInset * 2)}px`
       const h = document.createElement('h3')
       h.textContent = current.title
       const p = document.createElement('p')
@@ -187,7 +205,7 @@ export class Tutorial {
         skip.textContent = t('tutorial_skip')
         skip.addEventListener('click', () => {
           this.state.tutorialDone = true
-          this.state.onboardingComplete = true
+          this.completeMandatoryPhase()
           this.cleanup()
         })
         row.appendChild(skip)
@@ -201,8 +219,7 @@ export class Tutorial {
         next.addEventListener('click', () => {
           this.stepIndex++
           if (this.stepIndex >= MANDATORY_STEPS.length) {
-            this.mandatoryComplete = true
-            this.state.onboardingComplete = true
+            this.completeMandatoryPhase()
           }
           this.showStep()
         })
@@ -210,7 +227,7 @@ export class Tutorial {
       } else {
         const hint = document.createElement('span')
         hint.className = 'tutorial-wait-hint'
-        hint.textContent = current.waitFor === 'tap' ? t('tutorial_click_hint') : t('tutorial_buy_hint')
+        hint.textContent = current.waitFor === 'purchase' ? t('tutorial_buy_hint') : t('tutorial_click_hint')
         row.appendChild(hint)
       }
 
@@ -224,7 +241,14 @@ export class Tutorial {
       highlight.style.width = `${rect.width + 12}px`
       highlight.style.height = `${rect.height + 12}px`
       this.overlay.appendChild(highlight)
-      card.style.top = `${Math.min(rect.bottom + 12, window.innerHeight - 180)}px`
+      const estimatedCardHeight = 170
+      const belowTop = rect.bottom + 12
+      const maxTop = window.innerHeight - estimatedCardHeight - 16
+      const top = belowTop <= maxTop
+        ? belowTop
+        : Math.max(16, rect.top - estimatedCardHeight - 12)
+      card.style.top = `${top}px`
+      card.style.bottom = 'auto'
 
       document.body.appendChild(this.overlay)
     }, delay)
@@ -241,6 +265,13 @@ export class Tutorial {
     if (rect.width < 1 || rect.height < 1) return false
     const style = window.getComputedStyle(target)
     return style.display !== 'none' && style.visibility !== 'hidden'
+  }
+
+  private completeMandatoryPhase(): void {
+    const wasComplete = this.mandatoryComplete && this.state.onboardingComplete
+    this.mandatoryComplete = true
+    this.state.onboardingComplete = true
+    if (!wasComplete) this.onMandatoryComplete?.()
   }
 
   private cleanup(): void {

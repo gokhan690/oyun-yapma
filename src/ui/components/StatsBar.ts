@@ -44,7 +44,7 @@ export class StatsBar {
 
     const chips = document.createElement('div')
     chips.className = 'stats-hero-chips'
-    this.incomeChip = this.chip('⚡', '0/sn')
+    this.incomeChip = this.chip('⚡', '0/gün')
     this.incomeChip.title = 'Saniye başına pasif gelir (tıklama hariç)'
     this.prestigeChip = this.chip('📊', 'x1.00')
     this.boostChip = this.chip('👆', '—')

@@ -831,6 +831,10 @@ export class GameState {
     for (const listener of this.listeners) listener(event)
   }
 
+  private introFlowReady(): boolean {
+    return this.onboardingComplete || this.tutorialDone
+  }
+
   startTick(): void {
     if (this.tickHandle !== null) return
     let last = performance.now()
@@ -838,17 +842,18 @@ export class GameState {
     const loop = (now: number) => {
       const dt = (now - last) / 1000
       last = now
-      if (!this.gamePaused) {
+      const flowReady = this.introFlowReady()
+      if (flowReady && !this.gamePaused) {
         this.playTimeMs += dt * 1000
       }
-      const gameDt = !this.gamePaused && dt > 0 && dt < 2 ? dt : 0
-      const passiveDt = !this.gamePaused && dt > 0 ? Math.min(dt, PASSIVE_TICK_DT_CAP) : 0
+      const gameDt = flowReady && !this.gamePaused && dt > 0 && dt < 2 ? dt : 0
+      const passiveDt = flowReady && !this.gamePaused && dt > 0 ? Math.min(dt, PASSIVE_TICK_DT_CAP) : 0
       if (gameDt > 0) {
         this.gameTimeMs += realSecondsToGameMs(gameDt)
         this.tickChildEducation(realSecondsToGameMs(gameDt))
       }
       this.updateComboDecay(now)
-      if (!this.gamePaused) {
+      if (flowReady && !this.gamePaused) {
         this.tickStock(now)
         this.tickDayNight(now)
         this.tickAutoBuy(now)
@@ -867,7 +872,7 @@ export class GameState {
         this.passiveAccrued = 0
         this.addMoney(batch, true)
       }
-      if (!this.gamePaused && now - this.lastGameClockEmit > 1000) {
+      if (flowReady && !this.gamePaused && now - this.lastGameClockEmit > 1000) {
         this.lastGameClockEmit = now
         this.tickMarketNews()
         this.tickDynasty()
@@ -923,6 +928,11 @@ export class GameState {
   }
 
   private resumeEventTimers(): void {
+    if (!this.introFlowReady()) {
+      this.eventScheduleRemainingMs = computeGoldenEventDelay(this.eventsSeen, this.playTimeMs)
+      this.nextEventAt = Date.now() + this.eventScheduleRemainingMs
+      return
+    }
     if (this.activeEvent && this.eventExpireRemainingMs > 0) {
       this.eventExpireAt = Date.now() + this.eventExpireRemainingMs
       this.activeEventExpires = this.eventExpireAt
@@ -953,6 +963,13 @@ export class GameState {
   private scheduleNextEvent(): void {
     if (this.eventTimer !== null) clearTimeout(this.eventTimer)
     if (this.eventPreviewTimer !== null) clearTimeout(this.eventPreviewTimer)
+    this.eventTimer = null
+    this.eventPreviewTimer = null
+    if (!this.introFlowReady()) {
+      this.eventScheduleRemainingMs = computeGoldenEventDelay(this.eventsSeen, this.playTimeMs)
+      this.nextEventAt = Date.now() + this.eventScheduleRemainingMs
+      return
+    }
     if (this.gamePaused) {
       this.eventScheduleRemainingMs = computeGoldenEventDelay(this.eventsSeen, this.playTimeMs)
       this.nextEventAt = Date.now() + this.eventScheduleRemainingMs
@@ -983,6 +1000,10 @@ export class GameState {
   }
 
   private spawnGoldenEvent(): void {
+    if (!this.introFlowReady()) {
+      this.scheduleNextEvent()
+      return
+    }
     if (this.gamePaused) {
       this.eventScheduleRemainingMs = computeGoldenEventDelay(this.eventsSeen, this.playTimeMs)
       return
@@ -1230,7 +1251,7 @@ export class GameState {
     return this.incomePerDay() - this.illegalIncomePerDay()
   }
 
-  /** @deprecated use incomePerDay — saniye başına pasif gelir */
+  /** @deprecated use incomePerDay — oyun günü bazlı pasif gelir */
   incomePerSecond(): number {
     return this.incomePerDay()
   }
@@ -1753,7 +1774,7 @@ export class GameState {
     return PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0)
   }
 
-  /** Saniye başına pasif gelir — incomePerDay ile aynı (1 sn = 1 oyun günü) */
+  /** Oyun günü bazlı pasif gelir; gerçek saniyeye çevrim GameClock üzerinden yapılır. */
   passiveIncomePerSecond(): number {
     return this.incomePerDay()
   }

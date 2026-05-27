@@ -10,7 +10,7 @@ export interface ProducerDef {
   tier: number
   unlockAt: number
   baseCost: number
-  /** Birim başına baz gelir (/sn) — ekonomi ölçeği uygulanmış */
+  /** Birim başına baz gelir (/gün) — ekonomi ölçeği uygulanmış */
   baseIncome: number
   costMultiplier: number
   category?: ProducerCategory
@@ -34,8 +34,8 @@ export interface UpgradeDef {
 }
 
 export const PRODUCERS: ProducerDef[] = [
-  // BitLife maaş eğrisi: baseIncome ≈ günlük $ (1 sn = 1 oyun günü)
-  { id: 'stajyer', name: 'Limonata Tezgahı', emoji: '🍋', description: 'Küçük ama cesur bir girişim.', tier: 1, unlockAt: 0, baseCost: 306, baseIncome: 6, costMultiplier: 1.22 },
+  // BitLife maaş eğrisi: baseIncome ≈ günlük $ (12 sn = 1 oyun günü)
+  { id: 'stajyer', name: 'Limonata Tezgahı', emoji: '🍋', description: 'Küçük ama cesur bir girişim.', tier: 1, unlockAt: 0, baseCost: 3, baseIncome: 6, costMultiplier: 1.22 },
   { id: 'robot', name: 'E-ticaret Sitesi', emoji: '🛒', description: 'Online satışlar başladı.', tier: 2, unlockAt: 5_000, baseCost: 580, baseIncome: 10, costMultiplier: 1.22 },
   { id: 'kafe', name: 'Kahve Zinciri', emoji: '☕', description: 'Her köşede bir şube.', tier: 2, unlockAt: 25_000, baseCost: 580, baseIncome: 10, costMultiplier: 1.22 },
   { id: 'ofis', name: 'Restoran Zinciri', emoji: '🍽️', description: 'Lezzetli büyüme.', tier: 3, unlockAt: 110_000, baseCost: 1_105, baseIncome: 17, costMultiplier: 1.22 },
@@ -284,7 +284,7 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'paralel_banka_up', name: 'Offshore İştirak', description: '×2 gölge banka geliri', cost: 32_500_000, effect: 'producer_mult', value: 2, producerId: 'paralel_banka', requiresTotalEarned: 4_500_000 },
 ]
 
-/** BitLife uyumlu ekonomi — baseIncome = günlük gelir ($), 5 sn = 1 oyun günü */
+/** BitLife uyumlu ekonomi — baseIncome = günlük gelir ($), 12 sn = 1 oyun günü */
 /** Tüm işletme maliyetlerine uygulanan global çarpan */
 export const ECONOMY_COST_SCALE = 4.5
 /** baseCost katmanı */
@@ -419,7 +419,7 @@ export function moneyHeroTier(value: number): 'green' | 'gold' | 'platinum' {
   return 'green'
 }
 
-/** Pasif gelir hızı — oyun günü bazlı (5 gerçek sn = 1 gün) */
+/** Pasif gelir hızı — oyun günü bazlı (12 gerçek sn = 1 gün) */
 export function formatIncomeRate(value: number): string {
   const v = Math.max(0, value)
   if (v <= 0) return '0/gün'
@@ -429,7 +429,7 @@ export function formatIncomeRate(value: number): string {
 /** Açıklamalı gelir satırı (finans paneli) */
 export function formatIncomeRateHint(value: number): string {
   if (value <= 0) return 'Pasif gelir yok'
-  return `${formatIncomeRate(value)} pasif · 5 sn = 1 oyun günü (tıklama ayrı)`
+  return `${formatIncomeRate(value)} pasif · 12 sn = 1 oyun günü (tıklama ayrı)`
 }
 
 export function producerName(p: ProducerDef): string {

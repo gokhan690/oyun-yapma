@@ -161,7 +161,7 @@ export class Skyline {
       const el = document.createElement('div')
       el.className = `skyline-building skyline-tier-${b.tier}${isNew ? ' skyline-building-new' : ''}`
       el.style.animationDelay = `${i * 0.07}s`
-      el.title = `${b.name} · ${Math.floor(b.income).toLocaleString('tr-TR')}/sn`
+      el.title = `${b.name} · ${Math.floor(b.income).toLocaleString('tr-TR')}/gün`
       el.dataset.producerId = b.producerId
 
       const tower = document.createElement('div')
@@ -228,7 +228,7 @@ export class Skyline {
         existing?.remove()
         const popup = document.createElement('div')
         popup.className = 'skyline-income-popup'
-        popup.textContent = `${b.emoji} ${b.name}: ${Math.floor(b.income).toLocaleString('tr-TR')}/sn`
+        popup.textContent = `${b.emoji} ${b.name}: ${Math.floor(b.income).toLocaleString('tr-TR')}/gün`
         el.appendChild(popup)
         window.setTimeout(() => popup.remove(), 2200)
       })
