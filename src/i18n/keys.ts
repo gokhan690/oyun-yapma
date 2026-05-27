@@ -898,4 +898,34 @@ export interface Translations {
   ev_daily_goal_title: string
   ev_season_road: string
   ev_lucky_chest: string
+
+  // Tutorial steps
+  tut_tap_title: string
+  tut_tap_text: string
+  tut_firstbiz_title: string
+  tut_firstbiz_text: string
+  tut_buy_title: string
+  tut_buy_text: string
+  tut_combo_title: string
+  tut_combo_text: string
+  tut_ads_title: string
+  tut_ads_text: string
+  tut_stats_title: string
+  tut_stats_text: string
+  tut_mgmt_title: string
+  tut_mgmt_text: string
+  tut_tiers_title: string
+  tut_tiers_text: string
+  tut_managers_title: string
+  tut_managers_text: string
+  tut_upgrades_title: string
+  tut_upgrades_text: string
+  tut_research_title: string
+  tut_research_text: string
+  tut_market_title: string
+  tut_market_text: string
+  tut_profile_title: string
+  tut_profile_text: string
+  tut_daily_title: string
+  tut_daily_text: string
 }

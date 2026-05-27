@@ -12,50 +12,56 @@ export interface TutorialStep {
   waitFor?: 'tap' | 'purchase' | 'nav'
 }
 
-const MANDATORY_STEPS: TutorialStep[] = [
-  {
-    target: '.tap-area',
-    title: 'Tıkla & Kazan',
-    text: 'Buraya tıkla — para kazanmaya başla!',
-    view: 'earn',
-    mandatory: true,
-    waitFor: 'tap',
-  },
-  {
-    target: '[data-action="nav-view"][data-id="shop"]',
-    title: 'İlk işletmen',
-    text: 'İşletme sekmesine git — Limonata Tezgahı ile başla.',
-    view: 'shop',
-    mandatory: true,
-    waitFor: 'nav',
-  },
-  {
-    target: '[data-action="buy-business"][data-id="stajyer"]',
-    title: 'Satın al',
-    text: 'Bir işletme seç — pasif gelir kazanmaya başlarsın.',
-    tab: 'growth',
-    view: 'shop',
-    mandatory: true,
-    waitFor: 'purchase',
-  },
-]
+const MANDATORY_COUNT = 3
 
-const OPTIONAL_STEPS: TutorialStep[] = [
-  { target: '.combo-wrap', title: 'Combo sistemi', text: 'Hızlı tıkla — çarpan artar, daha fazla para kazanırsın!', view: 'earn' },
-  { target: '.quick-ads', title: '2x Gelir & Sandık', text: 'Reklam izleyerek gelirini 2 katına çıkar veya sandıktan ödül kazan.', view: 'earn' },
-  { target: '.session-panel', title: 'İstatistiklerin', text: 'Tıklama gelirin, combo çarpanın ve pasif gelirin burada görünür.', view: 'earn' },
-  { target: '[data-id="shop"]', title: 'İşletme yönetimi', text: 'İşletme sekmesinde yönetici işe alabilir, upgradelar satın alabilirsin.' },
-  { target: '.tier-band-header', title: 'İşletme grupları', text: 'İşletmeler kademelere ayrılmış — üste tıkla, grubu genişlet ve işletme satın al.', view: 'shop' },
-  { target: '[data-tab="management"]', title: 'Yöneticiler', text: 'Yönetici kirala — işletmen pasif olarak büyür, sen tıklamasan bile!', view: 'shop' },
-  { target: '[data-tab="upgrades"]', title: 'Upgradeler', text: 'Tüm geliri artıran global upgradeları satın al.', view: 'shop' },
-  { target: '[data-tab="research"]', title: 'Ar-Ge ağacı', text: 'Ar-Ge noktalarıyla kalıcı bonuslar aç — offline gelir, çarpan, özel güçler.', view: 'shop' },
-  { target: '[data-id="market"]', title: 'Piyasa & Borsa', text: 'Hisse senedi al/sat, banka faizi kazan, sigorta ve emtia ticareti yap.', view: 'market' },
-  { target: '[data-id="profile"]', title: 'Baron profili', text: 'IPO yap — işletmeni halka aç, prestige puanı kazan ve yeni avantajlar aç!' },
-  { target: '.btn-daily', title: 'Günlük ödül', text: 'Her gün giriş yap, streak bonusu topla ve sezon XP kazan!' },
-]
+function mandatorySteps(): TutorialStep[] {
+  return [
+    {
+      target: '.tap-area',
+      title: t('tut_tap_title'),
+      text: t('tut_tap_text'),
+      view: 'earn',
+      mandatory: true,
+      waitFor: 'tap',
+    },
+    {
+      target: '[data-action="nav-view"][data-id="shop"]',
+      title: t('tut_firstbiz_title'),
+      text: t('tut_firstbiz_text'),
+      view: 'shop',
+      mandatory: true,
+      waitFor: 'nav',
+    },
+    {
+      target: '[data-action="buy-business"][data-id="stajyer"]',
+      title: t('tut_buy_title'),
+      text: t('tut_buy_text'),
+      tab: 'growth',
+      view: 'shop',
+      mandatory: true,
+      waitFor: 'purchase',
+    },
+  ]
+}
+
+function optionalSteps(): TutorialStep[] {
+  return [
+    { target: '.combo-wrap', title: t('tut_combo_title'), text: t('tut_combo_text'), view: 'earn' },
+    { target: '.quick-ads', title: t('tut_ads_title'), text: t('tut_ads_text'), view: 'earn' },
+    { target: '.session-panel', title: t('tut_stats_title'), text: t('tut_stats_text'), view: 'earn' },
+    { target: '[data-id="shop"]', title: t('tut_mgmt_title'), text: t('tut_mgmt_text') },
+    { target: '.tier-band-header', title: t('tut_tiers_title'), text: t('tut_tiers_text'), view: 'shop' },
+    { target: '[data-tab="management"]', title: t('tut_managers_title'), text: t('tut_managers_text'), view: 'shop' },
+    { target: '[data-tab="upgrades"]', title: t('tut_upgrades_title'), text: t('tut_upgrades_text'), view: 'shop' },
+    { target: '[data-tab="research"]', title: t('tut_research_title'), text: t('tut_research_text'), view: 'shop' },
+    { target: '[data-id="market"]', title: t('tut_market_title'), text: t('tut_market_text'), view: 'market' },
+    { target: '[data-id="profile"]', title: t('tut_profile_title'), text: t('tut_profile_text') },
+    { target: '.btn-daily', title: t('tut_daily_title'), text: t('tut_daily_text') },
+  ]
+}
 
 function allSteps(): TutorialStep[] {
-  return [...MANDATORY_STEPS, ...OPTIONAL_STEPS]
+  return [...mandatorySteps(), ...optionalSteps()]
 }
 
 export class Tutorial {
@@ -139,7 +145,7 @@ export class Tutorial {
     this.active = true
     this.mandatoryComplete = this.state.onboardingComplete
     if (this.mandatoryComplete) {
-      this.stepIndex = MANDATORY_STEPS.length
+      this.stepIndex = MANDATORY_COUNT
     } else {
       this.stepIndex = 0
     }
@@ -228,7 +234,7 @@ export class Tutorial {
         next.textContent = this.stepIndex >= steps.length - 1 ? t('btn_finish') : t('btn_continue')
         next.addEventListener('click', () => {
           this.stepIndex++
-          if (this.stepIndex >= MANDATORY_STEPS.length) {
+          if (this.stepIndex >= MANDATORY_COUNT) {
             this.completeMandatoryPhase()
           }
           this.showStep()
