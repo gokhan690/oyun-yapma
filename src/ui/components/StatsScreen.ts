@@ -649,7 +649,7 @@ export class StatsScreen {
             <div class="rival-threat-bar">
               <div class="rival-threat-bar-fill threat-${threatLevel}" style="width:${threatPct.toFixed(0)}%"></div>
             </div>
-            <span class="rival-threat-label">${threatLevel === 'high' ? 'Tehlikeli' : threatLevel === 'med' ? 'Rekabetçi' : 'Geride'}</span>
+            <span class="rival-threat-label">${threatLevel === 'high' ? t('rival_threat_high') : threatLevel === 'med' ? t('rival_threat_med') : t('rival_threat_low')}</span>
           </div>
         </div>
       `
