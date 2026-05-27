@@ -319,7 +319,11 @@ export class SettingsPanel {
       btn.className = `theme-pick-btn${this.state.activeTheme === t.id ? ' active' : ''}`
       btn.dataset.action = 'set-theme'
       btn.dataset.id = t.id
-      btn.textContent = unlocked ? t.name : `${t.name} 🔒`
+      if (unlocked) {
+        btn.innerHTML = `<span>${t.emoji}</span> ${t.name}`
+      } else {
+        btn.innerHTML = `<span>${t.emoji}</span> ${t.name} 🔒<br><small>${t.hint}</small>`
+      }
       btn.disabled = !unlocked
       wrap.appendChild(btn)
     }

@@ -176,7 +176,7 @@ import {
   HEAT_SHIELD_DURATION_MS,
   type UndergroundActionId,
 } from './Underground'
-import { themeForTier, type ThemeId } from './Themes'
+import { themeForTier, themeForIpoCount, type ThemeId } from './Themes'
 import { storyBeat } from './StoryBeats'
 import { loadOwnerFlags, type OwnerFlags } from '../owner/FeatureFlags'
 import { createPendingBoost, type PendingBoostItem } from './BoostInventory'
@@ -2218,6 +2218,8 @@ export class GameState {
     this.prestigePoints += points
     this.lifetimePrestige += points
     this.ipoCount++
+    const ipoThemeId = themeForIpoCount(this.ipoCount)
+    if (ipoThemeId) this.unlockTheme(ipoThemeId)
     this.money = startingCash
     this.totalEarned = 0
     this.totalClicks = 0

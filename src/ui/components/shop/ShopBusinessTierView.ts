@@ -9,6 +9,11 @@ import {
   scaledUnlockAt,
   type ProducerDef,
 } from '../../../game/Economy'
+
+const recentlyBoughtAt: Record<string, number> = {}
+export function markRecentlyBought(id: string): void {
+  recentlyBoughtAt[id] = Date.now()
+}
 import { modernizeCost } from '../../../game/TechObsolescence'
 import { appendFranchiseSection } from './FranchiseBlock'
 import { getActiveSynergies } from '../../../game/Synergies'
@@ -140,6 +145,13 @@ export function createHeroBusinessCard(p: ProducerDef): HTMLDivElement {
   tier.textContent = `T${p.tier}`
   card.appendChild(tier)
 
+  const newBadge = document.createElement('span')
+  newBadge.className = 'biz-new-badge'
+  newBadge.textContent = 'YENİ'
+  newBadge.hidden = true
+  newBadge.dataset.newBadge = '1'
+  card.appendChild(newBadge)
+
   return card
 }
 
@@ -247,6 +259,12 @@ export function updateHeroBusinessCard(
       extra.appendChild(modBtn)
     }
     appendFranchiseSection(extra as HTMLElement, p.id, p.name, owned, state)
+  }
+
+  const newBadgeEl = card.querySelector('[data-new-badge]') as HTMLElement | null
+  if (newBadgeEl) {
+    const boughtAt = recentlyBoughtAt[p.id]
+    newBadgeEl.hidden = !boughtAt || (Date.now() - boughtAt) > 30_000
   }
 }
 

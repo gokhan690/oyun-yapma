@@ -39,6 +39,7 @@ import { EventDirector } from '../game/EventDirector'
 import type { GameEventDef } from '../game/Events'
 import { activeTicker } from '../game/StockMarket'
 import { parseFranchiseAction } from './components/shop/FranchiseBlock'
+import { markRecentlyBought } from './components/shop/ShopBusinessTierView'
 import { LifestylePanel } from './components/LifestylePanel'
 import { FRANCHISE_CITIES, franchiseOpenFailureReason } from '../game/Franchise'
 import { iapManager } from '../monetization/IAPManager'
@@ -764,6 +765,8 @@ export class HUD {
           this.root.appendChild(flash)
           window.setTimeout(() => flash.remove(), 600)
         }
+        // Haptic feedback (mobil)
+        if ('vibrate' in navigator) navigator.vibrate(20)
       }
       if (ev.type === 'combo_changed') this.renderCombo(ev.combo, ev.multiplier)
       if (ev.type === 'purchase' || ev.type === 'manager_hired' || ev.type === 'auto_buy') {
@@ -1404,6 +1407,7 @@ export class HUD {
             }
           }
           if (ok) {
+            markRecentlyBought(id)
             this.shop.flashCard(id)
           } else {
             this.modals.showToast(this.root, 'Satın alınamadı — yeterli para yok', 'important')
