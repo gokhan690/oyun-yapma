@@ -3573,6 +3573,17 @@ export class GameState {
     if (day % 7 === 0 && day !== this.advisorTipDay) {
       this.advisorTipDay = day
       this.advisorTip = rollAdvisorTip(this.stock.marketFear, day)
+      // Weekly income summary headline
+      const weeklyIncome = formatMoney(this.incomePerDay() * 7)
+      const topProducer = PRODUCERS
+        .filter((p) => (this.producers[p.id] ?? 0) > 0)
+        .sort((a, b) => this.producerIncome(b) - this.producerIncome(a))[0]
+      const topName = topProducer ? topProducer.name : null
+      const who = this.playerName.trim() || 'Baron'
+      const weeklyHeadline = topName
+        ? `📊 ${who} bu hafta ${weeklyIncome} kazandı — en iyi sektör: ${topName}`
+        : `📊 ${who} bu hafta ${weeklyIncome} kazandı`
+      this.addGazette(weeklyHeadline, 'player')
     }
     if (day % 30 === 0 && day > 0) {
       const rival = this.rivals.find((r) => r.relation !== 'merged')
