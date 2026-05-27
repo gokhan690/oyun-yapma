@@ -666,4 +666,5 @@ export const tr: Translations = {
   lp_stress_penalty_value: '-%{pct}',
   lp_activity_active: '✅ Aktif ({n} gün kaldı)',
   lp_ad_boost: '📺 Reklam İzle → -10 Stres Şimdi',
+  world_title_label: 'Lakap ·',
 }

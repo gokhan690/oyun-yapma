@@ -33,7 +33,7 @@ export class LifestylePanel {
 
     const header = document.createElement('div')
     header.className = 'lifestyle-header'
-    header.innerHTML = '<h2>🏠 Yaşam Tarzı</h2><p>Konut, araç, evcil hayvan ve refah</p>'
+    header.innerHTML = `<h2>${t('lifestyle_title')}</h2><p>${t('lifestyle_header_desc')}</p>`
     this.root.appendChild(header)
 
     // Stres barı
@@ -76,13 +76,13 @@ export class LifestylePanel {
     row.className = 'lifestyle-stress-row'
     const labelEl = document.createElement('span')
     labelEl.className = 'lifestyle-stress-label'
-    labelEl.textContent = `${stressEmoji(stress)} Stres: ${stressLabel(stress)} (${stress}%)`
+    labelEl.textContent = `${stressEmoji(stress)} ${t('lp_stress_label_full').replace('{label}', stressLabel(stress)).replace('{value}', String(stress))}`
     row.appendChild(labelEl)
 
     if (penalty < 1) {
       const penaltyBadge = document.createElement('span')
       penaltyBadge.className = 'lifestyle-stress-penalty'
-      penaltyBadge.textContent = `Gelir cezası: -%${Math.round((1 - penalty) * 100)}`
+      penaltyBadge.textContent = t('lp_stress_penalty_value').replace('{pct}', String(Math.round((1 - penalty) * 100)))
       row.appendChild(penaltyBadge)
     }
 
@@ -100,7 +100,7 @@ export class LifestylePanel {
     if (ls.burnoutDays >= 3) {
       const burnout = document.createElement('p')
       burnout.className = 'lifestyle-burnout-warn'
-      burnout.textContent = '💀 TÜKENMİŞLİK SENDROMU — Gelir %50 düştü! Tatile git veya terapi al.'
+      burnout.textContent = t('lp_burnout_syndrome')
       wrap.appendChild(burnout)
     }
 
@@ -108,7 +108,7 @@ export class LifestylePanel {
   }
 
   private renderResidences(state: GameState): HTMLElement {
-    const section = this.sectionBlock('🏠 Konut')
+    const section = this.sectionBlock(t('lifestyle_residence'))
     const ls = state.lifestyle
 
     // Owned properties portfolio
@@ -205,11 +205,11 @@ export class LifestylePanel {
       const cost = document.createElement('div')
       cost.className = 'lifestyle-card-cost'
       if (res.buyCost > 0) {
-        cost.textContent = `Satın al: ${formatMoney(res.buyCost)}`
+        cost.textContent = t('lp_buy_cost').replace('{cost}', formatMoney(res.buyCost))
       } else if (res.monthlyRent > 0) {
-        cost.textContent = `Aylık kira: ${formatMoney(res.monthlyRent)}`
+        cost.textContent = t('lp_monthly_rent').replace('{cost}', formatMoney(res.monthlyRent))
       } else {
-        cost.textContent = 'Ücretsiz'
+        cost.textContent = t('lp_free')
       }
 
       card.append(emoji, info, cost)
@@ -220,7 +220,7 @@ export class LifestylePanel {
         btn.className = 'btn-primary btn-sm lifestyle-buy-btn'
         btn.dataset.action = 'buy-residence'
         btn.dataset.id = res.id
-        btn.textContent = res.buyCost > 0 ? `Satın Al · ${formatMoney(res.buyCost)}` : 'Taşın'
+        btn.textContent = res.buyCost > 0 ? `${t('lp_buy_btn')} · ${formatMoney(res.buyCost)}` : t('lp_move_in')
         btn.disabled = res.buyCost > 0 && !state.canAfford(res.buyCost)
         card.appendChild(btn)
       } else {
@@ -238,7 +238,7 @@ export class LifestylePanel {
   }
 
   private renderVehicles(state: GameState): HTMLElement {
-    const section = this.sectionBlock('🚗 Araç')
+    const section = this.sectionBlock(t('lifestyle_vehicle'))
     const ls = state.lifestyle
 
     if (ls.ownedVehicles.length > 0) {
@@ -330,8 +330,8 @@ export class LifestylePanel {
       const desc = document.createElement('small')
       desc.textContent = veh.description
       const bonusText = []
-      if (veh.reputationBonus > 0) bonusText.push(`İtibar +${veh.reputationBonus}`)
-      if (veh.incomeMult > 1) bonusText.push(`Gelir ×${veh.incomeMult.toFixed(2)}`)
+      if (veh.reputationBonus > 0) bonusText.push(t('lp_rep_bonus').replace('{val}', String(veh.reputationBonus)))
+      if (veh.incomeMult > 1) bonusText.push(t('lp_income_mult').replace('{val}', veh.incomeMult.toFixed(2)))
       if (bonusText.length > 0) {
         const bonus = document.createElement('small')
         bonus.className = 'lifestyle-bonus-text'
@@ -345,7 +345,7 @@ export class LifestylePanel {
       cost.className = 'lifestyle-card-cost'
       cost.textContent = veh.buyCost > 0
         ? `${formatMoney(veh.buyCost)} + ${formatMoney(veh.monthlyUpkeep)}/ay`
-        : 'Ücretsiz'
+        : t('lp_free')
 
       card.append(emoji, info, cost)
 
@@ -355,7 +355,7 @@ export class LifestylePanel {
         btn.className = 'btn-primary btn-sm lifestyle-buy-btn'
         btn.dataset.action = 'buy-vehicle'
         btn.dataset.id = veh.id
-        btn.textContent = veh.buyCost > 0 ? `Al · ${formatMoney(veh.buyCost)}` : 'Yürü'
+        btn.textContent = veh.buyCost > 0 ? `${t('lp_get_btn')} · ${formatMoney(veh.buyCost)}` : t('lp_walk')
         btn.disabled = veh.buyCost > 0 && !state.canAfford(veh.buyCost)
         card.appendChild(btn)
       } else {
@@ -373,10 +373,10 @@ export class LifestylePanel {
   }
 
   private renderPets(state: GameState): HTMLElement {
-    const section = this.sectionBlock('🐾 Evcil Hayvanlar')
+    const section = this.sectionBlock(t('lifestyle_pets'))
     const desc = document.createElement('p')
     desc.className = 'lifestyle-section-hint'
-    desc.textContent = 'Her evcil hayvan günlük stres azaltır.'
+    desc.textContent = t('lp_pets_hint')
     section.appendChild(desc)
 
     const grid = document.createElement('div')
@@ -391,7 +391,7 @@ export class LifestylePanel {
         <div class="lifestyle-card-emoji">${pet.emoji}</div>
         <div class="lifestyle-card-info">
           <strong>${pet.name}</strong>
-          <small>Günlük stres -${pet.dailyStressReduction}</small>
+          <small>${t('lp_stress_reduce').replace('{val}', String(pet.dailyStressReduction))}</small>
           <small class="lifestyle-bonus-text">${formatMoney(pet.buyCost)} + ${formatMoney(pet.monthlyUpkeep)}/ay</small>
         </div>
       `
@@ -402,13 +402,13 @@ export class LifestylePanel {
         btn.className = 'btn-primary btn-sm'
         btn.dataset.action = 'buy-pet'
         btn.dataset.id = pet.id
-        btn.textContent = `Sahiplen · ${formatMoney(pet.buyCost)}`
+        btn.textContent = t('lp_pet_adopt').replace('{cost}', formatMoney(pet.buyCost))
         btn.disabled = !state.canAfford(pet.buyCost)
         card.appendChild(btn)
       } else {
         const badge = document.createElement('span')
         badge.className = 'lifestyle-owned-badge'
-        badge.textContent = '✅ Evinde yaşıyor'
+        badge.textContent = t('lp_pet_lives')
         card.appendChild(badge)
       }
 
@@ -421,7 +421,7 @@ export class LifestylePanel {
 
   private renderWellbeing(state: GameState): HTMLElement {
     const currentDay = gameDay(state.gameTimeMs)
-    const section = this.sectionBlock('🧘 Refah & Stres Yönetimi')
+    const section = this.sectionBlock(t('lp_wellbeing_title'))
     const grid = document.createElement('div')
     grid.className = 'lifestyle-grid'
 
@@ -434,26 +434,27 @@ export class LifestylePanel {
         : state.lifestyle.vacationActiveUntilDay
       const isActive = activeUntil > currentDay
 
+      const slowWorkText = act.incomePenaltyDays > 0 ? ` · ${act.incomePenaltyDays} gün ${t('lifestyle_slow_work')}` : ''
       card.innerHTML = `
         <div class="lifestyle-card-emoji">${act.emoji}</div>
         <div class="lifestyle-card-info">
           <strong>${act.name}</strong>
           <small>${act.description}</small>
-          <small class="lifestyle-bonus-text">Stres -${act.stressReduction}${act.incomePenaltyDays > 0 ? ` · ${act.incomePenaltyDays} gün yavaş çalışma` : ''}</small>
+          <small class="lifestyle-bonus-text">Stres -${act.stressReduction}${slowWorkText}</small>
         </div>
       `
 
       if (isActive) {
         const active = document.createElement('span')
         active.className = 'lifestyle-owned-badge'
-        active.textContent = `✅ Aktif (${activeUntil - currentDay} gün kaldı)`
+        active.textContent = t('lp_activity_active').replace('{n}', String(activeUntil - currentDay))
         card.appendChild(active)
         const adBtn = document.createElement('button')
         adBtn.type = 'button'
         adBtn.className = 'btn-secondary btn-sm lifestyle-ad-boost-btn'
         adBtn.dataset.action = 'wellbeing-ad-boost'
         adBtn.dataset.id = act.id
-        adBtn.innerHTML = '📺 Reklam İzle → <strong>-10 Stres Şimdi</strong>'
+        adBtn.textContent = t('lp_ad_boost')
         card.appendChild(adBtn)
       } else {
         const btn = document.createElement('button')

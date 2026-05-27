@@ -88,7 +88,7 @@ export class WorldMetaPanel {
     const title = this.state.playerTitle()
     const block = document.createElement('div')
     block.className = 'meta-block title-block'
-    block.innerHTML = `<h3>${title.emoji} Lakap · ${title.label}</h3><p class="meta-hint">${t('world_gazette_style')}</p>`
+    block.innerHTML = `<h3>${title.emoji} ${t('world_title_label')} ${title.label}</h3><p class="meta-hint">${t('world_gazette_style')}</p>`
     this.root.appendChild(block)
   }
 
@@ -165,8 +165,8 @@ export class WorldMetaPanel {
         <strong>${rival.name}</strong>
         <span class="rival-attitude">${attitudeLabel(rival.attitude)}</span>
       </div>
-      <small>Değer: ${formatMoney(rival.netWorth)} · ${personalityLabel(rival.personality)}</small>
-      <small>Sektörler: ${sectors}</small>
+      <small>${t('world_value_label')} ${formatMoney(rival.netWorth)} · ${personalityLabel(rival.personality)}</small>
+      <small>${t('world_sectors_label')} ${sectors}</small>
     `
     if (rival.relation !== 'merged') {
       const actions = document.createElement('div')
@@ -189,7 +189,7 @@ export class WorldMetaPanel {
       merge.dataset.action = 'rival-merge'
       merge.dataset.id = rival.id
       merge.textContent = `🛒 Satın Al (${formatMoney(mergeRivalCost(rival))})`
-  merge.disabled = !this.state.canAfford(mergeRivalCost(rival))
+      merge.disabled = !this.state.canAfford(mergeRivalCost(rival))
       actions.append(lobby, coop, merge)
       card.appendChild(actions)
     } else {
@@ -296,7 +296,7 @@ export class WorldMetaPanel {
           gift.className = 'btn-sm btn-secondary'
           gift.dataset.action = 'pay-torpil-gift'
           gift.dataset.id = def.id
-          gift.textContent = `🎁 Hediye Gönder · ${formatMoney(def.giftCost)}`
+          gift.textContent = `${t('world_torpil_gift')} ${formatMoney(def.giftCost)}`
           card.appendChild(gift)
         } else {
           const ok = document.createElement('span')
@@ -310,7 +310,7 @@ export class WorldMetaPanel {
         hire.className = 'btn-sm btn-primary'
         hire.dataset.action = 'hire-torpil'
         hire.dataset.id = def.id
-        hire.textContent = `Tanış · ${formatMoney(def.hireCost)}`
+        hire.textContent = `${t('world_torpil_meet')} ${formatMoney(def.hireCost)}`
         hire.disabled = !this.state.canAfford(def.hireCost)
         card.appendChild(hire)
       }
@@ -329,7 +329,10 @@ export class WorldMetaPanel {
     const intro = document.createElement('p')
     intro.className = 'meta-hint'
     intro.textContent = summary.baronCount > 0
-      ? `Baron #1'den beri ${summary.generations} nesil · ${summary.baronCount} baron · toplam ${formatMoney(summary.totalEarned)} kazanıldı`
+      ? t('world_baron_history_intro')
+          .replace('{generations}', String(summary.generations))
+          .replace('{baronCount}', String(summary.baronCount))
+          .replace('{totalEarned}', formatMoney(summary.totalEarned))
       : t('dynasty_no_history')
     block.appendChild(intro)
     if (this.state.baronHistory.length > 0) {

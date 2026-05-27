@@ -798,4 +798,5 @@ export interface Translations {
   lp_stress_penalty_value: string
   lp_activity_active: string
   lp_ad_boost: string
+  world_title_label: string
 }

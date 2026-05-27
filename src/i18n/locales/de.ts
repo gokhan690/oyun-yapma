@@ -666,4 +666,5 @@ export const de: Translations = {
   lp_stress_penalty_value: '-{pct}%',
   lp_activity_active: '✅ Active ({n} days left)',
   lp_ad_boost: '📺 Watch Ad → -10 Stress Now',
+  world_title_label: 'Title ·',
 }
