@@ -1146,6 +1146,32 @@ html.theme-night body {
   100% { opacity: 0; transform: scale(1.2); }
 }
 
+.ipo-summary-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 80;
+  animation: fadeIn 0.4s ease;
+}
+.ipo-summary-card {
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  border-radius: 20px;
+  padding: 28px 24px;
+  max-width: 340px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 0 60px rgba(251,191,36,0.25);
+}
+.ipo-summary-card h2 { margin: 0 0 16px; font-size: 1.6rem; color: var(--accent); }
+.ipo-summary-row { font-size: 0.9rem; opacity: 0.7; margin-bottom: 16px; }
+.ipo-summary-stat { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.ipo-summary-stat label { opacity: 0.7; font-size: 0.85rem; }
+.ipo-summary-stat strong { color: var(--accent); font-size: 1.05rem; }
+.ipo-summary-hint { font-size: 0.8rem; opacity: 0.6; margin: 16px 0 20px; }
 .ad-modal-overlay {
   position: fixed;
   inset: 0;

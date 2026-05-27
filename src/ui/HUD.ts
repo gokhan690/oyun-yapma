@@ -2632,6 +2632,37 @@ export class HUD {
     overlay.textContent = `IPO! +${points} Hisse 📈`
     this.root.appendChild(overlay)
     window.setTimeout(() => overlay.remove(), 2500)
+
+    // Skyline flash celebration
+    this.skyline.flashUpgrade()
+
+    // Show post-IPO summary modal
+    window.setTimeout(() => {
+      const prevBaron = this.state.baronHistory[0]
+      if (!prevBaron) return
+      const modal = document.createElement('div')
+      modal.className = 'ipo-summary-modal modal-overlay'
+      const card = document.createElement('div')
+      card.className = 'ipo-summary-card'
+      card.innerHTML = `
+        <h2>🚀 IPO Tamamlandı!</h2>
+        <div class="ipo-summary-row"><span>Nesil ${prevBaron.generation} · ${prevBaron.name}</span></div>
+        <div class="ipo-summary-stat"><label>Toplam Kazanç</label><strong>${formatMoney(prevBaron.totalEarnedLife)}</strong></div>
+        <div class="ipo-summary-stat"><label>Prestige Puanı</label><strong>+${points} ✦</strong></div>
+        <div class="ipo-summary-stat"><label>IPO Sayısı</label><strong>#${this.state.ipoCount}</strong></div>
+        <p class="ipo-summary-hint">Yeni nesil başlıyor — prestige bonusların aktif!</p>
+      `
+      const closeBtn = document.createElement('button')
+      closeBtn.type = 'button'
+      closeBtn.className = 'btn-primary'
+      closeBtn.textContent = 'Devam Et ✦'
+      closeBtn.addEventListener('click', () => modal.remove())
+      card.appendChild(closeBtn)
+      modal.appendChild(card)
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove() })
+      this.root.appendChild(modal)
+      window.setTimeout(() => modal.remove(), 15_000)
+    }, 600)
   }
 
   private async handleIpo(): Promise<void> {
