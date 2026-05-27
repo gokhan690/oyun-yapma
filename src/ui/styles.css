@@ -627,6 +627,8 @@ html.theme-night .tap-wrap {
   text-align: left;
   border: 1px solid var(--border);
   background: linear-gradient(135deg, var(--surface2) 0%, rgba(28, 18, 0, 0.6) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: var(--text);
   border-radius: 14px;
   padding: 0;
@@ -5720,6 +5722,26 @@ html.theme-red .skyline-building {
 .skyline-placeholder { font-size: 1.6rem; opacity: 0.75; align-self: flex-end; }
 @keyframes buildingRise { from { transform: translateY(100%) scaleY(0); opacity: 0; } to { transform: none; opacity: 1; } }
 .skyline-night .skyline-building { box-shadow: 0 0 8px rgba(251, 191, 36, 0.25); }
+.skyline-income-popup {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.85);
+  color: #fbbf24;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(251,191,36,0.3);
+  pointer-events: none;
+  animation: popupFadeIn 0.2s ease;
+  z-index: 100;
+}
+@keyframes popupFadeIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
 
 .crisis-choice-btn { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 4px; margin-bottom: 8px; width: 100%; }
 .advisor-card { padding: 12px; border-radius: 12px; background: rgba(59, 130, 246, 0.1); margin-bottom: 12px; }
@@ -6056,6 +6078,11 @@ html.theme-red .skyline-building {
   border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
   background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 8%, var(--surface)), var(--surface));
   box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  animation: ownedPulse 4s ease-in-out infinite;
+}
+@keyframes ownedPulse {
+  0%, 100% { box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
+  50% { box-shadow: 0 6px 24px rgba(0,0,0,0.2), 0 0 0 1px rgba(251,191,36,0.1); }
 }
 
 .biz-hero-card.biz-unowned { opacity: 0.88; }

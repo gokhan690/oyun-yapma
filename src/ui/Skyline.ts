@@ -222,6 +222,17 @@ export class Skyline {
 
       tower.append(windows, emoji)
       el.appendChild(tower)
+
+      el.addEventListener('click', () => {
+        const existing = this.buildingsEl.querySelector('.skyline-income-popup')
+        existing?.remove()
+        const popup = document.createElement('div')
+        popup.className = 'skyline-income-popup'
+        popup.textContent = `${b.emoji} ${b.name}: ${Math.floor(b.income).toLocaleString('tr-TR')}/sn`
+        el.appendChild(popup)
+        window.setTimeout(() => popup.remove(), 2200)
+      })
+
       this.buildingsEl.appendChild(el)
     }
 
