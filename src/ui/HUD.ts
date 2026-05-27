@@ -119,6 +119,8 @@ export class HUD {
   private adPromptShown = false
   private lastUserTapMs = Date.now()
   private postIntroTasks = new Map<string, () => void>()
+  private postMetaTasks = new Map<string, () => void>()
+  private metaFlowReleased = false
 
   constructor(
     state: GameState,
@@ -506,6 +508,7 @@ export class HUD {
     this.gameMain.classList.toggle('earn-active', view === 'earn')
     this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'market' || view === 'events' || view === 'profile')
     this.root.dataset.view = view
+    document.body.dataset.view = view
     if (view === 'shop') {
       this.shop.setViewContext('shop', this.state)
       this.refreshShop(true)
@@ -574,12 +577,18 @@ export class HUD {
   }
 
   private isIntroFlowReady(): boolean {
-    return this.state.onboardingComplete || this.state.tutorialDone
+    return this.state.isIntroFlowReady()
   }
 
   private runWhenIntroReady(id: string, task: () => void): boolean {
     if (this.isIntroFlowReady()) return true
     this.postIntroTasks.set(id, task)
+    return false
+  }
+
+  private runWhenMetaReady(id: string, task: () => void): boolean {
+    if (this.state.isMetaSystemsReady()) return true
+    this.postMetaTasks.set(id, task)
     return false
   }
 
@@ -591,7 +600,22 @@ export class HUD {
     this.postIntroTasks.clear()
     for (const task of tasks) task()
     this.eventDirector.release()
+    this.syncFlowClasses()
     this.renderAll()
+  }
+
+  private syncFlowClasses(): void {
+    const earlyProtected = this.state.isEarlyGameProtected()
+    this.root.classList.toggle('early-game-focus', earlyProtected)
+    this.root.classList.toggle('meta-systems-ready', !earlyProtected)
+    if (earlyProtected) this.metaFlowReleased = false
+    if (this.state.isMetaSystemsReady() && !this.metaFlowReleased) {
+      this.metaFlowReleased = true
+      const tasks = [...this.postMetaTasks.values()]
+      this.postMetaTasks.clear()
+      for (const task of tasks) task()
+      this.updateNavBadges()
+    }
   }
 
   private renderProfileQuickBtn(): void {
@@ -609,6 +633,7 @@ export class HUD {
   private updateNavBadges(): void {
     const target = this.state.dailyGoalTarget()
     const dailyGoalReady = this.state.dailyGoalEarned >= target && !this.state.dailyGoalClaimed
+    const dailyRewardReady = this.state.canShowDailyRewardPrompt() && this.state.canClaimDaily()
     this.bottomNav.setBadges(
       false,
       this.shop.hasShopBadge(this.state),
@@ -618,7 +643,7 @@ export class HUD {
         || this.state.luckyChestReady
         || (this.state.weekly.progress >= this.state.weekly.target && !this.state.weekly.claimed)
         || dailyGoalReady
-        || this.state.canClaimDaily()
+        || dailyRewardReady
         || this.state.hasPendingBoosts(),
     )
   }
@@ -844,6 +869,7 @@ export class HUD {
           this.maybePromptFirstBusinessAd()
         }
         this.statsBar.updateMeta()
+        this.syncFlowClasses()
         this.refreshShop(true)
         this.refreshSkyline()
       }
@@ -899,6 +925,7 @@ export class HUD {
         this.updateNavBadges()
       }
       if (ev.type === 'day_night' || ev.type === 'game_time' || ev.type === 'game_pause') {
+        this.syncFlowClasses()
         this.renderDayNightChip()
         if (ev.type === 'day_night') {
           this.renderMarketNewsBanner()
@@ -977,11 +1004,18 @@ export class HUD {
         this.refreshBaronPanel()
       }
       if (ev.type === 'rival_surpassed') {
-        this.modals.showToast(
-          this.root,
-          `⚠️ ${ev.rivalName} sizi geçti! Net servet: ${formatMoney(ev.rivalWorth)}`,
-          'important',
-        )
+        this.eventDirector.enqueue({
+          id: `rival-surpassed-${ev.rivalName}`,
+          priority: 4,
+          run: () => {
+            this.modals.showToast(
+              this.root,
+              `⚠️ ${ev.rivalName} sizi geçti! Net servet: ${formatMoney(ev.rivalWorth)}`,
+              'important',
+            )
+            window.setTimeout(() => this.eventDirector.release(), 2200)
+          },
+        })
         this.refreshBaronPanel()
       }
       if (ev.type === 'victory_unlocked') {
@@ -1294,6 +1328,10 @@ export class HUD {
         this.renderDayNightChip()
         break
       case 'daily': {
+        if (!this.state.canShowDailyRewardPrompt()) {
+          this.modals.showToast(this.root, 'Önce ilk işletmeyi kur; günlük ödül birazdan açılacak.')
+          return
+        }
         if (!this.state.canClaimDaily()) {
           this.modals.showToast(this.root, 'Bugünkü ödül alındı')
           return
@@ -3030,7 +3068,8 @@ export class HUD {
   }
 
   showDailyRewardIfAvailable(): void {
-    if (!this.runWhenIntroReady('daily-reward', () => this.showDailyRewardIfAvailable())) return
+    if (!this.runWhenMetaReady('daily-reward', () => this.showDailyRewardIfAvailable())) return
+    if (!this.state.canShowDailyRewardPrompt()) return
     if (!this.state.canClaimDaily()) return
     const streakLost = this.state.peekDailyStreakReset()
     const nextStreak = this.state.dailyLastClaim && !streakLost
@@ -3165,6 +3204,7 @@ export class HUD {
   renderAll(): void {
     this.syncAdBanner()
     applyDocumentTheme(this.state.activeTheme)
+    this.syncFlowClasses()
     this.bottomNav.relabel()
     this.relabelBaronNav()
     this.root.classList.toggle('owner-session-active', isOwnerSession())

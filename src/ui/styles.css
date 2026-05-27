@@ -1415,6 +1415,60 @@ html.theme-night body {
 /* v4 — İmparatorluk Çağı */
 .app-root.v4 { padding-bottom: var(--app-chrome-bottom); }
 .app-root.v4.has-ad-banner { --app-chrome-bottom: calc(var(--nav-h) + var(--ad-h) + var(--safe-bottom)); }
+body[data-view="earn"] {
+  --accent: #46e6a0;
+  --accent2: #67e8f9;
+  --glow: 0 0 28px rgba(70, 230, 160, 0.24);
+}
+body[data-view="shop"] {
+  --accent: #fbbf24;
+  --accent2: #fb923c;
+  --glow: 0 0 28px rgba(251, 191, 36, 0.24);
+}
+body[data-view="market"] {
+  --accent: #60a5fa;
+  --accent2: #22d3ee;
+  --glow: 0 0 28px rgba(96, 165, 250, 0.24);
+}
+body[data-view="events"] {
+  --accent: #f9a8d4;
+  --accent2: #facc15;
+  --glow: 0 0 28px rgba(249, 168, 212, 0.22);
+}
+body[data-view="profile"] {
+  --accent: #c084fc;
+  --accent2: #fde68a;
+  --glow: 0 0 28px rgba(192, 132, 252, 0.23);
+}
+body[data-view] .hud-header {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 18%, #22302b) 0%, var(--bg) 88%);
+}
+body[data-view] .nav-btn.active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 17%, transparent);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.app-root.early-game-focus .header-profile-btn,
+.app-root.early-game-focus .progress-path-widget,
+.app-root.early-game-focus .era-strip,
+.app-root.early-game-focus .earn-modifiers-strip,
+.app-root.early-game-focus .quick-ads,
+.app-root.early-game-focus .player-progress-strip {
+  display: none !important;
+}
+.app-root.early-game-focus .hud-header {
+  padding-bottom: 6px;
+}
+.app-root.early-game-focus .stats-hero-chips .stats-chip:nth-child(2),
+.app-root.early-game-focus .stats-hero-chips .active-biz-chip {
+  display: none !important;
+}
+.app-root.early-game-focus .city-strip {
+  padding-top: 4px;
+}
+.app-root.early-game-focus .tap-wrap {
+  margin-top: 6px;
+}
 .hud-header.compact .title-row h1 { font-size: 1rem; }
 .goals-chip, .day-night-chip { font-size: 0.68rem; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface2); }
 .goals-chip { cursor: pointer; color: var(--text); border: none; font-family: inherit; }

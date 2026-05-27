@@ -105,8 +105,10 @@ async function bootstrap(): Promise<void> {
       saveManager.startAutoSave(state)
     }
 
-    state.startTick()
-    state.startEventLoop()
+    if (state.isIntroFlowReady()) {
+      state.startTick()
+      state.startEventLoop()
+    }
     hud.renderAll()
 
     document.addEventListener('click', () => sound.resume(), { once: true })

@@ -377,6 +377,7 @@ export interface SerializableState {
   upgradesBoughtSession: number
   eventBoostUntil: number
   playTimeMs: number
+  firstBusinessPlayTimeMs?: number | null
   gameTimeMs: number
   gamePaused?: boolean
   tutorialDone: boolean
@@ -582,13 +583,16 @@ export type GameEvent =
 const MILESTONE_THRESHOLDS = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
 const CRIT_CHANCE = 0.1
 const CRIT_MULT = 5
-const BASE_CLICK = 5
+const BASE_CLICK = 6
 const BASE_OFFLINE_CAP_GAME_DAYS = 365
 const BASE_OFFLINE_CAP_MS = BASE_OFFLINE_CAP_GAME_DAYS * MS_PER_GAME_DAY
 const AD_BOOST_DURATION_MS = 5 * 60 * 1000
 const COMEBACK_MIN_AWAY_MS = 24 * 60 * 60 * 1000
 const STREAK_MILESTONES = [7, 14, 30]
 const COMBO_WINDOW_MS = 1500
+const META_SYSTEMS_MIN_PLAY_MS = 180_000
+const META_SYSTEMS_AFTER_FIRST_BUSINESS_MS = 120_000
+const DAILY_REWARD_MIN_PLAY_MS = 90_000
 
 export class GameState {
   money = 0
@@ -622,6 +626,7 @@ export class GameState {
   upgradesBoughtSession = 0
   eventBoostUntil = 0
   playTimeMs = 0
+  firstBusinessPlayTimeMs: number | null = null
   gameTimeMs = 0
   gamePaused = false
   tutorialDone = false
@@ -833,6 +838,44 @@ export class GameState {
     return this.onboardingComplete || this.tutorialDone
   }
 
+  isIntroFlowReady(): boolean {
+    return this.introFlowReady()
+  }
+
+  private hasAnyBusiness(): boolean {
+    return Object.values(this.producers).some((count) => count > 0)
+  }
+
+  private ensureFirstBusinessTimestamp(): void {
+    if (!this.hasAnyBusiness()) {
+      this.firstBusinessPlayTimeMs = null
+      return
+    }
+    if (this.firstBusinessPlayTimeMs == null) {
+      this.firstBusinessPlayTimeMs = Math.max(0, this.playTimeMs - META_SYSTEMS_AFTER_FIRST_BUSINESS_MS)
+    }
+  }
+
+  isMetaSystemsReady(): boolean {
+    if (!this.introFlowReady()) return false
+    if (!this.hasAnyBusiness()) return false
+    this.ensureFirstBusinessTimestamp()
+    const firstBusinessAt = this.firstBusinessPlayTimeMs ?? this.playTimeMs
+    const firstBusinessReady = this.playTimeMs - firstBusinessAt >= META_SYSTEMS_AFTER_FIRST_BUSINESS_MS
+    const playTimeReady = this.playTimeMs >= META_SYSTEMS_MIN_PLAY_MS
+    return firstBusinessReady || playTimeReady
+  }
+
+  isEarlyGameProtected(): boolean {
+    return !this.isMetaSystemsReady()
+  }
+
+  canShowDailyRewardPrompt(): boolean {
+    return this.isMetaSystemsReady()
+      && this.hasAnyBusiness()
+      && this.playTimeMs >= DAILY_REWARD_MIN_PLAY_MS
+  }
+
   startTick(): void {
     if (this.tickHandle !== null) return
     let last = performance.now()
@@ -869,9 +912,18 @@ export class GameState {
       }
       if (flowReady && !this.gamePaused && now - this.lastGameClockEmit > 1000) {
         this.lastGameClockEmit = now
-        this.tickMarketNews()
-        this.tickDynasty()
-        this.tickMetaSystems()
+        const metaReady = this.isMetaSystemsReady()
+        if (metaReady) {
+          if (this.eventTimer === null && this.eventPreviewTimer === null && !this.activeEvent) {
+            this.scheduleNextEvent()
+          }
+          this.tickMarketNews()
+          this.tickDynasty()
+          this.tickMetaSystems()
+        } else {
+          this.tickCommodities()
+          this.tickUndoExpiry()
+        }
         this.emit({ type: 'game_time' })
       }
       this.tickHandle = requestAnimationFrame(loop)
@@ -923,7 +975,7 @@ export class GameState {
   }
 
   private resumeEventTimers(): void {
-    if (!this.introFlowReady()) {
+    if (!this.isMetaSystemsReady()) {
       this.eventScheduleRemainingMs = computeGoldenEventDelay(this.eventsSeen, this.playTimeMs)
       this.nextEventAt = Date.now() + this.eventScheduleRemainingMs
       return
@@ -960,7 +1012,7 @@ export class GameState {
     if (this.eventPreviewTimer !== null) clearTimeout(this.eventPreviewTimer)
     this.eventTimer = null
     this.eventPreviewTimer = null
-    if (!this.introFlowReady()) {
+    if (!this.isMetaSystemsReady()) {
       this.eventScheduleRemainingMs = computeGoldenEventDelay(this.eventsSeen, this.playTimeMs)
       this.nextEventAt = Date.now() + this.eventScheduleRemainingMs
       return
@@ -995,7 +1047,7 @@ export class GameState {
   }
 
   private spawnGoldenEvent(): void {
-    if (!this.introFlowReady()) {
+    if (!this.isMetaSystemsReady()) {
       this.scheduleNextEvent()
       return
     }
@@ -1563,6 +1615,7 @@ export class GameState {
   }
 
   private tickMarketNews(): void {
+    if (!this.isMetaSystemsReady()) return
     if (this.activeMarketNews && this.gameTimeMs >= this.activeMarketNews.expiresGameTimeMs) {
       this.activeMarketNews = null
       this.emit({ type: 'market_news', headline: '', active: false })
@@ -1583,6 +1636,7 @@ export class GameState {
     const day = gameDay(this.gameTimeMs)
     if (day === this.lastDynastyGameDay) return
     this.lastDynastyGameDay = day
+    const metaReady = this.isMetaSystemsReady()
     syncEmpireFromProducers(this.empire, this.producers)
     const { matchBonus, election, matches } = tickEmpireDaily(this.empire, this.producers, this.gameTimeMs, gameYear(this.gameTimeMs))
     if (matchBonus > 0) this.addMoney(matchBonus)
@@ -1591,13 +1645,15 @@ export class GameState {
     }
     if (election) this.triggerStoryBeat('election_year')
     this.tickPresidentSeasons()
-    this.tickRivalFamilies(day)
-    this.tickChildCrises()
-    this.maybeSpawnChildCrisis()
+    if (metaReady) {
+      this.tickRivalFamilies(day)
+      this.tickChildCrises()
+      this.maybeSpawnChildCrisis()
+    }
     if (gameYear(this.gameTimeMs) === 2027 && !this.seenStoryBeats.has('year_2027')) {
       this.triggerStoryBeat('year_2027')
     }
-    this.tickMortality()
+    if (metaReady) this.tickMortality()
     if (!this.dynasty.spouseName || this.dynasty.children.length >= 3) return
     const married = this.dynasty.marriedGameDay ?? day
     if (day - married < 5) return
@@ -2083,6 +2139,7 @@ export class GameState {
     const def = PRODUCERS.find((p) => p.id === id)
     if (!def || !isProducerUnlocked(def, this.totalEarned, this.forcedUnlocks)) return false
     const owned = this.producers[id] ?? 0
+    const hadAnyBusiness = this.hasAnyBusiness()
     if (def.category === 'politics' && owned === 0 && reputationPoliticsBlocked(this.reputation)) {
       this.emit({ type: 'loan_denied', reason: 'Siyasi işletme kapalı — itibarın çok düşük (min 30)' })
       return false
@@ -2095,6 +2152,7 @@ export class GameState {
     }
     this.money -= cost
     this.producers[id] = owned + count
+    if (!hadAnyBusiness) this.firstBusinessPlayTimeMs = this.playTimeMs
     this.businessesBoughtSession += count
     this.updateMissionProgress('buy_business', count)
     if (!this.codexUnlockDates[id]) {
@@ -2250,6 +2308,7 @@ export class GameState {
     this.totalEarned = 0
     this.totalClicks = 0
     this.sessionEarned = 0
+    this.firstBusinessPlayTimeMs = null
     this.producers = {}
     for (const p of PRODUCERS) this.producers[p.id] = 0
     this.purchasedUpgrades.clear()
@@ -3249,6 +3308,7 @@ export class GameState {
     this.weekly = createWeeklyState()
     this.milestonesReached = []
     this.playTimeMs = 0
+    this.firstBusinessPlayTimeMs = null
     this.gameTimeMs = 0
     this.tutorialDone = false
     this.onboardingComplete = false
@@ -3591,6 +3651,11 @@ export class GameState {
   }
 
   private tickMetaSystems(): void {
+    if (!this.isMetaSystemsReady()) {
+      this.tickCommodities()
+      this.tickUndoExpiry()
+      return
+    }
     const day = gameDay(this.gameTimeMs)
     this.tickCalendarEvents()
     this.tickLifestyle(day)
@@ -4406,6 +4471,7 @@ export class GameState {
       upgradesBoughtSession: this.upgradesBoughtSession,
       eventBoostUntil: this.eventBoostUntil,
       playTimeMs: this.playTimeMs,
+      firstBusinessPlayTimeMs: this.firstBusinessPlayTimeMs,
       gameTimeMs: this.gameTimeMs,
       gamePaused: this.gamePaused,
       tutorialDone: this.tutorialDone,
@@ -4574,6 +4640,7 @@ export class GameState {
     this.upgradesBoughtSession = data.upgradesBoughtSession ?? 0
     this.eventBoostUntil = data.eventBoostUntil ?? 0
     this.playTimeMs = data.playTimeMs ?? 0
+    this.firstBusinessPlayTimeMs = data.firstBusinessPlayTimeMs ?? null
     this.gameTimeMs = data.gameTimeMs ?? 0
     this.gamePaused = data.gamePaused ?? false
     this.tutorialDone = data.tutorialDone ?? false

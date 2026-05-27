@@ -394,6 +394,7 @@ function repairState(state: SerializableState): SerializableState {
   s.lifetimePrestige = sanitizeNum(s.lifetimePrestige, 0)
   s.lifetimeTotalEarned = sanitizeNum(s.lifetimeTotalEarned, s.totalEarned)
   s.playTimeMs = sanitizeNum(s.playTimeMs, 0)
+  s.firstBusinessPlayTimeMs = s.firstBusinessPlayTimeMs == null ? null : sanitizeNum(s.firstBusinessPlayTimeMs, 0)
   s.gameTimeMs = sanitizeNum(s.gameTimeMs, 0)
   s.dailyGoalEarned = sanitizeNum(s.dailyGoalEarned, 0)
   s.lastSaveTime = sanitizeNum(s.lastSaveTime, Date.now())

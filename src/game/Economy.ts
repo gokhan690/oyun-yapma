@@ -35,7 +35,7 @@ export interface UpgradeDef {
 
 export const PRODUCERS: ProducerDef[] = [
   // BitLife maaş eğrisi: baseIncome ≈ günlük $ (12 sn = 1 oyun günü)
-  { id: 'stajyer', name: 'Limonata Tezgahı', emoji: '🍋', description: 'Küçük ama cesur bir girişim.', tier: 1, unlockAt: 0, baseCost: 3, baseIncome: 6, costMultiplier: 1.22 },
+  { id: 'stajyer', name: 'Limonata Tezgahı', emoji: '🍋', description: 'Küçük ama cesur bir girişim.', tier: 1, unlockAt: 0, baseCost: 3, baseIncome: 8, costMultiplier: 1.18 },
   { id: 'robot', name: 'E-ticaret Sitesi', emoji: '🛒', description: 'Online satışlar başladı.', tier: 2, unlockAt: 5_000, baseCost: 580, baseIncome: 10, costMultiplier: 1.22 },
   { id: 'kafe', name: 'Kahve Zinciri', emoji: '☕', description: 'Her köşede bir şube.', tier: 2, unlockAt: 25_000, baseCost: 580, baseIncome: 10, costMultiplier: 1.22 },
   { id: 'ofis', name: 'Restoran Zinciri', emoji: '🍽️', description: 'Lezzetli büyüme.', tier: 3, unlockAt: 110_000, baseCost: 1_105, baseIncome: 17, costMultiplier: 1.22 },
@@ -74,10 +74,10 @@ export const PRODUCERS: ProducerDef[] = [
   { id: 'silah_ticareti', name: 'Silah Kaçakçılığı', emoji: '🔫', description: 'Tehlikeli ama çok kârlı ağ.', tier: 7, unlockAt: 40_000_000, baseCost: 21_204, baseIncome: 228, costMultiplier: 1.21, illegal: true, category: 'dark', riskChance: 0.05, riskFinePct: 0.25 },
 
   // —— Erken / orta oyun: daha fazla kariyer yolu ——
-  { id: 'berber', name: 'Berber & Kuaför', emoji: '💈', description: 'Mahallede güvenilir gelir.', tier: 1, unlockAt: 0, baseCost: 280, baseIncome: 5, costMultiplier: 1.17 },
-  { id: 'firin', name: 'Fırın & Pastane', emoji: '🥐', description: 'Taze ekmek, sıcak kâr.', tier: 1, unlockAt: 0, baseCost: 350, baseIncome: 6.5, costMultiplier: 1.17 },
-  { id: 'cicekci', name: 'Çiçekçi', emoji: '💐', description: 'Çiçek satar, mutluluk taşır.', tier: 1, unlockAt: 0, baseCost: 420, baseIncome: 7.5, costMultiplier: 1.17 },
-  { id: 'giyim', name: 'Giyim Mağazası', emoji: '👔', description: 'Moda perakende zinciri.', tier: 2, unlockAt: 0, baseCost: 540, baseIncome: 9, costMultiplier: 1.17 },
+  { id: 'berber', name: 'Berber & Kuaför', emoji: '💈', description: 'Mahallede güvenilir gelir.', tier: 1, unlockAt: 0, baseCost: 220, baseIncome: 6, costMultiplier: 1.16 },
+  { id: 'firin', name: 'Fırın & Pastane', emoji: '🥐', description: 'Taze ekmek, sıcak kâr.', tier: 1, unlockAt: 0, baseCost: 280, baseIncome: 7.5, costMultiplier: 1.16 },
+  { id: 'cicekci', name: 'Çiçekçi', emoji: '💐', description: 'Çiçek satar, mutluluk taşır.', tier: 1, unlockAt: 0, baseCost: 340, baseIncome: 8.5, costMultiplier: 1.16 },
+  { id: 'giyim', name: 'Giyim Mağazası', emoji: '👔', description: 'Moda perakende zinciri.', tier: 2, unlockAt: 0, baseCost: 460, baseIncome: 10, costMultiplier: 1.16 },
   { id: 'gym', name: 'Spor Salonu Zinciri', emoji: '🏋️', description: 'Abonelik bazlı fitness.', tier: 2, unlockAt: 8_000, baseCost: 620, baseIncome: 11, costMultiplier: 1.17 },
   { id: 'kargo', name: 'Kargo & Kurye', emoji: '📦', description: 'Şehir içi hızlı teslimat.', tier: 3, unlockAt: 500, baseCost: 1_020, baseIncome: 16, costMultiplier: 1.22 },
   { id: 'reklam_ajansi', name: 'Reklam Ajansı', emoji: '📣', description: 'Markalar için kampanya yönetimi.', tier: 3, unlockAt: 22_000, baseCost: 1_150, baseIncome: 18, costMultiplier: 1.22 },
@@ -196,10 +196,10 @@ export const PRODUCERS: ProducerDef[] = [
 ]
 
 export const UPGRADES: UpgradeDef[] = [
-  { id: 'click_x2', name: 'Pazarlama Kampanyası', description: 'Tıklama geliri x2', cost: 1_250, effect: 'click_mult', value: 2 },
+  { id: 'click_x2', name: 'Pazarlama Kampanyası', description: 'Tıklama geliri x2', cost: 900, effect: 'click_mult', value: 2 },
   { id: 'click_x5', name: 'Viral Reklam', description: 'Tıklama geliri x5', cost: 11_000, effect: 'click_mult', value: 5 },
   { id: 'global_x2', name: 'Kurumsal Büyüme', description: 'Tüm gelir x2', cost: 9_000, effect: 'global_mult', value: 2 },
-  { id: 'stajyer_x2', name: 'Franchise Sistemi', description: 'Limonata geliri x2', cost: 600, effect: 'producer_mult', value: 2, producerId: 'stajyer' },
+  { id: 'stajyer_x2', name: 'Franchise Sistemi', description: 'Limonata geliri x2', cost: 450, effect: 'producer_mult', value: 2, producerId: 'stajyer' },
   { id: 'robot_x2', name: 'SEO Optimizasyonu', description: 'E-ticaret geliri x2', cost: 3_750, effect: 'producer_mult', value: 2, producerId: 'robot' },
   { id: 'fabrika_x2', name: 'Depo Otomasyonu', description: 'Lojistik geliri x2', cost: 42_500, effect: 'producer_mult', value: 2, producerId: 'fabrika' },
   { id: 'holding_x2', name: 'Bulut Altyapısı', description: 'Yazılım geliri x2', cost: 175_000, effect: 'producer_mult', value: 2, producerId: 'holding' },
