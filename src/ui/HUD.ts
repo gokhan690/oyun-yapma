@@ -1942,6 +1942,23 @@ export class HUD {
         }
         break
       }
+      case 'rival-acquire':
+        if (id) {
+          const rv = this.state.rivals.find((r) => r.id === id)
+          if (rv && rv.relation === 'bankrupt') {
+            const cost = Math.max(50_000, Math.floor(rv.netWorth * 0.4))
+            if (this.state.canAfford(cost)) {
+              this.state.spendMoney(cost)
+              this.state.reputation = Math.min(100, this.state.reputation + 10)
+              rv.relation = 'merged'
+              this.modals.showToast(this.root, `🏴 ${rv.name} varlıkları satın alındı! İtibar +10`)
+              this.refreshBaronPanel()
+            } else {
+              this.modals.showToast(this.root, 'Yeterli para yok', 'important')
+            }
+          }
+        }
+        break
       case 'rival-alliance-accept':
         if (this.state.acceptRivalAllianceOffer()) {
           this.modals.showToast(this.root, '🤝 Sektör anlaşması imzalandı')

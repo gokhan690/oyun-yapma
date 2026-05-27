@@ -197,9 +197,23 @@ export function tickRivals(
 
   for (const rival of rivals) {
     if (rival.relation === 'merged') continue
+
+    // Rival net worth decay when hostile attitude is very negative
     const growthBase = rival.personality === 'conservative' ? 1.001 : rival.personality === 'aggressive' ? 1.004 : 1.002
-    const growth = growthBase + Math.random() * 0.008
+    const attitudeDecay = rival.attitude < -70 ? 0.995 : 1.0
+    const growth = (growthBase + Math.random() * 0.008) * attitudeDecay
     rival.netWorth = Math.floor(rival.netWorth * growth + playerNetWorth * 0.00002)
+
+    // Rival bankruptcy when net worth falls very low relative to player
+    if (rival.relation !== 'bankrupt' && rival.netWorth < playerNetWorth * 0.05 && rival.netWorth < 100_000) {
+      rival.relation = 'bankrupt'
+      events.push({
+        rivalId: rival.id,
+        headline: `💀 ${rival.name} çöktü — varlıkları piyasaya sürüldü! Hızlı davran.`,
+        attitudeDelta: 0,
+        kind: 'conflict',
+      })
+    }
 
     if (rival.personality === 'aggressive' && dominant && !rival.sectorFocus.includes(dominant)) {
       if (playerSectorShare(producers, dominant) > 0.4 && Math.random() < 0.12) {

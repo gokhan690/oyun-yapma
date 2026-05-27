@@ -630,6 +630,18 @@ export class StatsScreen {
           </div>
         </div>
       `
+      if (rs.relation === 'bankrupt') {
+        const acquireCost = Math.max(50_000, Math.floor(rs.netWorth * 0.4))
+        const acquireBtn = document.createElement('button')
+        acquireBtn.type = 'button'
+        acquireBtn.className = 'btn-sm btn-primary rival-acquire-btn'
+        acquireBtn.dataset.action = 'rival-acquire'
+        acquireBtn.dataset.id = rs.id
+        acquireBtn.textContent = `🏴 Satın Al · ${formatMoney(acquireCost)}`
+        acquireBtn.disabled = !this.state.canAfford(acquireCost)
+        acquireBtn.title = 'İflas eden rakibin varlıklarını ucuza al — itibar +10'
+        card.appendChild(acquireBtn)
+      }
       panel.appendChild(card)
     }
     section.appendChild(panel)

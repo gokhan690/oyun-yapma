@@ -2029,6 +2029,11 @@ export class GameState {
     return this.money >= cost
   }
 
+  spendMoney(cost: number): void {
+    this.money = Math.max(0, this.money - cost)
+    this.emit({ type: 'money_changed' })
+  }
+
   producerCostFor(def: ProducerDef, owned: number, count = 1): number {
     const raw = producerCost(def, owned, count)
     const efficiencyDiscount = researchEfficiencyBonus(this.research)
