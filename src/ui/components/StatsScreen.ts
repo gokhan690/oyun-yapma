@@ -120,7 +120,7 @@ export class StatsScreen {
     dynastyBtn.className = 'btn-secondary btn-sm'
     dynastyBtn.dataset.action = 'baron-tab'
     dynastyBtn.dataset.id = 'dynasty'
-    dynastyBtn.textContent = '👑 Hanedan'
+    dynastyBtn.textContent = t('tab_dynasty_btn')
     const shareBtn = document.createElement('button')
     shareBtn.type = 'button'
     shareBtn.className = 'btn-secondary btn-sm'
@@ -435,7 +435,7 @@ export class StatsScreen {
     const addBtn = document.createElement('button')
     addBtn.type = 'button'
     addBtn.className = 'btn-primary stats-submit-btn'
-    addBtn.textContent = 'Ekle'
+    addBtn.textContent = t('btn_add')
     addBtn.addEventListener('click', async () => {
       const code = input.value.trim()
       if (!code) return
@@ -448,7 +448,7 @@ export class StatsScreen {
         if (list) list.remove()
         void this.renderFriendsList(section)
       }
-      window.setTimeout(() => { addBtn.textContent = 'Ekle' }, 1200)
+      window.setTimeout(() => { addBtn.textContent = t('btn_add') }, 1200)
     })
     addRow.append(input, addBtn)
 
@@ -512,7 +512,7 @@ export class StatsScreen {
     const btn = document.createElement('button')
     btn.type = 'button'
     btn.className = 'btn-primary stats-submit-btn'
-    btn.textContent = 'Gönder'
+    btn.textContent = t('btn_submit')
 
     btn.addEventListener('click', async () => {
       const name = input.value.trim() || 'Anonim'
@@ -529,7 +529,7 @@ export class StatsScreen {
         comboBest: this.state.comboBest,
         ipoCount: this.state.ipoCount,
       })
-      btn.textContent = ok ? '✅ Gönderildi!' : '❌ Hata'
+      btn.textContent = ok ? t('lb_submitted') : t('lb_error')
       if (ok) {
         window.setTimeout(() => {
           const lb = this.content.querySelector('.stats-online-section')
@@ -554,7 +554,7 @@ export class StatsScreen {
 
     const loading = document.createElement('div')
     loading.className = 'stats-loading'
-    loading.textContent = 'Yükleniyor...'
+    loading.textContent = t('loading')
 
     section.append(title, loading)
     this.content.appendChild(section)
@@ -565,7 +565,7 @@ export class StatsScreen {
     if (scores.length === 0) {
       const empty = document.createElement('div')
       empty.className = 'stats-empty'
-      empty.textContent = 'Henüz skor yok — ilk sen ol!'
+      empty.textContent = t('lb_no_scores')
       section.appendChild(empty)
       return
     }
@@ -621,9 +621,9 @@ export class StatsScreen {
 
       // Relation badges
       const relationBadge = rs.relation === 'merged'
-        ? '<span class="rival-relation-badge merged">🤝 Birleşme</span>'
+        ? `<span class="rival-relation-badge merged">${t('rival_relation_merged')}</span>`
         : rs.relation === 'bankrupt'
-          ? '<span class="rival-relation-badge bankrupt">💀 İflas</span>'
+          ? `<span class="rival-relation-badge bankrupt">${t('rival_relation_bankrupt')}</span>`
           : ''
 
       // NetWorth warning badge

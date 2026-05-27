@@ -278,12 +278,12 @@ export class WorldMetaPanel {
           const bonus = document.createElement('small')
           bonus.className = 'torpil-bonus-active'
           const bonusMap: Record<string, string> = {
-            amca_rifat: '✅ %20 işletme indirimi aktif',
-            sinan_bank: '✅ Kredi skoru bypass aktif',
-            siyaset_tanidik: '✅ Baskın uyarısı aktif',
-            medya_partner: '✅ İtibar koruması aktif',
+            amca_rifat: t('torpil_bonus_rifat'),
+            sinan_bank: t('torpil_bonus_sinan'),
+            siyaset_tanidik: t('torpil_bonus_siyaset'),
+            medya_partner: t('torpil_bonus_medya'),
           }
-          bonus.textContent = bonusMap[def.id] ?? '✅ Bonus aktif'
+          bonus.textContent = bonusMap[def.id] ?? t('world_torpil_active')
           card.appendChild(bonus)
         }
         if (st.giftDue) {
@@ -330,7 +330,7 @@ export class WorldMetaPanel {
     intro.className = 'meta-hint'
     intro.textContent = summary.baronCount > 0
       ? `Baron #1'den beri ${summary.generations} nesil · ${summary.baronCount} baron · toplam ${formatMoney(summary.totalEarned)} kazanıldı`
-      : 'Henüz vefat eden baron yok — ilk özet burada görünecek.'
+      : t('dynasty_no_history')
     block.appendChild(intro)
     if (this.state.baronHistory.length > 0) {
       const scroll = document.createElement('div')
@@ -379,7 +379,7 @@ export class WorldMetaPanel {
     if (this.state.legacyMonuments.length > 0) {
       const mon = document.createElement('div')
       mon.className = 'legacy-monuments'
-      mon.innerHTML = `<h4>🏙️ Kalıcı Anıtlar (${this.state.legacyMonuments.length})</h4>`
+      mon.innerHTML = `<h4>🏙️ ${t('dynasty_monuments')} (${this.state.legacyMonuments.length})</h4>`
       const chips = document.createElement('div')
       chips.className = 'legacy-monument-chips'
       for (const m of this.state.legacyMonuments) {
