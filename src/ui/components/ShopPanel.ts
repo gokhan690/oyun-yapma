@@ -1904,7 +1904,16 @@ export class ShopPanel {
       const chain = document.createElement('div')
       chain.className = 'research-tree-chain'
 
-      for (const node of branchNodes) {
+      for (let ni = 0; ni < branchNodes.length; ni++) {
+        const node = branchNodes[ni]
+        const prevNode = ni > 0 ? branchNodes[ni - 1] : null
+        if (prevNode && node.prerequisite === prevNode.id) {
+          const prereqMet = researchIsUnlocked(node.id, state.research)
+          const connector = document.createElement('div')
+          connector.className = `research-tree-connector${prereqMet ? ' prereq-met' : ''}`
+          connector.innerHTML = `<svg width="12" height="18" viewBox="0 0 12 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><line x1="6" y1="0" x2="6" y2="12" stroke="currentColor" stroke-width="2"/><polyline points="2,10 6,16 10,10" stroke="currentColor" stroke-width="2" fill="none"/></svg>`
+          chain.appendChild(connector)
+        }
         const level = state.research[node.id] ?? 0
         const maxed = level >= node.maxLevel
         const cost = state.researchCostWithWeekly(researchCost(node, level))

@@ -1080,6 +1080,9 @@ export class HUD {
         this.sound.playPurchase()
         this.refreshShop(true)
       }
+      if (ev.type === 'calendar_event') {
+        this.modals.showToast(this.root, `${ev.emoji} ${ev.headline}`, 'important')
+      }
     })
   }
 

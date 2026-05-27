@@ -6904,6 +6904,19 @@ html.theme-red .skyline-building {
   font-style: italic;
 }
 
+.research-tree-connector {
+  display: flex;
+  justify-content: center;
+  color: var(--muted);
+  opacity: 0.5;
+  line-height: 0;
+  pointer-events: none;
+}
+.research-tree-connector.prereq-met {
+  color: var(--accent);
+  opacity: 0.8;
+}
+
 /* ═══════════════════════════════════════════════════════════
    ADIM 13 — Rakipler Paneli
    ═══════════════════════════════════════════════════════════ */
