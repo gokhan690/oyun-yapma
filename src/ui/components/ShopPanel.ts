@@ -2434,7 +2434,7 @@ export class ShopPanel {
 
       const gainRows: [string, string][] = preview.pointsToEarn > 0
         ? [
-            ['Prestij hissesi', `+${preview.pointsToEarn} ✦`],
+            [i18nT('finance_prestige_pts'), `+${preview.pointsToEarn} ✦`],
             ['Yeni kalıcı çarpan', `x${currentMult.toFixed(2)} → x${preview.newMultiplier.toFixed(2)}`],
             ['Başlangıç sermayesi', `₺${formatMoney(preview.startingCash)}`],
           ]

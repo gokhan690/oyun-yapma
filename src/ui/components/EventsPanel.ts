@@ -503,7 +503,7 @@ export class EventsPanel {
     if (tier >= 28) {
       const warning = document.createElement('div')
       warning.className = 'season-ending-warning'
-      warning.textContent = `⏰ Sezon sona yaklaşıyor! Son ${SEASON_MAX_TIER - tier} tier kaldı`
+      warning.textContent = t('ev_season_ending').replace('{n}', String(SEASON_MAX_TIER - tier))
       wrap.appendChild(warning)
     }
 
@@ -526,7 +526,7 @@ export class EventsPanel {
     } else {
       const badge = document.createElement('p')
       badge.className = 'season-premium-active'
-      badge.textContent = '⭐ Premium yol aktif — sağ kolondan ödülleri topla'
+      badge.textContent = t('ev_premium_active')
       wrap.appendChild(badge)
     }
 
@@ -535,13 +535,13 @@ export class EventsPanel {
 
     const freeCol = document.createElement('div')
     freeCol.className = 'season-track-col'
-    freeCol.innerHTML = '<h4>Ücretsiz</h4>'
+    freeCol.innerHTML = `<h4>${t('ev_track_free')}</h4>`
     freeCol.appendChild(this.buildSeasonNodes(state, tier, 'free'))
     dual.appendChild(freeCol)
 
     const premCol = document.createElement('div')
     premCol.className = `season-track-col season-track-premium${state.season.premiumUnlocked ? ' unlocked' : ''}`
-    premCol.innerHTML = '<h4>Premium</h4>'
+    premCol.innerHTML = `<h4>${t('ev_track_premium')}</h4>`
     premCol.appendChild(this.buildSeasonNodes(state, tier, 'premium'))
     dual.appendChild(premCol)
 
@@ -638,7 +638,7 @@ export class EventsPanel {
     if (!chapter || !step) {
       const done = document.createElement('p')
       done.className = 'campaign-done'
-      done.textContent = '🏆 Kampanya tamamlandı! Hikâye devam ediyor…'
+      done.textContent = t('ev_campaign_done')
       wrap.appendChild(done)
       return wrap
     }
@@ -763,7 +763,7 @@ export class EventsPanel {
       headline.textContent = entry.headline
       const date = document.createElement('div')
       date.className = 'gazette-date'
-      date.textContent = `Gün ${entry.gameDay}`
+      date.textContent = t('ev_gazette_day').replace('{n}', String(entry.gameDay))
       text.append(headline, date)
       row.append(dot, text)
       feed.appendChild(row)
