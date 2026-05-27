@@ -117,6 +117,7 @@ export class HUD {
   private unsub: (() => void) | null = null
   private eventDirector = new EventDirector()
   private adPromptShown = false
+  private lastUserTapMs = Date.now()
 
   constructor(
     state: GameState,
@@ -158,6 +159,7 @@ export class HUD {
     })
     this.particles = new ParticleSystem(this.tapArea.parentElement!)
     this.bindEvents()
+    this.startIdleDetection()
     this.renderAll()
     this.updateNavBadges()
     this.setView('earn')
@@ -612,12 +614,32 @@ export class HUD {
     }
   }
 
+  private startIdleDetection(): void {
+    const IDLE_THRESHOLD_MS = 3 * 60 * 1000 // 3 minutes
+    const check = (): void => {
+      const elapsed = Date.now() - this.lastUserTapMs
+      if (elapsed >= IDLE_THRESHOLD_MS) {
+        const passiveIncome = this.state.incomePerSecond()
+        if (passiveIncome > 0) {
+          this.modals.showToast(
+            this.root,
+            `💤 Pasif gelir birikiyor — yönetici alırsan tıklamasan da kazanırsın!`,
+          )
+        }
+        this.lastUserTapMs = Date.now() // Reset so hint doesn't repeat immediately
+      }
+      window.setTimeout(check, IDLE_THRESHOLD_MS)
+    }
+    window.setTimeout(check, IDLE_THRESHOLD_MS)
+  }
+
   private bindEvents(): void {
     let lastTapMs = 0
     const performTap = (clientX: number, clientY: number): void => {
       const now = Date.now()
       if (now - lastTapMs < 80) return
       lastTapMs = now
+      this.lastUserTapMs = now
       this.sound.resume()
       void hapticLight()
       this.tapArea.classList.remove('tap-ripple')
