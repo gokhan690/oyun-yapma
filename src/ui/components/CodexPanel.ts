@@ -1,9 +1,13 @@
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, formatIncomeRate, producerIconPath, isProducerUnlocked } from '../../game/Economy'
 import { producerLore } from '../../game/CodexLore'
+import { SYNERGIES, synergyName } from '../../game/Synergies'
+
+type CodexTab = 'businesses' | 'synergies'
 
 export class CodexPanel {
   readonly root: HTMLElement
+  private activeTab: CodexTab = 'businesses'
 
   constructor() {
     this.root = document.createElement('div')
@@ -20,6 +24,34 @@ export class CodexPanel {
     if (bonus.all) header.innerHTML += '<span class="codex-bonus">Tam koleksiyon!</span>'
     this.root.appendChild(header)
 
+    // Tab switcher
+    const tabs = document.createElement('div')
+    tabs.className = 'codex-tabs'
+    const tabDefs: { id: CodexTab; label: string }[] = [
+      { id: 'businesses', label: '🏢 İşletmeler' },
+      { id: 'synergies', label: '🔗 Sinerjiler' },
+    ]
+    for (const td of tabDefs) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `codex-tab-btn${this.activeTab === td.id ? ' active' : ''}`
+      btn.textContent = td.label
+      btn.addEventListener('click', () => {
+        this.activeTab = td.id
+        this.render(state)
+      })
+      tabs.appendChild(btn)
+    }
+    this.root.appendChild(tabs)
+
+    if (this.activeTab === 'businesses') {
+      this.renderBusinesses(state)
+    } else {
+      this.renderSynergies(state)
+    }
+  }
+
+  private renderBusinesses(state: GameState): void {
     const grid = document.createElement('div')
     grid.className = 'codex-grid'
     for (const p of PRODUCERS) {
@@ -58,5 +90,54 @@ export class CodexPanel {
       grid.appendChild(card)
     }
     this.root.appendChild(grid)
+  }
+
+  private renderSynergies(state: GameState): void {
+    const list = document.createElement('div')
+    list.className = 'codex-synergy-list'
+
+    const activeSynergies = new Set<string>()
+    for (const s of SYNERGIES) {
+      const [a, b] = s.requires
+      if ((state.producers[a] ?? 0) > 0 && (state.producers[b] ?? 0) > 0) {
+        activeSynergies.add(s.id)
+      }
+    }
+
+    const activeCnt = activeSynergies.size
+    const total = SYNERGIES.length
+    const summary = document.createElement('p')
+    summary.className = 'codex-synergy-summary'
+    summary.textContent = `${activeCnt}/${total} sinerji aktif — kombinasyonları keşfet!`
+    list.appendChild(summary)
+
+    for (const s of SYNERGIES) {
+      const isActive = activeSynergies.has(s.id)
+      const [reqA, reqB] = s.requires
+      const defA = PRODUCERS.find((p) => p.id === reqA)
+      const defB = PRODUCERS.find((p) => p.id === reqB)
+      const ownA = (state.producers[reqA] ?? 0) > 0
+      const ownB = (state.producers[reqB] ?? 0) > 0
+
+      const row = document.createElement('div')
+      row.className = `codex-synergy-row${isActive ? ' synergy-active' : ''}`
+
+      const bonusPct = Math.round(s.bonus * 100)
+      const effectLabel = s.effect === 'global'
+        ? `Tüm gelir +${bonusPct}%`
+        : `${PRODUCERS.find((p) => p.id === s.targetProducer)?.name ?? s.targetProducer} +${bonusPct}%`
+
+      row.innerHTML = `
+        <div class="codex-synergy-name">${isActive ? '✅' : '🔒'} ${synergyName(s)}</div>
+        <div class="codex-synergy-combo">
+          <span class="${ownA ? 'syn-biz-owned' : 'syn-biz-missing'}">${defA?.emoji ?? '?'} ${defA?.name ?? reqA}</span>
+          <span class="syn-plus">+</span>
+          <span class="${ownB ? 'syn-biz-owned' : 'syn-biz-missing'}">${defB?.emoji ?? '?'} ${defB?.name ?? reqB}</span>
+        </div>
+        <div class="codex-synergy-effect">→ ${effectLabel}</div>
+      `
+      list.appendChild(row)
+    }
+    this.root.appendChild(list)
   }
 }

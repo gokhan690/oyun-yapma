@@ -226,6 +226,8 @@ import {
   headlineLoanDenied,
   headlineCrisis,
   headlineMonthlyIncome,
+  headlineMarketRandom,
+  headlinePoliticsRandom,
   type GazetteEntry,
   type GazetteCategory,
 } from './BaronGazette'
@@ -3589,6 +3591,12 @@ export class GameState {
         ? `📊 ${who} bu hafta ${weeklyIncome} kazandı — en iyi sektör: ${topName}`
         : `📊 ${who} bu hafta ${weeklyIncome} kazandı`
       this.addGazette(weeklyHeadline, 'player')
+      // Rotating market & politics headlines for variety
+      if (day % 14 === 0) {
+        this.addGazette(headlineMarketRandom(this.playerName, this.financeNetWorth()), 'market')
+      } else if (day % 14 === 7) {
+        this.addGazette(headlinePoliticsRandom(this.playerName), 'politics')
+      }
     }
     if (day % 30 === 0 && day > 0) {
       const rival = this.rivals.find((r) => r.relation !== 'merged')

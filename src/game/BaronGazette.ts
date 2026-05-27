@@ -64,3 +64,32 @@ export function headlineCrisis(playerName: string, crisisLabel: string): string 
   const who = playerName.trim() || 'Baron'
   return `⚠️ ${crisisLabel} — ${who} karar vermek zorunda`
 }
+
+export function headlineMarketRandom(playerName: string, netWorth: number): string {
+  const who = playerName.trim() || 'Baron'
+  const worth = netWorth
+  const templates = [
+    `Merkez Bankası faiz kararı açıkladı — ${who}'un portföyü izleniyor`,
+    `Dolar kuru dalgalanıyor — ${who} yatırım stratejisini güncelliyor`,
+    `Borsa İstanbul rekor kırdı — yatırımcılar coştu`,
+    `Enflasyon raporu yayımlandı — tüketici harcamaları ${worth > 1_000_000 ? 'yükselişte' : 'baskı altında'}`,
+    `Yabancı yatırımcılar Türkiye'ye ilgisini artırdı — ${who} fırsatı değerlendiriyor`,
+    `Sanayi üretimi arttı — imalat sektörü canlandı`,
+    `Turizm geliri beklentileri aştı — sektör patladı`,
+    `E-ticaret hacmi yıllık %60 büyüdü — lojistik tıkandı`,
+  ]
+  return templates[Math.floor(Date.now() / 86_400_000) % templates.length]
+}
+
+export function headlinePoliticsRandom(playerName: string): string {
+  const who = playerName.trim() || 'Baron'
+  const templates = [
+    `Yeni teşvik paketi açıklandı — ${who} başvurularını hazırlıyor`,
+    `Vergi reformu gündemde — iş dünyası temkinli bekliyor`,
+    `Büyükelçilik ziyareti — ${who}'un uluslararası bağlantıları güçleniyor`,
+    `Belediye ihalesi açıklandı — ${who} teklif hazırlıyor`,
+    `Serbest ticaret anlaşması müzakere masasında`,
+    `Ekonomi bakanı büyüme hedefini revize etti`,
+  ]
+  return templates[Math.floor(Date.now() / 86_400_000 + 3) % templates.length]
+}
