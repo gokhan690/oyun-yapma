@@ -70,6 +70,28 @@ export function appendFranchiseSection(
       open.appendChild(tag)
     }
     block.appendChild(open)
+
+    // Franchise milestone badges
+    const totalFranchises = state.franchises.length
+    const milestones = [
+      { count: 3, emoji: '🥉', label: '3 Şube' },
+      { count: 5, emoji: '🥈', label: '5 Şube' },
+      { count: 10, emoji: '🥇', label: '10 Şube' },
+      { count: 20, emoji: '💎', label: '20 Şube' },
+    ]
+    const earned = milestones.filter((m) => totalFranchises >= m.count)
+    if (earned.length > 0) {
+      const badgeRow = document.createElement('div')
+      badgeRow.className = 'franchise-milestone-badges'
+      for (const m of earned) {
+        const badge = document.createElement('span')
+        badge.className = 'franchise-milestone-badge'
+        badge.title = `${m.label} franchise milestonu`
+        badge.textContent = `${m.emoji} ${m.label}`
+        badgeRow.appendChild(badge)
+      }
+      block.appendChild(badgeRow)
+    }
   }
 
   if (canOpen) {
