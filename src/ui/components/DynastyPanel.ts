@@ -2,12 +2,16 @@ import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
 import { gameDay } from '../../game/GameClock'
 import { spouseOptionsForPlayer, PLAYER_LIFESPAN, type ChildRecord } from '../../game/Dynasty'
+import { t } from '../../i18n'
 
-const TRAIT_LABEL: Record<string, string> = {
-  merchant: 'Tüccar — pasif +12%',
-  diplomat: 'Diplomat — maliyet −8%',
-  innovator: 'İnovatör — tıklama +15%',
-  risk_taker: 'Riskçi — illegal +20%',
+function traitLabel(trait: string): string {
+  const map: Record<string, string> = {
+    merchant: t('dynasty_trait_merchant'),
+    diplomat: t('dynasty_trait_diplomat'),
+    innovator: t('dynasty_trait_innovator'),
+    risk_taker: t('dynasty_trait_risktaker'),
+  }
+  return map[trait] ?? trait
 }
 
 export class DynastyPanel {
@@ -27,14 +31,14 @@ export class DynastyPanel {
       const legacy = document.createElement('div')
       legacy.className = 'dynasty-legacy-banner'
       legacy.innerHTML = `
-        <strong>🏛️ ${this.state.dynasty.generation}. nesil hanedan</strong>
-        <p>İmparatorluğunu miras bırak — çocuk yetiştir, vefat sonrası trait bonusuyla devam et.</p>
+        <strong>${t('dynasty_gen_banner').replace('{n}', String(this.state.dynasty.generation))}</strong>
+        <p>${t('dynasty_gen_desc')}</p>
       `
       this.root.appendChild(legacy)
     }
 
     const title = document.createElement('h3')
-    title.textContent = `👨‍👩‍👧 Hanedan · Nesil ${this.state.dynasty.generation}`
+    title.textContent = t('dynasty_family_title').replace('{n}', String(this.state.dynasty.generation))
     this.root.appendChild(title)
 
     const age = this.state.playerAge()
@@ -42,7 +46,7 @@ export class DynastyPanel {
     const ageBar = document.createElement('div')
     ageBar.className = 'dynasty-age-bar'
     const pct = Math.min(100, (age / PLAYER_LIFESPAN) * 100)
-    const estLabel = estYears < 99 ? `~${estYears} yıl tahmini` : 'Uzun ömür'
+    const estLabel = estYears < 99 ? `~${estYears} yıl tahmini` : t('dynasty_long_life')
     ageBar.innerHTML = `
       <label><span>${this.state.playerName} · ${age} yaş</span><span>${estLabel}</span></label>
       <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${pct}%"></div></div>
@@ -55,13 +59,17 @@ export class DynastyPanel {
     if (crises.length > 0) {
       const warn = document.createElement('div')
       warn.className = 'dynasty-crisis-banner'
-      warn.innerHTML = '<strong>⚠️ Aile krizi</strong>'
+      warn.innerHTML = `<strong>${t('dynasty_crisis_title')}</strong>`
       const list = document.createElement('ul')
       for (const c of crises) {
         const child = this.state.dynasty.children.find((ch) => ch.id === c.childId)
         if (!child) continue
         const li = document.createElement('li')
-        const labels = { gambler: '🎲 Kumarbaz', illegal: '🕶️ Illegal', scandal: '📰 Skandal' }
+        const labels: Record<string, string> = {
+          gambler: t('dynasty_crisis_gambler'),
+          illegal: t('dynasty_crisis_illegal'),
+          scandal: t('dynasty_crisis_scandal'),
+        }
         li.textContent = `${child.name}: ${labels[c.type]}`
         list.appendChild(li)
       }
@@ -73,7 +81,10 @@ export class DynastyPanel {
       const death = this.state.dynasty.pendingDeath!
       const warn = document.createElement('p')
       warn.className = 'dynasty-lifespan-warn'
-      warn.textContent = `💀 Vefat: ${death.message} — ${this.state.dynasty.children.length > 0 ? 'varis seç!' : 'devam et butonuna bas.'}`
+      const suffix = this.state.dynasty.children.length > 0
+        ? t('dynasty_death_warn_heir')
+        : t('dynasty_death_warn_continue')
+      warn.textContent = `💀 Vefat: ${death.message} — ${suffix}`
       this.root.appendChild(warn)
     }
 
@@ -89,8 +100,8 @@ export class DynastyPanel {
     const p = document.createElement('p')
     p.className = 'dynasty-desc'
     p.textContent = this.state.playerGender === 'female'
-      ? 'Evlen — 4 erkek aday arasından seç.'
-      : 'Evlen — 4 kadın aday arasından seç.'
+      ? t('dynasty_marry_female')
+      : t('dynasty_marry_male')
     this.root.appendChild(p)
     const grid = document.createElement('div')
     grid.className = 'dynasty-spouse-grid'
@@ -116,11 +127,11 @@ export class DynastyPanel {
     const d = this.state.dynasty
     const spouse = document.createElement('p')
     spouse.className = 'dynasty-spouse-line'
-    spouse.textContent = `💍 Eş: ${d.spouseName} · ${TRAIT_LABEL[d.spouseTrait ?? ''] ?? ''}`
+    spouse.textContent = `${t('dynasty_spouse_label')} ${d.spouseName} · ${traitLabel(d.spouseTrait ?? '')}`
     this.root.appendChild(spouse)
 
     const kidsTitle = document.createElement('h4')
-    kidsTitle.textContent = `Çocuklar (${d.children.length}/3)`
+    kidsTitle.textContent = `${t('dynasty_children_label')} (${d.children.length}/3)`
     this.root.appendChild(kidsTitle)
 
     if (d.children.length === 0) {
@@ -129,8 +140,8 @@ export class DynastyPanel {
       const day = gameDay(this.state.gameTimeMs)
       const married = d.marriedGameDay ?? day
       wait.textContent = day - married < 5
-        ? 'Çocuk için oyun günlerinin ilerlemesini bekle…'
-        : 'Çocuk yakında gelebilir — oyun saati aksın.'
+        ? t('dynasty_wait_early')
+        : t('dynasty_wait_soon')
       this.root.appendChild(wait)
     } else {
       const list = document.createElement('div')
@@ -145,14 +156,14 @@ export class DynastyPanel {
       const hint = document.createElement('p')
       hint.className = 'dynasty-desc'
       hint.textContent = this.state.needsSuccession()
-        ? 'Vefat ettin — bir çocuğu seçerek imparatorluğu devral.'
-        : 'Miras devri: seçtiğin çocukla imparatorluğa devam edersin (isim + trait bonusu).'
+        ? t('dynasty_death_choose')
+        : t('dynasty_heir_hint')
       this.root.appendChild(hint)
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = `btn-primary dynasty-succession-btn${this.state.needsSuccession() ? ' btn-urgent' : ''}`
       btn.dataset.action = 'dynasty-succession-open'
-      btn.textContent = this.state.needsSuccession() ? '👑 Varis Seç (Zorunlu)' : '👑 Miras Devri'
+      btn.textContent = this.state.needsSuccession() ? t('dynasty_succession_required') : t('dynasty_succession_btn')
       this.root.appendChild(btn)
     }
 
@@ -161,7 +172,7 @@ export class DynastyPanel {
       if (active) {
         const badge = document.createElement('p')
         badge.className = 'dynasty-active-heir'
-        badge.textContent = `Aktif varis: ${active.name} (${TRAIT_LABEL[active.trait]})`
+        badge.textContent = `${t('dynasty_active_heir')} ${active.name} (${traitLabel(active.trait)})`
         this.root.appendChild(badge)
       }
     }
@@ -171,13 +182,14 @@ export class DynastyPanel {
     const card = document.createElement('div')
     card.className = 'dynasty-child-card'
     const isHeir = this.state.dynasty.dynastyBonusId === c.id
-      card.innerHTML = `
+    const bornLabel = t('dynasty_child_born').replace('{day}', String(c.bornGameDay))
+    card.innerHTML = `
       <span class="dynasty-child-emoji">${isHeir ? '👑' : '🧒'}</span>
       <div>
         <strong>${c.name}</strong>
-        <small>${TRAIT_LABEL[c.trait]}</small>
+        <small>${traitLabel(c.trait)}</small>
         <small class="child-risk-warn">${c.riskLabel ?? ''}</small>
-        <small>Gün ${c.bornGameDay}'de doğdu · Eğitim ${Math.floor(c.educationXp ?? 0)}%</small>
+        <small>${bornLabel} ${Math.floor(c.educationXp ?? 0)}%</small>
       </div>
     `
     const pick = document.createElement('button')
@@ -185,7 +197,7 @@ export class DynastyPanel {
     pick.className = 'btn-sm btn-secondary'
     pick.dataset.action = 'dynasty-succession'
     pick.dataset.id = c.id
-    pick.textContent = isHeir ? 'Varis' : 'Devral'
+    pick.textContent = isHeir ? t('dynasty_heir_btn') : t('dynasty_inherit_btn')
     card.appendChild(pick)
     return card
   }
@@ -196,7 +208,7 @@ export class DynastyPanel {
 
     const title = document.createElement('h4')
     title.className = 'mortality-risks-title'
-    title.textContent = '⚠️ Ölüm Riskleri'
+    title.textContent = t('dynasty_death_risks_title')
     this.root.appendChild(title)
 
     const list = document.createElement('div')
@@ -212,7 +224,7 @@ export class DynastyPanel {
 
     const note = document.createElement('p')
     note.className = 'dynasty-desc mortality-note'
-    note.textContent = 'Her yaşta vefat edebilirsin — illegal iş, siyaset, stres ve yaş riski artırır. Çocuk yetiştir!'
+    note.textContent = t('dynasty_risk_note')
     this.root.appendChild(note)
   }
 }
