@@ -911,6 +911,14 @@ export class HUD {
       if (ev.type === 'rival_action') {
         this.refreshBaronPanel()
       }
+      if (ev.type === 'rival_surpassed') {
+        this.modals.showToast(
+          this.root,
+          `⚠️ ${ev.rivalName} sizi geçti! Net servet: ${formatMoney(ev.rivalWorth)}`,
+          'important',
+        )
+        this.refreshBaronPanel()
+      }
       if (ev.type === 'victory_unlocked') {
         this.eventDirector.enqueue({
           id: `victory-${ev.victoryId}`,

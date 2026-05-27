@@ -560,6 +560,7 @@ export type GameEvent =
   | { type: 'reputation_changed'; reputation: number; delta: number }
   | { type: 'world_stage'; stageId: WorldStageId; name: string }
   | { type: 'rival_action'; rivalId: string; headline: string }
+  | { type: 'rival_surpassed'; rivalName: string; rivalWorth: number }
   | { type: 'victory_unlocked'; victoryId: VictoryId; name: string; emoji: string }
   | { type: 'child_crisis'; childName: string; crisisType: string; message: string }
   | { type: 'gazette_headline'; headline: string; category: GazetteCategory }
@@ -737,6 +738,7 @@ export class GameState {
   private lastInsuranceChargeDay = 0
   pendingBoosts: PendingBoostItem[] = []
   private lastRivalTickDay = 0
+  private rivalWasAhead = new Set<string>()
   private lastIllegalRiskCheck = 0
   private lastHeatTick = 0
   private nudgeFlags = new Set<string>()
@@ -3386,6 +3388,19 @@ export class GameState {
     for (const ev of events) {
       this.addGazette(ev.headline, ev.kind === 'alliance' ? 'rival' : 'rival')
       this.emit({ type: 'rival_action', rivalId: ev.rivalId, headline: ev.headline })
+    }
+    const playerNW = this.financeNetWorth()
+    for (const rival of this.rivals) {
+      if (rival.relation === 'merged' || rival.relation === 'bankrupt') continue
+      const isAhead = rival.netWorth > playerNW
+      const wasAhead = this.rivalWasAhead.has(rival.id)
+      if (isAhead && !wasAhead) {
+        this.rivalWasAhead.add(rival.id)
+        this.emit({ type: 'rival_surpassed', rivalName: rival.name, rivalWorth: rival.netWorth })
+        this.addGazette(`⚠️ ${rival.name} sizi geçti — net servet: ${formatMoney(rival.netWorth)}`, 'rival')
+      } else if (!isAhead && wasAhead) {
+        this.rivalWasAhead.delete(rival.id)
+      }
     }
     if (allianceOffer && !this.pendingRivalOffer) {
       this.pendingRivalOffer = allianceOffer
