@@ -140,52 +140,52 @@ export class SettingsPanel {
     }
     body.appendChild(countryGrid)
 
-    body.appendChild(this.sectionTitle('Görünüm'))
+    body.appendChild(this.sectionTitle(t('settings_section_appearance')))
 
     const themeWrap = document.createElement('div')
     themeWrap.className = 'settings-theme-grid'
     themeWrap.id = 'theme-picker'
     body.appendChild(themeWrap)
 
-    body.appendChild(this.sectionTitle('Bildirimler'))
+    body.appendChild(this.sectionTitle(t('settings_notifications')))
     body.appendChild(this.notifHint())
 
-    const notifDaily = this.notifToggle('Günlük ödül hatırlatması', 'notif-daily', () => this.state.notificationPrefs.dailyReward, (v) => {
+    const notifDaily = this.notifToggle(t('notif_daily_reward'), 'notif-daily', () => this.state.notificationPrefs.dailyReward, (v) => {
       this.state.notificationPrefs.dailyReward = v
       void this.syncNotifications()
     })
     body.appendChild(notifDaily)
 
-    const notifPassive = this.notifToggle('Pasif gelir hatırlatması', 'notif-passive', () => this.state.notificationPrefs.passiveIncome, (v) => {
+    const notifPassive = this.notifToggle(t('notif_passive_income'), 'notif-passive', () => this.state.notificationPrefs.passiveIncome, (v) => {
       this.state.notificationPrefs.passiveIncome = v
       void this.syncNotifications()
     })
     body.appendChild(notifPassive)
 
-    const notifGoal = this.notifToggle('Günlük hedef hatırlatması', 'notif-goal', () => this.state.notificationPrefs.goalNear, (v) => {
+    const notifGoal = this.notifToggle(t('notif_daily_goal'), 'notif-goal', () => this.state.notificationPrefs.goalNear, (v) => {
       this.state.notificationPrefs.goalNear = v
       void this.syncNotifications()
     })
     body.appendChild(notifGoal)
 
     if (isWebPushSupported() && !isNativePlatform()) {
-      const notifWeb = this.notifToggle('Web push bildirimleri', 'notif-webpush', () => this.state.notificationPrefs.webPush, (v) => {
+      const notifWeb = this.notifToggle(t('notif_web_push'), 'notif-webpush', () => this.state.notificationPrefs.webPush, (v) => {
         this.state.notificationPrefs.webPush = v
         void this.syncNotifications()
       })
       body.appendChild(notifWeb)
     }
 
-    body.appendChild(this.sectionTitle('Zorluk'))
+    body.appendChild(this.sectionTitle(t('settings_section_difficulty')))
     const diffHint = document.createElement('p')
     diffHint.className = 'settings-hint'
-    diffHint.textContent = 'Zorluk seviyesi oyun içinde seçilebilir. Daha yüksek zorlukta özel rozetler kazanırsın.'
+    diffHint.textContent = t('settings_difficulty_hint')
     body.appendChild(diffHint)
     body.appendChild(this.buildDifficultyGrid())
 
-    body.appendChild(this.sectionTitle('Oyun'))
+    body.appendChild(this.sectionTitle(t('settings_section_game')))
 
-    const soundRow = this.toggleRow('Ses efektleri', this.sound.isEnabled(), () => {
+    const soundRow = this.toggleRow(t('settings_sound_effects'), this.sound.isEnabled(), () => {
       this.sound.setEnabled(!this.sound.isEnabled())
     })
     body.appendChild(soundRow)
@@ -194,7 +194,7 @@ export class SettingsPanel {
     tutorialBtn.type = 'button'
     tutorialBtn.className = 'btn-secondary'
     tutorialBtn.dataset.action = 'restart-tutorial'
-    tutorialBtn.textContent = 'Tutorial tekrar göster'
+    tutorialBtn.textContent = t('settings_tutorial_replay')
     tutorialBtn.addEventListener('click', () => {
       this.hide()
       this.onTutorialRestart()
@@ -204,9 +204,9 @@ export class SettingsPanel {
     const resetBtn = document.createElement('button')
     resetBtn.type = 'button'
     resetBtn.className = 'btn-danger'
-    resetBtn.textContent = 'Kaydı sıfırla'
+    resetBtn.textContent = t('settings_reset_save')
     resetBtn.addEventListener('click', () => {
-      if (confirm('Tüm ilerleme silinecek. Emin misin?')) {
+      if (confirm(t('settings_reset_confirm'))) {
         this.saveManager.clear()
         this.state.resetProgress()
         this.hide()
@@ -220,12 +220,12 @@ export class SettingsPanel {
     version.textContent = `${APP_TITLE} v${APP_VERSION}`
     body.appendChild(version)
 
-    const hapticRow = this.toggleRow('Titreşim', this.state.hapticsEnabled, () => {
+    const hapticRow = this.toggleRow(t('settings_haptic'), this.state.hapticsEnabled, () => {
       this.state.hapticsEnabled = !this.state.hapticsEnabled
     })
     body.appendChild(hapticRow)
 
-    const motionRow = this.toggleRow('Azaltılmış hareket', this.state.reducedMotion, () => {
+    const motionRow = this.toggleRow(t('settings_reduced_motion'), this.state.reducedMotion, () => {
       this.state.reducedMotion = !this.state.reducedMotion
       document.documentElement.classList.toggle('reduced-motion', this.state.reducedMotion)
     })
@@ -238,9 +238,9 @@ export class SettingsPanel {
     const grid = document.createElement('div')
     grid.className = 'difficulty-grid'
     const diffs: { id: 'easy' | 'normal' | 'hard'; emoji: string; name: string; desc: string }[] = [
-      { id: 'easy', emoji: '😌', name: 'Kolay', desc: 'Pasif gelir +20%, mortalite düşük' },
-      { id: 'normal', emoji: '💼', name: 'Normal', desc: 'Varsayılan denge' },
-      { id: 'hard', emoji: '🔥', name: 'Zor', desc: 'Rakipler agresif, özel rozet kazanırsın' },
+      { id: 'easy', emoji: '😌', name: t('diff_easy'), desc: t('diff_easy_desc') },
+      { id: 'normal', emoji: '💼', name: t('diff_normal'), desc: t('diff_normal_desc') },
+      { id: 'hard', emoji: '🔥', name: t('diff_hard'), desc: t('diff_hard_desc') },
     ]
     for (const d of diffs) {
       const card = document.createElement('div')
@@ -280,8 +280,8 @@ export class SettingsPanel {
     const p = document.createElement('p')
     p.className = 'settings-hint'
     p.textContent = isNativePlatform()
-      ? 'Native uygulamada yerel bildirim zamanlarını özelleştir.'
-      : 'Web sürümünde push izni ile günlük hatırlatıcılar (tarayıcı açıkken veya push aboneliği ile).'
+      ? t('notif_hint_native')
+      : t('notif_hint_web')
     return p
   }
 

@@ -23,7 +23,7 @@ import { Skyline } from './Skyline'
 import { ParticleSystem } from '../effects/ParticleSystem'
 import { Leaderboard } from '../game/Leaderboard'
 import { BottomNav, type NavView } from './components/BottomNav'
-import { BARON_TABS, type BaronSection } from './components/BaronSections'
+import { getBaronTabs, type BaronSection } from './components/BaronSections'
 import { DISASTERS } from '../game/NaturalDisasters'
 import { GoalsSheet } from './components/GoalsSheet'
 import { EventsPanel } from './components/EventsPanel'
@@ -453,7 +453,7 @@ export class HUD {
     this.baronView.hidden = true
     const baronSubNav = document.createElement('div')
     baronSubNav.className = 'baron-subnav'
-    for (const { id, label } of BARON_TABS) {
+    for (const { id, label } of getBaronTabs()) {
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = `baron-subnav-btn${id === 'profile' ? ' active' : ''}`

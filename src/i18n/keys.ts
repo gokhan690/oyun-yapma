@@ -799,4 +799,36 @@ export interface Translations {
   lp_activity_active: string
   lp_ad_boost: string
   world_title_label: string
+
+  // BaronSections i18n
+  baron_section_profile: string
+  baron_section_dynasty: string
+  baron_section_world: string
+  baron_section_lifestyle: string
+
+  // SettingsPanel i18n
+  settings_section_appearance: string
+  settings_section_difficulty: string
+  settings_section_game: string
+  settings_sound_effects: string
+  settings_tutorial_replay: string
+  settings_reset_save: string
+  settings_reset_confirm: string
+  settings_haptic: string
+  settings_reduced_motion: string
+  settings_difficulty_hint: string
+  notif_daily_reward: string
+  notif_passive_income: string
+  notif_daily_goal: string
+  notif_web_push: string
+  notif_hint_native: string
+  notif_hint_web: string
+
+  // Difficulty labels
+  diff_easy: string
+  diff_easy_desc: string
+  diff_normal: string
+  diff_normal_desc: string
+  diff_hard: string
+  diff_hard_desc: string
 }

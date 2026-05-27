@@ -9,7 +9,7 @@ import { WorldMetaPanel } from './WorldMetaPanel'
 import { BADGES, badgeDef } from '../../game/Badges'
 import { SYNERGIES } from '../../game/Synergies'
 import type { BaronSection } from './BaronSections'
-import { BARON_SECTION_TITLES } from './BaronSections'
+import { getBaronSectionTitle } from './BaronSections'
 import { RIVAL_FAMILY_DEFS } from '../../game/Rivals'
 import { t } from '../../i18n'
 import { PRESTIGE_TREE_NODES, hasNode, ownedNodeCount } from '../../game/PrestigeTree'
@@ -62,7 +62,7 @@ export class StatsScreen {
     this.activeSection = section
     this.content.replaceChildren()
     const title = this.layer.querySelector('.panel-header h2')
-    if (title) title.textContent = BARON_SECTION_TITLES[section]
+    if (title) title.textContent = getBaronSectionTitle(section)
 
     if (section === 'profile') {
       this.renderProfileHero()
