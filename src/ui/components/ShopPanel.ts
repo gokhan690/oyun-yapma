@@ -2007,6 +2007,39 @@ export class ShopPanel {
     const summary = portfolioSummary(state.stock)
     const portfolioPlClass = summary.totalPl >= 0 ? 'pl-positive' : 'pl-negative'
 
+    // --- Aktif Etkiler bölümü ---
+    const stockChips: string[] = []
+
+    if (Date.now() < state.stock.marketEventUntil) {
+      const pct = Math.round(Math.abs(state.stock.marketEventMult) * 100)
+      if (state.stock.marketEventMult < 0) {
+        stockChips.push(`📉 Piyasa Çöküşü: −${pct}%`)
+      } else {
+        stockChips.push(`📈 Piyasa Rallisi: +${pct}%`)
+      }
+    }
+
+    if (state.advisorTip) {
+      const acc = Math.round(state.advisorTip.accuracy * 100)
+      stockChips.push(`🧠 Danışman Aktif: ${acc}% doğruluk`)
+    }
+
+    if (state.vipPassActive) {
+      stockChips.push('👑 VIP: +25% kazanç')
+    }
+
+    if (Date.now() < state.adIncomeBoostUntil) {
+      stockChips.push('📺 Gelir Bostu aktif')
+    }
+
+    if (stockChips.length > 0) {
+      const fxEl = document.createElement('div')
+      fxEl.className = 'stock-active-effects'
+      fxEl.innerHTML = stockChips.map(c => `<span class="fx-chip">${c}</span>`).join('')
+      panel.appendChild(fxEl)
+    }
+    // --- /Aktif Etkiler ---
+
     if (Date.now() < state.stock.marketEventUntil) {
       const ev = document.createElement('div')
       ev.className = 'market-event-banner market-event-banner-top'

@@ -1,5 +1,5 @@
 import type { GameState } from '../../../game/GameState'
-import { formatMoney } from '../../../game/Economy'
+import { formatMoney, formatIncomeRate } from '../../../game/Economy'
 import { COMMODITIES, commodityChangePct } from '../../../game/Commodities'
 import { INSURANCE_BASE_COST } from '../../../game/Insurance'
 import { UNDERGROUND_MARKET } from '../../../game/UndergroundMarket'
@@ -41,6 +41,44 @@ export function renderCommoditiesPanel(
   createTabHero: TabHeroFn,
 ): void {
   panel.appendChild(createTabHero('📦', t('com_title'), t('com_subtitle'), ''))
+
+  // --- Aktif Etkiler bölümü ---
+  const comChips: string[] = []
+
+  for (const c of COMMODITIES) {
+    const chg = commodityChangePct(state.commodities, c.id)
+    if (Math.abs(chg) >= 10) {
+      comChips.push(`${chg > 0 ? '📈' : '📉'} ${c.emoji} ${c.name}: ${chg > 0 ? '+' : ''}${chg.toFixed(1)}%`)
+    }
+  }
+
+  const totalHeld = COMMODITIES.reduce((sum, c) => sum + (state.commodities.holdings[c.id] ?? 0), 0)
+  if (totalHeld > 0) {
+    comChips.push(`📦 ${totalHeld} birim pozisyon açık`)
+  }
+
+  let totalPl = 0
+  for (const c of COMMODITIES) {
+    const held = state.commodities.holdings[c.id] ?? 0
+    if (held > 0) {
+      const price = state.commodities.prices[c.id] ?? c.basePrice
+      const avg = state.commodities.avgBuy[c.id] ?? c.basePrice
+      totalPl += (price - avg) * held
+    }
+  }
+  if (totalHeld > 0) {
+    const plSign = totalPl >= 0 ? '+' : ''
+    comChips.push(`${totalPl >= 0 ? '✅' : '🔴'} Toplam K/Z: ${plSign}${formatMoney(totalPl)}`)
+  }
+
+  if (comChips.length > 0) {
+    const fxEl = document.createElement('div')
+    fxEl.className = 'stock-active-effects'
+    fxEl.innerHTML = comChips.map(c => `<span class="fx-chip">${c}</span>`).join('')
+    panel.appendChild(fxEl)
+  }
+  // --- /Aktif Etkiler ---
+
   if (state.advisorTip) {
     const adv = document.createElement('div')
     adv.className = 'advisor-card'
@@ -134,6 +172,38 @@ export function renderUndergroundMarketPanel(
   createTabHero: TabHeroFn,
 ): void {
   panel.appendChild(createTabHero('🕶️', t('ug_market_title'), t('ug_market_subtitle'), ''))
+
+  // --- Aktif Etkiler bölümü ---
+  const ugChips: string[] = []
+  const heat = Math.round(state.illegalHeat)
+  const heatLabel = heat < 25 ? 'Düşük' : heat < 55 ? 'Orta' : heat < 80 ? 'Yüksek' : 'Kritik'
+  const heatEmoji = heat < 25 ? '🟢' : heat < 55 ? '🟡' : heat < 80 ? '🟠' : '🔴'
+  ugChips.push(`${heatEmoji} Heat: ${heat}% (${heatLabel})`)
+
+  const illegalIncome = state.illegalIncomePerDay()
+  if (illegalIncome > 0) {
+    ugChips.push(`💰 Illegal gelir: ${formatIncomeRate(illegalIncome)}/gün`)
+  }
+
+  const heatShieldOn = Date.now() < state.heatShieldUntil
+  if (heatShieldOn) {
+    const secsLeft = Math.ceil((state.heatShieldUntil - Date.now()) / 1000)
+    ugChips.push(`🛡️ Heat Kalkanı aktif (${secsLeft}sn)`)
+  }
+
+  const ugFxEl = document.createElement('div')
+  ugFxEl.className = 'stock-active-effects'
+  ugFxEl.innerHTML = ugChips.map(c => `<span class="fx-chip">${c}</span>`).join('')
+  panel.appendChild(ugFxEl)
+
+  if (heat > 50) {
+    const warn = document.createElement('div')
+    warn.className = 'market-event-banner market-event-banner-top'
+    warn.textContent = '⚠️ Yüksek risk — baskın olasılığı arttı!'
+    panel.appendChild(warn)
+  }
+  // --- /Aktif Etkiler ---
+
   for (const def of UNDERGROUND_MARKET) {
     if (def.id === 'intel_leak' && !state.hasVictoryMechanic('shadow_network')) continue
     const active = state.undergroundMarketActive.includes(def.id)

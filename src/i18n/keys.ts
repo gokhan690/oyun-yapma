@@ -711,4 +711,91 @@ export interface Translations {
   lb_submitted: string
   lb_error: string
   tab_dynasty_btn: string
+
+  // Shop panel new keys
+  shop_businesses_title: string
+  btn_manage: string
+  btn_ad_offline_collect: string
+  shop_illegal_risk: string
+  shop_raid_chance: string
+  btn_sell_one: string
+  status_active: string
+  status_auto: string
+  mgr_income_bonus: string
+  mgr_empty_title: string
+  mgr_empty_hint: string
+  boost_ad_income_label: string
+  boost_ad_hint: string
+  boost_upg_discount_label: string
+  boost_one_use: string
+  finance_portfolio_value: string
+  finance_cash_wallet: string
+  finance_open_pos: string
+  finance_total_pl: string
+  stock_board_title: string
+  bank_no_interest_yet: string
+  ipo_gain_title: string
+  ipo_lose_title: string
+  ipo_lose_desc: string
+  ipo_keep_title: string
+  ipo_keep_desc: string
+
+  // Underground sheet keys
+  underground_shield_active: string
+  underground_cost_label: string
+  underground_cooldown: string
+  btn_use: string
+  underground_unavailable: string
+  underground_shield_btn: string
+
+  // Dynasty panel i18n keys
+  dynasty_trait_merchant: string
+  dynasty_trait_diplomat: string
+  dynasty_trait_innovator: string
+  dynasty_trait_risktaker: string
+  dynasty_gen_banner: string
+  dynasty_gen_desc: string
+  dynasty_family_title: string
+  dynasty_long_life: string
+  dynasty_marry_female: string
+  dynasty_marry_male: string
+  dynasty_spouse_label: string
+  dynasty_children_label: string
+  dynasty_wait_early: string
+  dynasty_wait_soon: string
+  dynasty_heir_hint: string
+  dynasty_death_choose: string
+  dynasty_succession_required: string
+  dynasty_succession_btn: string
+  dynasty_active_heir: string
+  dynasty_death_risks_title: string
+  dynasty_risk_note: string
+  dynasty_heir_btn: string
+  dynasty_inherit_btn: string
+  dynasty_child_born: string
+  dynasty_crisis_title: string
+  dynasty_crisis_gambler: string
+  dynasty_crisis_illegal: string
+  dynasty_crisis_scandal: string
+  dynasty_death_warn_heir: string
+  dynasty_death_warn_continue: string
+
+  // WorldMetaPanel i18n keys
+  world_baron_history_intro: string
+  world_value_label: string
+  world_sectors_label: string
+  world_torpil_meet: string
+  world_torpil_gift: string
+
+  // LifestylePanel i18n keys
+  lifestyle_header_desc: string
+  lifestyle_slow_work: string
+  lp_stress_label_full: string
+  lp_burnout_syndrome: string
+  lp_wellbeing_title: string
+  lp_pet_adopt: string
+  lp_stress_penalty_label: string
+  lp_stress_penalty_value: string
+  lp_activity_active: string
+  lp_ad_boost: string
 }

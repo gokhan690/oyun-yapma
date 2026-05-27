@@ -12,6 +12,8 @@ import type { BaronSection } from './BaronSections'
 import { BARON_SECTION_TITLES } from './BaronSections'
 import { RIVAL_FAMILY_DEFS } from '../../game/Rivals'
 import { t } from '../../i18n'
+import { PRESTIGE_TREE_NODES, hasNode, ownedNodeCount } from '../../game/PrestigeTree'
+import { ipoThreshold } from '../../game/Prestige'
 
 export class StatsScreen {
   readonly layer: HTMLElement
@@ -66,6 +68,7 @@ export class StatsScreen {
       this.renderProfileHero()
       this.renderStats()
       this.renderAchievements()
+      this.renderPrestigeMerge()
       this.renderRivals()
       this.renderBadges()
       this.renderSynergyGuide()
@@ -289,6 +292,55 @@ export class StatsScreen {
 
     section.appendChild(gallery)
     this.content.appendChild(section)
+  }
+
+  private renderPrestigeMerge(): void {
+    const block = document.createElement('div')
+    block.className = 'stats-section prestige-merge-block'
+
+    const header = document.createElement('h3')
+    header.style.marginBottom = '8px'
+    header.textContent = '⭐ Prestij & IPO'
+    block.appendChild(header)
+
+    const pts = Math.floor(this.state.prestigePoints)
+    const ipoCount = this.state.ipoCount
+    const nextThreshold = ipoThreshold(ipoCount)
+    const ownedNodes = ownedNodeCount(this.state.prestigeTree)
+    const totalNodes = PRESTIGE_TREE_NODES.length
+
+    const chipsEl = document.createElement('div')
+    chipsEl.className = 'prestige-summary-chips'
+    chipsEl.innerHTML = [
+      `<span class="fx-chip">💎 ${pts} prestij puanı</span>`,
+      `<span class="fx-chip">🏦 ${ipoCount} IPO yapıldı</span>`,
+      `<span class="fx-chip">🌳 ${ownedNodes}/${totalNodes} ağaç node'u</span>`,
+      `<span class="fx-chip">🎯 Sonraki IPO eşiği: ${formatMoney(nextThreshold)}</span>`,
+    ].join('')
+    block.appendChild(chipsEl)
+
+    // Alınmış node'lar listesi
+    const ownedList = PRESTIGE_TREE_NODES.filter(n => hasNode(this.state.prestigeTree, n.id))
+    if (ownedList.length > 0) {
+      const nodeTitle = document.createElement('div')
+      nodeTitle.className = 'stats-section-title'
+      nodeTitle.style.marginTop = '8px'
+      nodeTitle.textContent = 'Aktif Prestij Bonusları'
+      block.appendChild(nodeTitle)
+
+      const nodeGrid = document.createElement('div')
+      nodeGrid.className = 'prestige-node-list'
+      for (const node of ownedList) {
+        const chip = document.createElement('span')
+        chip.className = 'fx-chip prestige-node-chip'
+        chip.title = node.description
+        chip.textContent = `✅ ${node.name}`
+        nodeGrid.appendChild(chip)
+      }
+      block.appendChild(nodeGrid)
+    }
+
+    this.content.appendChild(block)
   }
 
   private renderIncomeSources(): void {
