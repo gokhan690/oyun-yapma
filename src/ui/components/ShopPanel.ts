@@ -960,7 +960,7 @@ export class ShopPanel {
       const input = document.createElement('input')
       input.type = 'number'
       input.min = '1'
-      input.placeholder = 'Özel miktar...'
+      input.placeholder = i18nT('bank_custom_placeholder')
       input.className = 'finance-custom-input'
       customRow.appendChild(input)
       for (const [action, label] of customActions) {
@@ -2019,12 +2019,12 @@ export class ShopPanel {
       const adv = document.createElement('div')
       adv.className = 'advisor-card'
       const acc = Math.round(state.advisorTip.accuracy * 100)
-      adv.innerHTML = `<strong>👨‍💼 Danışman Kemal</strong><p>${state.advisorTip.headline}</p><small>Tahmini doğruluk ~%${acc}</small>`
+      adv.innerHTML = `<strong>${i18nT('fin_advisor')}</strong><p>${state.advisorTip.headline}</p><small>${i18nT('fin_advisor_acc').replace('{acc}', String(acc))}</small>`
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = 'btn-secondary'
       btn.dataset.action = 'advisor-pay'
-      btn.textContent = `Dinle → ${formatMoney(ADVISOR_FEE)}`
+      btn.textContent = i18nT('com_advisor_btn').replace('{cost}', formatMoney(ADVISOR_FEE))
       adv.appendChild(btn)
       panel.appendChild(adv)
     }
@@ -2063,7 +2063,7 @@ export class ShopPanel {
           <span class="stock-board-emoji">${def.emoji}</span>
           <div class="stock-board-names">
             <strong>${def.name}</strong>
-            <small>${t.shares > 0 ? `${t.shares} lot · ${formatMoney(tPl)}` : 'Pozisyon yok'}</small>
+            <small>${t.shares > 0 ? `${t.shares} lot · ${formatMoney(tPl)}` : i18nT('stock_no_pos')}</small>
           </div>
           <span class="stock-change ${chgClass}">${tChg >= 0 ? '+' : ''}${tChg.toFixed(1)}%</span>
         </div>
@@ -2082,7 +2082,7 @@ export class ShopPanel {
     const plClass = pl >= 0 ? 'pl-positive' : 'pl-negative'
     const chg = priceChangePct(ticker)
     const chgClass = chg >= 0 ? 'pl-positive' : 'pl-negative'
-    const trend = state.stock.trendDirection === 'up' ? '↑ Yükseliş' : state.stock.trendDirection === 'down' ? '↓ Düşüş' : '→ Yatay'
+    const trend = state.stock.trendDirection === 'up' ? i18nT('stock_trend_up') : state.stock.trendDirection === 'down' ? i18nT('stock_trend_down') : i18nT('stock_trend_flat')
 
     const tradePanel = document.createElement('div')
     tradePanel.className = 'stock-trade-panel'
@@ -2091,7 +2091,7 @@ export class ShopPanel {
         <span class="stock-trade-emoji">${ticker.emoji}</span>
         <div>
           <h3>${ticker.name}</h3>
-          <small>Sektör: ${ticker.sector} · Volatilite ${Math.round(ticker.volatility * 100)}%</small>
+          <small>${i18nT('stock_sector_col')}: ${ticker.sector} · ${i18nT('stock_volatility')} ${Math.round(ticker.volatility * 100)}%</small>
         </div>
         <div class="stock-trade-price">
           <strong>${formatMoney(ticker.price)}</strong>
@@ -2103,12 +2103,12 @@ export class ShopPanel {
     const detailGrid = document.createElement('div')
     detailGrid.className = 'stock-detail-grid stock-detail-grid-lg'
     detailGrid.innerHTML = `
-      <span><small>Lot</small><strong>${ticker.shares}</strong></span>
-      <span><small>Ort. maliyet</small><strong>${ticker.shares > 0 ? formatMoney(ticker.avgBuyPrice) : '—'}</strong></span>
-      <span><small>Pozisyon değeri</small><strong>${formatMoney(ticker.shares * ticker.price)}</strong></span>
-      <span><small>K/Z</small><strong class="${plClass}">${formatMoney(pl)}</strong></span>
-      <span><small>Trend</small><strong>${trend}</strong></span>
-      <span><small>Alım maliyeti (1 lot)</small><strong>${formatMoney(ticker.price)}</strong></span>
+      <span><small>${i18nT('stock_lot_label')}</small><strong>${ticker.shares}</strong></span>
+      <span><small>${i18nT('stock_avg_cost')}</small><strong>${ticker.shares > 0 ? formatMoney(ticker.avgBuyPrice) : '—'}</strong></span>
+      <span><small>${i18nT('stock_position_val')}</small><strong>${formatMoney(ticker.shares * ticker.price)}</strong></span>
+      <span><small>${i18nT('stock_pl_label')}</small><strong class="${plClass}">${formatMoney(pl)}</strong></span>
+      <span><small>${i18nT('stock_trend_label')}</small><strong>${trend}</strong></span>
+      <span><small>${i18nT('stock_buy_cost')}</small><strong>${formatMoney(ticker.price)}</strong></span>
     `
     tradePanel.appendChild(detailGrid)
 
@@ -2126,12 +2126,12 @@ export class ShopPanel {
     const stockActions = document.createElement('div')
     stockActions.className = 'stock-actions finance-trade-bar stock-trade-actions'
     for (const [action, label, count] of [
-      ['stock-buy', 'Al 1', '1'],
-      ['stock-buy', 'Al 10', '10'],
-      ['stock-buy', 'Al 50', '50'],
-      ['stock-sell', 'Sat 1', '1'],
-      ['stock-sell', 'Sat 10', '10'],
-      ['stock-sell', 'Sat hepsi', 'max'],
+      ['stock-buy', i18nT('btn_buy_n').replace('{n}', '1'), '1'],
+      ['stock-buy', i18nT('btn_buy_n').replace('{n}', '10'), '10'],
+      ['stock-buy', i18nT('btn_buy_n').replace('{n}', '50'), '50'],
+      ['stock-sell', i18nT('btn_sell_n').replace('{n}', '1'), '1'],
+      ['stock-sell', i18nT('btn_sell_n').replace('{n}', '10'), '10'],
+      ['stock-sell', i18nT('btn_sell_all'), 'max'],
     ] as const) {
       const btn = document.createElement('button')
       btn.type = 'button'
@@ -2146,21 +2146,21 @@ export class ShopPanel {
     const stockInput = document.createElement('input')
     stockInput.type = 'number'
     stockInput.min = '1'
-    stockInput.placeholder = 'Adet...'
+    stockInput.placeholder = i18nT('stock_qty_hint')
     stockInput.className = 'finance-custom-input'
     const stockBuyCustom = document.createElement('button')
     stockBuyCustom.type = 'button'
     stockBuyCustom.className = 'btn-buy-stock btn-sm'
     stockBuyCustom.dataset.action = 'stock-buy'
     stockBuyCustom.dataset.count = 'custom'
-    stockBuyCustom.textContent = 'Al'
+    stockBuyCustom.textContent = i18nT('btn_buy')
     stockBuyCustom.addEventListener('pointerdown', (e) => e.preventDefault())
     const stockSellCustom = document.createElement('button')
     stockSellCustom.type = 'button'
     stockSellCustom.className = 'btn-sell-stock btn-sm'
     stockSellCustom.dataset.action = 'stock-sell'
     stockSellCustom.dataset.count = 'custom'
-    stockSellCustom.textContent = 'Sat'
+    stockSellCustom.textContent = i18nT('btn_sell')
     stockSellCustom.addEventListener('pointerdown', (e) => e.preventDefault())
     stockCustomRow.append(stockInput, stockBuyCustom, stockSellCustom)
     stockActions.appendChild(stockCustomRow)
@@ -2170,7 +2170,8 @@ export class ShopPanel {
     if (Date.now() < state.stock.trendHintUntil) {
       const hint = document.createElement('p')
       hint.className = 'stock-hint stock-hint-box'
-      hint.textContent = `📊 Piyasa ipucu: kısa vadede trend ${state.stock.trendDirection === 'up' ? 'YUKARI' : state.stock.trendDirection === 'down' ? 'AŞAĞI' : 'YATAY'}`
+      const dirShort = state.stock.trendDirection === 'up' ? i18nT('stock_up_short') : state.stock.trendDirection === 'down' ? i18nT('stock_down_short') : i18nT('stock_flat_short')
+      hint.textContent = i18nT('stock_market_hint').replace('{dir}', dirShort)
       panel.appendChild(hint)
     }
 
@@ -2178,7 +2179,7 @@ export class ShopPanel {
     hintAd.type = 'button'
     hintAd.className = 'btn-ad stock-hint-btn'
     hintAd.dataset.action = 'ad-stock-hint'
-    hintAd.textContent = state.isStockHintFree() ? '📊 Ücretsiz piyasa analizi (1 saat)' : '📺 Detaylı piyasa analizi — reklam izle'
+    hintAd.textContent = state.isStockHintFree() ? i18nT('stock_hint_free') : i18nT('stock_hint_ad')
     panel.appendChild(hintAd)
 
     if (this.highlightStockTicker) {
@@ -2201,17 +2202,17 @@ export class ShopPanel {
     const rateStrip = document.createElement('div')
     rateStrip.className = 'finance-rate-strip'
     rateStrip.innerHTML = `
-      <span><small>Mevduat (yıllık)</small><strong>%${dRate}</strong></span>
-      <span><small>Tahvil (yıllık)</small><strong>%${bRate}</strong></span>
-      <span><small>Kredi (yıllık)</small><strong>%${lRate}</strong></span>
-      <span><small>Skor</small><strong>${score}/100</strong></span>
+      <span><small>${i18nT('bank_rate_deposit')}</small><strong>%${dRate}</strong></span>
+      <span><small>${i18nT('bank_rate_bond')}</small><strong>%${bRate}</strong></span>
+      <span><small>${i18nT('bank_rate_loan')}</small><strong>%${lRate}</strong></span>
+      <span><small>${i18nT('bank_rate_score')}</small><strong>${score}/100</strong></span>
     `
     panel.appendChild(rateStrip)
 
     if (reputationLoanBlocked(state.reputation)) {
       const repWarn = document.createElement('p')
       repWarn.className = 'bank-reputation-warn'
-      repWarn.textContent = `⭐ İtibar çok düşük (${state.reputation}) — banka kredi vermiyor. Yasal işletmelerle itibarını yükselt.`
+      repWarn.textContent = i18nT('bank_rep_warn').replace('{rep}', String(state.reputation))
       panel.appendChild(repWarn)
     }
 
@@ -2225,21 +2226,21 @@ export class ShopPanel {
     interestSummary.className = 'bank-interest-summary'
     interestSummary.innerHTML = `
       <div class="bank-interest-summary-head">
-        <strong>Faiz özeti</strong>
-        <small>Sonraki tick: ${countdownSec} sn · Her ${INTEREST_TICK_MS / 1000} sn gerçek zaman</small>
+        <strong>${i18nT('bank_interest_title')}</strong>
+        <small>${i18nT('bank_next_tick').replace('{sec}', String(countdownSec)).replace('{interval}', String(INTEREST_TICK_MS / 1000))}</small>
       </div>
       <div class="bank-interest-last">
-        <small>Son tick</small>
+        <small>${i18nT('bank_last_tick_lbl')}</small>
         <span>${last
-          ? `+${formatMoney(last.depositGain)} mevduat · +${formatMoney(last.bondGain)} tahvil · −${formatMoney(last.loanCost)} kredi = <strong class="${last.net >= 0 ? 'pl-positive' : 'pl-negative'}">${last.net >= 0 ? '+' : ''}${formatMoney(last.net)}</strong> net`
+          ? `+${formatMoney(last.depositGain)} ${i18nT('fin_deposit')} · +${formatMoney(last.bondGain)} ${i18nT('fin_bond')} · −${formatMoney(last.loanCost)} ${i18nT('fin_loan')} = <strong class="${last.net >= 0 ? 'pl-positive' : 'pl-negative'}">${last.net >= 0 ? '+' : ''}${formatMoney(last.net)}</strong> ${i18nT('fin_net')}`
           : 'Henüz faiz işlenmedi'}
         </span>
       </div>
       <div class="bank-interest-projected">
-        <small>Tahmini sonraki tick</small>
+        <small>${i18nT('bank_projected_lbl')}</small>
         <span>+${formatMoney(projected.depositGain)} · +${formatMoney(projected.bondGain)} · −${formatMoney(projected.loanCost)} = <strong class="${netClass}">${projected.net >= 0 ? '+' : ''}${formatMoney(projected.net)}</strong></span>
       </div>
-      <p class="bank-interest-hint">Kredi skoru düştükçe faiz artar (30–100 arası). Mevduat/tahvil bakiyene göre kazanç; kredi borcuna faiz eklenir.</p>
+      <p class="bank-interest-hint">${i18nT('bank_interest_hint')}</p>
     `
     panel.appendChild(interestSummary)
 
@@ -2247,19 +2248,19 @@ export class ShopPanel {
     accounts.className = 'bank-accounts finance-account-grid'
     accounts.innerHTML = `
       <div class="bank-account-card">
-        <h4>💰 Mevduat</h4>
+        <h4>${i18nT('bank_deposit_lbl')}</h4>
         <strong>${formatMoney(bank.deposit)}</strong>
-        <small>Güvenli · anında çekilir · faiz kazanır</small>
+        <small>${i18nT('bank_deposit_sub')}</small>
       </div>
       <div class="bank-account-card">
-        <h4>📜 Tahvil</h4>
+        <h4>${i18nT('bank_bond_lbl')}</h4>
         <strong>${formatMoney(bank.bonds)}</strong>
-        <small>Daha yüksek getiri · düşük risk</small>
+        <small>${i18nT('bank_bond_sub')}</small>
       </div>
       <div class="bank-account-card${bank.loan > 0 ? ' bank-debt' : ''}">
-        <h4>🏦 Kredi</h4>
+        <h4>${i18nT('bank_loan_lbl')}</h4>
         <strong>${formatMoney(bank.loan)}</strong>
-        <small>Kalan limit: ${formatMoney(maxLoan)}</small>
+        <small>${i18nT('bank_loan_sub').replace('{amount}', formatMoney(maxLoan))}</small>
       </div>
     `
     panel.appendChild(accounts)
@@ -2267,28 +2268,28 @@ export class ShopPanel {
     const warn = document.createElement('p')
     warn.className = 'bank-warn'
     warn.textContent = bank.loan > state.financeNetWorth() * 0.5
-      ? '⚠️ Borç yüksek — net değer negatife inerse iflas tetiklenir, işletmelere el konulabilir.'
-      : 'Faiz her 60 sn gerçek zamanda işler (duraklatınca durur). Net değer sıfırın altına düşerse iflas riski vardır.'
+      ? i18nT('bank_high_debt')
+      : i18nT('bank_normal_info')
     panel.appendChild(warn)
 
-    panel.appendChild(this.createBankActions('Mevduat işlemleri', 'Nakitten yatır veya çek', [
-      ['bank-deposit', 'Yatır 1K', '1000'],
-      ['bank-deposit', 'Yatır 10K', '10000'],
-      ['bank-deposit', 'Yatır max', 'max'],
-      ['bank-withdraw', 'Çek 10K', '10000'],
-      ['bank-withdraw', 'Çek max', 'max'],
-    ], [['bank-deposit', 'Yatır'], ['bank-withdraw', 'Çek']]))
-    panel.appendChild(this.createBankActions('Tahvil işlemleri', 'Uzun vadeli getiri', [
-      ['bank-buy-bonds', 'Al 5K', '5000'],
-      ['bank-buy-bonds', 'Al max', 'max'],
-      ['bank-sell-bonds', 'Sat max', 'max'],
-    ], [['bank-buy-bonds', 'Al'], ['bank-sell-bonds', 'Sat']]))
-    panel.appendChild(this.createBankActions('Kredi işlemleri', 'Limit skora ve net değere bağlı', [
-      ['bank-loan', 'Çek 25K', '25000'],
-      ['bank-loan', 'Çek max', 'max'],
-      ['bank-repay', 'Öde 10K', '10000'],
-      ['bank-repay', 'Öde max', 'max'],
-    ], [['bank-loan', 'Çek'], ['bank-repay', 'Öde']]))
+    panel.appendChild(this.createBankActions(i18nT('bank_actions_deposit'), i18nT('bank_actions_deposit_hint'), [
+      ['bank-deposit', i18nT('bank_dep_n').replace('{n}', '1K'), '1000'],
+      ['bank-deposit', i18nT('bank_dep_n').replace('{n}', '10K'), '10000'],
+      ['bank-deposit', i18nT('bank_dep_n').replace('{n}', 'max'), 'max'],
+      ['bank-withdraw', i18nT('bank_wdraw_n').replace('{n}', '10K'), '10000'],
+      ['bank-withdraw', i18nT('bank_wdraw_n').replace('{n}', 'max'), 'max'],
+    ], [['bank-deposit', i18nT('bank_dep_n').replace('{n}', '')], ['bank-withdraw', i18nT('bank_wdraw_n').replace('{n}', '')]]))
+    panel.appendChild(this.createBankActions(i18nT('bank_actions_bond'), i18nT('bank_actions_bond_hint'), [
+      ['bank-buy-bonds', i18nT('btn_buy_n').replace('{n}', '5K'), '5000'],
+      ['bank-buy-bonds', i18nT('btn_buy_n').replace('{n}', 'max'), 'max'],
+      ['bank-sell-bonds', i18nT('btn_sell_n').replace('{n}', 'max'), 'max'],
+    ], [['bank-buy-bonds', i18nT('btn_buy')], ['bank-sell-bonds', i18nT('btn_sell')]]))
+    panel.appendChild(this.createBankActions(i18nT('bank_actions_loan'), i18nT('bank_actions_loan_hint'), [
+      ['bank-loan', i18nT('bank_wdraw_n').replace('{n}', '25K'), '25000'],
+      ['bank-loan', i18nT('bank_wdraw_n').replace('{n}', 'max'), 'max'],
+      ['bank-repay', i18nT('bank_repay') + ' 10K', '10000'],
+      ['bank-repay', i18nT('bank_repay') + ' max', 'max'],
+    ], [['bank-loan', i18nT('bank_wdraw_n').replace('{n}', '')], ['bank-repay', i18nT('bank_repay')]]))
   }
 
   private renderIpoPrestige(state: GameState, panel: HTMLElement): void {

@@ -1,6 +1,6 @@
 import type { GameState } from '../../game/GameState'
-import { formatMoney, formatIncomeRate, PRODUCERS } from '../../game/Economy'
-import { t } from '../../i18n'
+import { formatMoney, formatIncomeRate, PRODUCERS, producerName } from '../../game/Economy'
+import { t, tRaw } from '../../i18n'
 import {
   leagueName,
   politicsLevelLabel,
@@ -87,7 +87,7 @@ export class EmpirePanel {
     }
     const meta = document.createElement('p')
     meta.className = 'empire-meta-line'
-    meta.textContent = `📅 ${clock} · Günde 1 otomatik maç (5 sn = 1 oyun günü)`
+    meta.textContent = `📅 ${clock} · ${t('empire_auto_match')}`
     this.contentEl.appendChild(meta)
 
     for (const club of state.empire.football) {
@@ -103,9 +103,10 @@ export class EmpirePanel {
 
       const body = document.createElement('div')
       body.className = 'shop-card-body empire-club-body'
+      const clubName = tRaw('biz_' + club.clubId) ?? def?.name ?? club.clubId
       body.innerHTML = `
-        <strong>${def?.emoji ?? '⚽'} ${def?.name ?? club.clubId}</strong>
-        <small>Lig: ${leagueName(club.leagueLevel)} · Taraftar: ${club.fanBase.toLocaleString('tr-TR')} · Galibiyet: ${club.wins}</small>
+        <strong>${def?.emoji ?? '⚽'} ${clubName}</strong>
+        <small>Lig: ${leagueName(club.leagueLevel)} · ${t('empire_fans_label')}: ${club.fanBase.toLocaleString('tr-TR')} · ${t('empire_win_label')}: ${club.wins}</small>
         <small>Stadyum Lv.${club.stadiumLevel} · Kapasite ~${breakdown.stadiumCapacity.toLocaleString('tr-TR')}</small>
         <small class="empire-income-breakdown">Gelir çarpanı x${breakdown.totalMult.toFixed(2)} · Lig +${Math.round(breakdown.leaguePct * 100)}% · Taraftar +${Math.round(breakdown.fanPct * 100)}% · G'ler +${Math.round(breakdown.winsPct * 100)}%</small>
         <small class="empire-match-estimate">Maç günü tahmini: ${formatMoney(breakdown.matchDayEstimate)}</small>
@@ -113,20 +114,23 @@ export class EmpirePanel {
       if (club.lastMatch) {
         const matchEl = document.createElement('small')
         matchEl.className = 'empire-last-match'
-        matchEl.textContent = `Son maç (Gün ${club.lastMatch.gameDay}): ${club.lastMatch.score} · ${club.lastMatch.won ? 'Galibiyet' : 'Mağlubiyet'} · +${club.lastMatch.fanGain.toLocaleString('tr-TR')} taraftar${club.lastMatch.bonus > 0 ? ` · ${formatMoney(club.lastMatch.bonus)} prim` : ''}`
+        const result = club.lastMatch.won ? t('empire_match_win') : t('empire_match_loss')
+        const fanGain = t('empire_fan_gain').replace('{n}', club.lastMatch.fanGain.toLocaleString('tr-TR'))
+        const bonusPart = club.lastMatch.bonus > 0 ? ` · ${t('empire_bonus_label').replace('{amount}', formatMoney(club.lastMatch.bonus))}` : ''
+        matchEl.textContent = `${t('empire_last_match').replace('{day}', String(club.lastMatch.gameDay))} ${t('empire_match_score').replace('{score}', club.lastMatch.score).replace('{result}', result)} · ${fanGain}${bonusPart}`
         body.appendChild(matchEl)
       } else {
         const nextEl = document.createElement('small')
         nextEl.className = 'empire-last-match'
-        nextEl.textContent = `Sonraki maç: Gün ${gameDay(state.gameTimeMs) + 1}`
+        nextEl.textContent = t('empire_next_match').replace('{day}', String(gameDay(state.gameTimeMs) + 1))
         body.appendChild(nextEl)
       }
       if (canLeague) {
         const reqEl = document.createElement('small')
         reqEl.className = 'empire-league-req'
         reqEl.textContent = leagueReady
-          ? `Lig yükseltmeye hazır (${formatMoney(lgCost)})`
-          : `Lig ↑ için: ${req.minFans.toLocaleString('tr-TR')} taraftar & ${req.minWins} galibiyet (şu an ${club.fanBase.toLocaleString('tr-TR')} / ${club.wins})`
+          ? `${t('empire_league_up').replace('{cost}', formatMoney(lgCost))}`
+          : t('empire_league_req').replace('{fans}', req.minFans.toLocaleString('tr-TR')).replace('{wins}', String(req.minWins))
         body.appendChild(reqEl)
       }
 
@@ -139,7 +143,7 @@ export class EmpirePanel {
       stBtn.className = 'btn-secondary btn-sm'
       stBtn.dataset.action = 'empire-stadium'
       stBtn.dataset.id = club.clubId
-      stBtn.textContent = `Stadyum ↑ ${formatMoney(stCost)}`
+      stBtn.textContent = t('empire_stadium_up').replace('{cost}', formatMoney(stCost))
       stBtn.disabled = !state.canAfford(stCost)
       actions.appendChild(stBtn)
       if (canLeague) {
@@ -148,9 +152,9 @@ export class EmpirePanel {
         lgBtn.className = 'btn-primary btn-sm'
         lgBtn.dataset.action = 'empire-league'
         lgBtn.dataset.id = club.clubId
-        lgBtn.textContent = `Lig ↑ ${formatMoney(lgCost)}`
+        lgBtn.textContent = t('empire_league_up').replace('{cost}', formatMoney(lgCost))
         lgBtn.disabled = !state.canAfford(lgCost) || !leagueReady
-        lgBtn.title = leagueReady ? '' : `${req.minFans} taraftar ve ${req.minWins} galibiyet gerekli`
+        lgBtn.title = leagueReady ? '' : t('empire_league_req').replace('{fans}', String(req.minFans)).replace('{wins}', String(req.minWins))
         actions.appendChild(lgBtn)
       }
       card.appendChild(actions)
@@ -188,13 +192,13 @@ export class EmpirePanel {
     lobbyBtn.type = 'button'
     lobbyBtn.className = 'btn-primary btn-sm'
     lobbyBtn.dataset.action = 'empire-lobby'
-    lobbyBtn.textContent = `Lobi (${formatMoney(lobbyC)})`
+    lobbyBtn.textContent = t('empire_lobby_btn').replace('{cost}', formatMoney(lobbyC))
     lobbyBtn.disabled = !state.canAfford(lobbyC)
     const donateBtn = document.createElement('button')
     donateBtn.type = 'button'
     donateBtn.className = 'btn-secondary btn-sm'
     donateBtn.dataset.action = 'empire-donate'
-    donateBtn.textContent = `Bağış (${formatMoney(Math.max(5000, state.incomePerDay() * 0.1))})`
+    donateBtn.textContent = t('empire_donate_btn').replace('{cost}', formatMoney(Math.max(5000, state.incomePerDay() * 0.1)))
     donateBtn.disabled = !state.canAfford(Math.max(5000, state.incomePerDay() * 0.1))
     actions.append(lobbyBtn, donateBtn)
     this.contentEl.appendChild(actions)
@@ -205,7 +209,7 @@ export class EmpirePanel {
       const row = document.createElement('div')
       row.className = 'empire-owned-chip'
       row.innerHTML = `
-        <span>${p.emoji} ${p.name} ×${cnt}</span>
+        <span>${p.emoji} ${producerName(p)} ×${cnt}</span>
         <span class="empire-chip-income">${formatIncomeRate(state.producerIncome(p))}</span>
         <button type="button" class="btn-secondary btn-sm empire-sell-btn" data-action="sell-producer" data-id="${p.id}" data-count="1">${t('empire_sell')}</button>
       `
@@ -215,7 +219,7 @@ export class EmpirePanel {
     if (year >= pol.lastElectionYear + 4) {
       const note = document.createElement('p')
       note.className = 'empire-election-note'
-      note.textContent = '🗳️ Seçim yılı! Etki puanın otomatik arttı.'
+      note.textContent = t('empire_election_note')
       this.contentEl.appendChild(note)
     }
   }
@@ -234,7 +238,7 @@ export class EmpirePanel {
     card.innerHTML = `
       <span class="shop-card-icon">🏭</span>
       <div class="shop-card-body">
-        <strong>Siyah Endüstri</strong>
+        <strong>${tRaw('cat_dark') ?? 'Siyah Endüstri'}</strong>
         <small>Üretim çarpanı: ×${dark.productionMult.toFixed(1)}${boostActive ? ' · Boost aktif!' : ''}</small>
         <small>Heat düzenleme: ${dark.heatBonus}</small>
         <small>Radar: ${Math.round(state.illegalHeat)}% — ${state.illegalRiskLabel()}</small>
@@ -247,7 +251,7 @@ export class EmpirePanel {
       const row = document.createElement('div')
       row.className = 'empire-owned-chip empire-owned-dark'
       row.innerHTML = `
-        <span>${p.emoji} ${p.name} ×${cnt}</span>
+        <span>${p.emoji} ${producerName(p)} ×${cnt}</span>
         <span class="empire-chip-income">${formatIncomeRate(state.producerIncome(p))}</span>
         <button type="button" class="btn-secondary btn-sm empire-sell-btn" data-action="sell-producer" data-id="${p.id}" data-count="1">${t('empire_sell')}</button>
       `
@@ -260,12 +264,12 @@ export class EmpirePanel {
     boostBtn.type = 'button'
     boostBtn.className = 'btn-primary btn-sm'
     boostBtn.dataset.action = 'empire-dark-boost'
-    boostBtn.textContent = `Üretimi artır (${formatMoney(Math.max(5000, state.incomePerDay() * 0.25))})`
+    boostBtn.textContent = t('empire_boost_btn').replace('{cost}', formatMoney(Math.max(5000, state.incomePerDay() * 0.25)))
     const radarBtn = document.createElement('button')
     radarBtn.type = 'button'
     radarBtn.className = 'btn-secondary btn-sm'
     radarBtn.dataset.action = 'empire-dark-radar'
-    radarBtn.textContent = `Radar düşür (${formatMoney(Math.max(3000, state.incomePerDay() * 0.15))})`
+    radarBtn.textContent = t('empire_radar_btn').replace('{cost}', formatMoney(Math.max(3000, state.incomePerDay() * 0.15)))
     actions.append(boostBtn, radarBtn)
     this.contentEl.appendChild(actions)
   }
