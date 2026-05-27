@@ -263,13 +263,18 @@ export class ShopPanel {
 
   private applyViewChrome(state?: GameState): void {
     const isMarket = this.viewContext === 'market'
+    const showBuyModes = !isMarket && (
+      (this.activeHub === 'growth' && this.growthSub === 'businesses')
+      || this.activeHub === 'empire'
+    )
     this.applyRootClasses()
     this.relabelHubTabs()
     this.titleEl.textContent = isMarket ? `📈 ${i18nT('market_stocks')} & ${i18nT('market_bank')}` : `🏢 ${i18nT('shop_context_business')}`
     this.shopSubEl.textContent = isMarket
       ? `${i18nT('market_stocks')} · ${i18nT('market_bank')} · ${i18nT('stat_prestige')} · ${i18nT('tab_merge')}`
       : HUB_SUBTITLES()[this.activeHub === 'finance' ? 'growth' : this.activeHub]
-    this.buyModesEl.classList.toggle('is-hidden', isMarket)
+    this.buyModesEl.hidden = !showBuyModes
+    this.buyModesEl.classList.toggle('is-hidden', !showBuyModes)
     this.advisorEl.classList.toggle('is-hidden', isMarket)
     const hubTabs = this.root.querySelector('.shop-hub-tabs') as HTMLElement | null
     const tabsWrap = this.root.querySelector('.shop-tabs-wrap') as HTMLElement | null
@@ -347,7 +352,7 @@ export class ShopPanel {
       }
     }
     this.renderSubTabs(state)
-    const showBuy = (this.activeHub === 'growth' && this.growthSub === 'businesses')
+    const showBuy = (this.activeHub === 'growth' && this.growthSub === 'businesses') || this.activeHub === 'empire'
     this.buyModesEl.hidden = !showBuy
     this.buyModesEl.classList.toggle('is-hidden', !showBuy)
     this.shopSubEl.textContent = HUB_SUBTITLES()[this.activeHub]
