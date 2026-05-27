@@ -67,17 +67,27 @@ export interface SeasonReward {
 
 export const SEASON_REWARDS: SeasonReward[] = Array.from({ length: SEASON_MAX_TIER }, (_, i) => {
   const tier = i + 1
-  if (tier % 10 === 0) return { tier, type: 'theme', label: 'Kozmetik Tema', value: tier }
-  if (tier % 5 === 0) return { tier, type: 'boost', label: '5 dk x2 Gelir', value: 5 }
-  return { tier, type: 'money', label: 'Para Ödülü', value: tier * 120 }
+  if (tier === 30) return { tier, type: 'theme', label: '🌌 Galaktik Tema', value: tier }
+  if (tier === 20) return { tier, type: 'theme', label: '💜 Neon Tema', value: tier }
+  if (tier === 15) return { tier, type: 'chest_ticket', label: '🎁 3× Sandık Bileti', value: 3 }
+  if (tier === 10) return { tier, type: 'theme', label: '✨ Altın Tema', value: tier }
+  if (tier === 5) return { tier, type: 'chest_ticket', label: '🎁 Sandık Bileti', value: 1 }
+  if (tier === 25) return { tier, type: 'boost', label: '🚀 30 dk x2 Gelir', value: 30 }
+  if (tier % 5 === 0) return { tier, type: 'boost', label: '⚡ 10 dk x2 Gelir', value: 10 }
+  return { tier, type: 'money', label: '💰 Para Ödülü', value: tier * 200 }
 })
 
 export const SEASON_PREMIUM_REWARDS: SeasonReward[] = Array.from({ length: SEASON_MAX_TIER }, (_, i) => {
   const tier = i + 1
-  if (tier % 10 === 0) return { tier, type: 'theme', label: 'Premium Tema', value: tier + 100 }
-  if (tier % 5 === 0) return { tier, type: 'boost', label: '10 dk x2 Gelir', value: 10 }
-  if (tier % 7 === 0) return { tier, type: 'chest_ticket', label: 'Sandık Bileti', value: 1 }
-  return { tier, type: 'money', label: 'Premium Para', value: tier * 280 }
+  if (tier === 30) return { tier, type: 'theme', label: '🌌 Premium Galaktik', value: tier + 100 }
+  if (tier === 20) return { tier, type: 'theme', label: '💜 Premium Neon', value: tier + 100 }
+  if (tier === 15) return { tier, type: 'chest_ticket', label: '🎁 5× Sandık Bileti', value: 5 }
+  if (tier === 10) return { tier, type: 'theme', label: '✨ Premium Altın', value: tier + 100 }
+  if (tier === 5) return { tier, type: 'chest_ticket', label: '🎁 2× Sandık Bileti', value: 2 }
+  if (tier === 25) return { tier, type: 'boost', label: '🚀 60 dk x2 Gelir', value: 60 }
+  if (tier % 5 === 0) return { tier, type: 'boost', label: '⚡ 20 dk x2 Gelir', value: 20 }
+  if (tier % 3 === 0) return { tier, type: 'chest_ticket', label: '🎁 Sandık Bileti', value: 1 }
+  return { tier, type: 'money', label: '💰 Premium Para', value: tier * 450 }
 })
 
 export function rewardForTier(tier: number, track: SeasonTrack = 'free'): SeasonReward {

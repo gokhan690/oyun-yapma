@@ -328,6 +328,7 @@ import {
   torpilBusinessDiscount,
   torpilBypassCreditScore,
   torpilRaidWarning,
+  torpilMediaProtect,
   type TorpilContactState,
   type TorpilId,
 } from './TorpilNetwork'
@@ -3607,7 +3608,10 @@ export class GameState {
         this.emit({ type: 'money_changed' })
       }
       if (result.reputationDelta !== 0) {
-        this.reputation = Math.max(0, Math.min(100, this.reputation + result.reputationDelta))
+        const repDelta = result.reputationDelta < 0 && torpilMediaProtect(this.torpil)
+          ? Math.ceil(result.reputationDelta * 0.5)
+          : result.reputationDelta
+        this.reputation = Math.max(0, Math.min(100, this.reputation + repDelta))
       }
       this.addGazette(result.headline, result.moneyDelta < 0 ? 'crisis' : 'player')
       this.emit({ type: 'life_event_consequence', headline: result.headline, moneyDelta: result.moneyDelta })
@@ -3634,7 +3638,10 @@ export class GameState {
       this.emit({ type: 'money_changed' })
     }
     if (choice.reputationDelta !== 0) {
-      this.reputation = Math.max(0, Math.min(100, this.reputation + choice.reputationDelta))
+      const repDelta = choice.reputationDelta < 0 && torpilMediaProtect(this.torpil)
+        ? Math.ceil(choice.reputationDelta * 0.5)
+        : choice.reputationDelta
+      this.reputation = Math.max(0, Math.min(100, this.reputation + repDelta))
     }
     if (choice.stressDelta !== 0) {
       this.lifestyle.stress = Math.max(0, Math.min(100, this.lifestyle.stress + choice.stressDelta))
@@ -4718,7 +4725,9 @@ export class GameState {
     this.baronLifeRaidsUninsured = data.baronLifeRaidsUninsured ?? 0
     this.baronLifeChildCrises = data.baronLifeChildCrises ?? 0
     this.cities = data.cities ?? createCityState()
-    this.torpil = data.torpil?.length ? data.torpil.map((t) => ({ ...t })) : createTorpilState()
+    const loadedTorpil = data.torpil?.length ? data.torpil.map((t) => ({ ...t })) : createTorpilState()
+    const defaultTorpil = createTorpilState()
+    this.torpil = defaultTorpil.map((def) => loadedTorpil.find((lt) => lt.id === def.id) ?? def)
     this.producerModernized = data.producerModernized ?? {}
     this.pendingUndo = data.pendingUndo ?? null
     this.lastDisasterGameDay = data.lastDisasterGameDay ?? 0

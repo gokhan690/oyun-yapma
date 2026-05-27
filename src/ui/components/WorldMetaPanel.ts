@@ -265,6 +265,18 @@ export class WorldMetaPanel {
         bar.appendChild(fill)
         relationRow.append(label, bar)
         card.appendChild(relationRow)
+        if (score >= 80 && !st.giftDue) {
+          const bonus = document.createElement('small')
+          bonus.className = 'torpil-bonus-active'
+          const bonusMap: Record<string, string> = {
+            amca_rifat: '✅ %20 işletme indirimi aktif',
+            sinan_bank: '✅ Kredi skoru bypass aktif',
+            siyaset_tanidik: '✅ Baskın uyarısı aktif',
+            medya_partner: '✅ İtibar koruması aktif',
+          }
+          bonus.textContent = bonusMap[def.id] ?? '✅ Bonus aktif'
+          card.appendChild(bonus)
+        }
         if (st.giftDue) {
           const giftWarn = document.createElement('p')
           giftWarn.className = 'torpil-gift-warn'

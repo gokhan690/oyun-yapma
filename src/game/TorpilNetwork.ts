@@ -1,4 +1,4 @@
-export type TorpilId = 'amca_rifat' | 'sinan_bank' | 'siyaset_tanidik'
+export type TorpilId = 'amca_rifat' | 'sinan_bank' | 'siyaset_tanidik' | 'medya_partner'
 
 export interface TorpilContactDef {
   id: TorpilId
@@ -49,6 +49,16 @@ export const TORPIL_CONTACTS: TorpilContactDef[] = [
     giftCost: 12_000,
     giftIntervalDays: 40,
   },
+  {
+    id: 'medya_partner',
+    name: 'Medya Ortağı Ceylan',
+    role: 'Medya & PR',
+    emoji: '📰',
+    description: 'İtibar darbelerini azaltır, rakip olaylarını önceden haber verir — her 35 günde görevli ister',
+    hireCost: 85_000,
+    giftCost: 15_000,
+    giftIntervalDays: 35,
+  },
 ]
 
 export function createTorpilState(): TorpilContactState[] {
@@ -74,6 +84,10 @@ export function torpilBypassCreditScore(active: TorpilContactState[]): boolean {
 
 export function torpilRaidWarning(active: TorpilContactState[]): boolean {
   return active.some((t) => t.id === 'siyaset_tanidik' && t.active && !t.giftDue)
+}
+
+export function torpilMediaProtect(active: TorpilContactState[]): boolean {
+  return active.some((t) => t.id === 'medya_partner' && t.active && !t.giftDue)
 }
 
 export function torpilRelationScore(st: TorpilContactState, def: TorpilContactDef, currentGameDay: number): number {

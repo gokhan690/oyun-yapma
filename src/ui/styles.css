@@ -7278,6 +7278,7 @@ html.theme-red .skyline-building {
 .torpil-contact-desc { font-size: 0.78rem; color: var(--muted); margin: 4px 0 10px; }
 .torpil-relation-row { margin: 4px 0 8px; }
 .torpil-gift-warn { font-size: 0.76rem; color: #ef4444; margin: 4px 0; }
+.torpil-bonus-active { font-size: 0.74rem; color: #34d399; display: block; margin-bottom: 6px; }
 
 /* ═══════════════════════════════════════════════════════════
    Gazette extras
