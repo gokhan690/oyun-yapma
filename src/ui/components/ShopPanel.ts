@@ -781,7 +781,7 @@ export class ShopPanel {
     modEl.replaceChildren()
     const label = document.createElement('span')
     label.className = 'finance-modifiers-label'
-    label.textContent = 'Aktif etkiler:'
+    label.textContent = i18nT('shop_active_effects')
     modEl.appendChild(label)
     for (const c of chips) {
       const chip = document.createElement('span')
@@ -822,7 +822,7 @@ export class ShopPanel {
     const el = document.createElement('div')
     el.className = 'revenue-distribution revenue-distribution-compact'
     const title = document.createElement('strong')
-    title.textContent = 'Gelir'
+    title.textContent = i18nT('shop_revenue_title')
     el.appendChild(title)
     const bar = document.createElement('div')
     bar.className = 'revenue-bar'
@@ -859,15 +859,15 @@ export class ShopPanel {
     const cost = earlyUnlockCost(def)
     const canAfford = state.canAfford(cost)
     earlyBtn.textContent = canAfford
-      ? `Erken aç · ${formatMoney(cost)}`
-      : `Erken aç · ${formatMoney(cost)} / ${formatMoney(state.money)}`
+      ? `${i18nT('biz_early_unlock')} · ${formatMoney(cost)}`
+      : `${i18nT('biz_early_unlock')} · ${formatMoney(cost)} / ${formatMoney(state.money)}`
     earlyBtn.disabled = false
     earlyBtn.classList.toggle('btn-early-unlock-ready', canAfford)
     earlyBtn.title = canAfford
-      ? `Cüzdandan ödenir · Normal açılış: ${formatMoney(unlockAt)} toplam kazanç`
-      : `Gerekli: ${formatMoney(cost)} · Cüzdan: ${formatMoney(state.money)} · Eksik: ${formatMoney(Math.max(0, cost - state.money))}`
+      ? `${i18nT('shop_from_wallet')} · Normal açılış: ${formatMoney(unlockAt)} toplam kazanç`
+      : `Gerekli: ${formatMoney(cost)} · Cüzdan: ${formatMoney(state.money)} · ${i18nT('shop_missing_amount').replace('{amount}', formatMoney(Math.max(0, cost - state.money)))}`
     if (earlyHint) {
-      earlyHint.textContent = canAfford ? 'Cüzdandan ödenir' : `Eksik: ${formatMoney(Math.max(0, cost - state.money))}`
+      earlyHint.textContent = canAfford ? i18nT('shop_from_wallet') : i18nT('shop_missing_amount').replace('{amount}', formatMoney(Math.max(0, cost - state.money)))
       earlyHint.hidden = false
       earlyHint.classList.toggle('hint-ready', canAfford)
     }
@@ -895,17 +895,17 @@ export class ShopPanel {
     el.className = 'finance-dash'
     el.innerHTML = `
       <div class="finance-dash-hero">
-        <small>Net değer</small>
+        <small>${i18nT('finance_net_worth')}</small>
         <strong>${formatMoney(state.financeNetWorth())}</strong>
-        <span class="finance-dash-sub">Nakit + portföy + mevduat + tahvil − borç</span>
+        <span class="finance-dash-sub">${i18nT('finance_net_formula')}</span>
       </div>
       <div class="finance-dash-grid">
-        <span><small>Nakit</small><strong>${formatMoney(state.money)}</strong></span>
-        <span><small>Portföy</small><strong>${formatMoney(portfolio.totalValue)}</strong></span>
-        <span><small>Mevduat</small><strong>${formatMoney(bank.deposit)}</strong></span>
-        <span><small>Tahvil</small><strong>${formatMoney(bank.bonds)}</strong></span>
-        <span class="${bank.loan > 0 ? 'finance-dash-debt' : ''}"><small>Borç</small><strong>${formatMoney(bank.loan)}</strong></span>
-        <span><small>Portföy K/Z</small><strong class="${plClass}">${formatMoney(portfolio.totalPl)}</strong></span>
+        <span><small>${i18nT('finance_cash')}</small><strong>${formatMoney(state.money)}</strong></span>
+        <span><small>${i18nT('finance_portfolio')}</small><strong>${formatMoney(portfolio.totalValue)}</strong></span>
+        <span><small>${i18nT('finance_deposit')}</small><strong>${formatMoney(bank.deposit)}</strong></span>
+        <span><small>${i18nT('finance_bonds')}</small><strong>${formatMoney(bank.bonds)}</strong></span>
+        <span class="${bank.loan > 0 ? 'finance-dash-debt' : ''}"><small>${i18nT('finance_debt')}</small><strong>${formatMoney(bank.loan)}</strong></span>
+        <span><small>${i18nT('finance_pl')}</small><strong class="${plClass}">${formatMoney(portfolio.totalPl)}</strong></span>
       </div>
     `
     return el
@@ -917,9 +917,9 @@ export class ShopPanel {
     const ratePct = (state.stock.centralBankRate * 100).toFixed(1)
     const fear = state.stock.marketFear
     macro.innerHTML = `
-      <div class="finance-macro-stat"><small>Merkez faiz</small><strong>%${ratePct}</strong></div>
-      <div class="finance-macro-stat"><small>Piyasa korkusu</small><strong class="${fear >= 60 ? 'pl-negative' : fear <= 35 ? 'pl-positive' : ''}">${Math.round(fear)} · ${fearLabel(fear)}</strong></div>
-      <div class="finance-macro-stat"><small>Prestij hissesi</small><strong>${Math.floor(state.prestigePoints)}</strong></div>
+      <div class="finance-macro-stat"><small>${i18nT('finance_central_rate')}</small><strong>%${ratePct}</strong></div>
+      <div class="finance-macro-stat"><small>${i18nT('finance_market_fear')}</small><strong class="${fear >= 60 ? 'pl-negative' : fear <= 35 ? 'pl-positive' : ''}">${Math.round(fear)} · ${fearLabel(fear)}</strong></div>
+      <div class="finance-macro-stat"><small>${i18nT('finance_prestige_pts')}</small><strong>${Math.floor(state.prestigePoints)}</strong></div>
     `
     if (state.stock.macroHeadline) {
       const headline = document.createElement('p')
@@ -1335,7 +1335,7 @@ export class ShopPanel {
       if (bandProducers.length === 0 && lockedPreview.length === 0 && unlocked) {
         const empty = document.createElement('p')
         empty.className = 'tier-band-empty'
-        empty.textContent = 'Bu grupta henüz açık işletme yok.'
+        empty.textContent = i18nT('shop_tier_empty')
         body.appendChild(empty)
       }
 
@@ -1610,11 +1610,11 @@ export class ShopPanel {
     const hiredCount = ownedProducers.filter((p) => hasManager(state.managers, p.id)).length
     const ownedCount = ownedProducers.length
     const missing = ownedCount - hiredCount
-    panel.appendChild(this.createTabHero('👔', 'Yönetim Merkezi', 'Yöneticiler geliri artırır; yokken biriken kazancı yükseltir (reklamla toplanır)', `${hiredCount}/${ownedCount} aktif`))
+    panel.appendChild(this.createTabHero('👔', i18nT('mgr_hub_title'), i18nT('mgr_hub_desc'), `${hiredCount}/${ownedCount} aktif`))
 
     const namedTitle = document.createElement('h3')
     namedTitle.className = 'shop-section-title'
-    namedTitle.textContent = '⭐ Özel Yöneticiler'
+    namedTitle.textContent = i18nT('mgr_named_title')
     panel.appendChild(namedTitle)
     for (const m of NAMED_MANAGERS) {
       const hired = state.namedManagers.some((h) => h.id === m.id)
@@ -1627,13 +1627,13 @@ export class ShopPanel {
         btn.className = 'btn-primary'
         btn.dataset.action = 'hire-named-manager'
         btn.dataset.id = m.id
-        btn.textContent = `İşe al · ${formatMoney(m.hireCost)}`
+        btn.textContent = i18nT('mgr_hire_btn').replace('{cost}', formatMoney(m.hireCost))
         btn.disabled = !state.canAfford(m.hireCost)
         card.appendChild(btn)
       } else {
         const ok = document.createElement('span')
         ok.className = 'manager-status-ok'
-        ok.textContent = '✅ Aktif'
+        ok.textContent = i18nT('mgr_status_active')
         card.appendChild(ok)
       }
       panel.appendChild(card)
@@ -1641,13 +1641,13 @@ export class ShopPanel {
 
     const bizTitle = document.createElement('h3')
     bizTitle.className = 'shop-section-title'
-    bizTitle.textContent = 'İşletme Yöneticileri'
+    bizTitle.textContent = i18nT('mgr_biz_title')
     panel.appendChild(bizTitle)
 
     if (missing > 0) {
       const summary = document.createElement('div')
       summary.className = 'manager-summary-banner'
-      summary.textContent = `${missing} işletmede yönetici eksik — toplu işe almayı düşün`
+      summary.textContent = i18nT('mgr_missing_hint').replace('{n}', String(missing))
       panel.appendChild(summary)
     }
 
@@ -1670,7 +1670,7 @@ export class ShopPanel {
       const name = document.createElement('strong')
       name.textContent = producerName(p)
       const desc = document.createElement('small')
-      desc.textContent = hired ? 'Yönetici aktif (+25% gelir, yokken +50% birikim)' : 'Yönetici işe al — pasif gelir artar'
+      desc.textContent = hired ? i18nT('mgr_hired_desc') : i18nT('mgr_not_hired_desc')
       const incomeChip = document.createElement('span')
       incomeChip.className = 'manager-income-chip'
       incomeChip.textContent = formatIncomeRate(income)
@@ -1709,7 +1709,7 @@ export class ShopPanel {
         btn.className = 'btn-primary'
         btn.dataset.action = 'hire-manager'
         btn.dataset.id = p.id
-        btn.textContent = `İşe al — ${formatMoney(state.managerDiscountActive ? cost * 0.5 : cost)}`
+        btn.textContent = i18nT('mgr_hire_btn_full').replace('{cost}', formatMoney(state.managerDiscountActive ? cost * 0.5 : cost))
         btn.disabled = !state.canAfford(state.managerDiscountActive ? cost * 0.5 : cost)
         actions.appendChild(btn)
         const adBtn = document.createElement('button')
@@ -1717,7 +1717,7 @@ export class ShopPanel {
         adBtn.className = 'btn-ad'
         adBtn.dataset.action = 'ad-manager-discount'
         adBtn.dataset.id = p.id
-        adBtn.textContent = '📺 %50 indirim'
+        adBtn.textContent = i18nT('mgr_ad_discount')
         actions.appendChild(adBtn)
       } else {
         const autoBtn = document.createElement('button')
@@ -1810,7 +1810,7 @@ export class ShopPanel {
       const details = document.createElement('details')
       details.className = 'purchased-upgrades-section'
       const summary = document.createElement('summary')
-      summary.textContent = `Satın alınanlar (${purchased.length})`
+      summary.textContent = i18nT('upg_purchased').replace('{n}', String(purchased.length))
       details.appendChild(summary)
       for (const u of purchased) {
         const row = document.createElement('div')

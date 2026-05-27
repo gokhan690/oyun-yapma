@@ -634,4 +634,81 @@ export interface Translations {
   franchise_milestone_5: string
   franchise_milestone_10: string
   franchise_milestone_20: string
+
+  // Finance dash
+  finance_net_worth: string
+  finance_net_formula: string
+  finance_cash: string
+  finance_portfolio: string
+  finance_deposit: string
+  finance_bonds: string
+  finance_debt: string
+  finance_pl: string
+  finance_central_rate: string
+  finance_market_fear: string
+  finance_prestige_pts: string
+
+  // Shop panel labels
+  shop_revenue_title: string
+  shop_active_effects: string
+  shop_tier_empty: string
+  shop_from_wallet: string
+  shop_missing_amount: string
+
+  // Manager panel
+  mgr_hub_title: string
+  mgr_hub_desc: string
+  mgr_named_title: string
+  mgr_hire_btn: string
+  mgr_status_active: string
+  mgr_biz_title: string
+  mgr_missing_hint: string
+  mgr_hired_desc: string
+  mgr_not_hired_desc: string
+  mgr_hire_btn_full: string
+  mgr_ad_discount: string
+
+  // Upgrades panel
+  upg_purchased: string
+
+  // EventsPanel
+  ev_header_title: string
+  ev_header_desc: string
+  btn_clear: string
+  ev_restore_purchases: string
+  ev_vip_active: string
+  ev_weekly_claimed: string
+  ev_bonus_active: string
+  ev_season_ending: string
+  ev_premium_active: string
+  ev_track_free: string
+  ev_track_premium: string
+  ev_campaign_done: string
+  ev_gazette_day: string
+
+  // Rival threat labels
+  rival_threat_high: string
+  rival_threat_med: string
+  rival_threat_low: string
+
+  // Rival relation badges
+  rival_relation_merged: string
+  rival_relation_bankrupt: string
+
+  // Torpil bonus labels
+  torpil_bonus_rifat: string
+  torpil_bonus_sinan: string
+  torpil_bonus_siyaset: string
+  torpil_bonus_medya: string
+
+  // Baron dynasty history
+  dynasty_no_history: string
+  dynasty_monuments: string
+
+  // StatsScreen buttons/labels
+  btn_add: string
+  btn_submit: string
+  lb_submitted: string
+  lb_error: string
+  tab_dynasty_btn: string
 }

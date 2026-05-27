@@ -1,6 +1,7 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
 import { boostDurationLabel } from '../../game/BoostInventory'
+import { t } from '../../i18n'
 import { dailyGoalProgress, calcDailyLoginReward } from '../../game/DailyGoal'
 import { currentTier, tierProgress, rewardForTier, SEASON_MAX_TIER } from '../../game/SeasonPass'
 import { getWeeklyDef } from '../../game/WeeklyEvent'
@@ -54,7 +55,7 @@ export class EventsPanel {
 
     const header = document.createElement('div')
     header.className = 'events-panel-header'
-    header.innerHTML = '<h2>🎪 Etkinlikler</h2><p>Günlük hedefler, haftalık bonuslar ve sezon ödülleri</p>'
+    header.innerHTML = `<h2>${t('ev_header_title')}</h2><p>${t('ev_header_desc')}</p>`
     this.scrollBody.appendChild(header)
 
     const boosts = this.renderBoostInventory(state)
@@ -76,7 +77,7 @@ export class EventsPanel {
       cleanBtn.type = 'button'
       cleanBtn.className = 'btn-secondary btn-sm'
       cleanBtn.dataset.action = 'open-underground'
-      cleanBtn.textContent = 'Temizle'
+      cleanBtn.textContent = t('btn_clear')
       heatWarn.append(heatText, cleanBtn)
       this.scrollBody.appendChild(heatWarn)
     }
@@ -96,7 +97,7 @@ export class EventsPanel {
     restoreBtn.type = 'button'
     restoreBtn.className = 'btn-secondary btn-sm'
     restoreBtn.dataset.action = 'iap-restore'
-    restoreBtn.textContent = '🔄 Satın almaları geri yükle (Google Play / App Store)'
+    restoreBtn.textContent = t('ev_restore_purchases')
     iapFooter.appendChild(restoreBtn)
 
     const monetSection = document.createElement('section')
@@ -149,7 +150,7 @@ export class EventsPanel {
     if (state.vipPassActive) {
       const activeVip = document.createElement('div')
       activeVip.className = 'events-vip-active'
-      activeVip.textContent = '👑 VIP Baron — Tüm avantajlar aktif'
+      activeVip.textContent = t('ev_vip_active')
       monetCards.appendChild(activeVip)
     }
 
@@ -459,7 +460,7 @@ export class EventsPanel {
     } else if (w.claimed) {
       const done = document.createElement('p')
       done.className = 'events-done-label'
-      done.textContent = `✓ Bu haftanın ödülü alındı${w.adDoubled ? ' · Bonus aktif' : ''}`
+      done.textContent = t('ev_weekly_claimed') + (w.adDoubled ? t('ev_bonus_active') : '')
       weeklyActions.appendChild(done)
     }
     if (!w.adDoubled) {
