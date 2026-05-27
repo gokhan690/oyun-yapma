@@ -45,7 +45,7 @@ import { FRANCHISE_CITIES, franchiseOpenFailureReason } from '../game/Franchise'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
 import { navLockReason, isShopHubLocked, shopHubLockReason } from '../game/ProgressiveUnlock'
-import { i18n, t, type LangCode } from '../i18n'
+import { i18n, LANG_META, t, type LangCode } from '../i18n'
 import { applyCountry, type CountryId } from '../game/Countries'
 
 export class HUD {
@@ -238,7 +238,7 @@ export class HUD {
     const titleRow = document.createElement('div')
     titleRow.className = 'title-row'
     const title = document.createElement('h1')
-    title.textContent = 'İş İmparatorluğu'
+    title.textContent = t('app_title')
     this.titleEl = title
     const actions = document.createElement('div')
     actions.className = 'header-actions'
@@ -305,7 +305,7 @@ export class HUD {
     }
     const tapLabel = document.createElement('span')
     tapLabel.className = 'tap-label'
-    tapLabel.textContent = 'Tıkla & kazan'
+    tapLabel.textContent = t('tap_label')
     tapInner.append(mascot, tapLabel)
     this.tapArea.appendChild(tapInner)
 
@@ -384,7 +384,7 @@ export class HUD {
     comboBlock.className = 'session-stat'
     const comboLabel = document.createElement('span')
     comboLabel.className = 'session-label'
-    comboLabel.textContent = 'Combo'
+    comboLabel.textContent = t('combo_label')
     this.sessionComboMult = document.createElement('strong')
     this.sessionComboMult.className = 'session-value session-combo'
     comboBlock.append(comboLabel, this.sessionComboMult)
@@ -478,7 +478,7 @@ export class HUD {
     this.undergroundSheet.mount(this.root)
     this.root.append(header, main, this.adBannerSlot, this.settings.layer, this.modals.layer)
     document.body.appendChild(this.bottomNav.root)
-    this.ads.showBanner(this.adBannerSlot)
+    this.syncAdBanner()
     this.renderDayNightChip()
     this.renderProgressStrip()
     this.lastRankId = currentRank(this.state.totalEarned).id
@@ -1141,21 +1141,20 @@ export class HUD {
 
   private showMilestone(amount: number): void {
     this.particles.spawnConfetti()
-    const messages: Record<number, { text: string; emoji: string }> = {
-      1_000:         { text: 'İlk binliğin!', emoji: '🎉' },
-      10_000:        { text: 'On bin baron! İş dünyasına giriyorsun', emoji: '💼' },
-      100_000:       { text: 'Küçük imparatorluk! Şehir seni konuşuyor', emoji: '🏙️' },
-      1_000_000:     { text: 'Milyoner oldun! Forbes seni takip ediyor', emoji: '👑' },
-      10_000_000:    { text: 'On milyoncu! Türkiye\'nin zirvesine çıktın', emoji: '🏆' },
-      100_000_000:   { text: 'Yüz milyon! Dünya seni tanıyor', emoji: '🌍' },
-      1_000_000_000: { text: 'MİLYARDER! Tarihe geçtin', emoji: '💎' },
+    const keyMap: Record<number, keyof import('../i18n/keys').Translations> = {
+      1_000: 'milestone_1k',
+      10_000: 'milestone_10k',
+      100_000: 'milestone_100k',
+      1_000_000: 'milestone_1m',
+      10_000_000: 'milestone_10m',
+      100_000_000: 'milestone_100m',
+      1_000_000_000: 'milestone_1b',
     }
-    const info = messages[amount]
+    const key = keyMap[amount]
+    const text = key ? t(key) : `${formatMoney(amount)}`
     const overlay = document.createElement('div')
     overlay.className = 'milestone-overlay'
-    overlay.innerHTML = info
-      ? `<span class="milestone-emoji">${info.emoji}</span><span class="milestone-text">${info.text}</span><span class="milestone-amount">${formatMoney(amount)}</span>`
-      : `<span class="milestone-emoji">🎉</span><span class="milestone-text">${formatMoney(amount)} kilometre taşı!</span>`
+    overlay.innerHTML = `<span class="milestone-emoji">🎉</span><span class="milestone-text">${text}</span><span class="milestone-amount">${formatMoney(amount)}</span>`
     this.root.appendChild(overlay)
     // Altın parlama arka plan efekti
     this.root.classList.add('milestone-glow')
@@ -1221,11 +1220,11 @@ export class HUD {
         break
       case 'set-language': {
         if (id) {
-          i18n.setLang(id as LangCode)
+          await i18n.setLang(id as LangCode)
           this.bottomNav.relabel()
           this.renderAll()
           this.settings.rebuild()
-          this.modals.showToast(this.root, `🌐 ${id.toUpperCase()}`)
+          this.modals.showToast(this.root, `🌐 ${LANG_META[id as LangCode]?.nativeLabel ?? id}`)
         }
         break
       }
@@ -2182,12 +2181,12 @@ export class HUD {
       const pct = unlockAt > 0
         ? Math.min(100, (this.state.totalEarned / unlockAt) * 100)
         : 0
-      this.unlockProgressLabel.textContent = `İşletme → ${nextBiz.emoji} ${nextBiz.name}`
+      this.unlockProgressLabel.textContent = t('hud_unlock_to_biz').replace('{name}', `${nextBiz.emoji} ${nextBiz.name}`)
       this.unlockProgressFill.style.width = `${pct}%`
       this.nextBizPreview.innerHTML = `<span class="next-biz-emoji">${nextBiz.emoji}</span><span class="next-biz-name">${nextBiz.name}</span><span class="next-biz-pct">${Math.floor(pct)}%</span>`
       this.nextBizPreview.hidden = false
     } else {
-      this.unlockProgressLabel.textContent = 'Tüm işletmeler açık'
+      this.unlockProgressLabel.textContent = t('hud_all_biz_unlocked')
       this.unlockProgressFill.style.width = '100%'
       this.nextBizPreview.hidden = true
     }
@@ -3046,7 +3045,23 @@ export class HUD {
     )
   }
 
+  private syncAdBanner(): void {
+    const removed = this.state.removeAdsOwned || iapManager.hasReceipt('remove_ads')
+    if (removed && !this.state.removeAdsOwned) {
+      this.state.removeAdsOwned = true
+    }
+    this.ads.setAdsRemoved(removed)
+    if (removed) {
+      this.adBannerSlot.hidden = true
+      this.ads.hideBanner()
+    } else {
+      this.adBannerSlot.hidden = false
+      this.ads.showBanner(this.adBannerSlot)
+    }
+  }
+
   renderAll(): void {
+    this.syncAdBanner()
     applyDocumentTheme(this.state.activeTheme)
     this.bottomNav.relabel()
     this.relabelBaronNav()

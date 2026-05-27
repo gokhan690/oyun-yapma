@@ -89,6 +89,9 @@ export class IAPManager {
       }
     }
 
+    if (import.meta.env.PROD) {
+      return { success: false, reason: 'Satın alma yalnızca mobil uygulamada kullanılabilir' }
+    }
     const confirmed = typeof window !== 'undefined'
       && window.confirm(`${PRODUCTS[productId].name} (${PRODUCTS[productId].priceLabel})\n\nSatın almayı onaylıyor musun? (Web test modu)`)
     if (!confirmed) return { success: false, reason: 'İptal edildi' }

@@ -27,9 +27,13 @@ function formatRemainingMs(ms: number): string {
 
 function formatSeasonLabel(): string {
   const [y, m] = calendarMonthKey().split('-')
-  const names = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
-  const month = names[Number(m) - 1] ?? m
-  return `${month} ${y}`
+  const monthKeys = [
+    'month_jan', 'month_feb', 'month_mar', 'month_apr', 'month_may', 'month_jun',
+    'month_jul', 'month_aug', 'month_sep', 'month_oct', 'month_nov', 'month_dec',
+  ] as const
+  const idx = Math.max(0, Math.min(11, Number(m) - 1))
+  const monthName = t(monthKeys[idx] ?? 'month_jan')
+  return `${monthName} ${y}`
 }
 
 export class EventsPanel {
@@ -397,7 +401,7 @@ export class EventsPanel {
 
     wrap.appendChild(this.blockHeader(
       '🎯',
-      'Günlük hedef',
+      t('ev_daily_goal_title'),
       `${formatMoney(state.dailyGoalEarned)} / ${formatMoney(target)} kazanç`,
       `${goalPct}%`,
       `🔥 Giriş serisi: ${state.dailyStreak} gün · Yarın: ${formatMoney(calcDailyLoginReward(state.dailyStreak + 1, state.incomePerDay()))}`,
@@ -478,7 +482,7 @@ export class EventsPanel {
 
     wrap.appendChild(this.blockHeader(
       '👑',
-      'İmparatorluk Yolu',
+      t('ev_season_road'),
       `${formatSeasonLabel()} · Tier ${prog.tier}/${SEASON_MAX_TIER}`,
       `T${prog.tier}`,
       `${prog.current} / ${prog.needed} XP · Para kazanınca XP gelir`,
@@ -588,7 +592,7 @@ export class EventsPanel {
     const ready = state.luckyChestReady
     wrap.appendChild(this.blockHeader(
       '🎁',
-      'Şans Sandığı',
+      t('ev_lucky_chest'),
       ready ? 'Ücretsiz sandık hazır!' : `Pity: ${state.chestPityCounter}/10 · Bilet: ${state.chestTickets}`,
       ready ? 'HAZIR' : `${state.chestTickets} bilet`,
       'Reklam veya bilet ile aç — nadir ödüller',
@@ -683,7 +687,7 @@ export class EventsPanel {
     const section = document.createElement('section')
     section.className = 'events-block events-missions-section'
     const title = document.createElement('h3')
-    title.textContent = '📋 Günlük Görevler'
+    title.textContent = t('events_missions_title')
     section.appendChild(title)
     const ready = state.missions.filter((m) => m.progress >= m.target && !m.claimed).length
     const sub = document.createElement('p')

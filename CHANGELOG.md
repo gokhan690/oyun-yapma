@@ -4,6 +4,30 @@ GitHub commit / release notu olarak kopyalayabilirsin.
 
 ---
 
+## [3.0.0] — 2026-05-23
+
+### Özet
+- **Global UX:** 10 dil altyapısı tamamlandı — HUD popup, ModalManager (IPO/günlük ödül/golden), Shop tier band, GameClock ay/gün i18n
+- **Performans:** Lazy locale loading + Vite `manualChunks` — ana JS ~530 KB (gzip ~150 KB), locale ayrı chunk
+- **Prod hazırlık:** AdMob prod modu, `removeAds` enforcement, native IAP restore/subscription, Supabase env, privacy.html güncellendi
+- **Oyun dengesi:** Golden event 120 sn ilk / 180 sn aralık
+- **Observability:** `crashReport.ts` boot hataları + global handler; QA / store listing dokümanları
+
+### Teknik
+- Android `versionCode 300`, Capacitor bildirim + billing izinleri
+- CSS: `styles/shop.css` ayrıldı
+- `GameState` controller iskeleti (`src/game/controllers/`)
+
+---
+
+## [2.9.0] — 2026-05-23
+
+### Özet
+- UX düzeltmeleri: tıklama, franchise, skyline, scroll, kart boyutları
+- Lifestyle, onboarding dil+ülke, i18n altyapısı genişletildi
+
+---
+
 ## [2.8.0] — 2026-05-23
 
 ### Özet

@@ -8,10 +8,20 @@ export const PLAY_PRODUCT_SKUS: Record<IAPProductId, string> = {
   vip_pass: 'com.paratuzaqi.game.vip_pass',
 }
 
+const INAPP_PRODUCTS: IAPProductId[] = ['season_premium', 'chest_pack_5', 'remove_ads']
+const SUBSCRIPTION_PRODUCTS: IAPProductId[] = ['vip_pass']
+
 export function isNativePlatform(): boolean {
   return typeof window !== 'undefined'
     && 'Capacitor' in window
     && (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.() === true
+}
+
+function productIdForSku(sku: string): IAPProductId | null {
+  for (const [id, s] of Object.entries(PLAY_PRODUCT_SKUS)) {
+    if (s === sku) return id as IAPProductId
+  }
+  return null
 }
 
 let billingReady = false
@@ -34,14 +44,16 @@ export async function nativePurchaseProduct(productId: IAPProductId): Promise<bo
   try {
     const { NativePurchases, PURCHASE_TYPE } = await import('@capgo/native-purchases')
     if (!(await initNativeBilling())) return false
+    const isSub = SUBSCRIPTION_PRODUCTS.includes(productId)
+    const productType = isSub ? PURCHASE_TYPE.SUBS : PURCHASE_TYPE.INAPP
     const { products } = await NativePurchases.getProducts({
       productIdentifiers: [sku],
-      productType: PURCHASE_TYPE.INAPP,
+      productType,
     })
     if (!products?.length) return false
     const tx = await NativePurchases.purchaseProduct({
       productIdentifier: sku,
-      productType: PURCHASE_TYPE.INAPP,
+      productType,
       isConsumable: productId === 'chest_pack_5',
     })
     return tx.purchaseState === '1' || !!tx.transactionId
@@ -55,15 +67,24 @@ export async function fetchNativeStorePrices(): Promise<Partial<Record<IAPProduc
   try {
     const { NativePurchases, PURCHASE_TYPE } = await import('@capgo/native-purchases')
     if (!(await initNativeBilling())) return {}
-    const skus = Object.values(PLAY_PRODUCT_SKUS)
-    const { products } = await NativePurchases.getProducts({
-      productIdentifiers: skus,
+    const out: Partial<Record<IAPProductId, string>> = {}
+    const inappSkus = INAPP_PRODUCTS.map((id) => PLAY_PRODUCT_SKUS[id])
+    const subSkus = SUBSCRIPTION_PRODUCTS.map((id) => PLAY_PRODUCT_SKUS[id])
+    const { products: inappProducts } = await NativePurchases.getProducts({
+      productIdentifiers: inappSkus,
       productType: PURCHASE_TYPE.INAPP,
     })
-    const out: Partial<Record<IAPProductId, string>> = {}
-    for (const p of products ?? []) {
-      if (p.identifier === PLAY_PRODUCT_SKUS.season_premium) out.season_premium = p.priceString
-      if (p.identifier === PLAY_PRODUCT_SKUS.chest_pack_5) out.chest_pack_5 = p.priceString
+    for (const p of inappProducts ?? []) {
+      const id = productIdForSku(p.identifier)
+      if (id) out[id] = p.priceString
+    }
+    const { products: subProducts } = await NativePurchases.getProducts({
+      productIdentifiers: subSkus,
+      productType: PURCHASE_TYPE.SUBS,
+    })
+    for (const p of subProducts ?? []) {
+      const id = productIdForSku(p.identifier)
+      if (id) out[id] = p.priceString
     }
     return out
   } catch {
@@ -77,13 +98,22 @@ export async function nativeRestorePurchases(): Promise<IAPProductId[]> {
     const { NativePurchases, PURCHASE_TYPE } = await import('@capgo/native-purchases')
     if (!(await initNativeBilling())) return []
     await NativePurchases.restorePurchases()
-    const { purchases } = await NativePurchases.getPurchases({ productType: PURCHASE_TYPE.INAPP })
-    const restored: IAPProductId[] = []
-    for (const p of purchases) {
-      if (p.productIdentifier === PLAY_PRODUCT_SKUS.season_premium) restored.push('season_premium')
-      if (p.productIdentifier === PLAY_PRODUCT_SKUS.chest_pack_5) restored.push('chest_pack_5')
+    const restored = new Set<IAPProductId>()
+    const { purchases: inapp } = await NativePurchases.getPurchases({ productType: PURCHASE_TYPE.INAPP })
+    for (const p of inapp ?? []) {
+      const id = productIdForSku(p.productIdentifier)
+      if (id && id !== 'chest_pack_5') restored.add(id)
     }
-    return restored
+    try {
+      const { purchases: subs } = await NativePurchases.getPurchases({ productType: PURCHASE_TYPE.SUBS })
+      for (const p of subs ?? []) {
+        const id = productIdForSku(p.productIdentifier)
+        if (id) restored.add(id)
+      }
+    } catch {
+      // subscription API may be unavailable on some builds
+    }
+    return [...restored]
   } catch {
     return []
   }

@@ -149,9 +149,20 @@ export class AdManager {
   private interstitialCount = 0
   private rewardedToday = 0
   private rewardedDay = todayKey()
+  private adsRemoved = false
 
   constructor(useCapacitor = isCapacitorNative()) {
     this.provider = useCapacitor ? new CapacitorAdProvider() : new MockAdProvider()
+  }
+
+  /** remove_ads IAP — banner + interstitial kapatılır; ödüllü reklamlar isteğe bağlı kalır */
+  setAdsRemoved(removed: boolean): void {
+    this.adsRemoved = removed
+    if (removed) this.hideBanner()
+  }
+
+  isAdsRemoved(): boolean {
+    return this.adsRemoved
   }
 
   syncRewardedCount(count: number, day: string): void {
@@ -193,6 +204,7 @@ export class AdManager {
   }
 
   async showInterstitial(): Promise<boolean> {
+    if (this.adsRemoved) return false
     if (!this.canShowInterstitial()) return false
     const shown = await this.provider.showInterstitial()
     if (shown) {
@@ -203,6 +215,12 @@ export class AdManager {
   }
 
   showBanner(container: HTMLElement): void {
+    if (this.adsRemoved) {
+      container.replaceChildren()
+      container.hidden = true
+      return
+    }
+    container.hidden = false
     this.provider.showBanner(container)
   }
 

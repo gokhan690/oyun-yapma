@@ -1,13 +1,4 @@
 import { tr } from './locales/tr'
-import { en } from './locales/en'
-import { zh } from './locales/zh'
-import { es } from './locales/es'
-import { ru } from './locales/ru'
-import { pt } from './locales/pt'
-import { ja } from './locales/ja'
-import { ar } from './locales/ar'
-import { de } from './locales/de'
-import { fr } from './locales/fr'
 import type { Translations } from './keys'
 
 export type LangCode = 'tr' | 'en' | 'zh' | 'es' | 'ru' | 'pt' | 'ja' | 'ar' | 'de' | 'fr'
@@ -25,27 +16,68 @@ export const LANG_META: Record<LangCode, { label: string; nativeLabel: string; r
   fr: { label: 'French',     nativeLabel: 'Français'  },
 }
 
-const LOCALES: Record<LangCode, Translations> = { tr, en, zh, es, ru, pt, ja, ar, de, fr }
-
 const LS_KEY = 'baron_lang'
+
+async function importLocale(code: LangCode): Promise<Translations> {
+  if (code === 'tr') return tr
+  switch (code) {
+    case 'en': return (await import('./locales/en')).en
+    case 'zh': return (await import('./locales/zh')).zh
+    case 'es': return (await import('./locales/es')).es
+    case 'ru': return (await import('./locales/ru')).ru
+    case 'pt': return (await import('./locales/pt')).pt
+    case 'ja': return (await import('./locales/ja')).ja
+    case 'ar': return (await import('./locales/ar')).ar
+    case 'de': return (await import('./locales/de')).de
+    case 'fr': return (await import('./locales/fr')).fr
+    default: return tr
+  }
+}
 
 class I18nManager {
   private current: LangCode = 'tr'
   private dict: Translations = tr
+  private cache = new Map<LangCode, Translations>([['tr', tr]])
+  private ready = false
 
-  init(): void {
-    const saved = localStorage.getItem(LS_KEY) as LangCode | null
-    if (saved && LOCALES[saved]) {
-      this.setLang(saved)
+  /** Boot: yalnızca seçili dil yüklenir (lazy) */
+  async init(): Promise<void> {
+    const code = this.resolveInitialLang()
+    await this.setLang(code)
+    this.ready = true
+  }
+
+  initSync(): void {
+    this.current = this.resolveInitialLang()
+    this.dict = tr
+    if (this.current !== 'tr') {
+      void this.setLang(this.current)
     } else {
-      const browser = navigator.language.split('-')[0] as LangCode
-      if (LOCALES[browser]) this.setLang(browser)
+      this.ready = true
     }
   }
 
-  setLang(code: LangCode): void {
+  isReady(): boolean {
+    return this.ready
+  }
+
+  private resolveInitialLang(): LangCode {
+    const saved = localStorage.getItem(LS_KEY) as LangCode | null
+    if (saved && LANG_META[saved]) return saved
+    const browser = navigator.language.split('-')[0] as LangCode
+    if (LANG_META[browser]) return browser
+    return 'tr'
+  }
+
+  async setLang(code: LangCode): Promise<void> {
+    let dict = this.cache.get(code)
+    if (!dict) {
+      dict = await importLocale(code)
+      this.cache.set(code, dict)
+    }
     this.current = code
-    this.dict = LOCALES[code]
+    this.dict = dict
+    this.ready = true
     localStorage.setItem(LS_KEY, code)
     const meta = LANG_META[code]
     document.documentElement.setAttribute('lang', code)
@@ -57,11 +89,12 @@ class I18nManager {
   }
 
   t(key: keyof Translations): string {
-    return (this.dict[key] as string) ?? (LOCALES.tr[key] as string) ?? key
+    return (this.dict[key] as string) ?? (tr[key] as string) ?? key
   }
 
   tRaw(key: string): string | undefined {
-    return (this.dict as unknown as Record<string, string>)[key] ?? (LOCALES.tr as unknown as Record<string, string>)[key]
+    return (this.dict as unknown as Record<string, string>)[key]
+      ?? (tr as unknown as Record<string, string>)[key]
   }
 }
 

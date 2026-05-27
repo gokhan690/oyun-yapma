@@ -1,5 +1,6 @@
 import type { IpoPreviewData } from '../../game/FinanceBank'
 import { formatMoney } from '../../game/Economy'
+import { t } from '../../i18n'
 
 export class ModalManager {
   readonly layer: HTMLElement
@@ -46,12 +47,12 @@ export class ModalManager {
     reasonEl.textContent = reason
     const lossEl = document.createElement('p')
     lossEl.className = 'bankruptcy-loss'
-    lossEl.innerHTML = `Toplam kayıp: <strong>${loss}</strong>`
+    lossEl.innerHTML = t('modal_bankruptcy_loss').replace('{amount}', `<strong>${loss}</strong>`)
     body.append(reasonEl, lossEl)
     if (seizedLines.length > 0) {
       const listTitle = document.createElement('p')
       listTitle.className = 'bankruptcy-seized-title'
-      listTitle.textContent = 'El konulan varlıklar:'
+      listTitle.textContent = t('modal_bankruptcy_seized')
       const list = document.createElement('ul')
       list.className = 'bankruptcy-seized-list'
       for (const line of seizedLines) {
@@ -63,9 +64,9 @@ export class ModalManager {
     }
     const hint = document.createElement('p')
     hint.className = 'bankruptcy-recovery-hint'
-    hint.textContent = `Reklam izleyerek ${recovery40} (%40) veya ${recovery80} (%80) geri alabilirsin. İşletmelerin bir kısmı da iade edilir.`
+    hint.textContent = t('modal_bankruptcy_recovery').replace('{r40}', recovery40).replace('{r80}', recovery80)
     body.appendChild(hint)
-    this.showContent('İflas ettin', body, actions)
+    this.showContent(t('modal_bankruptcy_title'), body, actions)
   }
 
   showContent(title: string, bodyEl: HTMLElement, actions: HTMLElement[], lockScrim = false): void {
@@ -100,15 +101,15 @@ export class ModalManager {
     scrim.dataset.action = 'close-modal'
     const modal = document.createElement('div')
     modal.className = 'game-modal daily-reward-modal modal-enter'
-    const lostNote = streakLost ? '<p class="streak-lost-warn">⚠️ Serin sıfırlandı — yeniden başlıyorsun!</p>' : ''
+    const lostNote = streakLost ? `<p class="streak-lost-warn">${t('modal_streak_lost')}</p>` : ''
 
     const title = document.createElement('h2')
-    title.textContent = 'Günlük Ödül'
+    title.textContent = t('modal_daily_reward')
     modal.innerHTML = lostNote
     modal.prepend(title)
 
     const streakNote = document.createElement('p')
-    streakNote.textContent = `${streak}. gün serisi!`
+    streakNote.textContent = t('modal_daily_streak').replace('{n}', String(streak))
     modal.appendChild(streakNote)
 
     // Spin wheel
@@ -125,8 +126,8 @@ export class ModalManager {
     segs.className = 'spin-wheel-segments'
     const segData = [
       { emoji: '💰', label: amount },
-      { emoji: '🎁', label: 'Sandık' },
-      { emoji: '⚡', label: 'Boost' },
+      { emoji: '🎁', label: t('modal_spin_seg_chest') },
+      { emoji: '⚡', label: t('modal_spin_seg_boost') },
       { emoji: '💰', label: `2x ${amount}` },
     ]
     for (const s of segData) {
@@ -158,14 +159,14 @@ export class ModalManager {
     if (streak >= 7) {
       const ms = document.createElement('p')
       ms.className = 'streak-milestone-note'
-      ms.textContent = streak >= 30 ? '🏆 Efsane seri bonusu!' : streak >= 14 ? '💪 Demir irade bonusu!' : '🔥 7 gün bonusu!'
+      ms.textContent = streak >= 30 ? t('modal_streak_bonus_30') : streak >= 14 ? t('modal_streak_bonus_14') : t('modal_streak_bonus_7')
       modal.appendChild(ms)
     }
 
     const spinBtn = document.createElement('button')
     spinBtn.type = 'button'
     spinBtn.className = 'btn-primary'
-    spinBtn.textContent = '🎡 Çarkı Çevir!'
+    spinBtn.textContent = t('modal_spin_wheel')
     let spun = false
     let claimedResult: { emoji: string; label: string } | null = null
     const doSpin = (isPremium: boolean) => {
@@ -183,8 +184,8 @@ export class ModalManager {
           ? [segData[1]!, segData[2]!, segData[3]!, segData[3]!]
           : segData
         claimedResult = pool[Math.floor(Math.random() * pool.length)]!
-        resultEl.textContent = `${claimedResult.emoji} ${claimedResult.label} kazandın!`
-        spinBtn.textContent = '✅ Topla!'
+        resultEl.textContent = t('modal_spin_won').replace('{emoji}', claimedResult.emoji).replace('{label}', claimedResult.label)
+        spinBtn.textContent = t('modal_spin_collect')
         spinBtn.disabled = false
         if (premiumBtn) premiumBtn.hidden = true
         spinBtn.addEventListener('click', () => {
@@ -199,10 +200,10 @@ export class ModalManager {
     const premiumBtn = document.createElement('button')
     premiumBtn.type = 'button'
     premiumBtn.className = 'btn-secondary spin-premium-btn'
-    premiumBtn.innerHTML = '📺 Reklam İzle → <strong>Premium Çark</strong> (2x Ödül!)'
+    premiumBtn.innerHTML = t('modal_spin_premium')
     premiumBtn.addEventListener('click', () => {
       premiumBtn.disabled = true
-      premiumBtn.textContent = '📺 Reklam yükleniyor...'
+      premiumBtn.textContent = t('modal_spin_premium_loading')
       window.setTimeout(() => {
         doSpin(true)
       }, 1500)
@@ -226,33 +227,33 @@ export class ModalManager {
     icon.textContent = '🚀'
 
     const h2 = document.createElement('h2')
-    h2.textContent = 'IPO — Şirket Birleşmesi'
+    h2.textContent = t('modal_ipo_title')
 
     const intro = document.createElement('p')
     intro.className = 'ipo-preview-intro'
-    intro.textContent = 'Run sıfırlanır; kalıcı prestij hisselerin ve meta ilerlemen korunur. Borsa ve mevduat nakde çevrilir — yeni turda başlangıç sermayesi alırsın.'
+    intro.textContent = t('modal_ipo_intro')
 
     const table = document.createElement('div')
     table.className = 'ipo-preview-table'
 
     const gainRows: [string, string][] = [
-      ['Kazanılacak kalıcı hisse', `+${preview.pointsToEarn}`],
-      ['Yeni toplam hisse', `${preview.newTotal}`],
-      ['Kalıcı gelir çarpanı', `x${preview.newMultiplier.toFixed(2)}`],
-      ['Başlangıç sermayesi', formatMoney(preview.startingCash)],
+      [t('modal_ipo_row_shares_earn'), `+${preview.pointsToEarn}`],
+      [t('modal_ipo_row_shares_total'), `${preview.newTotal}`],
+      [t('modal_ipo_row_multiplier'), `x${preview.newMultiplier.toFixed(2)}`],
+      [t('modal_ipo_row_start_cash'), formatMoney(preview.startingCash)],
     ]
     const lossRows: [string, string][] = [
-      ['Borsa portföyü (satılacak)', formatMoney(preview.portfolioValue)],
-      ['Mevduat + tahvil', formatMoney(preview.depositValue + preview.bondValue)],
-      ['Kredi borcu (kapanacak)', formatMoney(preview.loanDebt)],
-      ['İşletmeler sıfırlanır', `${preview.businessesOwned} adet`],
-      ['Yükseltmeler sıfırlanır', `${preview.upgradesOwned} adet`],
-      ['Yöneticiler sıfırlanır', `${preview.managersOwned} adet`],
+      [t('modal_ipo_row_portfolio'), formatMoney(preview.portfolioValue)],
+      [t('modal_ipo_row_deposits'), formatMoney(preview.depositValue + preview.bondValue)],
+      [t('modal_ipo_row_loan'), formatMoney(preview.loanDebt)],
+      [t('modal_ipo_row_biz_reset'), t('modal_ipo_count_unit').replace('{n}', String(preview.businessesOwned))],
+      [t('modal_ipo_row_upg_reset'), t('modal_ipo_count_unit').replace('{n}', String(preview.upgradesOwned))],
+      [t('modal_ipo_row_mgr_reset'), t('modal_ipo_count_unit').replace('{n}', String(preview.managersOwned))],
     ]
     const keepRows: [string, string][] = [
-      ['Prestij ağacı', '✓ Korunur'],
-      ['Ar-Ge seviyeleri', '✓ Korunur'],
-      ['Hanedan / imparatorluk', '✓ Korunur'],
+      [t('modal_ipo_row_prestige_tree'), t('modal_ipo_preserved')],
+      [t('modal_ipo_row_research'), t('modal_ipo_preserved')],
+      [t('modal_ipo_row_dynasty'), t('modal_ipo_preserved')],
     ]
 
     const section = (title: string, rows: [string, string][], tone?: string) => {
@@ -272,21 +273,21 @@ export class ModalManager {
       }
     }
 
-    section('Kazanacakların', gainRows, 'gain')
-    section('Sıfırlanacaklar (run)', lossRows, 'loss')
-    section('Korunacaklar (meta)', keepRows, 'keep')
+    section(t('modal_ipo_section_gain'), gainRows, 'gain')
+    section(t('modal_ipo_section_loss'), lossRows, 'loss')
+    section(t('modal_ipo_section_keep'), keepRows, 'keep')
 
     const confirmBtn = document.createElement('button')
     confirmBtn.type = 'button'
     confirmBtn.className = 'btn-prestige'
-    confirmBtn.textContent = `🚀 IPO Yap · ${formatMoney(preview.startingCash)} ile başla`
+    confirmBtn.textContent = t('modal_ipo_confirm').replace('{cash}', formatMoney(preview.startingCash))
     confirmBtn.addEventListener('click', () => void onConfirm())
 
     const cancelBtn = document.createElement('button')
     cancelBtn.type = 'button'
     cancelBtn.className = 'btn-secondary'
     cancelBtn.dataset.action = 'close-modal'
-    cancelBtn.textContent = 'Vazgeç'
+    cancelBtn.textContent = t('btn_give_up')
 
     const actions = document.createElement('div')
     actions.className = 'modal-actions'
@@ -301,7 +302,7 @@ export class ModalManager {
     title: string,
     desc: string,
     onClaim: () => void,
-    claimLabel = 'Reklam izle & kabul et',
+    claimLabel?: string,
   ): void {
     this.layer.replaceChildren()
     this.goldenClaimHandler = onClaim
@@ -319,11 +320,11 @@ export class ModalManager {
     p.textContent = desc
     const timer = document.createElement('div')
     timer.className = 'event-timer'
-    timer.textContent = '10sn'
+    timer.textContent = t('modal_golden_timer').replace('{n}', '10')
     const btn = document.createElement('button')
     btn.type = 'button'
     btn.className = 'btn-primary golden-claim-btn'
-    btn.textContent = claimLabel
+    btn.textContent = claimLabel ?? t('modal_golden_claim_ad')
     btn.addEventListener('click', () => {
       if (this.goldenClaimHandler) this.goldenClaimHandler()
     })
@@ -336,7 +337,7 @@ export class ModalManager {
 
   updateGoldenEventTimer(secondsLeft: number): void {
     if (!this.goldenTimerEl) return
-    this.goldenTimerEl.textContent = `${secondsLeft}sn`
+    this.goldenTimerEl.textContent = t('modal_golden_timer').replace('{n}', String(secondsLeft))
   }
 
   hasGoldenEventOpen(): boolean {
@@ -371,7 +372,7 @@ export class ModalManager {
     close.type = 'button'
     close.className = 'btn-primary'
     close.dataset.action = 'close-modal'
-    close.textContent = 'Kapat'
+    close.textContent = t('btn_close')
     modal.append(h2, list, foot, close)
     this.layer.append(scrim, modal)
     this.openLayer()

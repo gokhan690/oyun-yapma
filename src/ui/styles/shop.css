@@ -1,0 +1,32 @@
+.shop-panel {
+  background: linear-gradient(180deg, rgba(20, 12, 0, 0.98) 0%, rgba(8, 6, 0, 0.98) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  flex: 1;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.2);
+}
+
+.shop-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 12px 14px 4px;
+  border-bottom: 1px solid rgba(45, 74, 111, 0.5);
+}
+
+.shop-title {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.shop-sub {
+  font-size: 0.72rem;
+  color: var(--muted);
+}

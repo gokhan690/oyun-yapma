@@ -1,10 +1,14 @@
 const LEADERBOARD_KEY = 'is_imparatorlugu_leaderboard'
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? 'https://ymvwvugeakyxmjpojluk.supabase.co'
-const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inltdnd2dWdlYWt5eG1qcG9qbHVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMTA3MTAsImV4cCI6MjA5NDg4NjcxMH0.ZKzR-lDjiqtYfYuEAJZMEDyXlt8bejLWWhsGUXI9yJY'
-const HEADERS = {
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? ''
+const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
+const HEADERS = SUPABASE_URL && SUPABASE_ANON ? {
   apikey: SUPABASE_ANON,
   Authorization: `Bearer ${SUPABASE_ANON}`,
   'Content-Type': 'application/json',
+} : null
+
+export function isLeaderboardOnlineEnabled(): boolean {
+  return !!SUPABASE_URL && !!SUPABASE_ANON
 }
 
 export interface LeaderboardEntry {
@@ -122,6 +126,7 @@ export class Leaderboard {
   }
 
   async submitScore(stats: { lifetimeEarned: number; comboBest: number; ipoCount: number }): Promise<boolean> {
+    if (!HEADERS) return false
     try {
       const body: Record<string, string | number> = {
         player_name: this.data.playerName || 'Anonim',
@@ -147,6 +152,7 @@ export class Leaderboard {
   }
 
   async fetchOnlineScores(limit = 10): Promise<OnlineScore[]> {
+    if (!HEADERS) return []
     try {
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/game_leaderboard?order=lifetime_earned.desc&limit=${limit}`,
@@ -160,6 +166,7 @@ export class Leaderboard {
   }
 
   async fetchFriendScores(): Promise<OnlineScore[]> {
+    if (!HEADERS) return []
     if (this.data.friends.length === 0) return []
     try {
       const codes = this.data.friends.map((c) => encodeURIComponent(c)).join(',')
@@ -175,6 +182,7 @@ export class Leaderboard {
   }
 
   async lookupFriendCode(code: string): Promise<OnlineScore | null> {
+    if (!HEADERS) return null
     try {
       const res = await fetch(
         `${SUPABASE_URL}/rest/v1/game_leaderboard?friend_code=eq.${encodeURIComponent(code.toUpperCase())}&limit=1`,

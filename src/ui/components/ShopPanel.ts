@@ -24,6 +24,7 @@ import {
   filterProducersForShop,
   producersInBand,
   renderLockedPreviewCard,
+  tierBandLabel,
 } from './shop/ShopBusinessTierView'
 import { prestigeMultiplier } from '../../game/Prestige'
 import { managerCost, hasManager } from '../../game/Managers'
@@ -140,7 +141,7 @@ export class ShopPanel {
     header.className = 'shop-header'
     const title = document.createElement('span')
     title.className = 'shop-title'
-    title.textContent = 'İşletmeler'
+    title.textContent = i18nT('shop_context_business')
     this.titleEl = title
     this.shopSubEl = document.createElement('span')
     this.shopSubEl.className = 'shop-sub'
@@ -1299,7 +1300,7 @@ export class ShopPanel {
       const lockHint = unlocked ? '' : ` · 🔒 ${formatMoney(band.unlockAt)}`
       header.innerHTML = `
         <span class="tier-band-chevron">${expanded ? '▼' : '▶'}</span>
-        <span class="tier-band-label">${band.emoji} ${band.label}</span>
+        <span class="tier-band-label">${band.emoji} ${tierBandLabel(band.id)}</span>
         <span class="tier-band-meta">T${band.minTier}–${band.maxTier}${ownedInBand > 0 ? ` · ${ownedInBand} aktif` : ''}${lockHint}</span>
       `
       header.disabled = !unlocked

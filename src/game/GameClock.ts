@@ -1,10 +1,20 @@
+import { t } from '../i18n'
+
 export const GAME_START_YEAR = 2026
 /** 12 gerçek saniye = 1 oyun günü */
 export const REAL_SECONDS_PER_GAME_DAY = 12
 
 export const MS_PER_GAME_DAY = REAL_SECONDS_PER_GAME_DAY * 1000
 
-const MONTH_NAMES = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
+const MONTH_KEYS = [
+  'month_jan', 'month_feb', 'month_mar', 'month_apr', 'month_may', 'month_jun',
+  'month_jul', 'month_aug', 'month_sep', 'month_oct', 'month_nov', 'month_dec',
+] as const
+
+function localizedMonth(monthIndex: number): string {
+  const key = MONTH_KEYS[monthIndex]
+  return key ? t(key) : '?'
+}
 
 /** Gerçek saniyeyi oyun zamanına çevir */
 export function realSecondsToGameMs(dtSec: number): number {
@@ -48,8 +58,8 @@ export function gameHour(_gameTimeMs: number): number {
 export function formatGameClock(gameTimeMs: number): string {
   const day = gameDay(gameTimeMs)
   const cal = gameCalendarDate(gameTimeMs)
-  const month = MONTH_NAMES[cal.getUTCMonth()] ?? '?'
-  return `${cal.getUTCDate()} ${month} ${cal.getUTCFullYear()} · Gün ${day}`
+  const month = localizedMonth(cal.getUTCMonth())
+  return `${cal.getUTCDate()} ${month} ${cal.getUTCFullYear()} · ${t('clock_day')} ${day}`
 }
 
 /** Oyun takviminde hafta (7 oyun günü) */

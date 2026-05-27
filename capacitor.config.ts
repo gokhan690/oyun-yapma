@@ -9,9 +9,9 @@ const config: CapacitorConfig = {
   },
   plugins: {
     AdMob: {
-      appId: 'ca-app-pub-3940256099942544~3347511713',
+      appId: process.env.VITE_ADMOB_APP_ID ?? 'ca-app-pub-3940256099942544~3347511713',
       testingDevices: [],
-      initializeForTesting: true,
+      initializeForTesting: process.env.NODE_ENV !== 'production',
     },
   },
 }

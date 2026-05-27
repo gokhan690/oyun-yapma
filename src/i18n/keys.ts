@@ -831,4 +831,71 @@ export interface Translations {
   diff_normal_desc: string
   diff_hard: string
   diff_hard_desc: string
+
+  // Modal / HUD extras (v3.0)
+  app_title: string
+  modal_daily_reward: string
+  modal_daily_streak: string
+  modal_spin_wheel: string
+  modal_bankruptcy_title: string
+  modal_bankruptcy_loss: string
+  modal_bankruptcy_seized: string
+  modal_bankruptcy_recovery: string
+  modal_ipo_title: string
+  modal_ipo_intro: string
+  modal_golden_claim_ad: string
+  modal_golden_claim_free: string
+  modal_golden_timer: string
+  offline_accrued: string
+  btn_give_up: string
+  hud_all_biz_unlocked: string
+  hud_unlock_to_biz: string
+  clock_day: string
+  month_jan: string
+  month_feb: string
+  month_mar: string
+  month_apr: string
+  month_may: string
+  month_jun: string
+  month_jul: string
+  month_aug: string
+  month_sep: string
+  month_oct: string
+  month_nov: string
+  month_dec: string
+  events_missions_title: string
+
+  modal_streak_lost: string
+  modal_spin_seg_chest: string
+  modal_spin_seg_boost: string
+  modal_spin_won: string
+  modal_spin_collect: string
+  modal_spin_premium: string
+  modal_spin_premium_loading: string
+  modal_streak_bonus_7: string
+  modal_streak_bonus_14: string
+  modal_streak_bonus_30: string
+  modal_ipo_confirm: string
+  modal_ipo_section_gain: string
+  modal_ipo_section_loss: string
+  modal_ipo_section_keep: string
+  modal_ipo_row_shares_earn: string
+  modal_ipo_row_shares_total: string
+  modal_ipo_row_multiplier: string
+  modal_ipo_row_start_cash: string
+  modal_ipo_row_portfolio: string
+  modal_ipo_row_deposits: string
+  modal_ipo_row_loan: string
+  modal_ipo_row_biz_reset: string
+  modal_ipo_row_upg_reset: string
+  modal_ipo_row_mgr_reset: string
+  modal_ipo_row_prestige_tree: string
+  modal_ipo_row_research: string
+  modal_ipo_row_dynasty: string
+  modal_ipo_preserved: string
+  modal_ipo_count_unit: string
+
+  ev_daily_goal_title: string
+  ev_season_road: string
+  ev_lucky_chest: string
 }

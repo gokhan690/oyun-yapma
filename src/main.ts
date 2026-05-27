@@ -11,7 +11,9 @@ import { applyDocumentTheme } from './utils/themeApply'
 import { applyCountry } from './game/Countries'
 import { OnboardingOverlay } from './ui/components/OnboardingOverlay'
 import { i18n } from './i18n'
-i18n.init()
+import { installGlobalCrashHandlers, reportCrash } from './utils/crashReport'
+
+installGlobalCrashHandlers()
 
 declare global {
   interface Window {
@@ -32,9 +34,11 @@ function showBootFailure(message: string, resetSave = true): void {
   }
 }
 
-function bootstrap(): void {
+async function bootstrap(): Promise<void> {
   const app = document.querySelector<HTMLDivElement>('#app')
   if (!app) return
+
+  await i18n.init()
 
   try {
     const state = new GameState()
@@ -108,6 +112,7 @@ function bootstrap(): void {
     window.__II_MARK_BOOTED__?.()
   } catch (err) {
     console.error('Bootstrap hatası:', err)
+    reportCrash(err, 'bootstrap')
     showBootFailure(
       'Oyun başlatılamadı. Sayfayı yenile; sorun sürerse kaydı sıfırlayıp tekrar dene.',
       true,
@@ -115,4 +120,11 @@ function bootstrap(): void {
   }
 }
 
-bootstrap()
+void bootstrap().catch((err) => {
+  console.error('Bootstrap failed:', err)
+  reportCrash(err, 'bootstrap.catch')
+  showBootFailure(
+    'Oyun başlatılamadı. Sayfayı yenile; sorun sürerse kaydı sıfırlayıp tekrar dene.',
+    true,
+  )
+})

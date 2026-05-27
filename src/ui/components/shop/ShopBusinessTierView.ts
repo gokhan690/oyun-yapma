@@ -20,6 +20,19 @@ import { getActiveSynergies } from '../../../game/Synergies'
 import { sortProducers, formatRoi, producerRoiSeconds, type BizSortOrder } from '../../../game/ShopAdvisor'
 import type { BizTypeFilter, BuyMode } from '../ShopPanel'
 
+import type { Translations } from '../../../i18n/keys'
+import { t } from '../../../i18n'
+
+export function tierBandLabel(bandId: string): string {
+  const map: Record<string, keyof Translations> = {
+    starter: 'tier_starter',
+    growth: 'tier_growth',
+    peak: 'tier_peak',
+    legend: 'tier_legend',
+  }
+  return t(map[bandId] ?? 'tier_starter')
+}
+
 export interface TierBand {
   id: string
   label: string

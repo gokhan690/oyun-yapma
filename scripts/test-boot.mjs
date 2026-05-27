@@ -10,20 +10,30 @@ page.on('console', (msg) => {
 })
 
 await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 })
-await page.waitForTimeout(2000)
+await page.waitForTimeout(2500)
 
-const appEmpty = await page.evaluate(() => {
+const checks = await page.evaluate(() => {
   const app = document.querySelector('#app')
-  return !app || app.children.length === 0
+  const bootError = document.querySelector('#boot-error')?.textContent || ''
+  const hasHud = !!document.querySelector('.bottom-nav') || !!document.querySelector('.tap-area')
+  const title = document.querySelector('h1')?.textContent || ''
+  return {
+    appEmpty: !app || app.children.length === 0,
+    bootError,
+    hasHud,
+    title,
+    appPreview: app?.innerHTML?.slice(0, 200) || '',
+  }
 })
-const bootError = await page.evaluate(() => document.querySelector('#boot-error')?.textContent || '')
-const appHtml = await page.evaluate(() => document.querySelector('#app')?.innerHTML?.slice(0, 200) || '')
 
 console.log('URL:', url)
-console.log('appEmpty:', appEmpty)
-console.log('bootError:', bootError)
-console.log('appPreview:', appHtml)
+console.log('appEmpty:', checks.appEmpty)
+console.log('bootError:', checks.bootError)
+console.log('hasHud:', checks.hasHud)
+console.log('title:', checks.title)
+console.log('appPreview:', checks.appPreview)
 console.log('errors:', errors)
 
+const ok = !checks.appEmpty && !checks.bootError && checks.hasHud && errors.length === 0
 await browser.close()
-process.exit(appEmpty && !bootError ? 1 : 0)
+process.exit(ok ? 0 : 1)
