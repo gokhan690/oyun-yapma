@@ -3792,96 +3792,128 @@ export class GameState {
     }
   }
 
-  buyResidence(id: ResidenceId): boolean {
+  buyResidence(id: ResidenceId, count: number = 1): boolean {
     const res = RESIDENCES.find((r) => r.id === id)
-    if (!res) return false
-    if (res.buyCost > 0 && !this.canAfford(res.buyCost)) return false
-    if (res.buyCost > 0) {
-      this.money -= res.buyCost
+    if (!res || count < 1) return false
+    const totalCost = res.buyCost * count
+    if (totalCost > 0 && !this.canAfford(totalCost)) return false
+    if (totalCost > 0) {
+      this.money -= totalCost
       this.emit({ type: 'money_changed' })
     }
-    this.lifestyle.residence = id
-    // Add to owned list (keep old ones)
-    const alreadyOwned = this.lifestyle.ownedResidences.some((e) => e.id === id)
-    if (!alreadyOwned && res.buyCost > 0) {
-      this.lifestyle.ownedResidences.push({
-        id,
-        purchasedDay: gameDay(this.gameTimeMs),
-        isRenting: false,
-        rentalMonthlyIncome: defaultRentalIncome(id),
-      })
+    // Auto move-in only if currently renting
+    if (this.lifestyle.residence === 'kira') this.lifestyle.residence = id
+    if (res.buyCost > 0) {
+      for (let i = 0; i < count; i++) {
+        this.lifestyle.ownedResidences.push({
+          id,
+          purchasedDay: gameDay(this.gameTimeMs),
+          isRenting: false,
+          rentalMonthlyIncome: defaultRentalIncome(id),
+        })
+      }
     }
     return true
   }
 
-  sellResidence(id: ResidenceId): boolean {
-    const idx = this.lifestyle.ownedResidences.findIndex((e) => e.id === id)
-    if (idx < 0) return false
-    if (this.lifestyle.residence === id) {
+  sellResidence(id: ResidenceId, count: number = 1): boolean {
+    const ownedAll = this.lifestyle.ownedResidences.filter((e) => e.id === id)
+    if (ownedAll.length === 0) return false
+    const isHome = this.lifestyle.residence === id
+    // Keep at least 1 if it's home; sell rest
+    const sellable = isHome ? ownedAll.length - 1 : ownedAll.length
+    const sellCount = Math.min(count, sellable)
+    if (sellCount <= 0) return false
+    let removed = 0
+    let gained = 0
+    for (let i = this.lifestyle.ownedResidences.length - 1; i >= 0 && removed < sellCount; i--) {
+      if (this.lifestyle.ownedResidences[i].id === id) {
+        gained += residenceSellValue(id)
+        this.lifestyle.ownedResidences.splice(i, 1)
+        removed++
+      }
+    }
+    if (gained > 0) { this.money += gained; this.emit({ type: 'money_changed' }) }
+    if (!this.lifestyle.ownedResidences.some((e) => e.id === this.lifestyle.residence)) {
       this.lifestyle.residence = 'kira'
     }
-    const sellVal = residenceSellValue(id)
-    if (sellVal > 0) {
-      this.money += sellVal
-      this.emit({ type: 'money_changed' })
-    }
-    this.lifestyle.ownedResidences.splice(idx, 1)
-    return true
+    return removed > 0
   }
 
-  setRentResidence(id: ResidenceId, renting: boolean): boolean {
-    const entry = this.lifestyle.ownedResidences.find((e) => e.id === id)
-    if (!entry) return false
-    if (renting && this.lifestyle.residence === id) {
-      // Can't rent out the one you live in
-      return false
+  setRentResidence(id: ResidenceId, renting: boolean, count: number = 999): boolean {
+    let affected = 0
+    for (const entry of this.lifestyle.ownedResidences) {
+      if (entry.id !== id) continue
+      if (renting && this.lifestyle.residence === id && !entry.isRenting) {
+        // Skip the one you live in
+        continue
+      }
+      if (entry.isRenting !== renting && affected < count) {
+        entry.isRenting = renting
+        affected++
+      }
     }
-    entry.isRenting = renting
-    return true
+    return affected > 0
   }
 
-  buyVehicle(id: VehicleId): boolean {
+  buyVehicle(id: VehicleId, count: number = 1): boolean {
     const veh = VEHICLES.find((v) => v.id === id)
-    if (!veh) return false
-    if (veh.buyCost > 0 && !this.canAfford(veh.buyCost)) return false
-    if (veh.buyCost > 0) {
-      this.money -= veh.buyCost
+    if (!veh || count < 1) return false
+    const totalCost = veh.buyCost * count
+    if (totalCost > 0 && !this.canAfford(totalCost)) return false
+    if (totalCost > 0) {
+      this.money -= totalCost
       this.emit({ type: 'money_changed' })
     }
-    this.lifestyle.vehicle = id
-    const alreadyOwned = this.lifestyle.ownedVehicles.some((e) => e.id === id)
-    if (!alreadyOwned && veh.buyCost > 0) {
-      this.lifestyle.ownedVehicles.push({
-        id,
-        purchasedDay: gameDay(this.gameTimeMs),
-        isRenting: false,
-        rentalMonthlyIncome: defaultVehicleRentalIncome(id),
-      })
+    // Auto switch only if currently walking
+    if (this.lifestyle.vehicle === 'yuruyus') this.lifestyle.vehicle = id
+    if (veh.buyCost > 0) {
+      for (let i = 0; i < count; i++) {
+        this.lifestyle.ownedVehicles.push({
+          id,
+          purchasedDay: gameDay(this.gameTimeMs),
+          isRenting: false,
+          rentalMonthlyIncome: defaultVehicleRentalIncome(id),
+        })
+      }
     }
     return true
   }
 
-  sellVehicle(id: VehicleId): boolean {
-    const idx = this.lifestyle.ownedVehicles.findIndex((e) => e.id === id)
-    if (idx < 0) return false
-    if (this.lifestyle.vehicle === id) {
+  sellVehicle(id: VehicleId, count: number = 1): boolean {
+    const ownedAll = this.lifestyle.ownedVehicles.filter((e) => e.id === id)
+    if (ownedAll.length === 0) return false
+    const isCurrent = this.lifestyle.vehicle === id
+    const sellable = isCurrent ? ownedAll.length - 1 : ownedAll.length
+    const sellCount = Math.min(count, sellable)
+    if (sellCount <= 0) return false
+    let removed = 0
+    let gained = 0
+    for (let i = this.lifestyle.ownedVehicles.length - 1; i >= 0 && removed < sellCount; i--) {
+      if (this.lifestyle.ownedVehicles[i].id === id) {
+        gained += vehicleSellValue(id)
+        this.lifestyle.ownedVehicles.splice(i, 1)
+        removed++
+      }
+    }
+    if (gained > 0) { this.money += gained; this.emit({ type: 'money_changed' }) }
+    if (!this.lifestyle.ownedVehicles.some((e) => e.id === this.lifestyle.vehicle)) {
       this.lifestyle.vehicle = 'yuruyus'
     }
-    const sellVal = vehicleSellValue(id)
-    if (sellVal > 0) {
-      this.money += sellVal
-      this.emit({ type: 'money_changed' })
-    }
-    this.lifestyle.ownedVehicles.splice(idx, 1)
-    return true
+    return removed > 0
   }
 
-  setRentVehicle(id: VehicleId, renting: boolean): boolean {
-    const entry = this.lifestyle.ownedVehicles.find((e) => e.id === id)
-    if (!entry) return false
-    if (renting && this.lifestyle.vehicle === id) return false
-    entry.isRenting = renting
-    return true
+  setRentVehicle(id: VehicleId, renting: boolean, count: number = 999): boolean {
+    let affected = 0
+    for (const entry of this.lifestyle.ownedVehicles) {
+      if (entry.id !== id) continue
+      if (renting && this.lifestyle.vehicle === id && !entry.isRenting) continue
+      if (entry.isRenting !== renting && affected < count) {
+        entry.isRenting = renting
+        affected++
+      }
+    }
+    return affected > 0
   }
 
   buyPet(id: PetId): boolean {

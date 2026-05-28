@@ -1785,8 +1785,9 @@ export class HUD {
         break
       }
       case 'buy-residence': {
-        const ok = id ? this.state.buyResidence(id as import('../game/Lifestyle').ResidenceId) : false
-        if (ok) { this.modals.showToast(this.root, '🏠 Mülk satın alındı!'); this.lifestylePanel.render(this.state) }
+        const qty = parseInt(count ?? '1') || 1
+        const ok = id ? this.state.buyResidence(id as import('../game/Lifestyle').ResidenceId, qty) : false
+        if (ok) { this.modals.showToast(this.root, qty > 1 ? `🏠 ${qty} mülk satın alındı!` : '🏠 Mülk satın alındı!'); this.lifestylePanel.render(this.state) }
         else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
         break
       }
@@ -1795,21 +1796,25 @@ export class HUD {
         break
       }
       case 'sell-residence': {
-        const ok = id ? this.state.sellResidence(id as import('../game/Lifestyle').ResidenceId) : false
-        if (ok) { this.modals.showToast(this.root, '💰 Mülk satıldı!'); this.lifestylePanel.render(this.state); this.statsBar.render() }
+        const qty = parseInt(count ?? '1') || 1
+        const ok = id ? this.state.sellResidence(id as import('../game/Lifestyle').ResidenceId, qty) : false
+        if (ok) { this.modals.showToast(this.root, qty > 1 ? `💰 ${qty} mülk satıldı!` : '💰 Mülk satıldı!'); this.lifestylePanel.render(this.state); this.statsBar.render() }
         break
       }
       case 'rent-out-residence': {
-        if (id) { this.state.setRentResidence(id as import('../game/Lifestyle').ResidenceId, true); this.lifestylePanel.render(this.state) }
+        const qty = parseInt(count ?? '999') || 999
+        if (id) { this.state.setRentResidence(id as import('../game/Lifestyle').ResidenceId, true, qty); this.lifestylePanel.render(this.state) }
         break
       }
       case 'stop-rent-residence': {
-        if (id) { this.state.setRentResidence(id as import('../game/Lifestyle').ResidenceId, false); this.lifestylePanel.render(this.state) }
+        const qty = parseInt(count ?? '999') || 999
+        if (id) { this.state.setRentResidence(id as import('../game/Lifestyle').ResidenceId, false, qty); this.lifestylePanel.render(this.state) }
         break
       }
       case 'buy-vehicle': {
-        const ok = id ? this.state.buyVehicle(id as import('../game/Lifestyle').VehicleId) : false
-        if (ok) { this.modals.showToast(this.root, '🚗 Araç alındı!'); this.lifestylePanel.render(this.state) }
+        const qty = parseInt(count ?? '1') || 1
+        const ok = id ? this.state.buyVehicle(id as import('../game/Lifestyle').VehicleId, qty) : false
+        if (ok) { this.modals.showToast(this.root, qty > 1 ? `🚗 ${qty} araç alındı!` : '🚗 Araç alındı!'); this.lifestylePanel.render(this.state) }
         else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
         break
       }
@@ -1818,16 +1823,19 @@ export class HUD {
         break
       }
       case 'sell-vehicle': {
-        const ok = id ? this.state.sellVehicle(id as import('../game/Lifestyle').VehicleId) : false
-        if (ok) { this.modals.showToast(this.root, '💰 Araç satıldı!'); this.lifestylePanel.render(this.state); this.statsBar.render() }
+        const qty = parseInt(count ?? '1') || 1
+        const ok = id ? this.state.sellVehicle(id as import('../game/Lifestyle').VehicleId, qty) : false
+        if (ok) { this.modals.showToast(this.root, qty > 1 ? `💰 ${qty} araç satıldı!` : '💰 Araç satıldı!'); this.lifestylePanel.render(this.state); this.statsBar.render() }
         break
       }
       case 'rent-out-vehicle': {
-        if (id) { this.state.setRentVehicle(id as import('../game/Lifestyle').VehicleId, true); this.lifestylePanel.render(this.state) }
+        const qty = parseInt(count ?? '999') || 999
+        if (id) { this.state.setRentVehicle(id as import('../game/Lifestyle').VehicleId, true, qty); this.lifestylePanel.render(this.state) }
         break
       }
       case 'stop-rent-vehicle': {
-        if (id) { this.state.setRentVehicle(id as import('../game/Lifestyle').VehicleId, false); this.lifestylePanel.render(this.state) }
+        const qty = parseInt(count ?? '999') || 999
+        if (id) { this.state.setRentVehicle(id as import('../game/Lifestyle').VehicleId, false, qty); this.lifestylePanel.render(this.state) }
         break
       }
       case 'buy-pet': {
