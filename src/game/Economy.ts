@@ -18,6 +18,8 @@ export interface ProducerDef {
   illegal?: boolean
   riskChance?: number
   riskFinePct?: number
+  /** Minimum IPO count required to unlock this producer */
+  ipoRequirement?: number
 }
 
 export interface UpgradeDef {
@@ -143,13 +145,13 @@ export const PRODUCERS: ProducerDef[] = [
   // —— MEGA PROJELER (tier 12–20) — milyarder bile düşünür ——
   { id: 'uzay_turizmi', name: 'Uzay Turizmi Şirketi', emoji: '🌠', description: 'Suborbital ve lunar excursion.', tier: 12, unlockAt: 15_000_000_000, baseCost: 420_000, baseIncome: 420_000, costMultiplier: 1.22 },
   { id: 'kuantum', name: 'Kuantum Bilgisayar Kampüsü', emoji: '⚛️', description: 'Qubit kapasitesi sat.', tier: 13, unlockAt: 35_000_000_000, baseCost: 620_000, baseIncome: 620_000, costMultiplier: 1.23 },
-  { id: 'fuzyon', name: 'Füzyon Reaktörü', emoji: '🔥', description: 'Sonsuz enerji, trilyonluk yatırım.', tier: 14, unlockAt: 80_000_000_000, baseCost: 950_000, baseIncome: 950_000, costMultiplier: 1.23 },
-  { id: 'mars', name: 'Mars Kolonisi', emoji: '🔴', description: 'Kırmızı gezegende şehir kur.', tier: 15, unlockAt: 180_000_000_000, baseCost: 1_450_000, baseIncome: 1_450000, costMultiplier: 1.24 },
+  { id: 'fuzyon', name: 'Füzyon Reaktörü', emoji: '🔥', description: 'Sonsuz enerji, trilyonluk yatırım.', tier: 14, unlockAt: 80_000_000_000, baseCost: 950_000, baseIncome: 950_000, costMultiplier: 1.23, ipoRequirement: 1 },
+  { id: 'mars', name: 'Mars Kolonisi', emoji: '🔴', description: 'Kırmızı gezegende şehir kur.', tier: 15, unlockAt: 180_000_000_000, baseCost: 1_450_000, baseIncome: 1_450000, costMultiplier: 1.24, ipoRequirement: 1 },
   { id: 'asteroid', name: 'Asteroit Madenciliği', emoji: '☄️', description: 'Platin ve nadir element.', tier: 16, unlockAt: 400_000_000_000, baseCost: 2_200_000, baseIncome: 2_200000, costMultiplier: 1.24 },
-  { id: 'sovereign_fund', name: 'Ulusal Varlık Fonu', emoji: '💰', description: 'Ülke bütçesinden pay al.', tier: 17, unlockAt: 900_000_000_000, baseCost: 3_400_000, baseIncome: 3_400000, costMultiplier: 1.25, category: 'finance' },
-  { id: 'su_monopol', name: 'Küresel Su Hakları', emoji: '💧', description: 'Nehir ve aquifer lisansları.', tier: 18, unlockAt: 2_000_000_000_000, baseCost: 5_200_000, baseIncome: 5_200000, costMultiplier: 1.25 },
-  { id: 'dunya_duzeni', name: 'Dünya Ekonomik Konseyi', emoji: '🌐', description: 'Küresel ticaret kurallarını yaz.', tier: 19, unlockAt: 4_500_000_000_000, baseCost: 8_100_000, baseIncome: 8_100000, costMultiplier: 1.26, category: 'politics' },
-  { id: 'multiverse', name: 'Çoklu Evren Ticaret Ağı', emoji: '♾️', description: 'Son sınır — başka boyutlardan vergi.', tier: 20, unlockAt: 10_000_000_000_000, baseCost: 12_500_000, baseIncome: 12_500000, costMultiplier: 1.26 },
+  { id: 'sovereign_fund', name: 'Ulusal Varlık Fonu', emoji: '💰', description: 'Ülke bütçesinden pay al.', tier: 17, unlockAt: 900_000_000_000, baseCost: 3_400_000, baseIncome: 3_400000, costMultiplier: 1.25, category: 'finance', ipoRequirement: 2 },
+  { id: 'su_monopol', name: 'Küresel Su Hakları', emoji: '💧', description: 'Nehir ve aquifer lisansları.', tier: 18, unlockAt: 2_000_000_000_000, baseCost: 5_200_000, baseIncome: 5_200000, costMultiplier: 1.25, ipoRequirement: 2 },
+  { id: 'dunya_duzeni', name: 'Dünya Ekonomik Konseyi', emoji: '🌐', description: 'Küresel ticaret kurallarını yaz.', tier: 19, unlockAt: 4_500_000_000_000, baseCost: 8_100_000, baseIncome: 8_100000, costMultiplier: 1.26, category: 'politics', ipoRequirement: 2 },
+  { id: 'multiverse', name: 'Çoklu Evren Ticaret Ağı', emoji: '♾️', description: 'Son sınır — başka boyutlardan vergi.', tier: 20, unlockAt: 10_000_000_000_000, baseCost: 12_500_000, baseIncome: 12_500000, costMultiplier: 1.26, ipoRequirement: 3 },
 
   // —— Ek kariyer yolları (dengeli tier aralığı) ——
   { id: 'market_zincir', name: 'Market Zinciri', emoji: '🛍️', description: 'Mahalle marketlerinden zincire.', tier: 2, unlockAt: 4_000, baseCost: 520, baseIncome: 520, costMultiplier: 1.17 },
@@ -340,13 +342,20 @@ export function scaledBaseIncome(baseIncome: number, def?: ProducerDef): number 
   return Math.max(1, Math.floor(baseIncome * mult))
 }
 
+export function producerCostExtraMult(def: ProducerDef): number {
+  if (def.tier >= 18) return 5
+  if (def.tier >= 16) return 3
+  if (def.tier >= 14) return 2
+  return 1
+}
+
 export function producerCost(def: ProducerDef, owned: number, count = 1): number {
   const growth = def.costMultiplier + ECONOMY_COST_GROWTH_BONUS
   let total = 0
   for (let i = 0; i < count; i++) {
     total += Math.floor(def.baseCost * Math.pow(growth, owned + i))
   }
-  return Math.ceil(total * producerEconomyMult(def))
+  return Math.ceil(total * producerEconomyMult(def) * producerCostExtraMult(def))
 }
 
 export function maxAffordable(def: ProducerDef, owned: number, money: number, costMultiplier = 1): number {
@@ -365,7 +374,9 @@ export function isProducerUnlocked(
   def: ProducerDef,
   totalEarned: number,
   forcedUnlocks?: ReadonlySet<string>,
+  ipoCount?: number,
 ): boolean {
+  if ((def.ipoRequirement ?? 0) > (ipoCount ?? 0)) return false
   return totalEarned >= scaledUnlockAt(def) || forcedUnlocks?.has(def.id) === true
 }
 

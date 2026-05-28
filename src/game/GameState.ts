@@ -1370,7 +1370,7 @@ export class GameState {
     this.lastAutoBuyTick = now
     for (const p of PRODUCERS) {
       if (!this.managerAutoBuy[p.id] || !hasManager(this.managers, p.id)) continue
-      if (!isProducerUnlocked(p, this.totalEarned, this.forcedUnlocks)) continue
+      if (!isProducerUnlocked(p, this.totalEarned, this.forcedUnlocks, this.ipoCount)) continue
       if (this.buyProducer(p.id, 1)) {
         this.emit({ type: 'auto_buy', producerId: p.id })
         break
@@ -1927,7 +1927,7 @@ export class GameState {
   }
 
   unlockedProducers(): ProducerDef[] {
-    return PRODUCERS.filter((p) => isProducerUnlocked(p, this.totalEarned, this.forcedUnlocks))
+    return PRODUCERS.filter((p) => isProducerUnlocked(p, this.totalEarned, this.forcedUnlocks, this.ipoCount))
   }
 
   earlyUnlockProducer(id: string): boolean {
