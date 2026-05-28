@@ -8,18 +8,19 @@ export interface ThemeDef {
   cssClass: string
   emoji: string
   hint: string
+  colors?: [string, string, string]
 }
 
 export const THEMES: ThemeDef[] = [
-  { id: 'default', name: 'Açık Beyaz', unlockTier: 0, cssClass: 'theme-light', emoji: '☀️', hint: 'Varsayılan açık tema' },
-  { id: 'light', name: 'Açık Beyaz', unlockTier: 0, cssClass: 'theme-light', emoji: '☀️', hint: 'Açık tema' },
-  { id: 'dark', name: 'Koyu Klasik', unlockTier: 0, cssClass: 'theme-dark', emoji: '🌑', hint: 'Koyu tema' },
-  { id: 'gold', name: 'Altın Çağ', unlockTier: 10, cssClass: 'theme-gold', emoji: '✨', hint: 'Sezon 10\'da açılır' },
-  { id: 'night', name: 'Gece Efendisi', unlockTier: 15, cssClass: 'theme-night', emoji: '🌙', hint: 'Sezon 15\'de açılır' },
-  { id: 'neon', name: 'Neon Kent', unlockTier: 20, cssClass: 'theme-neon', emoji: '💜', hint: 'Sezon 20\'de açılır' },
-  { id: 'beach', name: 'Tatil Cenneti', unlockTier: 0, ipoRequired: 3, cssClass: 'theme-beach', emoji: '🏖️', hint: '3 IPO yapınca açılır' },
-  { id: 'red', name: 'Kırmızı Baron', unlockTier: 0, ipoRequired: 5, cssClass: 'theme-red', emoji: '🔴', hint: '5 IPO yapınca açılır' },
-  { id: 'galactic', name: 'Galaktik', unlockTier: 30, cssClass: 'theme-galactic', emoji: '🌌', hint: 'Sezon 30\'da açılır' },
+  { id: 'default', name: 'Açık Beyaz', unlockTier: 0, cssClass: 'theme-light', emoji: '☀️', hint: 'Varsayılan açık tema', colors: ['#f0f4f8', '#ffffff', '#d08800'] },
+  { id: 'light', name: 'Açık Beyaz', unlockTier: 0, cssClass: 'theme-light', emoji: '☀️', hint: 'Açık tema', colors: ['#f0f4f8', '#ffffff', '#d08800'] },
+  { id: 'dark', name: 'Koyu Klasik', unlockTier: 0, cssClass: 'theme-dark', emoji: '🌑', hint: 'Koyu tema', colors: ['#121417', '#1b2227', '#f8b84e'] },
+  { id: 'gold', name: 'Altın Çağ', unlockTier: 10, cssClass: 'theme-gold', emoji: '✨', hint: 'Sezon 10\'da açılır', colors: ['#1a1400', '#2a2000', '#f8b84e'] },
+  { id: 'night', name: 'Gece Efendisi', unlockTier: 15, cssClass: 'theme-night', emoji: '🌙', hint: 'Sezon 15\'de açılır', colors: ['#0a0a1a', '#12122a', '#a78bfa'] },
+  { id: 'neon', name: 'Neon Kent', unlockTier: 20, cssClass: 'theme-neon', emoji: '💜', hint: 'Sezon 20\'de açılır', colors: ['#07001a', '#0e0026', '#e879f9'] },
+  { id: 'beach', name: 'Tatil Cenneti', unlockTier: 0, ipoRequired: 3, cssClass: 'theme-beach', emoji: '🏖️', hint: '3 IPO yapınca açılır', colors: ['#fff8e8', '#fffdf6', '#f59e0b'] },
+  { id: 'red', name: 'Kırmızı Baron', unlockTier: 0, ipoRequired: 5, cssClass: 'theme-red', emoji: '🔴', hint: '5 IPO yapınca açılır', colors: ['#1a0000', '#2a0505', '#ef4444'] },
+  { id: 'galactic', name: 'Galaktik', unlockTier: 30, cssClass: 'theme-galactic', emoji: '🌌', hint: 'Sezon 30\'da açılır', colors: ['#000310', '#060020', '#67e8f9'] },
 ]
 
 export function themeForTier(tier: number): ThemeId | null {

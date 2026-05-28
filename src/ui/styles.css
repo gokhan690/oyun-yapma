@@ -3709,22 +3709,37 @@ html.theme-light .weekly-bar {
   margin-bottom: 12px;
 }
 .theme-pick-btn {
-  padding: 10px;
-  border-radius: 10px;
+  padding: 8px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--surface2);
   color: var(--text);
   font-family: inherit;
   cursor: pointer;
   text-align: left;
-  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 0.15s, background 0.15s;
 }
-.theme-pick-btn small { opacity: 0.6; font-size: 0.7rem; display: block; }
+.theme-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+.theme-pick-info { flex: 1; min-width: 0; }
+.theme-pick-name { display: block; font-size: 0.82rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.theme-pick-hint { display: block; font-size: 0.65rem; color: var(--muted); margin-top: 1px; }
+.theme-pick-lock { font-size: 0.85rem; flex-shrink: 0; }
 .theme-pick-btn.active {
   border-color: var(--accent);
-  background: rgba(251,191,36,0.12);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface2));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
 }
-.theme-pick-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.theme-pick-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.theme-pick-btn:not(:disabled):hover { border-color: var(--accent); }
 .weekly-banner {
   display: flex;
   flex-wrap: wrap;

@@ -320,19 +320,34 @@ export class SettingsPanel {
     const wrap = this.layer.querySelector('#theme-picker')
     if (!wrap) return
     wrap.replaceChildren()
-    for (const t of THEMES) {
+    const unique = THEMES.filter((t, i, arr) => arr.findIndex((x) => x.cssClass === t.cssClass) === i)
+    for (const t of unique) {
       const unlocked = this.state.unlockedThemes.has(t.id)
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = `theme-pick-btn${this.state.activeTheme === t.id ? ' active' : ''}`
       btn.dataset.action = 'set-theme'
       btn.dataset.id = t.id
-      if (unlocked) {
-        btn.innerHTML = `<span>${t.emoji}</span> ${t.name}`
-      } else {
-        btn.innerHTML = `<span>${t.emoji}</span> ${t.name} 🔒<br><small>${t.hint}</small>`
-      }
       btn.disabled = !unlocked
+
+      const swatch = document.createElement('div')
+      swatch.className = 'theme-swatch'
+      if (t.colors) {
+        swatch.style.background = `linear-gradient(135deg, ${t.colors[0]} 0%, ${t.colors[1]} 50%, ${t.colors[2]} 100%)`
+      }
+
+      const info = document.createElement('div')
+      info.className = 'theme-pick-info'
+      info.innerHTML = `<span class="theme-pick-name">${t.emoji} ${t.name}</span>${!unlocked ? `<small class="theme-pick-hint">${t.hint}</small>` : ''}`
+
+      if (!unlocked) {
+        const lock = document.createElement('span')
+        lock.className = 'theme-pick-lock'
+        lock.textContent = '🔒'
+        btn.append(swatch, info, lock)
+      } else {
+        btn.append(swatch, info)
+      }
       wrap.appendChild(btn)
     }
   }
