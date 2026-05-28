@@ -1955,14 +1955,8 @@ export class HUD {
         this.pendingOffline = 0
         this.closeModalAndPump()
         break
-      case 'claim-offline':
-        this.handleClaimOfflineFree()
-        break
       case 'ad-offline':
         await this.handleAdOffline(1)
-        break
-      case 'ad-offline-x2':
-        await this.handleAdOffline(2)
         break
       case 'dynasty-marry':
         if (id && this.state.marrySpouse(id)) {
@@ -2556,22 +2550,22 @@ export class HUD {
     const hero = document.createElement('div')
     hero.className = 'offline-popup-hero offline-popup-animated'
     hero.innerHTML = `<span class="offline-popup-label">Birikmiş kazanç</span><strong class="offline-popup-amount" data-target="${amount}">${formatMoney(0)}</strong>`
-    const ad2 = document.createElement('button')
-    ad2.type = 'button'
-    ad2.className = 'btn-primary offline-btn-hero'
-    ad2.dataset.action = 'ad-offline-x2'
-    ad2.textContent = `📺 x2 Topla — ${formatMoney(amount * 2)}`
-    const claim = document.createElement('button')
-    claim.type = 'button'
-    claim.className = 'btn-secondary offline-btn-hero'
-    claim.dataset.action = 'claim-offline'
-    claim.textContent = `Topla — ${formatMoney(amount)}`
+    const adBtn = document.createElement('button')
+    adBtn.type = 'button'
+    adBtn.className = 'btn-primary offline-btn-hero'
+    adBtn.dataset.action = 'ad-offline'
+    adBtn.textContent = `📺 İzle & Topla — ${formatMoney(amount)}`
+    const skip = document.createElement('button')
+    skip.type = 'button'
+    skip.className = 'btn-secondary offline-btn-hero'
+    skip.dataset.action = 'skip-offline'
+    skip.textContent = 'Vazgeç'
     const body = document.createElement('div')
     body.className = 'offline-popup-body'
-    body.append(hero, ad2, claim)
+    body.append(hero, adBtn, skip)
     this.modals.show(
       'Tekrar hoş geldin!',
-      'Birikmiş kazancını ücretsiz topla — ya da reklam izleyip 2 katını al.',
+      'Birikmiş kazancını toplamak için kısa bir reklam izle.',
       [body],
     )
     const amountEl = hero.querySelector('.offline-popup-amount') as HTMLElement | null
@@ -2942,19 +2936,6 @@ export class HUD {
     this.state.grantChestTickets(5)
     this.modals.showToast(this.root, '🎫 5 sandık bileti eklendi')
     this.eventsPanel.render(this.state)
-  }
-
-  private handleClaimOfflineFree(): void {
-    if (this.pendingOffline <= 0 && this.state.pendingOfflineEarnings <= 0) {
-      this.closeModalAndPump()
-      return
-    }
-    const amount = this.state.claimOfflineViaAd(1)
-    this.pendingOffline = 0
-    this.closeModalAndPump()
-    this.modals.showToast(this.root, `Offline: +${formatMoney(amount)}`)
-    this.statsBar.render()
-    this.renderAll()
   }
 
   private async handleAdOffline(multiplier = 1): Promise<void> {
