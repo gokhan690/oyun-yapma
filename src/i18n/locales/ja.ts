@@ -224,6 +224,7 @@ export const ja: Translations = {
   world_torpil_active: '✅ アクティブ — ボーナス稼働中',
   world_go: '行く',
   world_open: '開く',
+  world_expansion_active: 'Aktif',
   world_threat: '脅威',
   world_next_rival: '次: {val} 純資産',
   world_lobby: '🏛️ ロビー',

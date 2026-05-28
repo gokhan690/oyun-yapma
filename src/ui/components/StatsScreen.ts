@@ -250,6 +250,22 @@ export class StatsScreen {
     this.content.appendChild(section)
   }
 
+  private achCategory: string = 'all'
+
+  private getAchievementCategory(id: string): string {
+    const money = new Set(['first_100','first_1k','first_100k','millionaire','earn_10m','earn_100m','billion_earned','lifetime_1m'])
+    const click = new Set(['click_100','click_1k','click_10k','combo_10','combo_30','combo_50'])
+    const biz = new Set(['first_business','five_businesses','boss','stajyer_10','robot_5','fabrika_3','uydu_1','merkez_1','kafe_5','all_businesses','mega_biz','biz_50','data_center_1','drone_10','football_1','superlig_club','politics_1','galaksiyum_1','siyah_fabrika_1','hedge_1','mars_1','multiverse_1','luxury_1','codex_legal','codex_all'])
+    const prestige = new Set(['prestige_1','prestige_5','ipo_3','stock_10','tree_5','tree_6','stock_3','stock_trader','season_15','season_30','theme_3'])
+    const underground = new Set(['illegal_1','illegal_all','heat_max_survive','underground_lawyer'])
+    if (money.has(id)) return 'money'
+    if (click.has(id)) return 'click'
+    if (biz.has(id)) return 'biz'
+    if (prestige.has(id)) return 'prestige'
+    if (underground.has(id)) return 'underground'
+    return 'special'
+  }
+
   private renderAchievements(): void {
     const section = document.createElement('div')
     section.className = 'stats-section achievements-section'
@@ -264,13 +280,38 @@ export class StatsScreen {
     header.append(title, countBadge)
     section.appendChild(header)
 
-    // Tamamlananlar önce, kilitliler sonra
-    const allCategorized = new Set<string>()
+    const catDefs = [
+      { id: 'all', label: '🗂️ Tümü' },
+      { id: 'money', label: '💰 Para' },
+      { id: 'click', label: '👆 Tıklama' },
+      { id: 'biz', label: '🏢 İşletme' },
+      { id: 'prestige', label: '👑 Prestij' },
+      { id: 'underground', label: '🕶️ Gizli' },
+      { id: 'special', label: '⭐ Özel' },
+    ]
+    const tabs = document.createElement('div')
+    tabs.className = 'ach-cat-tabs'
+    for (const cat of catDefs) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `ach-cat-btn${this.achCategory === cat.id ? ' active' : ''}`
+      btn.textContent = cat.label
+      btn.addEventListener('click', () => {
+        this.achCategory = cat.id
+        this.renderSection()
+      })
+      tabs.appendChild(btn)
+    }
+    section.appendChild(tabs)
+
     const gallery = document.createElement('div')
     gallery.className = 'achievements-gallery'
 
-    // Tümünü düz göster — tamamlananlar önce
-    const sorted = [...ACHIEVEMENTS].sort((a, b) => {
+    const filtered = this.achCategory === 'all'
+      ? ACHIEVEMENTS
+      : ACHIEVEMENTS.filter((a) => this.getAchievementCategory(a.id) === this.achCategory)
+
+    const sorted = [...filtered].sort((a, b) => {
       const da = this.state.achievements.has(a.id) ? 1 : 0
       const db = this.state.achievements.has(b.id) ? 1 : 0
       return db - da
@@ -280,14 +321,15 @@ export class StatsScreen {
       const done = this.state.achievements.has(a.id)
       const badge = document.createElement('div')
       badge.className = `ach-badge${done ? ' earned' : ''}`
-      badge.title = `${a.name}: ${a.description}${done ? ` · Ödül: ${formatMoney(a.reward)}` : ''}`
+      const tooltip = document.createElement('div')
+      tooltip.className = 'ach-badge-tooltip'
+      tooltip.textContent = `${a.name}: ${a.description}${done ? ` · Ödül: ${formatMoney(a.reward)}` : ' · Henüz kazanılmadı'}`
       badge.innerHTML = `
         <span class="ach-badge-emoji">${done ? a.emoji : '🔒'}</span>
         <span class="ach-badge-name">${done ? a.name : '???'}</span>
-        ${!done ? '<span class="ach-badge-lock">🔒</span>' : ''}
       `
+      badge.appendChild(tooltip)
       gallery.appendChild(badge)
-      allCategorized.add(a.id)
     }
 
     section.appendChild(gallery)

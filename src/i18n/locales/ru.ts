@@ -224,6 +224,7 @@ export const ru: Translations = {
   world_torpil_active: '✅ Активен — бонус работает',
   world_go: 'Перейти',
   world_open: 'Открыть',
+  world_expansion_active: 'Aktif',
   world_threat: 'Угроза',
   world_next_rival: 'Следующий: {val} чистой стоимости',
   world_lobby: '🏛️ Лобби',

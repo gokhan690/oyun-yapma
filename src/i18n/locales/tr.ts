@@ -212,6 +212,7 @@ export const tr: Translations = {
   world_torpil_active: '✅ Aktif — bonus çalışıyor',
   world_go: 'Git',
   world_open: 'Aç',
+  world_expansion_active: 'Aktif',
   world_threat: 'Tehdit',
   world_next_rival: 'Sonraki: {val} net değer',
   world_lobby: '🏛️ Lobi',

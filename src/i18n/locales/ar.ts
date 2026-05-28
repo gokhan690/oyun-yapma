@@ -224,6 +224,7 @@ export const ar: Translations = {
   world_torpil_active: '✅ نشط — المكافأة تعمل',
   world_go: 'اذهب',
   world_open: 'فتح',
+  world_expansion_active: 'Aktif',
   world_threat: 'تهديد',
   world_next_rival: 'التالي: {val} صافي الثروة',
   world_lobby: '🏛️ اللوبي',

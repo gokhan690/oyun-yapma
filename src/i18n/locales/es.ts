@@ -224,6 +224,7 @@ export const es: Translations = {
   world_torpil_active: '✅ Activo — bono funcionando',
   world_go: 'Ir',
   world_open: 'Abrir',
+  world_expansion_active: 'Aktif',
   world_threat: 'Amenaza',
   world_next_rival: 'Siguiente: {val} valor neto',
   world_lobby: '🏛️ Lobby',

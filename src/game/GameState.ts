@@ -1563,6 +1563,9 @@ export class GameState {
       const fb = franchiseIncomeBonus(this.franchises)
       chips.push({ emoji: '🏪', label: 'Franchise', detail: `${this.franchises.length} şube · +%${Math.round(fb * 100)} pasif` })
     }
+    for (const ev of activeCalendarEvents()) {
+      chips.push({ emoji: ev.emoji, label: ev.name, detail: ev.headline })
+    }
     const synActive = getActiveSynergies(this.producers).filter((s) => s.active).length
     if (synActive > 0) {
       chips.push({ emoji: '⚡', label: 'Sinerji', detail: `${synActive} aktif kombinasyon bonusu` })

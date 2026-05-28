@@ -224,6 +224,7 @@ export const de: Translations = {
   world_torpil_active: '✅ Aktiv — Bonus läuft',
   world_go: 'Gehen',
   world_open: 'Öffnen',
+  world_expansion_active: 'Aktif',
   world_threat: 'Bedrohung',
   world_next_rival: 'Nächster: {val} Nettovermögen',
   world_lobby: '🏛️ Lobby',

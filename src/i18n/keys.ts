@@ -288,6 +288,7 @@ export interface Translations {
   world_torpil_active: string
   world_go: string
   world_open: string
+  world_expansion_active: string
   world_threat: string
   world_next_rival: string
   world_lobby: string

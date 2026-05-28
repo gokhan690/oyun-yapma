@@ -224,6 +224,7 @@ export const zh: Translations = {
   world_torpil_active: '✅ 激活 — 奖励运行中',
   world_go: '前往',
   world_open: '打开',
+  world_expansion_active: 'Aktif',
   world_threat: '威胁',
   world_next_rival: '下一个: {val} 净资产',
   world_lobby: '🏛️ 大厅',
