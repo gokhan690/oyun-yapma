@@ -1,4 +1,5 @@
 import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, type ProducerDef, type UpgradeDef } from './Economy'
+import { PRESTIGE_SHOP_ITEMS } from './PrestigeShop'
 import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, ipoThreshold, prestigeMultiplier } from './Prestige'
 import { getActiveSynergies, globalSynergyBonus, producerSynergyBonus } from './Synergies'
 import {
@@ -494,6 +495,9 @@ export interface SerializableState {
   pendingConsequences?: PendingConsequence[]
   removeAdsOwned?: boolean
   vipPassActive?: boolean
+  dynastyPassiveIncome?: number
+  peakIncomePerDay?: number
+  prestigeShopPurchased?: string[]
 }
 
 export interface ProducerBreakdown {
@@ -739,6 +743,9 @@ export class GameState {
   producerModernized: Record<string, boolean> = {}
   pendingUndo: PendingUndo | null = null
   lastDisasterGameDay = 0
+  dynastyPassiveIncome = 0
+  peakIncomePerDay = 0
+  prestigeShopPurchased: string[] = []
   private lastCalendarEmitDay = ''
   private lastCommodityTick = Date.now()
   private lastInsuranceChargeDay = 0
@@ -897,6 +904,8 @@ export class GameState {
         const passiveDays = currentPassiveGameDay - lastPassiveGameDay
         if (passiveDays > 0) {
           lastPassiveGameDay = currentPassiveGameDay
+          const currentIpd = PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0)
+          if (currentIpd > this.peakIncomePerDay) this.peakIncomePerDay = currentIpd
           const income = this.incomePerDay() * passiveDays
           if (income > 0) this.addMoney(income, true)
         }
@@ -1439,8 +1448,17 @@ export class GameState {
     return this.vipPassActive ? 1.25 : 1
   }
 
+  private marketSaturationPenalty(): number {
+    const hasTier15 = PRODUCERS.some(p => p.tier >= 15 && (this.producers[p.id] ?? 0) > 0)
+    if (!hasTier15) return 1
+    const owed = Math.max(0, 3 - this.ipoCount)
+    if (owed === 0) return 1
+    return Math.pow(0.5, owed)
+  }
+
   globalMultiplier(): number {
     let mult = prestigeMultiplier(this.prestigePoints) * (1 + prestigeMultBonus(this.prestigeTree))
+    mult *= Math.pow(1.15, this.ipoCount)
     for (const id of this.purchasedUpgrades) {
       const u = UPGRADES.find((x) => x.id === id)
       if (u?.effect === 'global_mult') mult *= u.value
@@ -1475,6 +1493,7 @@ export class GameState {
     mult *= this.vipPassIncomeBonus()
     mult *= stressIncomePenalty(this.lifestyle.stress, this.lifestyle.burnoutDays)
     mult *= lifestyleVehicleIncomeMult(this.lifestyle)
+    mult *= this.marketSaturationPenalty()
     return mult
   }
 
@@ -1488,6 +1507,7 @@ export class GameState {
       const u = UPGRADES.find((x) => x.id === id)
       if (u?.effect === 'click_mult') mult *= u.value
     }
+    if (this.prestigeShopPurchased.includes('click_bonus_50')) mult *= 1.5
     mult *= this.globalMultiplier()
     mult *= researchClickBonus(this.research)
     mult *= this.comboMultiplier
@@ -1825,7 +1845,7 @@ export class GameState {
   }
 
   incomePerDay(): number {
-    return PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0)
+    return PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0) + this.dynastyPassiveIncome
   }
 
   /** Oyun günü bazlı pasif gelir; gerçek saniyeye çevrim GameClock üzerinden yapılır. */
@@ -1932,7 +1952,7 @@ export class GameState {
 
   earlyUnlockProducer(id: string): boolean {
     const def = PRODUCERS.find((p) => p.id === id)
-    if (!def || isProducerUnlocked(def, this.totalEarned, this.forcedUnlocks)) return false
+    if (!def || isProducerUnlocked(def, this.totalEarned, this.forcedUnlocks, this.ipoCount)) return false
     const cost = earlyUnlockCost(def)
     if (!this.canAfford(cost)) return false
     this.money -= cost
@@ -2140,7 +2160,7 @@ export class GameState {
 
   buyProducer(id: string, count = 1): boolean {
     const def = PRODUCERS.find((p) => p.id === id)
-    if (!def || !isProducerUnlocked(def, this.totalEarned, this.forcedUnlocks)) return false
+    if (!def || !isProducerUnlocked(def, this.totalEarned, this.forcedUnlocks, this.ipoCount)) return false
     const owned = this.producers[id] ?? 0
     const hadAnyBusiness = this.hasAnyBusiness()
     if (def.category === 'politics' && owned === 0 && reputationPoliticsBlocked(this.reputation)) {
@@ -2229,6 +2249,7 @@ export class GameState {
     const owned = this.producers[def.id] ?? 0
     let cost = managerCost(def.baseIncome, owned)
     cost = Math.floor(cost * (1 - managerCostDiscount(this.prestigeTree)))
+    if (this.prestigeShopPurchased.includes('manager_discount')) cost = Math.floor(cost * 0.85)
     return cost
   }
 
@@ -2259,6 +2280,17 @@ export class GameState {
       if (u.requiresUpgrade != null && !this.purchasedUpgrades.has(u.requiresUpgrade)) return false
       return true
     })
+  }
+
+  buyPrestigeShopItem(itemId: string): boolean {
+    const item = PRESTIGE_SHOP_ITEMS.find((i) => i.id === itemId)
+    if (!item) return false
+    if (!item.repeatable && this.prestigeShopPurchased.includes(itemId)) return false
+    if (this.prestigePoints < item.cost) return false
+    this.prestigePoints -= item.cost
+    this.prestigeShopPurchased.push(itemId)
+    this.emit({ type: 'money_changed' })
+    return true
   }
 
   prestigeEligible(): boolean {
@@ -2302,18 +2334,32 @@ export class GameState {
     const liquidationNet = stockCash + bankCash - loanDebt
     const startingCash = calcIpoStartingCash(points, this.prestigePoints, liquidationNet)
 
+    const dynastyBoostRate = this.prestigeShopPurchased.includes('dynasty_income_boost') ? 0.015 : 0.01
+    this.dynastyPassiveIncome += Math.floor(this.peakIncomePerDay * dynastyBoostRate)
+    this.peakIncomePerDay = 0
+
+    const hasStartCash2x = this.prestigeShopPurchased.includes('start_cash_2x')
+    const finalStartingCash = hasStartCash2x ? startingCash * 2 : startingCash
+
     this.prestigePoints += points
     this.lifetimePrestige += points
     this.ipoCount++
     const ipoThemeId = themeForIpoCount(this.ipoCount)
     if (ipoThemeId) this.unlockTheme(ipoThemeId)
-    this.money = startingCash
+    this.money = finalStartingCash
     this.totalEarned = 0
     this.totalClicks = 0
     this.sessionEarned = 0
     this.firstBusinessPlayTimeMs = null
     this.producers = {}
     for (const p of PRODUCERS) this.producers[p.id] = 0
+    if (this.prestigeShopPurchased.includes('start_stajyer_10')) {
+      this.producers['stajyer'] = 10
+    }
+    if (this.prestigeShopPurchased.includes('auto_tier4')) {
+      const firstTier4 = PRODUCERS.find((p) => p.tier === 4)
+      if (firstTier4) this.producers[firstTier4.id] = Math.max(this.producers[firstTier4.id] ?? 0, 1)
+    }
     this.purchasedUpgrades.clear()
     this.luckyChestReady = false
     this.comboCount = 0
@@ -3167,6 +3213,7 @@ export class GameState {
     const treeDisc = managerCostDiscount(this.prestigeTree)
     if (withDiscount || this.managerDiscountActive) cost = Math.floor(cost * 0.5)
     else if (treeDisc > 0) cost = Math.floor(cost * (1 - treeDisc))
+    if (this.prestigeShopPurchased.includes('manager_discount')) cost = Math.floor(cost * 0.85)
     if (!this.canAfford(cost)) return false
     this.money -= cost
     this.managers[producerId] = true
@@ -4641,6 +4688,9 @@ export class GameState {
       producerModernized: { ...this.producerModernized },
       pendingUndo: this.pendingUndo ? { ...this.pendingUndo } : null,
       lastDisasterGameDay: this.lastDisasterGameDay,
+      dynastyPassiveIncome: this.dynastyPassiveIncome,
+      peakIncomePerDay: this.peakIncomePerDay,
+      prestigeShopPurchased: [...this.prestigeShopPurchased],
     }
   }
 
@@ -4921,6 +4971,9 @@ export class GameState {
     this.producerModernized = data.producerModernized ?? {}
     this.pendingUndo = data.pendingUndo ?? null
     this.lastDisasterGameDay = data.lastDisasterGameDay ?? 0
+    this.dynastyPassiveIncome = data.dynastyPassiveIncome ?? 0
+    this.peakIncomePerDay = data.peakIncomePerDay ?? 0
+    this.prestigeShopPurchased = data.prestigeShopPurchased ?? []
     this.lastSaveTime = data.lastSaveTime
     this.isNight = isGameNight(this.gameTimeMs)
     this.ensureDailyGoal()

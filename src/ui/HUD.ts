@@ -1938,6 +1938,14 @@ export class HUD {
       case 'ipo':
         await this.handleIpo()
         break
+      case 'prestige-shop-buy':
+        if (id && this.state.buyPrestigeShopItem(id)) {
+          this.modals.showToast(this.root, 'Satın alındı!')
+          this.refreshShop(true)
+        } else {
+          this.modals.showToast(this.root, 'Satın alınamadı — yeterli puan yok veya zaten sahipsin.')
+        }
+        break
       case 'ad-double':
         await this.handleAdDouble()
         break

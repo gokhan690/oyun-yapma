@@ -46,13 +46,14 @@ import { modernizeCost } from '../../game/TechObsolescence'
 import { appendFranchiseSection, franchiseNearCount, franchiseReadyCount } from './shop/FranchiseBlock'
 import { ADVISOR_FEE } from '../../game/AdvisorNPC'
 import { t as i18nT } from '../../i18n'
+import { PRESTIGE_SHOP_ITEMS } from '../../game/PrestigeShop'
 
 export type BuyMode = 1 | 10 | 100 | 'max'
 export type ShopHub = 'growth' | 'powerup' | 'finance' | 'empire'
 export type GrowthSub = 'businesses' | 'management'
 export type PowerupSub = 'upgrades' | 'research'
 export type EmpireSub = 'sport' | 'politics' | 'dark' | 'luxury' | 'finance' | 'science'
-export type IpoSubTab = 'stock' | 'bank' | 'prestige' | 'ipo' | 'insurance' | 'commodities' | 'opportunities' | 'underground_market'
+export type IpoSubTab = 'stock' | 'bank' | 'prestige' | 'ipo' | 'insurance' | 'commodities' | 'opportunities' | 'underground_market' | 'prestige_shop'
 export type UpgradeFilter = 'all' | 'click' | 'global' | 'producer'
 export type BizTypeFilter = 'all' | 'legal' | 'illegal' | 'sport' | 'politics' | 'dark' | 'luxury' | 'finance' | 'science'
 
@@ -124,7 +125,7 @@ export class ShopPanel {
       return { hub: 'empire', empireSub: id }
     }
     if (id === 'ipo' || id === 'stock' || id === 'bank' || id === 'prestige' || id === 'insurance' || id === 'commodities' || id === 'opportunities' || id === 'underground_market') {
-      return { hub: 'finance', ipoSub: (['stock', 'bank', 'prestige', 'insurance', 'commodities', 'opportunities', 'underground_market'].includes(id) ? id : this.ipoSubTab) as IpoSubTab }
+      return { hub: 'finance', ipoSub: (['stock', 'bank', 'prestige', 'insurance', 'commodities', 'opportunities', 'underground_market', 'prestige_shop'].includes(id) ? id : this.ipoSubTab) as IpoSubTab }
     }
     return { hub: 'growth', growthSub: 'businesses' }
   }
@@ -396,6 +397,7 @@ export class ShopPanel {
         ['opportunities', i18nT('tab_opportunities')],
         ['underground_market', i18nT('tab_underground_market')],
         ['prestige', i18nT('stat_prestige')],
+        ['prestige_shop', 'Prestij Mağazası'],
         ['ipo', i18nT('tab_merge')],
       ]
       for (const [id, label] of finTabs) {
@@ -1988,6 +1990,7 @@ export class ShopPanel {
       stock: '7 sektör hissesi — al/sat, grafik izle, portföyünü büyüt',
       bank: 'Paranı güvene al veya kredi çek — faiz her dakika işler',
       prestige: 'Kalıcı prestij puanlarıyla run gücünü artır',
+      prestige_shop: 'Prestij puanlarıyla kalıcı güçlendirmeler satın al',
       ipo: 'Run sonu birleşmesi — kalıcı prestij hissesi kazan (oyun bitirmez, reset)',
       insurance: 'Risk al — sigortasız oyna veya güvenlik için öde',
       commodities: 'Altın, petrol, buğday, kahve — haberlerle al/sat',
@@ -2000,6 +2003,7 @@ export class ShopPanel {
     if (this.ipoSubTab === 'stock') this.renderIpoStock(state, panel)
     else if (this.ipoSubTab === 'bank') this.renderIpoBank(state, panel)
     else if (this.ipoSubTab === 'prestige') this.renderIpoPrestige(state, panel)
+    else if (this.ipoSubTab === 'prestige_shop') this.renderPrestigeShop(state, panel)
     else if (this.ipoSubTab === 'insurance') renderInsurancePanel(state, panel, (a, b, c, d) => this.createTabHero(a, b, c, d))
     else if (this.ipoSubTab === 'commodities') renderCommoditiesPanel(state, panel, (a, b, c, d) => this.createTabHero(a, b, c, d))
     else if (this.ipoSubTab === 'opportunities') renderOpportunitiesPanel(state, panel, (a, b, c, d) => this.createTabHero(a, b, c, d))
@@ -2508,5 +2512,53 @@ export class ShopPanel {
 
     ipoCard.append(info, bar, btn)
     panel.appendChild(ipoCard)
+  }
+
+  private renderPrestigeShop(state: GameState, panel: HTMLElement): void {
+    panel.appendChild(this.createSectionHeader(
+      'Prestij Mağazası',
+      `${state.prestigePoints} puan mevcut · kalıcı güçlendirmeler`,
+    ))
+
+    const grid = document.createElement('div')
+    grid.className = 'prestige-shop-grid'
+
+    for (const item of PRESTIGE_SHOP_ITEMS) {
+      const purchased = !item.repeatable && state.prestigeShopPurchased.includes(item.id)
+      const canAfford = state.prestigePoints >= item.cost
+      const card = document.createElement('div')
+      card.className = `prestige-shop-card${purchased ? ' purchased' : ''}`
+      const titleRow = document.createElement('div')
+      titleRow.className = 'prestige-shop-title'
+      titleRow.innerHTML = `<span class="prestige-shop-emoji">${item.emoji}</span><strong>${item.name}</strong>`
+      const desc = document.createElement('p')
+      desc.className = 'prestige-shop-desc'
+      desc.textContent = item.description
+      const footer = document.createElement('div')
+      footer.className = 'prestige-shop-footer'
+      if (purchased) {
+        footer.innerHTML = `<span class="prestige-shop-owned">✓ Satın Alındı</span>`
+      } else {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = 'btn-secondary prestige-shop-buy-btn'
+        btn.dataset.action = 'prestige-shop-buy'
+        btn.dataset.id = item.id
+        btn.disabled = !canAfford
+        btn.textContent = `${item.cost} puan`
+        footer.appendChild(btn)
+      }
+      card.append(titleRow, desc, footer)
+      grid.appendChild(card)
+    }
+
+    if (state.dynastyPassiveIncome > 0) {
+      const dynastyInfo = document.createElement('div')
+      dynastyInfo.className = 'prestige-shop-dynasty-info'
+      dynastyInfo.innerHTML = `<strong>👑 Hanedan Geliri</strong><p>Birikmiş pasif gelir: <strong>${formatMoney(state.dynastyPassiveIncome)}/gün</strong></p>`
+      panel.appendChild(dynastyInfo)
+    }
+
+    panel.appendChild(grid)
   }
 }
