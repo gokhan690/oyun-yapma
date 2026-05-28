@@ -5,29 +5,30 @@ export interface InsuranceState {
 }
 
 export const INSURANCE_BASE_COST = {
-  business: 200,
-  illegal: 800,
-  dynasty: 2000,
+  business: 150,
+  illegal: 400,
+  dynasty: 500,
 } as const
 
 export function createInsuranceState(): InsuranceState {
   return { business: false, illegal: false, dynasty: false }
 }
 
-// Sigorta ücreti günlük kazanca oranlanır: gelir arttıkça prim de artar.
+// Toplam oran %10: işletme %4 + illegal %4.5 + hanedan %1.5
+// İllegal ve işletme daha yüksek pay; hanedan azaltıldı.
 export function insuranceDailyCost(ins: InsuranceState, totalBusinesses = 0, ipoCount = 0, incomePerDay = 0): number {
   let c = 0
   if (ins.business) {
-    const base = INSURANCE_BASE_COST.business + totalBusinesses * 40
-    c += incomePerDay > 0 ? Math.max(base, incomePerDay * 0.05) : base
+    const base = INSURANCE_BASE_COST.business + totalBusinesses * 25
+    c += incomePerDay > 0 ? Math.max(base, incomePerDay * 0.04) : base
   }
   if (ins.illegal) {
-    const base = INSURANCE_BASE_COST.illegal + totalBusinesses * 150
-    c += incomePerDay > 0 ? Math.max(base, incomePerDay * 0.10) : base
+    const base = INSURANCE_BASE_COST.illegal + totalBusinesses * 80
+    c += incomePerDay > 0 ? Math.max(base, incomePerDay * 0.045) : base
   }
   if (ins.dynasty) {
-    const base = INSURANCE_BASE_COST.dynasty + totalBusinesses * 300 + ipoCount * 2_000
-    c += incomePerDay > 0 ? Math.max(base, incomePerDay * 0.15) : base
+    const base = INSURANCE_BASE_COST.dynasty + totalBusinesses * 100 + ipoCount * 500
+    c += incomePerDay > 0 ? Math.max(base, incomePerDay * 0.015) : base
   }
   return Math.floor(c)
 }
