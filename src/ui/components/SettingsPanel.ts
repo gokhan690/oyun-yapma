@@ -190,6 +190,11 @@ export class SettingsPanel {
     })
     body.appendChild(soundRow)
 
+    const musicRow = this.toggleRow(t('settings_music'), this.sound.isAmbientEnabled(), () => {
+      this.sound.setAmbientEnabled(!this.sound.isAmbientEnabled())
+    })
+    body.appendChild(musicRow)
+
     const tutorialBtn = document.createElement('button')
     tutorialBtn.type = 'button'
     tutorialBtn.className = 'btn-secondary'

@@ -1,5 +1,5 @@
 import type { GameState } from '../../../game/GameState'
-import { formatMoney } from '../../../game/Economy'
+import { formatMoney, formatIncomeRate } from '../../../game/Economy'
 import {
   FRANCHISE_CITIES,
   FRANCHISE_COST,
@@ -71,6 +71,14 @@ export function appendFranchiseSection(
       open.appendChild(tag)
     }
     block.appendChild(open)
+
+    const totalBonus = branches.reduce((s, b) => s + b.incomeMult, 0)
+    const basePassive = state.incomePerSecond()
+    const franchiseContrib = basePassive > 0 ? basePassive * totalBonus / (1 + totalBonus) : 0
+    const incomeRow = document.createElement('div')
+    incomeRow.className = 'franchise-income-summary'
+    incomeRow.innerHTML = `<span class="franchise-income-label">🏪 Franchise geliri</span><span class="franchise-income-value">${formatIncomeRate(franchiseContrib)}</span><small class="franchise-income-hint">+${Math.round(totalBonus * 100)}% pasif bonus · ${branches.length} şube</small>`
+    block.appendChild(incomeRow)
 
     // Franchise milestone badges
     const totalFranchises = state.franchises.length

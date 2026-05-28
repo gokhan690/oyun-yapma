@@ -3,6 +3,7 @@ export type AmbientMode = 'day' | 'night' | 'crisis' | 'idle'
 export class SoundManager {
   private ctx: AudioContext | null = null
   private enabled = true
+  private ambientEnabled = true
   private ambientMode: AmbientMode = 'idle'
   private ambientOsc: OscillatorNode | null = null
   private ambientGain: GainNode | null = null
@@ -20,6 +21,15 @@ export class SoundManager {
 
   isEnabled(): boolean {
     return this.enabled
+  }
+
+  setAmbientEnabled(enabled: boolean): void {
+    this.ambientEnabled = enabled
+    if (!enabled) this.stopAmbient()
+  }
+
+  isAmbientEnabled(): boolean {
+    return this.ambientEnabled
   }
 
   resume(): void {
@@ -107,7 +117,7 @@ export class SoundManager {
   }
 
   setAmbient(mode: AmbientMode): void {
-    if (!this.enabled) return
+    if (!this.enabled || !this.ambientEnabled) return
     if (mode === this.ambientMode && this.ambientOsc) return
     this.ambientMode = mode
     this.stopAmbient()
