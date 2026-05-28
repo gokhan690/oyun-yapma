@@ -3865,6 +3865,130 @@ html.theme-light .hud-header .income-rate {
   color: var(--text);
 }
 
+/* ── Güçlendir/Upgrade kartları iç elemanlar ─────────────── */
+html.theme-light .shop-card-icon {
+  background: rgba(0, 0, 0, 0.07);
+}
+html.theme-light .shop-section-header {
+  border-bottom-color: var(--border);
+}
+html.theme-light .shop-card.affordable {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(201, 127, 0, 0.12);
+}
+
+/* ── Finans/Piyasa — net değer hero ─────────────────────── */
+html.theme-light .finance-dash {
+  background: linear-gradient(135deg, rgba(37,99,235,0.07) 0%, rgba(220,230,248,0.96) 100%);
+  border-color: rgba(37,99,235,0.2);
+}
+html.theme-light .finance-dash-hero strong { color: var(--accent); }
+html.theme-light .finance-dash-grid span {
+  background: rgba(0,0,0,0.05);
+  border-color: var(--border);
+}
+html.theme-light .bank-account-card strong { color: var(--accent); }
+html.theme-light .bank-warn {
+  background: rgba(201,127,0,0.08);
+}
+
+/* ── Borsa — al/sat paneli ───────────────────────────────── */
+html.theme-light .finance-trade-bar {
+  background: var(--surface2);
+  backdrop-filter: none;
+  border-top-color: var(--border);
+}
+html.theme-light .stock-trade-panel {
+  background: linear-gradient(135deg, var(--surface2), var(--surface));
+  border-color: var(--border);
+}
+html.theme-light .stock-sparkline-xl {
+  background: rgba(0,0,0,0.06);
+}
+html.theme-light .stock-hint-box {
+  background: rgba(37,99,235,0.07);
+  border-color: rgba(37,99,235,0.2);
+}
+
+/* ── IPO açıklama kutusu ─────────────────────────────────── */
+html.theme-light .ipo-explain-box {
+  background: linear-gradient(135deg, rgba(37,99,235,0.06), var(--surface));
+  border-color: rgba(37,99,235,0.22);
+}
+
+/* ── Fırsatlar (yatırım teklif kartları) ────────────────── */
+html.theme-light .investment-offer-card {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.theme-light .market-event-banner-top {
+  background: rgba(201,127,0,0.08);
+  border-color: rgba(201,127,0,0.3);
+}
+
+/* ── İmparatorluk paneli renkleri ───────────────────────── */
+html.theme-light .empire-income-breakdown { color: var(--green) !important; }
+html.theme-light .empire-owned-dark {
+  border-color: rgba(220,38,38,0.3);
+  background: rgba(220,38,38,0.05);
+}
+
+/* ── Risk rozeti / franchise renkleri ───────────────────── */
+html.theme-light .biz-risk-badge {
+  color: #dc2626;
+  background: rgba(220,38,38,0.09);
+  border-color: rgba(220,38,38,0.28);
+}
+html.theme-light .biz-franchise-hint { color: var(--blue); }
+html.theme-light .biz-franchise-tag {
+  color: var(--green);
+  background: rgba(4,120,87,0.1);
+}
+html.theme-light .franchise-milestone-badge { color: var(--accent); }
+
+/* ── Baron Gazetesi banner ──────────────────────────────── */
+html.theme-light .gazette-banner {
+  background: linear-gradient(90deg, rgba(37,99,235,0.07), rgba(240,244,248,0.96));
+}
+html.theme-light .gazette-player { color: var(--accent); }
+html.theme-light .gazette-market { color: var(--green); }
+html.theme-light .gazette-politics { color: #7c3aed; }
+html.theme-light .gazette-crisis { color: #dc2626; }
+html.theme-light .gazette-calendar { color: var(--blue); }
+
+/* ── Para tier renkleri — platinum beyazda gözükmez ─────── */
+html.theme-light .money-tier-platinum { color: #374151; text-shadow: none; }
+html.theme-light .money-tier-gold { color: var(--accent); }
+
+/* ── Bonus envanteri (events-active-boosts) ─────────────── */
+html.theme-light .events-active-boosts {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: linear-gradient(135deg, rgba(201,127,0,0.06), var(--surface2));
+}
+html.theme-light .events-active-boosts .events-boost-chip {
+  border-color: rgba(201,127,0,0.18);
+  background: var(--surface);
+}
+
+/* ── Reklam banner açık temada görünür ──────────────────── */
+html.theme-light .ad-banner-slot {
+  background: var(--surface2);
+  border-top-color: var(--border);
+}
+
+/* ── İmparatorluk & panel yatay taşma önlemi ────────────── */
+.empire-panel,
+.empire-content {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+.panel-body {
+  overflow-x: hidden;
+}
+.tab-panel[data-panel^="empire_"] {
+  overflow-x: hidden;
+}
+
 .settings-theme-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
