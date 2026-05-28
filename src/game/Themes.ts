@@ -1,4 +1,4 @@
-export type ThemeId = 'default' | 'gold' | 'neon' | 'galactic' | 'night' | 'beach' | 'red'
+export type ThemeId = 'default' | 'light' | 'dark' | 'gold' | 'neon' | 'galactic' | 'night' | 'beach' | 'red'
 
 export interface ThemeDef {
   id: ThemeId
@@ -11,7 +11,9 @@ export interface ThemeDef {
 }
 
 export const THEMES: ThemeDef[] = [
-  { id: 'default', name: 'Klasik', unlockTier: 0, cssClass: '', emoji: '🏙️', hint: 'Başlangıç teması' },
+  { id: 'default', name: 'Açık Beyaz', unlockTier: 0, cssClass: 'theme-light', emoji: '☀️', hint: 'Varsayılan açık tema' },
+  { id: 'light', name: 'Açık Beyaz', unlockTier: 0, cssClass: 'theme-light', emoji: '☀️', hint: 'Açık tema' },
+  { id: 'dark', name: 'Koyu Klasik', unlockTier: 0, cssClass: 'theme-dark', emoji: '🌑', hint: 'Koyu tema' },
   { id: 'gold', name: 'Altın Çağ', unlockTier: 10, cssClass: 'theme-gold', emoji: '✨', hint: 'Sezon 10\'da açılır' },
   { id: 'night', name: 'Gece Efendisi', unlockTier: 15, cssClass: 'theme-night', emoji: '🌙', hint: 'Sezon 15\'de açılır' },
   { id: 'neon', name: 'Neon Kent', unlockTier: 20, cssClass: 'theme-neon', emoji: '💜', hint: 'Sezon 20\'de açılır' },

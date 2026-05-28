@@ -663,8 +663,8 @@ export class GameState {
   playerGender: PlayerGender = 'male'
   forcedUnlocks = new Set<string>()
   illegalHeat = 0
-  unlockedThemes = new Set<string>(['default'])
-  activeTheme: ThemeId = 'default'
+  unlockedThemes = new Set<string>(['default', 'light', 'dark'])
+  activeTheme: ThemeId = 'light'
   codexUnlockDates: Record<string, string> = {}
   undergroundCooldowns: Record<string, number> = {}
   heatShieldUntil = 0
@@ -3325,8 +3325,8 @@ export class GameState {
     this.nightEarningsSession = 0
     this.forcedUnlocks.clear()
     this.illegalHeat = 0
-    this.unlockedThemes = new Set(['default'])
-    this.activeTheme = 'default'
+    this.unlockedThemes = new Set(['default', 'light', 'dark'])
+    this.activeTheme = 'light'
     this.codexUnlockDates = {}
     this.undergroundCooldowns = {}
     this.heatShieldUntil = 0
@@ -4733,8 +4733,12 @@ export class GameState {
     this.playerGender = data.playerGender === 'female' ? 'female' : 'male'
     this.forcedUnlocks = new Set(data.forcedUnlocks ?? [])
     this.illegalHeat = data.illegalHeat ?? 0
-    this.unlockedThemes = new Set(data.unlockedThemes ?? ['default'])
-    this.activeTheme = (data.activeTheme ?? 'default') as ThemeId
+    const savedThemes = new Set<string>(data.unlockedThemes ?? ['default'])
+    savedThemes.add('light')
+    savedThemes.add('dark')
+    this.unlockedThemes = savedThemes
+    const savedTheme = (data.activeTheme ?? 'light') as ThemeId
+    this.activeTheme = savedTheme === 'default' ? 'light' : savedTheme
     this.codexUnlockDates = { ...(data.codexUnlockDates ?? {}) }
     this.undergroundCooldowns = { ...(data.undergroundCooldowns ?? {}) }
     this.heatShieldUntil = data.heatShieldUntil ?? 0

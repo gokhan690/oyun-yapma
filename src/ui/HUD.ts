@@ -2,7 +2,7 @@ import type { GameState } from '../game/GameState'
 import type { AdManager } from '../ads/AdManager'
 import type { SoundManager } from '../audio/SoundManager'
 import type { SaveManager } from '../security/SaveManager'
-import { formatMoney, formatIncomeRate, PRODUCERS, earlyUnlockCost, scaledUnlockAt, isProducerUnlocked } from '../game/Economy'
+import { formatMoney, formatIncomeRate, PRODUCERS, earlyUnlockCost, scaledUnlockAt, isProducerUnlocked, producerName } from '../game/Economy'
 import { crisisDef } from '../game/CrisisEvents'
 import { buildSkylineBuildings } from './Skyline'
 import { cityDef, EXPANSION_CITIES, canUnlockCity } from '../game/ExpansionMap'
@@ -159,7 +159,7 @@ export class HUD {
     this.skyline.setBuildingClickHandler((producerId) => {
       const p = PRODUCERS.find((x) => x.id === producerId)
       const income = this.state.producerIncome(p!)
-      this.modals.showToast(this.root, `${p?.emoji ?? ''} ${p?.name ?? producerId}: ${formatIncomeRate(income)}`)
+      this.modals.showToast(this.root, `${p?.emoji ?? ''} ${p ? producerName(p) : producerId}: ${formatIncomeRate(income)}`)
     })
     this.particles = new ParticleSystem(this.tapArea.parentElement!)
     this.bindEvents()
@@ -2274,9 +2274,9 @@ export class HUD {
       const pct = unlockAt > 0
         ? Math.min(100, (this.state.totalEarned / unlockAt) * 100)
         : 0
-      this.unlockProgressLabel.textContent = t('hud_unlock_to_biz').replace('{name}', `${nextBiz.emoji} ${nextBiz.name}`)
+      this.unlockProgressLabel.textContent = t('hud_unlock_to_biz').replace('{name}', `${nextBiz.emoji} ${producerName(nextBiz)}`)
       this.unlockProgressFill.style.width = `${pct}%`
-      this.nextBizPreview.innerHTML = `<span class="next-biz-emoji">${nextBiz.emoji}</span><span class="next-biz-name">${nextBiz.name}</span><span class="next-biz-pct">${Math.floor(pct)}%</span>`
+      this.nextBizPreview.innerHTML = `<span class="next-biz-emoji">${nextBiz.emoji}</span><span class="next-biz-name">${producerName(nextBiz)}</span><span class="next-biz-pct">${Math.floor(pct)}%</span>`
       this.nextBizPreview.hidden = false
     } else {
       this.unlockProgressLabel.textContent = t('hud_all_biz_unlocked')

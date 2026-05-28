@@ -7,6 +7,8 @@ import {
   earlyUnlockCost,
   isProducerUnlocked,
   scaledUnlockAt,
+  producerName,
+  producerDesc,
   type ProducerDef,
 } from '../../../game/Economy'
 
@@ -111,9 +113,9 @@ export function createHeroBusinessCard(p: ProducerDef): HTMLDivElement {
   img.onload = () => emojiEl.after(img)
 
   const nameEl = card.querySelector('.biz-hero-name')!
-  nameEl.textContent = p.name
+  nameEl.textContent = producerName(p)
   const descEl = card.querySelector('.biz-hero-desc')!
-  descEl.textContent = p.description
+  descEl.textContent = producerDesc(p)
 
   for (const btn of card.querySelectorAll<HTMLButtonElement>('[data-action="buy-business"], [data-action="biz-detail"]')) {
     btn.dataset.id = p.id
@@ -271,7 +273,7 @@ export function updateHeroBusinessCard(
       modBtn.disabled = !state.canAfford(modCost)
       extra.appendChild(modBtn)
     }
-    appendFranchiseSection(extra as HTMLElement, p.id, p.name, owned, state)
+    appendFranchiseSection(extra as HTMLElement, p.id, producerName(p), owned, state)
   }
 
   const newBadgeEl = card.querySelector('[data-new-badge]') as HTMLElement | null
@@ -313,7 +315,7 @@ export function renderLockedPreviewCard(p: ProducerDef, state: GameState): HTMLE
         <span class="biz-lock-pip">🔒</span>
       </div>
       <div class="biz-hero-titles">
-        <strong class="biz-hero-name">${p.name}</strong>
+        <strong class="biz-hero-name">${producerName(p)}</strong>
         <small class="biz-hero-desc">${p.description}</small>
       </div>
     </div>

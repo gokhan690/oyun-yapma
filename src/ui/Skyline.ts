@@ -303,7 +303,6 @@ export class Skyline {
     this.el.classList.toggle('skyline-night', night)
     this.skyEl.classList.toggle('skyline-sky-night', night)
     this.starsEl.classList.toggle('visible', night)
-    document.documentElement.classList.toggle('theme-night', night)
   }
 
   isNight(): boolean {

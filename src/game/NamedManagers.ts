@@ -1,3 +1,5 @@
+import { tRaw } from '../i18n'
+
 export type NamedManagerId = 'fatma' | 'mehmet' | 'ahmet' | 'zara' | 'ayse' | 'kemal' | 'leyla' | 'orhan'
 
 export interface NamedManagerDef {
@@ -95,4 +97,12 @@ export interface HiredNamedManager {
 
 export function namedManagerDef(id: NamedManagerId): NamedManagerDef | undefined {
   return NAMED_MANAGERS.find((m) => m.id === id)
+}
+
+export function managerDisplayName(m: NamedManagerDef): string {
+  return tRaw('mgr_' + m.id) ?? m.name
+}
+
+export function managerSpecialty(m: NamedManagerDef): string {
+  return tRaw('mgr_' + m.id + '_spec') ?? m.specialty
 }

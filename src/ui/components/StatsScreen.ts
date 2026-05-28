@@ -1,7 +1,7 @@
 import type { GameState } from '../../game/GameState'
 import { ACHIEVEMENTS } from '../../game/Achievements'
 import { currentRank } from '../../game/PlayerRank'
-import { PRODUCERS, formatMoney } from '../../game/Economy'
+import { PRODUCERS, formatMoney, producerName } from '../../game/Economy'
 import type { Leaderboard } from '../../game/Leaderboard'
 import { CodexPanel } from './CodexPanel'
 import { DynastyPanel } from './DynastyPanel'
@@ -365,7 +365,7 @@ export class StatsScreen {
       row.className = 'income-source-row'
       const label = document.createElement('div')
       label.className = 'income-source-label'
-      label.textContent = `${def.emoji} ${def.name}`
+      label.textContent = `${def.emoji} ${producerName(def)}`
       const track = document.createElement('div')
       track.className = 'income-source-track'
       const fill = document.createElement('div')

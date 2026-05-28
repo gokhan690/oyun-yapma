@@ -253,6 +253,14 @@ const EFFICIENCY_NODE_IDS = ['efficiency', 'energy_eff', 'tax_shield'] as const
 const SYNERGY_NODE_IDS = ['lobby', 'politics_lobby_r'] as const
 const FOOTBALL_NODE_IDS = ['football_fan', 'stadium_ops'] as const
 
+export function researchName(node: ResearchNode): string {
+  return tRaw('res_' + node.id) ?? node.name
+}
+
+export function researchDesc(node: ResearchNode): string {
+  return tRaw('res_' + node.id + '_desc') ?? node.description
+}
+
 export function researchCost(node: ResearchNode, currentLevel: number): number {
   return Math.floor(node.baseCost * Math.pow(node.costScale, currentLevel))
 }

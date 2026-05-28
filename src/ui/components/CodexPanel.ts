@@ -1,5 +1,5 @@
 import type { GameState } from '../../game/GameState'
-import { PRODUCERS, formatIncomeRate, producerIconPath, isProducerUnlocked } from '../../game/Economy'
+import { PRODUCERS, formatIncomeRate, producerIconPath, isProducerUnlocked, producerName } from '../../game/Economy'
 import { producerLore } from '../../game/CodexLore'
 import { SYNERGIES, synergyName } from '../../game/Synergies'
 import { t } from '../../i18n'
@@ -71,7 +71,7 @@ export class CodexPanel {
       icon.onerror = () => { icon.replaceWith(document.createTextNode(p.emoji)) }
 
       const name = document.createElement('strong')
-      name.textContent = unlocked ? p.name : '???'
+      name.textContent = unlocked ? producerName(p) : '???'
       const meta = document.createElement('small')
       if (!unlocked) meta.textContent = t('codex_locked')
       else if (owned <= 0) meta.textContent = t('codex_unlocked_empty')
@@ -126,14 +126,14 @@ export class CodexPanel {
       const bonusPct = Math.round(s.bonus * 100)
       const effectLabel = s.effect === 'global'
         ? t('codex_synergy_global').replace('{pct}', String(bonusPct))
-        : `${PRODUCERS.find((p) => p.id === s.targetProducer)?.name ?? s.targetProducer} +${bonusPct}%`
+        : `${(() => { const p = PRODUCERS.find((p) => p.id === s.targetProducer); return p ? producerName(p) : s.targetProducer })() } +${bonusPct}%`
 
       row.innerHTML = `
         <div class="codex-synergy-name">${isActive ? '✅' : '🔒'} ${synergyName(s)}</div>
         <div class="codex-synergy-combo">
-          <span class="${ownA ? 'syn-biz-owned' : 'syn-biz-missing'}">${defA?.emoji ?? '?'} ${defA?.name ?? reqA}</span>
+          <span class="${ownA ? 'syn-biz-owned' : 'syn-biz-missing'}">${defA?.emoji ?? '?'} ${defA ? producerName(defA) : reqA}</span>
           <span class="syn-plus">+</span>
-          <span class="${ownB ? 'syn-biz-owned' : 'syn-biz-missing'}">${defB?.emoji ?? '?'} ${defB?.name ?? reqB}</span>
+          <span class="${ownB ? 'syn-biz-owned' : 'syn-biz-missing'}">${defB?.emoji ?? '?'} ${defB ? producerName(defB) : reqB}</span>
         </div>
         <div class="codex-synergy-effect">→ ${effectLabel}</div>
       `
