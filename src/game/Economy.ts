@@ -296,7 +296,7 @@ export const ECONOMY_TIER_COST_BONUS = 0.075
 export const ECONOMY_INCOME_SCALE = ECONOMY_COST_SCALE
 export const ECONOMY_BASE_INCOME_MULT = ECONOMY_BASE_COST_MULT * 1.35
 /** Gelir/maliyet oranı — 0.06: erken tier basan değer sorununu çözer, geri ödeme 0.13'ten hâlâ 2x uzun */
-export const ECONOMY_INCOME_RATIO = 0.02
+export const ECONOMY_INCOME_RATIO = 0.01
 export const ECONOMY_UPGRADE_COST_SCALE = 1.45
 export const EARLY_UNLOCK_COST_SCALE = 1.65
 
