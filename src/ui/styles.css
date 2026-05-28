@@ -7,16 +7,16 @@
 }
 
 :root {
-  --bg: #f0f4f8;
-  --surface: #ffffff;
-  --surface2: #e8eef5;
-  --accent: #d08800;
+  --bg: #edf1f7;
+  --surface: #f7f9fc;
+  --surface2: #e4eaf4;
+  --accent: #c97f00;
   --accent2: #dc2626;
-  --green: #059669;
-  --blue: #2563eb;
+  --green: #047857;
+  --blue: #1d4ed8;
   --text: #1a2030;
-  --muted: #6b7584;
-  --border: #cbd5e1;
+  --muted: #526070;
+  --border: #c2ccd9;
   --radius: 16px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --glow: 0 0 28px rgba(208, 136, 0, 0.22);
@@ -55,7 +55,7 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: linear-gradient(180deg, #ddeeff 0%, var(--bg) 42%, #e8f0fa 100%);
+  background: linear-gradient(180deg, #d8e8f8 0%, var(--bg) 42%, #dde8f5 100%);
   color: var(--text);
   font-family: Outfit, Segoe UI, system-ui, sans-serif;
   touch-action: manipulation;
@@ -95,7 +95,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: linear-gradient(180deg, #c8dff5 0%, var(--bg) 88%);
+  background: linear-gradient(180deg, #c0d8f0 0%, var(--bg) 88%);
   transition: padding 0.2s ease;
 }
 
@@ -3700,6 +3700,169 @@ html.theme-light .tier-band-header {
 }
 html.theme-light .weekly-bar {
   background: rgba(0, 0, 0, 0.1);
+}
+
+/* Light theme fixes: elements that use white-transparent backgrounds (invisible on light bg) */
+html.theme-light .victory-card,
+html.theme-light .codex-card,
+html.theme-light .rank-info-row,
+html.theme-light .prestige-node,
+html.theme-light .stats-section,
+html.theme-light .expansion-city-card,
+html.theme-light .meta-block,
+html.theme-light .torpil-contact-card,
+html.theme-light .baron-history-card,
+html.theme-light .events-block,
+html.theme-light .codex-synergy-row,
+html.theme-light .franchise-city-dot {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.theme-light .progress-bar,
+html.theme-light .heat-meter-bar,
+html.theme-light .research-node-progress,
+html.theme-light .torpil-relation-bar,
+html.theme-light .lifestyle-stress-bar,
+html.theme-light .weekly-bar,
+html.theme-light .progress-path-bar,
+html.theme-light .reputation-bar,
+html.theme-light .rival-threat-bar,
+html.theme-light .ipo-progress-bar,
+html.theme-light .season-progress-strip {
+  background: rgba(0,0,0,0.1);
+}
+html.theme-light .torpil-bar-tick {
+  background: rgba(0,0,0,0.25);
+}
+html.theme-light .session-stat,
+html.theme-light .session-grid {
+  background: transparent;
+}
+html.theme-light .earn-mod-chip {
+  background: rgba(0,0,0,0.07);
+  color: var(--text);
+  border-color: rgba(0,0,0,0.12);
+}
+html.theme-light .panel-body,
+html.theme-light .hud-main {
+  background: var(--bg);
+}
+html.theme-light .shop-card:not([class*="affordable"]):not(.research-maxed) {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.theme-light .tab-panel {
+  background: var(--bg);
+}
+html.theme-light .biz-hero-card {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: 0 1px 8px rgba(0,30,80,0.06);
+}
+html.theme-light .codex-tab-btn {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--border);
+}
+html.theme-light .codex-tab-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+html.theme-light .gazette-entry,
+html.theme-light .events-block-gazette {
+  background: var(--surface);
+}
+html.theme-light .season-node {
+  background: var(--surface2);
+  border-color: var(--border);
+}
+html.theme-light .stat-row {
+  border-color: var(--border);
+}
+html.theme-light .panel-section {
+  background: var(--surface);
+}
+html.theme-light .rivals-panel .rival-card {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.theme-light .buy-mode-btn {
+  background: var(--surface2);
+  color: var(--text);
+}
+html.theme-light .buy-mode-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Kalan şeffaf beyaz arka planları düzelt */
+html.theme-light .next-biz-preview,
+html.theme-light .victory-card,
+html.theme-light .chronicle-row,
+html.theme-light .synergy-guide-row,
+html.theme-light .baron-history-card,
+html.theme-light .torpil-card,
+html.theme-light .torpil-contact-card,
+html.theme-light .rival-card {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.theme-light .reputation-bar,
+html.theme-light .reputation-track {
+  background: rgba(0,0,0,0.1);
+}
+html.theme-light .era-strip,
+html.theme-light .city-strip {
+  background: rgba(0,0,0,0.04);
+  border-color: var(--border);
+}
+html.theme-light .prestige-summary-chips .fx-chip,
+html.theme-light .fx-chip {
+  background: rgba(0,0,0,0.06);
+  color: var(--text);
+  border-color: var(--border);
+}
+html.theme-light .income-source-row {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.theme-light .manager-card,
+html.theme-light .named-manager-card {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.theme-light .underground-section,
+html.theme-light .underground-card {
+  background: var(--surface);
+}
+html.theme-light .research-tree-node {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.theme-light .codex-synergy-row {
+  background: var(--surface2);
+  border-color: var(--border);
+}
+html.theme-light .ach-badge {
+  background: var(--surface2);
+  border-color: var(--border);
+}
+html.theme-light .ach-badge.earned {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-color: var(--accent);
+}
+html.theme-light .franchise-city-dot .dot {
+  background: rgba(0,0,0,0.15);
+}
+html.theme-light .franchise-city-dot.active .dot {
+  background: var(--green);
+}
+html.theme-light .stats-section-title {
+  color: var(--text);
+}
+html.theme-light .hud-header .money-display,
+html.theme-light .hud-header .income-rate {
+  color: var(--text);
 }
 
 .settings-theme-grid {
