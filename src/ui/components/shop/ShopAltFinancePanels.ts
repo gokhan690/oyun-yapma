@@ -1,7 +1,7 @@
 import type { GameState } from '../../../game/GameState'
 import { formatMoney, formatIncomeRate } from '../../../game/Economy'
 import { COMMODITIES, commodityChangePct } from '../../../game/Commodities'
-import { INSURANCE_BASE_COST } from '../../../game/Insurance'
+import { insuranceDailyCost, type InsuranceState } from '../../../game/Insurance'
 import { UNDERGROUND_MARKET } from '../../../game/UndergroundMarket'
 import { ADVISOR_FEE } from '../../../game/AdvisorNPC'
 import { t, tRaw } from '../../../i18n'
@@ -14,13 +14,18 @@ export function renderInsurancePanel(
   createTabHero: TabHeroFn,
 ): void {
   panel.appendChild(createTabHero('🛡️', t('ins_title'), t('ins_subtitle'), ''))
+  const totalBiz = Object.values(state.producers).reduce((a, b) => a + ((b as number) ?? 0), 0)
+  const incomePerDay = state.incomePerDay()
   for (const [kind, labelKey, descKey] of [
     ['business', 'ins_business', 'ins_business_desc'] as const,
     ['illegal', 'ins_illegal', 'ins_illegal_desc'] as const,
     ['dynasty', 'ins_dynasty', 'ins_dynasty_desc'] as const,
   ]) {
     const active = state.insurance[kind]
-    const cost = INSURANCE_BASE_COST[kind]
+    // Sadece bu poliçenin günlük primi (gelire oranlı gerçek tutar)
+    const singleKind = { business: false, illegal: false, dynasty: false } as InsuranceState
+    singleKind[kind] = true
+    const cost = insuranceDailyCost(singleKind, totalBiz, state.ipoCount, incomePerDay)
     const card = document.createElement('div')
     card.className = `shop-card${active ? ' manager-active' : ''}`
     card.innerHTML = `<strong>${t(labelKey)}</strong><p>${t(descKey)}</p><span>${formatMoney(cost)}${t('lbl_per_day')}</span>`
