@@ -1,6 +1,7 @@
-export type ResidenceId = 'kira' | 'daire' | 'villa' | 'saray'
-export type VehicleId = 'yuruyus' | 'ekonomik' | 'luks_sedan' | 'super_araba' | 'ozel_jet'
-export type PetId = 'kopek' | 'kedi' | 'at'
+export type ResidenceId = 'kira' | 'daire' | 'rezidans' | 'villa' | 'yali' | 'saray' | 'ada'
+export type VehicleId =
+  | 'yuruyus' | 'motosiklet' | 'ekonomik' | 'suv' | 'luks_sedan' | 'super_araba' | 'helikopter' | 'yat' | 'ozel_jet'
+export type PetId = 'kopek' | 'kedi' | 'kus' | 'akvaryum' | 'at' | 'kaplan'
 export type WellbeingActivityId = 'terapi' | 'meditasyon' | 'tatil_kisa' | 'tatil_uzun'
 
 export interface ResidenceDef {
@@ -71,6 +72,17 @@ export const RESIDENCES: ResidenceDef[] = [
     stressReduction: 5,
   },
   {
+    id: 'rezidans',
+    name: 'Lüks Rezidans',
+    emoji: '🏬',
+    description: 'Concierge hizmetli, manzaralı rezidans katı. Kiraya da verilir.',
+    buyCost: 950_000,
+    monthlyRent: 0,
+    happinessBonus: 16,
+    reputationBonus: 10,
+    stressReduction: 8,
+  },
+  {
     id: 'villa',
     name: 'Boğaz Villası',
     emoji: '🏡',
@@ -82,6 +94,17 @@ export const RESIDENCES: ResidenceDef[] = [
     stressReduction: 15,
   },
   {
+    id: 'yali',
+    name: 'Tarihi Yalı',
+    emoji: '🏯',
+    description: 'Boğaz kıyısında restore edilmiş tarihi yalı. Eşsiz prestij.',
+    buyCost: 9_000_000,
+    monthlyRent: 0,
+    happinessBonus: 36,
+    reputationBonus: 35,
+    stressReduction: 22,
+  },
+  {
     id: 'saray',
     name: 'Özel Saray Kompleksi',
     emoji: '🏰',
@@ -91,6 +114,17 @@ export const RESIDENCES: ResidenceDef[] = [
     happinessBonus: 50,
     reputationBonus: 50,
     stressReduction: 30,
+  },
+  {
+    id: 'ada',
+    name: 'Özel Ada',
+    emoji: '🏝️',
+    description: 'Tapusu sende olan özel ada. Dünyada bir avuç insanın sahip olduğu lüks.',
+    buyCost: 120_000_000,
+    monthlyRent: 0,
+    happinessBonus: 80,
+    reputationBonus: 80,
+    stressReduction: 45,
   },
 ]
 
@@ -106,6 +140,16 @@ export const VEHICLES: VehicleDef[] = [
     incomeMult: 1.0,
   },
   {
+    id: 'motosiklet',
+    name: 'Motosiklet',
+    emoji: '🏍️',
+    description: 'Trafikte hızlı, ucuz. İlk araç olarak ideal.',
+    buyCost: 45_000,
+    monthlyUpkeep: 1_200,
+    reputationBonus: 1,
+    incomeMult: 1.01,
+  },
+  {
     id: 'ekonomik',
     name: 'Ekonomik Araç',
     emoji: '🚗',
@@ -114,6 +158,16 @@ export const VEHICLES: VehicleDef[] = [
     monthlyUpkeep: 3_000,
     reputationBonus: 3,
     incomeMult: 1.02,
+  },
+  {
+    id: 'suv',
+    name: 'Lüks SUV',
+    emoji: '🚐',
+    description: 'Geniş, gösterişli arazi aracı. Aile ve iş için ideal.',
+    buyCost: 420_000,
+    monthlyUpkeep: 7_000,
+    reputationBonus: 9,
+    incomeMult: 1.035,
   },
   {
     id: 'luks_sedan',
@@ -134,6 +188,26 @@ export const VEHICLES: VehicleDef[] = [
     monthlyUpkeep: 40_000,
     reputationBonus: 35,
     incomeMult: 1.08,
+  },
+  {
+    id: 'helikopter',
+    name: 'Özel Helikopter',
+    emoji: '🚁',
+    description: 'Trafik diye bir şey kalmaz. Şehir içi VIP ulaşım.',
+    buyCost: 18_000_000,
+    monthlyUpkeep: 220_000,
+    reputationBonus: 55,
+    incomeMult: 1.11,
+  },
+  {
+    id: 'yat',
+    name: 'Süper Yat',
+    emoji: '🛥️',
+    description: 'Yüzen malikane. Boğazda ve Akdeniz\'de imparator gibi.',
+    buyCost: 60_000_000,
+    monthlyUpkeep: 800_000,
+    reputationBonus: 85,
+    incomeMult: 1.13,
   },
   {
     id: 'ozel_jet',
@@ -167,6 +241,24 @@ export const PETS: PetDef[] = [
     dailyStressReduction: 2,
   },
   {
+    id: 'kus',
+    name: 'Konuşan Papağan',
+    emoji: '🦜',
+    description: 'Renkli ve neşeli. Eve hayat katar.',
+    buyCost: 4_000,
+    monthlyUpkeep: 800,
+    dailyStressReduction: 1,
+  },
+  {
+    id: 'akvaryum',
+    name: 'Dev Akvaryum',
+    emoji: '🐠',
+    description: 'Egzotik balıklarla dolu duvar akvaryumu. İzlemesi huzur verir.',
+    buyCost: 90_000,
+    monthlyUpkeep: 6_000,
+    dailyStressReduction: 3,
+  },
+  {
     id: 'at',
     name: 'Yarış Atı',
     emoji: '🐎',
@@ -174,6 +266,15 @@ export const PETS: PetDef[] = [
     buyCost: 500_000,
     monthlyUpkeep: 25_000,
     dailyStressReduction: 6,
+  },
+  {
+    id: 'kaplan',
+    name: 'Egzotik Kaplan',
+    emoji: '🐅',
+    description: 'Özel bakımlı egzotik kaplan. Tartışmasız güç ve statü simgesi.',
+    buyCost: 6_000_000,
+    monthlyUpkeep: 180_000,
+    dailyStressReduction: 9,
   },
 ]
 

@@ -14,22 +14,20 @@ export function createInsuranceState(): InsuranceState {
   return { business: false, illegal: false, dynasty: false }
 }
 
+// Sigorta ücreti günlük kazanca oranlanır: gelir arttıkça prim de artar.
 export function insuranceDailyCost(ins: InsuranceState, totalBusinesses = 0, ipoCount = 0, incomePerDay = 0): number {
   let c = 0
   if (ins.business) {
-    const base = INSURANCE_BASE_COST.business + totalBusinesses * 120
-    const incomeScale = incomePerDay > 0 ? Math.max(base, incomePerDay * 0.08) : base
-    c += incomeScale
+    const base = INSURANCE_BASE_COST.business + totalBusinesses * 40
+    c += incomePerDay > 0 ? Math.max(base, incomePerDay * 0.05) : base
   }
   if (ins.illegal) {
-    const base = INSURANCE_BASE_COST.illegal + totalBusinesses * 500
-    const incomeScale = incomePerDay > 0 ? Math.max(base, incomePerDay * 0.18) : base
-    c += incomeScale
+    const base = INSURANCE_BASE_COST.illegal + totalBusinesses * 150
+    c += incomePerDay > 0 ? Math.max(base, incomePerDay * 0.10) : base
   }
   if (ins.dynasty) {
-    const base = INSURANCE_BASE_COST.dynasty + totalBusinesses * 1_200 + ipoCount * 5_000
-    const incomeScale = incomePerDay > 0 ? Math.max(base, incomePerDay * 0.28) : base
-    c += incomeScale
+    const base = INSURANCE_BASE_COST.dynasty + totalBusinesses * 300 + ipoCount * 2_000
+    c += incomePerDay > 0 ? Math.max(base, incomePerDay * 0.15) : base
   }
   return Math.floor(c)
 }

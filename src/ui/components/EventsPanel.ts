@@ -385,7 +385,7 @@ export class EventsPanel {
     for (const c of chips) {
       const chip = document.createElement('div')
       chip.className = 'events-boost-chip'
-      chip.innerHTML = `<span>${c.emoji}</span><div><strong>${c.label}</strong><small>${c.detail}</small></div>`
+      chip.innerHTML = `<span class="events-boost-emoji">${c.emoji}</span><div class="events-boost-text"><strong>${c.label}</strong><small>⏳ ${c.detail}</small></div>`
       row.appendChild(chip)
     }
     wrap.appendChild(row)

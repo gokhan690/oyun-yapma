@@ -278,11 +278,10 @@ export class WorldMetaPanel {
         const check = canUnlockCity(c.id, this.state.cities, this.state.money, this.state.reputation, this.state.ipoCount)
         const btn = document.createElement('button')
         btn.type = 'button'
-        btn.className = 'btn-sm btn-primary'
+        btn.className = `btn-sm ${check.ok ? 'btn-primary' : 'btn-secondary city-unlock-locked'}`
         btn.dataset.action = 'unlock-city'
         btn.dataset.id = c.id
-        btn.textContent = t('world_open')
-        btn.disabled = !check.ok
+        btn.textContent = check.ok ? t('world_open') : `🔒 ${t('world_open')}`
         btn.title = check.reason ?? ''
         row.appendChild(btn)
       }

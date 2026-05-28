@@ -4815,14 +4815,21 @@ export class GameState {
     this.lastBankruptcyAt = data.lastBankruptcyAt ?? 0
     this.bankruptcyCashGraceSince = data.bankruptcyCashGraceSince ?? 0
     this.reputation = data.reputation ?? REPUTATION_START
-    this.rivals = data.rivals?.length
-      ? data.rivals.map((r) => ({
-          ...r,
-          sectorFocus: [...r.sectorFocus],
-          personality: r.personality ?? rivalDef(r.id)?.personality ?? 'conservative',
-          copiedSector: r.copiedSector ?? null,
-        }))
-      : createRivalsState()
+    if (data.rivals?.length) {
+      this.rivals = data.rivals.map((r) => ({
+        ...r,
+        sectorFocus: [...r.sectorFocus],
+        personality: r.personality ?? rivalDef(r.id)?.personality ?? 'conservative',
+        copiedSector: r.copiedSector ?? null,
+      }))
+      // Yeni eklenen rakip aileleri eski kayıtlara ekle
+      const fresh = createRivalsState()
+      for (const def of fresh) {
+        if (!this.rivals.some((r) => r.id === def.id)) this.rivals.push(def)
+      }
+    } else {
+      this.rivals = createRivalsState()
+    }
     for (const rival of this.rivals) {
       const def = rivalDef(rival.id)
       if (!def) continue
