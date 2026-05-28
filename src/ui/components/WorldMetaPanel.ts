@@ -332,32 +332,58 @@ export class WorldMetaPanel {
       card.appendChild(desc)
       if (st?.active) {
         const score = torpilRelationScore(st, def, currentDay)
+        const daysLeft = st.giftDue
+          ? 0
+          : Math.max(0, Math.round((score - 10) / 90 * def.giftIntervalDays))
+
         const relationRow = document.createElement('div')
         relationRow.className = 'torpil-relation-row'
         const label = document.createElement('small')
         label.className = 'torpil-relation-label'
         label.textContent = t('world_torpil_relation').replace('{pct}', String(score))
         const bar = document.createElement('div')
-        bar.className = 'torpil-relation-bar'
+        bar.className = 'torpil-relation-bar torpil-relation-bar-enhanced'
         const fill = document.createElement('div')
         fill.className = 'torpil-relation-fill'
         fill.style.width = `${score}%`
         fill.style.background = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--accent)' : '#ef4444'
         bar.appendChild(fill)
+        for (const tick of [40, 70]) {
+          const t2 = document.createElement('div')
+          t2.className = 'torpil-bar-tick'
+          t2.style.left = `${tick}%`
+          bar.appendChild(t2)
+        }
         relationRow.append(label, bar)
         card.appendChild(relationRow)
-        if (score >= 80 && !st.giftDue) {
-          const bonus = document.createElement('small')
-          bonus.className = 'torpil-bonus-active'
-          const bonusMap: Record<string, string> = {
-            amca_rifat: t('torpil_bonus_rifat'),
-            sinan_bank: t('torpil_bonus_sinan'),
-            siyaset_tanidik: t('torpil_bonus_siyaset'),
-            medya_partner: t('torpil_bonus_medya'),
-          }
-          bonus.textContent = bonusMap[def.id] ?? t('world_torpil_active')
-          card.appendChild(bonus)
+
+        const bonusMap: Record<string, string> = {
+          amca_rifat: t('torpil_bonus_rifat'),
+          sinan_bank: t('torpil_bonus_sinan'),
+          siyaset_tanidik: t('torpil_bonus_siyaset'),
+          medya_partner: t('torpil_bonus_medya'),
         }
+        const bonusLabel = bonusMap[def.id] ?? t('world_torpil_active')
+        const statusRow = document.createElement('div')
+        statusRow.className = 'torpil-status-row'
+        if (!st.giftDue && score >= 40) {
+          const bonus = document.createElement('span')
+          bonus.className = 'torpil-bonus-active'
+          bonus.textContent = `✅ ${bonusLabel}`
+          statusRow.appendChild(bonus)
+        } else if (!st.giftDue) {
+          const warn = document.createElement('span')
+          warn.className = 'torpil-bonus-pending'
+          warn.textContent = `⏳ ${bonusLabel} — ilişki zayıf`
+          statusRow.appendChild(warn)
+        }
+        if (daysLeft > 0 && !st.giftDue) {
+          const nextGift = document.createElement('span')
+          nextGift.className = 'torpil-next-gift'
+          nextGift.textContent = `🎁 ~${daysLeft} gün sonra hediye`
+          statusRow.appendChild(nextGift)
+        }
+        card.appendChild(statusRow)
         if (st.giftDue) {
           const giftWarn = document.createElement('p')
           giftWarn.className = 'torpil-gift-warn'
