@@ -328,6 +328,29 @@ export interface OwnedPropertyEntry {
   rentalMonthlyIncome: number
 }
 
+export type HomeRoomId = 'study' | 'game_room' | 'gym' | 'guest_room'
+
+export interface HomeRoomDef {
+  id: HomeRoomId
+  name: string
+  emoji: string
+  cost: number
+  bonusLabel: string
+  /** Araştırma bonusu */
+  researchBonus?: number
+  /** Stres günlük azaltma */
+  stressReduction?: number
+  /** Arkadaş ilişki bonusu multiplier */
+  friendshipBonus?: number
+}
+
+export const HOME_ROOMS: HomeRoomDef[] = [
+  { id: 'study', name: 'Çalışma Odası', emoji: '📚', cost: 100_000, bonusLabel: 'Araştırma hızı +%10', researchBonus: 0.1 },
+  { id: 'game_room', name: 'Oyun Odası', emoji: '🎮', cost: 80_000, bonusLabel: 'Stres −5/gün', stressReduction: 5 },
+  { id: 'gym', name: 'Spor Salonu', emoji: '🏋️', cost: 150_000, bonusLabel: 'Günlük egzersiz ücretsiz, Sağlık +3/gün' },
+  { id: 'guest_room', name: 'Misafir Odası', emoji: '🛏️', cost: 60_000, bonusLabel: 'Arkadaş ilişki bonusu +%25', friendshipBonus: 0.25 },
+]
+
 export interface LifestyleState {
   residence: ResidenceId
   vehicle: VehicleId
@@ -339,6 +362,8 @@ export interface LifestyleState {
   vacationActiveUntilDay: number
   ownedResidences: OwnedPropertyEntry[]
   ownedVehicles: OwnedPropertyEntry[]
+  /** Ev odaları */
+  homeRooms?: HomeRoomId[]
 }
 
 export function createLifestyleState(): LifestyleState {
@@ -474,4 +499,28 @@ export function dailyStressDelta(
   if (currentGameDay < ls.vacationActiveUntilDay) delta -= 8
 
   return delta
+}
+
+export function homeRoomDef(id: HomeRoomId): HomeRoomDef | undefined {
+  return HOME_ROOMS.find((r) => r.id === id)
+}
+
+export function hasHomeRoom(ls: LifestyleState, id: HomeRoomId): boolean {
+  return (ls.homeRooms ?? []).includes(id)
+}
+
+export function homeRoomResearchBonus(ls: LifestyleState): number {
+  let total = 0
+  for (const id of ls.homeRooms ?? []) {
+    total += homeRoomDef(id)?.researchBonus ?? 0
+  }
+  return total
+}
+
+export function homeRoomDailyStressReduction(ls: LifestyleState): number {
+  let total = 0
+  for (const id of ls.homeRooms ?? []) {
+    total += homeRoomDef(id)?.stressReduction ?? 0
+  }
+  return total
 }

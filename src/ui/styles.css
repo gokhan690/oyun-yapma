@@ -9025,3 +9025,38 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
   color: var(--text-dim, #b9ad8c);
   font-size: 0.72rem;
 }
+
+/* ===== Ev Odaları ===== */
+.home-rooms-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #3a3220);
+}
+.home-rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+.home-room-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 6px;
+  background: var(--surface2, #1f1a10);
+  border: 1px solid var(--border, #3a3220);
+  border-radius: 10px;
+  color: var(--text, #efe6cf);
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: center;
+}
+.home-room-btn.home-room-owned {
+  border-color: #5ee0a0;
+  background: color-mix(in srgb, #5ee0a0 10%, var(--surface2, #1f1a10));
+  cursor: default;
+}
+.home-room-btn small { font-size: 0.7rem; color: var(--text-dim, #b9ad8c); }
+.home-room-btn.home-room-owned small:first-of-type { color: #5ee0a0; }

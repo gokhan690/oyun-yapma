@@ -303,6 +303,10 @@ import {
   vehicleSellValue,
   defaultRentalIncome,
   defaultVehicleRentalIncome,
+  homeRoomResearchBonus,
+  homeRoomDailyStressReduction,
+  hasHomeRoom,
+  HOME_ROOMS,
   RESIDENCES,
   VEHICLES,
   PETS,
@@ -312,6 +316,7 @@ import {
   type VehicleId,
   type PetId,
   type WellbeingActivityId,
+  type HomeRoomId,
 } from './Lifestyle'
 import {
   LIFE_EVENTS,
@@ -1649,7 +1654,8 @@ export class GameState {
     const eduResearch = educationResearchBonus(this.education)
     const hobResearch = hobbyResearchBonus(this.hobby)
     const travelRes = travelResearchBonus(this.travel, gameDay(this.gameTimeMs))
-    return this.globalMultiplier() * researchPassiveBonus(this.research) * (1 + this.dayNightPassiveBonus()) * (1 + eduResearch + hobResearch + travelRes)
+    const homeRes = homeRoomResearchBonus(this.lifestyle)
+    return this.globalMultiplier() * researchPassiveBonus(this.research) * (1 + this.dayNightPassiveBonus()) * (1 + eduResearch + hobResearch + travelRes + homeRes)
   }
 
   clickMultiplier(): number {
@@ -3965,7 +3971,8 @@ export class GameState {
     const ls = this.lifestyle
     const activeBiz = Object.values(this.producers).filter((c) => c > 0).length
     const delta = dailyStressDelta(ls, activeBiz, this.illegalHeat, day)
-    ls.stress = Math.max(0, Math.min(100, ls.stress + delta))
+    const roomStressReduction = homeRoomDailyStressReduction(ls)
+    ls.stress = Math.max(0, Math.min(100, ls.stress + delta - roomStressReduction))
     if (ls.stress >= 80) {
       ls.burnoutDays += 1
     } else {
@@ -3993,7 +4000,8 @@ export class GameState {
       ? Math.floor((day - this.dynasty.playerBornGameDay) / 365) + (this.dynasty.playerStartAge ?? 25)
       : 30
     const delta = dailyHealthDelta(age, this.lifestyle.stress, this.health)
-    this.health.health = Math.max(0, Math.min(100, this.health.health + delta))
+    const gymBonus = hasHomeRoom(this.lifestyle, 'gym') ? 3 : 0
+    this.health.health = Math.max(0, Math.min(100, this.health.health + delta + gymBonus))
     if (this.health.exerciseDaysActive > 0) {
       this.health.exerciseDaysActive--
     }
@@ -4206,6 +4214,19 @@ export class GameState {
   toggleDynastyLegacyItem(itemId: DynastyLegacyItemId): void {
     toggleLegacyItem(this.dynasty, itemId)
     this.emit({ type: 'legacy_selected', items: this.dynasty.legacyItems ?? [] })
+  }
+
+  buyHomeRoom(roomId: HomeRoomId): boolean {
+    const roomDef = HOME_ROOMS.find((r) => r.id === roomId)
+    if (!roomDef) return false
+    if (hasHomeRoom(this.lifestyle, roomId)) return false
+    if (!this.canAfford(roomDef.cost)) return false
+    this.spendMoney(roomDef.cost)
+    if (!this.lifestyle.homeRooms) this.lifestyle.homeRooms = []
+    this.lifestyle.homeRooms.push(roomId)
+    this.emit({ type: 'money_changed' })
+    this.addGazette(`🏠 ${roomDef.emoji} ${roomDef.name} eklendi — ${roomDef.bonusLabel}`, 'player')
+    return true
   }
 
   goTravel(destinationId: TravelDestinationId): boolean {

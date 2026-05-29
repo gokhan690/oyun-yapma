@@ -2232,6 +2232,16 @@ export class HUD {
           this.refreshBaronPanel()
         }
         break
+      case 'buy-home-room':
+        if (id) {
+          if (this.state.buyHomeRoom(id as import('../game/Lifestyle').HomeRoomId)) {
+            this.modals.showToast(this.root, '🏠 Oda eklendi!')
+          } else {
+            this.modals.showToast(this.root, 'Yeterli para yok veya zaten mevcut', 'important')
+          }
+          this.refreshBaronPanel()
+        }
+        break
       case 'rival-acquire':
         if (id) {
           const rv = this.state.rivals.find((r) => r.id === id)

@@ -6,6 +6,7 @@ import { FRIEND_TYPES } from '../../game/Friendships'
 import { MENTORS, ENEMIES } from '../../game/MentorEnemy'
 import { HOBBIES } from '../../game/Hobby'
 import { TRAVEL_DESTINATIONS, availableDestinations } from '../../game/Travel'
+import { HOME_ROOMS } from '../../game/Lifestyle'
 import { t } from '../../i18n'
 
 function traitLabel(trait: string): string {
@@ -206,8 +207,44 @@ export class DynastyPanel {
     }
 
     this.renderLegacyItems()
+    this.renderHomeRooms()
     this.renderFriends()
     this.renderMentorEnemy()
+  }
+
+  private renderHomeRooms(): void {
+    const ls = this.state.lifestyle
+    const owned = ls.homeRooms ?? []
+    if (owned.length === HOME_ROOMS.length) return // All rooms owned — skip section
+    const section = document.createElement('div')
+    section.className = 'home-rooms-section'
+    const h4 = document.createElement('h4')
+    h4.textContent = '🏠 Ev Odaları'
+    section.appendChild(h4)
+    const desc = document.createElement('p')
+    desc.className = 'dynasty-desc'
+    desc.textContent = 'Evine oda ekle — her oda farklı bir yaşam bonusu sağlar.'
+    section.appendChild(desc)
+    const grid = document.createElement('div')
+    grid.className = 'home-rooms-grid'
+    for (const room of HOME_ROOMS) {
+      const isOwned = owned.includes(room.id)
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `home-room-btn${isOwned ? ' home-room-owned' : ''}`
+      btn.dataset.action = 'buy-home-room'
+      btn.dataset.id = room.id
+      btn.disabled = isOwned || !this.state.canAfford(room.cost)
+      btn.innerHTML = `
+        <span>${room.emoji}</span>
+        <span>${room.name}</span>
+        <small>${isOwned ? '✅ Mevcut' : formatMoney(room.cost)}</small>
+        <small>${room.bonusLabel}</small>
+      `
+      grid.appendChild(btn)
+    }
+    section.appendChild(grid)
+    this.root.appendChild(section)
   }
 
   private renderLegacyItems(): void {
