@@ -13,6 +13,8 @@ import { assetUrl } from '../utils/assetUrl'
 import { currentRank, rankProgress } from '../game/PlayerRank'
 import { dayBonusExtra, nightBonusExtra } from '../game/PrestigeTree'
 import { PERSONALITIES, type PersonalityId } from '../game/PlayerPersonality'
+import { EDUCATIONS } from '../game/Education'
+import { HOBBIES } from '../game/Hobby'
 import { type ParentingStyle, type ChildCareer } from '../game/Dynasty'
 import { StatsBar } from './components/StatsBar'
 import { ShopPanel } from './components/ShopPanel'
@@ -191,6 +193,9 @@ export class HUD {
     }
     if (!this.state.personality) {
       window.setTimeout(() => this.maybeShowPersonalityModal(), delayMs + 400)
+    }
+    if (!this.state.education) {
+      window.setTimeout(() => this.maybeShowEducationModal(), delayMs + 800)
     }
   }
 
@@ -996,6 +1001,9 @@ export class HUD {
       }
       if (ev.type === 'baron_legacy_card') {
         this.showLegacyCardModal(ev)
+      }
+      if (ev.type === 'age_milestone') {
+        this.showAgeMilestoneModal(ev.age, ev.question)
       }
       if (ev.type === 'market_news') {
         this.renderMarketNewsBanner()
@@ -2165,6 +2173,22 @@ export class HUD {
           }
         }
         break
+      case 'choose-education':
+        if (id) {
+          this.state.setEducation(id as import('../game/Education').EducationId)
+          const eDef = EDUCATIONS.find((e) => e.id === id)
+          this.modals.showToast(this.root, `🎓 Eğitim seçildi: ${eDef?.name ?? id}`)
+          this.closeModalAndPump()
+        }
+        break
+      case 'set-hobby':
+        if (id) {
+          this.state.setHobby(id as import('../game/Hobby').HobbyId)
+          const hDef = HOBBIES.find((h) => h.id === id)
+          this.modals.showToast(this.root, `🎯 Hobi seçildi: ${hDef?.name ?? id}`)
+          this.refreshBaronPanel()
+        }
+        break
       case 'toggle-legacy-item':
         if (id) {
           this.state.toggleDynastyLegacyItem(id as import('../game/Dynasty').DynastyLegacyItemId)
@@ -2720,6 +2744,36 @@ export class HUD {
     })
   }
 
+  private showAgeMilestoneModal(age: number, question: string): void {
+    const body = document.createElement('div')
+    body.className = 'annual-summary-body'
+    const p = document.createElement('p')
+    p.className = 'annual-summary-question'
+    p.textContent = question
+    const btnRow = document.createElement('div')
+    btnRow.className = 'annual-summary-choices'
+    const choices = [
+      { label: 'Kariyer', emoji: '💼', focus: 'work' },
+      { label: 'Aile', emoji: '👨‍👩‍👧', focus: 'family' },
+      { label: 'Sağlık', emoji: '💪', focus: 'health' },
+      { label: 'Sosyal', emoji: '🤝', focus: 'social' },
+    ]
+    for (const c of choices) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'btn-secondary annual-choice-btn'
+      btn.dataset.action = `annual-focus-${c.focus}`
+      btn.innerHTML = `<strong>${c.emoji} ${c.label}</strong>`
+      btnRow.appendChild(btn)
+    }
+    body.append(p, btnRow)
+    this.eventDirector.enqueue({
+      id: `age-milestone-${age}`,
+      priority: 2,
+      run: () => this.modals.showContent(`🎂 ${age} Yaşında!`, body, []),
+    })
+  }
+
   private showEnemyAppearedModal(enemyName: string, title: string): void {
     const body = document.createElement('div')
     body.className = 'annual-summary-body'
@@ -2783,6 +2837,31 @@ export class HUD {
       id: 'personality-choice',
       priority: 3,
       run: () => this.modals.showContent('🎭 Karakterini Seç', body, [], true),
+    })
+  }
+
+  private maybeShowEducationModal(): void {
+    if (this.state.education) return
+    const body = document.createElement('div')
+    const p = document.createElement('p')
+    p.className = 'annual-summary-question'
+    p.textContent = 'Eğitim geçmişin başlangıç koşullarını belirliyor. Hangi eğitim seviyesinden başlamak istersin?'
+    const btnRow = document.createElement('div')
+    btnRow.className = 'annual-summary-choices'
+    for (const edu of EDUCATIONS) {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'btn-secondary annual-choice-btn'
+      b.dataset.action = 'choose-education'
+      b.dataset.id = edu.id
+      b.innerHTML = `<strong>${edu.emoji} ${edu.name}</strong><small>${edu.description}</small>`
+      btnRow.appendChild(b)
+    }
+    body.append(p, btnRow)
+    this.eventDirector.enqueue({
+      id: 'education-choice',
+      priority: 3,
+      run: () => this.modals.showContent('🎓 Eğitim Geçmişi', body, [], true),
     })
   }
 

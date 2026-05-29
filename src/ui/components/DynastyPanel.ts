@@ -4,6 +4,7 @@ import { gameDay } from '../../game/GameClock'
 import { spouseOptionsForPlayer, PLAYER_LIFESPAN, CHILD_CAREERS, childCareerDef, DYNASTY_LEGACY_ITEMS, type ChildRecord } from '../../game/Dynasty'
 import { FRIEND_TYPES } from '../../game/Friendships'
 import { MENTORS, ENEMIES } from '../../game/MentorEnemy'
+import { HOBBIES } from '../../game/Hobby'
 import { t } from '../../i18n'
 
 function traitLabel(trait: string): string {
@@ -96,6 +97,9 @@ export class DynastyPanel {
     } else {
       this.renderFamily()
     }
+
+    this.renderHobby()
+    this.renderSocialStatus()
   }
 
   private renderMarriage(): void {
@@ -427,6 +431,68 @@ export class DynastyPanel {
     actions.appendChild(pick)
     card.appendChild(actions)
     return card
+  }
+
+  private renderHobby(): void {
+    const hobby = this.state.hobby
+    const section = document.createElement('div')
+    section.className = 'hobby-section'
+    const title = document.createElement('h4')
+    title.textContent = '🎯 Hobi'
+    section.appendChild(title)
+
+    if (!hobby.hobbyId) {
+      const desc = document.createElement('p')
+      desc.className = 'dynasty-desc'
+      desc.textContent = 'Bir hobi seç — zaman ve para gerektiriyor ama uzun vadeli bonuslar açıyor.'
+      section.appendChild(desc)
+      const grid = document.createElement('div')
+      grid.className = 'hobby-grid'
+      for (const h of HOBBIES) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = 'btn-secondary hobby-btn'
+        btn.dataset.action = 'set-hobby'
+        btn.dataset.id = h.id
+        btn.innerHTML = `<span>${h.emoji} ${h.name}</span><small>${h.bonusLabel}</small><small>Aylık: ${formatMoney(h.monthlyCost)}</small>`
+        grid.appendChild(btn)
+      }
+      section.appendChild(grid)
+    } else {
+      const def = HOBBIES.find((h) => h.id === hobby.hobbyId)
+      if (def) {
+        const card = document.createElement('div')
+        card.className = 'hobby-active-card'
+        const active = hobby.bonusActive
+        card.innerHTML = `
+          <strong>${def.emoji} ${def.name}</strong>
+          <small>${def.bonusLabel}</small>
+          <small>Aylık maliyet: ${formatMoney(def.monthlyCost)}</small>
+          <small>${active ? '✅ Bonus aktif' : `⏳ Bonus ${3 - hobby.monthsActive} ay sonra aktif`}</small>
+        `
+        section.appendChild(card)
+      }
+    }
+    this.root.appendChild(section)
+  }
+
+  private renderSocialStatus(): void {
+    const score = this.state.socialStatusScore()
+    const { title, emoji } = this.state.socialStatusTitle()
+    const section = document.createElement('div')
+    section.className = 'social-status-section'
+    const h4 = document.createElement('h4')
+    h4.textContent = '🏆 Sosyal Statü'
+    section.appendChild(h4)
+    const bar = document.createElement('div')
+    bar.className = 'social-status-row'
+    const fill = Math.min(100, (score / 200) * 100)
+    bar.innerHTML = `
+      <label><span>${emoji} ${title}</span><span>${score} puan</span></label>
+      <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${fill}%;background:var(--accent,#d4af37)"></div></div>
+    `
+    section.appendChild(bar)
+    this.root.appendChild(section)
   }
 
   private renderMortalityRisks(): void {

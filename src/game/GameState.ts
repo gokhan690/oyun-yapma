@@ -388,6 +388,21 @@ import {
   type DynastyLegacyItemId,
 } from './Dynasty'
 import {
+  EDUCATIONS,
+  educationIncomeMult,
+  educationResearchBonus,
+  type EducationId,
+} from './Education'
+import {
+  createHobbyState,
+  hobbyProducerBonus,
+  hobbyResearchBonus,
+  hobbyMonthlyCost,
+  tickHobbyMonth,
+  type HobbyId,
+  type HobbyState,
+} from './Hobby'
+import {
   createCityState,
   canUnlockCity,
   cityDef,
@@ -577,6 +592,9 @@ export interface SerializableState {
   friendships?: FriendshipsState
   mentorEnemy?: MentorEnemyState
   legacyScore?: number
+  education?: EducationId | null
+  hobby?: HobbyState
+  ageMilestonesShown?: number[]
 }
 
 export interface ProducerBreakdown {
@@ -671,6 +689,8 @@ export type GameEvent =
   | { type: 'friend_unlocked'; friendName: string; typeLabel: string }
   | { type: 'legacy_selected'; items: DynastyLegacyItemId[] }
   | { type: 'baron_legacy_card'; peakNetWorth: number; generation: number; ipoCount: number; reputation: number; legacyScore: number; publicTitle: string; publicEmoji: string }
+  | { type: 'age_milestone'; age: number; question: string }
+  | { type: 'social_status_changed'; score: number; title: string }
 
 const MILESTONE_THRESHOLDS = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
 const CRIT_CHANCE = 0.1
@@ -753,6 +773,9 @@ export class GameState {
   friendships = createFriendshipsState()
   mentorEnemy = createMentorEnemyState()
   legacyScore = 0
+  education: EducationId | null = null
+  hobby = createHobbyState()
+  ageMilestonesShown: number[] = []
   lastAnnualSummaryYear = -1
   personality: PersonalityId | null = null
   playerSkills = createPlayerSkillsState()
@@ -1606,11 +1629,14 @@ export class GameState {
     mult *= friendshipIncomeMult(this.friendships)
     mult *= mentorIncomeMult(this.mentorEnemy)
     mult *= enemyIncomePenalty(this.mentorEnemy)
+    mult *= educationIncomeMult(this.education)
     return mult
   }
 
   passiveMultiplier(): number {
-    return this.globalMultiplier() * researchPassiveBonus(this.research) * (1 + this.dayNightPassiveBonus())
+    const eduResearch = educationResearchBonus(this.education)
+    const hobResearch = hobbyResearchBonus(this.hobby)
+    return this.globalMultiplier() * researchPassiveBonus(this.research) * (1 + this.dayNightPassiveBonus()) * (1 + eduResearch + hobResearch)
   }
 
   clickMultiplier(): number {
@@ -1665,6 +1691,8 @@ export class GameState {
     if (!this.producerModernized[def.id]) {
       mult *= obsolescenceMult(def.tier, this.ipoCount)
     }
+    const hobbyBonus = hobbyProducerBonus(this.hobby, def.id)
+    if (hobbyBonus > 0) mult *= 1 + hobbyBonus
     return scaledBaseIncome(def.baseIncome, def) * owned * mult * this.passiveMultiplier()
   }
 
@@ -3870,6 +3898,8 @@ export class GameState {
     this.tickHealth(day)
     this.tickSpouseSatisfaction(day)
     this.tickAnnualSummary(day)
+    this.tickAgeMilestones(day)
+    this.tickHobby(day)
     this.tickFriendshipsDaily(day)
     this.tickMentorEnemy(day)
     this.tickLifeEvents(day)
@@ -3997,6 +4027,82 @@ export class GameState {
         incomePerDay: this.incomePerDay(),
       })
     }
+  }
+
+  private lastAgeMilestoneTickDay = 0
+  private tickAgeMilestones(day: number): void {
+    if (day === this.lastAgeMilestoneTickDay) return
+    this.lastAgeMilestoneTickDay = day
+    const age = this.playerAge()
+    const milestones = [30, 40, 50, 60, 70]
+    const questions: Record<number, string> = {
+      30: '30 yaşına girdin — kariyerinin yükselen döneminde ne odak alacaksın?',
+      40: '40 yaşına girdin — Hayatına ne bıraktın? Önümüzdeki on yılın hedefi?',
+      50: '50 yaşında! Deneyimin zirvede — miras mı bırakıyorsun, yoksa büyümeye devam mı?',
+      60: '60 yaşındasın — onuru koruyan bir lider misin, yoksa hâlâ risk alıyor musun?',
+      70: '70. yılın! Bu imparatorluğu bir ömür inşa ettin — verisatinle nesli mi yönlendiriyorsun?',
+    }
+    for (const milestone of milestones) {
+      if (age >= milestone && !this.ageMilestonesShown.includes(milestone)) {
+        this.ageMilestonesShown.push(milestone)
+        this.emit({ type: 'age_milestone', age: milestone, question: questions[milestone] ?? `${milestone} yaşına girdin!` })
+        break // Bir seferinde biri
+      }
+    }
+  }
+
+  private lastHobbyTickDay = 0
+  private tickHobby(day: number): void {
+    if (day === this.lastHobbyTickDay) return
+    this.lastHobbyTickDay = day
+    if (day % 30 === 0 && day > 0 && this.hobby.hobbyId) {
+      const cost = hobbyMonthlyCost(this.hobby)
+      if (cost > 0 && this.money >= cost) {
+        this.money -= cost
+        this.emit({ type: 'money_changed' })
+      }
+      tickHobbyMonth(this.hobby)
+    }
+  }
+
+  setEducation(id: EducationId): void {
+    if (this.education !== null) return // Sadece bir kez seçilebilir
+    this.education = id
+    const def = EDUCATIONS.find((e) => e.id === id)
+    if (!def) return
+    // Başlangıç parası çarpanı uygula
+    this.money = Math.floor(this.money * def.startingMoneyMult)
+    // Başlangıç prestij bonusu
+    if (def.startPrestige > 0) {
+      this.prestigePoints += def.startPrestige
+      this.lifetimePrestige += def.startPrestige
+    }
+    this.emit({ type: 'money_changed' })
+  }
+
+  setHobby(id: HobbyId): void {
+    this.hobby.hobbyId = id
+    this.hobby.monthsActive = 0
+    this.hobby.bonusActive = false
+  }
+
+  socialStatusScore(): number {
+    const wealth = Math.log10(Math.max(1, this.financeNetWorth())) * 10
+    const rep = Math.max(0, this.reputation)
+    const politics = { none: 0, muhtar: 5, belediye: 15, milletvekili: 25, bakan: 40, cumhurbaskan: 60 }
+    const politicsScore = politics[this.empire.politics.level] ?? 0
+    const familyHealth = Math.round((this.dynasty.spouseSatisfaction ?? 70) / 10)
+    return Math.floor(wealth + rep + politicsScore + familyHealth)
+  }
+
+  socialStatusTitle(): { title: string; emoji: string } {
+    const score = this.socialStatusScore()
+    if (score >= 200) return { title: 'Efsanevi Baron', emoji: '🌟' }
+    if (score >= 150) return { title: 'Tanınan Figür', emoji: '👑' }
+    if (score >= 100) return { title: 'İş Dünyasının Yıldızı', emoji: '⭐' }
+    if (score >= 70) return { title: 'Saygın Girişimci', emoji: '💼' }
+    if (score >= 40) return { title: 'Yerel Tanınan', emoji: '🤝' }
+    return { title: 'Sıradan Yatırımcı', emoji: '📈' }
   }
 
   private lastFriendshipTickDay = 0
@@ -5093,6 +5199,9 @@ export class GameState {
       friendships: { friends: this.friendships.friends.map((f) => ({ ...f })), lastFriendshipTickDay: this.friendships.lastFriendshipTickDay },
       mentorEnemy: { ...this.mentorEnemy },
       legacyScore: this.legacyScore,
+      education: this.education,
+      hobby: { ...this.hobby },
+      ageMilestonesShown: [...this.ageMilestonesShown],
       difficulty: this.difficulty,
       playerName: this.playerName,
       birthYear: this.birthYear,
@@ -5340,6 +5449,11 @@ export class GameState {
       this.mentorEnemy = { ...createMentorEnemyState(), ...data.mentorEnemy }
     }
     this.legacyScore = data.legacyScore ?? 0
+    this.education = data.education ?? null
+    if (data.hobby) {
+      this.hobby = { ...createHobbyState(), ...data.hobby }
+    }
+    this.ageMilestonesShown = data.ageMilestonesShown ?? []
     this.difficulty = (['easy', 'normal', 'hard'] as const).includes(data.difficulty as 'easy' | 'normal' | 'hard')
       ? (data.difficulty as 'easy' | 'normal' | 'hard')
       : 'normal'

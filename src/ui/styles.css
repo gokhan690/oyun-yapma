@@ -8914,3 +8914,38 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
   background: var(--surface2, #1f1a10);
   border-radius: 8px;
 }
+
+/* ===== Hobi, Sosyal Statü ===== */
+.hobby-section, .social-status-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #3a3220);
+}
+.hobby-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+.hobby-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 8px;
+  font-size: 0.8rem;
+  text-align: center;
+}
+.hobby-btn small { font-size: 0.7rem; color: var(--text-dim, #b9ad8c); }
+.hobby-active-card {
+  background: var(--surface2, #1f1a10);
+  border: 1px solid var(--accent, #d4af37);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+}
+.social-status-row { margin-top: 8px; }
