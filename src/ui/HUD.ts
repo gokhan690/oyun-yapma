@@ -51,6 +51,7 @@ import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, h
 import { navLockReason, isShopHubLocked, shopHubLockReason } from '../game/ProgressiveUnlock'
 import { i18n, LANG_META, t, type LangCode } from '../i18n'
 import { applyCountry, type CountryId } from '../game/Countries'
+import { BaronAdvisor } from './components/BaronAdvisor'
 
 export class HUD {
   private root: HTMLElement
@@ -128,6 +129,7 @@ export class HUD {
   private postIntroTasks = new Map<string, () => void>()
   private postMetaTasks = new Map<string, () => void>()
   private metaFlowReleased = false
+  private baronAdvisor = new BaronAdvisor()
 
   constructor(
     state: GameState,
@@ -509,7 +511,7 @@ export class HUD {
     this.baronView.appendChild(this.lifestylePanel.root)
     this.statsScreen.embedIn(this.baronView)
 
-    this.earnView.append(this.weeklyBanner, this.eraStrip, this.cityStrip, this.earnModifiersEl, tapWrap, comboWrap, sessionPanel, progressStrip, adsPanel)
+    this.earnView.append(this.weeklyBanner, this.eraStrip, this.cityStrip, this.earnModifiersEl, tapWrap, comboWrap, sessionPanel, progressStrip, this.baronAdvisor.root, adsPanel)
     main.append(this.earnView, this.shop.root, this.baronView, this.empirePanel.root)
 
     this.adBannerSlot = document.createElement('div')
@@ -865,6 +867,7 @@ export class HUD {
         this.renderProgressStrip()
         this.checkRankUp()
         this.checkPrestigeHint()
+        this.renderBaronAdvisor()
       }
       if (ev.type === 'click') {
         this.root.classList.add('money-pulse')
@@ -3771,6 +3774,11 @@ export class HUD {
     this.renderEarnModifiers()
     this.updateNavBadges()
     this.updateProgressiveUnlock()
+    this.renderBaronAdvisor()
+  }
+
+  private renderBaronAdvisor(): void {
+    this.baronAdvisor.render(this.state)
   }
 
   destroy(): void {

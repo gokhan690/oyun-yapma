@@ -69,6 +69,7 @@ export class StatsScreen {
       this.renderStats()
       this.renderAchievements()
       this.renderPrestigeMerge()
+      this.content.appendChild(this.renderVictoryPaths())
       this.renderRivals()
       this.renderBadges()
       this.renderSynergyGuide()
@@ -383,6 +384,84 @@ export class StatsScreen {
     }
 
     this.content.appendChild(block)
+  }
+
+  private renderVictoryPaths(): HTMLElement {
+    const section = document.createElement('div')
+    section.className = 'victory-paths-section'
+
+    const title = document.createElement('h3')
+    title.className = 'section-title'
+    title.textContent = '🏆 Zafer Yolları'
+    section.appendChild(title)
+
+    const ctx = {
+      netWorth: (this.state.money ?? 0) + (this.state.bank?.deposit ?? 0),
+      politicsLevel: this.state.empire?.politics?.level ?? 'none',
+      presidentSeasons: this.state.presidentSeasons ?? 0,
+      dynastyGeneration: this.state.dynasty?.generation ?? 1,
+      illegalTypesOwned: Object.entries(this.state.producers ?? {}).filter(([id, c]) => {
+        return ['kacak_imalat','uyusturucu','karapara','fidye'].includes(id) && (c as number) > 0
+      }).length,
+      totalRaidsCaught: this.state.totalRaidsCaught ?? 0,
+      alreadyUnlocked: this.state.victoriesUnlocked ?? [],
+    }
+
+    const paths = [
+      { id: 'economic' as const, emoji: '💰', name: 'Ekonomik Zafer', desc: '1 trilyon₺ net değer', color: '#f8b84e' },
+      { id: 'political' as const, emoji: '🎖️', name: 'Siyasi Zafer', desc: '2 sezon cumhurbaşkanı', color: '#72b7ff' },
+      { id: 'dynasty' as const, emoji: '👑', name: 'Hanedan Zaferi', desc: '7 nesil imparatorluk', color: '#c084fc' },
+      { id: 'shadow' as const, emoji: '🕶️', name: 'Gölge Zafer', desc: '5 illegal + az baskın', color: '#5ee0a0' },
+    ]
+
+    const grid = document.createElement('div')
+    grid.className = 'victory-paths-grid'
+
+    for (const path of paths) {
+      let pct = 0
+      try {
+        pct = this.calcVictoryProgress(ctx, path.id)
+      } catch { pct = 0 }
+
+      const unlocked = ctx.alreadyUnlocked.includes(path.id)
+      const card = document.createElement('div')
+      card.className = `victory-path-card${unlocked ? ' victory-unlocked' : ''}`
+      card.innerHTML = `
+        <div class="vp-header">
+          <span class="vp-emoji">${path.emoji}</span>
+          <span class="vp-name">${path.name}</span>
+          ${unlocked ? '<span class="vp-badge">✅</span>' : ''}
+        </div>
+        <div class="vp-desc">${path.desc}</div>
+        <div class="vp-bar-wrap">
+          <div class="vp-bar" style="width:${Math.min(100, pct).toFixed(1)}%;background:${path.color}"></div>
+        </div>
+        <div class="vp-pct">${Math.min(100, pct).toFixed(1)}%</div>
+      `
+      grid.appendChild(card)
+    }
+    section.appendChild(grid)
+    return section
+  }
+
+  private calcVictoryProgress(ctx: { netWorth: number; politicsLevel: string; presidentSeasons: number; dynastyGeneration: number; illegalTypesOwned: number; totalRaidsCaught: number }, id: string): number {
+    switch (id) {
+      case 'economic': return Math.min(100, (ctx.netWorth / 1_000_000_000_000) * 100)
+      case 'political': {
+        if (ctx.politicsLevel === 'cumhurbaskan') {
+          return Math.min(100, (ctx.presidentSeasons / 2) * 100)
+        }
+        const levelPcts: Record<string, number> = { none: 0, belediye: 10, milletvekili: 25, bakan: 50, cumhurbaskan: 75 }
+        return levelPcts[ctx.politicsLevel] ?? 0
+      }
+      case 'dynasty': return Math.min(100, ((ctx.dynastyGeneration - 1) / 6) * 100)
+      case 'shadow': {
+        const illegalPct = Math.min(50, (ctx.illegalTypesOwned / 5) * 50)
+        const raidPct = ctx.totalRaidsCaught < 3 ? 50 : Math.max(0, 50 - (ctx.totalRaidsCaught - 3) * 15)
+        return illegalPct + raidPct
+      }
+      default: return 0
+    }
   }
 
   private renderIncomeSources(): void {
@@ -758,6 +837,30 @@ export class StatsScreen {
         acquireBtn.disabled = !this.state.canAfford(acquireCost)
         acquireBtn.title = 'İflas eden rakibin varlıklarını ucuza al — itibar +10'
         card.appendChild(acquireBtn)
+      }
+      // Lobi Yap button — visible when rival is not bankrupt/merged/allied
+      if (rs.relation !== 'bankrupt' && rs.relation !== 'merged' && rs.relation !== 'allied') {
+        const lobbyCost = Math.min(10_000_000, Math.floor(rs.netWorth * 0.05))
+        const lobbyBtn = document.createElement('button')
+        lobbyBtn.type = 'button'
+        lobbyBtn.className = 'btn-sm btn-secondary rival-lobby-btn'
+        lobbyBtn.dataset.action = 'rival-lobby'
+        lobbyBtn.dataset.id = rs.id
+        lobbyBtn.textContent = `🏛️ Lobi Yap · ${formatMoney(lobbyCost)}`
+        lobbyBtn.disabled = !this.state.canAfford(lobbyCost)
+        lobbyBtn.title = 'Rakibe karşı lobi yap — tutumunu zayıflat'
+        card.appendChild(lobbyBtn)
+      }
+      // Anlaş button — visible when rival is hostile (attitude < 0)
+      if (rs.attitude < 0 && rs.relation !== 'bankrupt' && rs.relation !== 'merged') {
+        const coopBtn = document.createElement('button')
+        coopBtn.type = 'button'
+        coopBtn.className = 'btn-sm btn-secondary rival-coop-btn'
+        coopBtn.dataset.action = 'rival-coop'
+        coopBtn.dataset.id = rs.id
+        coopBtn.textContent = '🤝 Anlaş'
+        coopBtn.title = 'İşbirliği teklifi gönder — tutumu artır'
+        card.appendChild(coopBtn)
       }
       panel.appendChild(card)
     }

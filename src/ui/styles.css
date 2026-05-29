@@ -9060,3 +9060,52 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
 }
 .home-room-btn small { font-size: 0.7rem; color: var(--text-dim, #b9ad8c); }
 .home-room-btn.home-room-owned small:first-of-type { color: #5ee0a0; }
+
+/* Baron Advisor Card */
+.baron-advisor-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.baron-advisor-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.baron-advisor-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--surface);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.baron-advisor-hint:hover, .baron-advisor-hint:active {
+  background: rgba(var(--accent-rgb, 248,184,78), 0.1);
+}
+.baron-hint-emoji { font-size: 1rem; flex-shrink: 0; }
+.baron-hint-text { flex: 1; font-size: 0.8rem; line-height: 1.3; }
+.baron-hint-arrow { color: var(--muted); font-size: 1rem; flex-shrink: 0; }
+
+/* Victory Paths Section */
+.victory-paths-section { padding: 12px 0; }
+.victory-paths-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.victory-path-card { background: var(--surface2); border-radius: 10px; padding: 10px; border: 1px solid var(--border); }
+.victory-path-card.victory-unlocked { border-color: var(--green); }
+.vp-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.vp-emoji { font-size: 1.1rem; }
+.vp-name { font-size: 0.75rem; font-weight: 700; flex: 1; }
+.vp-badge { font-size: 0.8rem; }
+.vp-desc { font-size: 0.7rem; color: var(--muted); margin-bottom: 6px; }
+.vp-bar-wrap { background: var(--surface); border-radius: 4px; height: 6px; overflow: hidden; margin-bottom: 4px; }
+.vp-bar { height: 100%; border-radius: 4px; transition: width 0.4s ease; min-width: 2px; }
+.vp-pct { font-size: 0.7rem; color: var(--muted); text-align: right; }
