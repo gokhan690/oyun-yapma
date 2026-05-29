@@ -132,6 +132,11 @@ import {
   CHILD_EDUCATION_MAX,
   type DynastyState,
   type PlayerGender,
+  type ParentingStyle,
+  type ChildCareer,
+  childCareerDef,
+  spouseSatisfactionMult,
+  heirCareerPassiveBonus,
   pickChildRiskProfile,
   migrateChildRecord,
 } from './Dynasty'
@@ -324,6 +329,24 @@ import {
   healthIncomePenalty,
   type HealthState,
 } from './Health'
+import {
+  personalityIncomeMult,
+  personalityCostMult,
+  personalityReputationMult,
+  personalityIllegalMult,
+  type PersonalityId,
+} from './PlayerPersonality'
+import {
+  createPlayerSkillsState,
+  newlyUnlockedSkills,
+  skillCostMult,
+  skillClickMult,
+  skillPrestigeMult,
+  skillPassiveMult,
+  skillEventStressMult,
+  type PlayerSkillsState,
+  type PlayerSkillDef,
+} from './PlayerSkills'
 import { buildBaronRecord, dynastyHistorySummary, type BaronRecord, type BaronLifeSnapshot } from './BaronLegacy'
 import {
   createCityState,
@@ -508,6 +531,10 @@ export interface SerializableState {
   eventChoiceHistory?: EventChoiceRecord[]
   health?: HealthState
   lastAnnualSummaryYear?: number
+  personality?: PersonalityId | null
+  playerSkills?: PlayerSkillsState
+  dailyRoutineDay?: number
+  dailyRoutineUsed?: string[]
 }
 
 export interface ProducerBreakdown {
@@ -595,6 +622,8 @@ export type GameEvent =
   | { type: 'life_event_consequence'; headline: string; moneyDelta: number }
   | { type: 'health_changed'; health: number }
   | { type: 'annual_summary'; year: number; playerAge: number; totalEarned: number; businessCount: number; incomePerDay: number }
+  | { type: 'skill_unlocked'; skill: PlayerSkillDef }
+  | { type: 'marriage_crisis' }
 
 const MILESTONE_THRESHOLDS = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
 const CRIT_CHANCE = 0.1
@@ -675,6 +704,10 @@ export class GameState {
   eventChoiceHistory: EventChoiceRecord[] = []
   health = createHealthState()
   lastAnnualSummaryYear = -1
+  personality: PersonalityId | null = null
+  playerSkills = createPlayerSkillsState()
+  dailyRoutineDay = 0
+  dailyRoutineUsed: string[] = []
   difficulty: 'easy' | 'normal' | 'hard' = 'normal'
   isNight = isGameNight(0)
   playerName = 'Baron'
@@ -1487,7 +1520,11 @@ export class GameState {
     if (this.ownerFlag('income_x2')) mult *= 2
     mult *= this.marketNewsGlobalMult()
     const trait = activeDynastyTrait(this.dynasty)
-    mult *= traitPassiveMult(trait)
+    // Eş memnuniyeti trait bonusunu güçlendirir (yüksek memnuniyette +%50)
+    const traitBase = traitPassiveMult(trait)
+    const satMult = spouseSatisfactionMult(this.dynasty)
+    mult *= 1 + (traitBase - 1) * satMult
+    mult *= 1 + heirCareerPassiveBonus(this.dynasty)
     if (hasNode(this.prestigeTree, 'dynasty_1')) {
       const t = activeDynastyTrait(this.dynasty)
       if (t === 'merchant' || t === 'diplomat') mult *= 1.05
@@ -1513,6 +1550,9 @@ export class GameState {
     if (this.annualFocusBonus === 'work' && gameDay(this.gameTimeMs) <= this.annualFocusBonusUntilDay) {
       mult *= 1.1
     }
+    mult *= personalityIncomeMult(this.personality)
+    mult *= skillPassiveMult(this.playerSkills)
+    if (gameDay(this.gameTimeMs) <= this.dailyReadBonusUntilDay) mult *= 1.05
     return mult
   }
 
@@ -1535,6 +1575,7 @@ export class GameState {
     mult *= traitClickMult(activeDynastyTrait(this.dynasty))
     mult *= this.marketNewsClickMult()
     mult *= calendarClickMult()
+    mult *= skillClickMult(this.playerSkills)
     return mult
   }
 
@@ -1550,6 +1591,7 @@ export class GameState {
     mult *= managerMultiplier(this.managers, def.id)
     mult *= this.weeklyProducerBonus(def.id)
     if (def.illegal) mult *= traitIllegalMult(activeDynastyTrait(this.dynasty))
+    if (def.illegal) mult *= personalityIllegalMult(this.personality)
     mult *= this.marketNewsProducerMult(def.id)
     mult *= spouseProducerBonus(this.dynasty, def.id, hasNode(this.prestigeTree, 'dynasty_1'))
     if (def.illegal) mult *= illegalIncomeBonus(this.undergroundTree)
@@ -1886,6 +1928,7 @@ export class GameState {
     mult *= 1 + producerSynergyBonus(def.id, this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
     mult *= this.weeklyProducerBonus(def.id)
     if (def.illegal) mult *= traitIllegalMult(activeDynastyTrait(this.dynasty))
+    if (def.illegal) mult *= personalityIllegalMult(this.personality)
     mult *= this.marketNewsProducerMult(def.id)
     mult *= spouseProducerBonus(this.dynasty, def.id, hasNode(this.prestigeTree, 'dynasty_1'))
     if (def.illegal) mult *= illegalIncomeBonus(this.undergroundTree)
@@ -2158,7 +2201,9 @@ export class GameState {
         * (1 - producerCostDiscount(this.prestigeTree))
         * (1 - efficiencyDiscount)
         * this.dynastyCostMult()
-        * reputationCostMult(this.reputation),
+        * reputationCostMult(this.reputation)
+        * personalityCostMult(this.personality)
+        * skillCostMult(this.playerSkills),
     )
     const cal = activeCalendarEvents()
     const monday = cal.find((e) => e.id === 'monday_market')
@@ -2317,7 +2362,7 @@ export class GameState {
   }
 
   pendingPrestigePoints(): number {
-    return calcPrestigePoints(this.totalEarned, this.ipoCount)
+    return Math.floor(calcPrestigePoints(this.totalEarned, this.ipoCount) * skillPrestigeMult(this.playerSkills))
   }
 
   ipoPreview(): IpoPreviewData {
@@ -3430,6 +3475,8 @@ export class GameState {
 
   addReputation(delta: number): void {
     if (delta === 0) return
+    // Diplomat kişiliği pozitif itibar kazancını güçlendirir
+    if (delta > 0) delta = delta * personalityReputationMult(this.personality)
     const prev = this.reputation
     this.reputation = clampReputation(this.reputation + delta)
     if (this.reputation !== prev) {
@@ -3729,8 +3776,10 @@ export class GameState {
     this.tickCalendarEvents()
     this.tickLifestyle(day)
     this.tickHealth(day)
+    this.tickSpouseSatisfaction(day)
     this.tickAnnualSummary(day)
     this.tickLifeEvents(day)
+    this.checkSkillUnlocks()
     this.tickInsurance(day)
     this.tickCommodities()
     this.tickInvestmentOffers(day)
@@ -3813,6 +3862,28 @@ export class GameState {
     this.emit({ type: 'health_changed', health: this.health.health })
   }
 
+  private lastSpouseTickDay = 0
+  private tickSpouseSatisfaction(day: number): void {
+    if (day === this.lastSpouseTickDay) return
+    this.lastSpouseTickDay = day
+    if (!this.dynasty.spouseId) return
+    // Slow decay; high stress accelerates
+    let decay = 0.05
+    if (this.lifestyle.stress >= 60) decay += 0.1
+    this.dynasty.spouseSatisfaction = Math.max(0, (this.dynasty.spouseSatisfaction ?? 70) - decay)
+    // Children happiness slow decay
+    for (const c of this.dynasty.children) {
+      c.happiness = Math.max(0, (c.happiness ?? 60) - 0.03)
+    }
+    // Marriage crisis trigger
+    const sat = this.dynasty.spouseSatisfaction ?? 70
+    const lastCrisis = this.dynasty.lastMarriageCrisisDay ?? 0
+    if (sat < 30 && day - lastCrisis > 60) {
+      this.dynasty.lastMarriageCrisisDay = day
+      this.emit({ type: 'marriage_crisis' })
+    }
+  }
+
   private lastAnnualSummaryDay = 0
   private tickAnnualSummary(day: number): void {
     if (day === this.lastAnnualSummaryDay) return
@@ -3876,6 +3947,8 @@ export class GameState {
     if (!choice) return
     // Record choice in history for chain events
     this.eventChoiceHistory.push({ eventId, choiceId, gameDay: gameDay(this.gameTimeMs) })
+    this.playerSkills.lifeEventsResolved++
+    this.checkSkillUnlocks()
     if (choice.moneyDelta !== 0) {
       this.money += choice.moneyDelta
       this.emit({ type: 'money_changed' })
@@ -3887,7 +3960,10 @@ export class GameState {
       this.reputation = Math.max(0, Math.min(100, this.reputation + repDelta))
     }
     if (choice.stressDelta !== 0) {
-      this.lifestyle.stress = Math.max(0, Math.min(100, this.lifestyle.stress + choice.stressDelta))
+      const stressDelta = choice.stressDelta > 0
+        ? choice.stressDelta * skillEventStressMult(this.playerSkills)
+        : choice.stressDelta
+      this.lifestyle.stress = Math.max(0, Math.min(100, this.lifestyle.stress + stressDelta))
     }
     if (choice.healthDelta) {
       this.health.health = Math.max(0, Math.min(100, this.health.health + choice.healthDelta))
@@ -3902,6 +3978,135 @@ export class GameState {
         consequenceId: choice.consequenceId,
       })
     }
+  }
+
+  checkSkillUnlocks(): void {
+    const businessesOwned = Object.values(this.producers).reduce((s, c) => s + (c ?? 0), 0)
+    const metrics = {
+      businessesOwned,
+      totalClicks: this.totalClicks,
+      ipoCount: this.ipoCount,
+      lifeEventsResolved: this.playerSkills.lifeEventsResolved,
+      totalEarned: this.lifetimeTotalEarned,
+    }
+    const unlocked = newlyUnlockedSkills(this.playerSkills, metrics)
+    for (const skill of unlocked) {
+      this.playerSkills.unlocked.push(skill.id)
+      this.emit({ type: 'skill_unlocked', skill })
+      this.addGazette(`🎓 Yeni beceri: ${skill.emoji} ${skill.name} — ${skill.description}`, 'player')
+    }
+  }
+
+  setPersonality(id: PersonalityId): void {
+    if (this.personality) return
+    this.personality = id
+    this.emit({ type: 'money_changed' })
+  }
+
+  // ---- Günlük Rutin ----
+  getDailyRoutineActions(): { used: string[]; remaining: number; max: number } {
+    const day = gameDay(this.gameTimeMs)
+    if (day !== this.dailyRoutineDay) {
+      this.dailyRoutineDay = day
+      this.dailyRoutineUsed = []
+    }
+    const max = 3
+    return { used: [...this.dailyRoutineUsed], remaining: Math.max(0, max - this.dailyRoutineUsed.length), max }
+  }
+
+  doDailyRoutine(action: 'exercise' | 'read' | 'network' | 'family' | 'meditate'): boolean {
+    const status = this.getDailyRoutineActions()
+    if (status.remaining <= 0) return false
+    if (this.dailyRoutineUsed.includes(action)) return false
+    this.dailyRoutineUsed.push(action)
+    switch (action) {
+      case 'exercise':
+        this.health.health = Math.min(100, this.health.health + 5)
+        this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 5)
+        this.health.exerciseDaysActive = Math.max(this.health.exerciseDaysActive, 2)
+        break
+      case 'read':
+        this.dailyReadBonusUntilDay = gameDay(this.gameTimeMs) + 1
+        break
+      case 'network':
+        this.money += Math.floor(this.incomePerDay() * 0.5)
+        this.emit({ type: 'money_changed' })
+        break
+      case 'family':
+        if (this.dynasty.spouseId) {
+          this.dynasty.spouseSatisfaction = Math.min(100, (this.dynasty.spouseSatisfaction ?? 70) + 5)
+        }
+        for (const c of this.dynasty.children) {
+          c.happiness = Math.min(100, (c.happiness ?? 60) + 10)
+        }
+        this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 3)
+        break
+      case 'meditate':
+        this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 10)
+        break
+    }
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  dailyReadBonusUntilDay = 0
+
+  // ---- Eş Etkileşimi ----
+  giveSpouseGift(): boolean {
+    if (!this.dynasty.spouseId) return false
+    const cost = 50_000
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.dynasty.spouseSatisfaction = Math.min(100, (this.dynasty.spouseSatisfaction ?? 70) + 20)
+    this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 5)
+    this.addGazette('🎁 Eşine değerli bir hediye aldın — memnuniyet arttı', 'player')
+    this.emit({ type: 'money_changed' })
+    this.emit({ type: 'dynasty_update', kind: 'spouse_gift', name: this.dynasty.spouseName ?? '' })
+    return true
+  }
+
+  resolveMarriageCrisis(spendMoney: boolean): void {
+    if (!this.dynasty.spouseId) return
+    if (spendMoney) {
+      const cost = 100_000
+      if (this.canAfford(cost)) {
+        this.money -= cost
+        this.dynasty.spouseSatisfaction = Math.min(100, (this.dynasty.spouseSatisfaction ?? 0) + 40)
+        this.emit({ type: 'money_changed' })
+      }
+    } else {
+      this.dynasty.spouseSatisfaction = Math.min(100, (this.dynasty.spouseSatisfaction ?? 0) + 25)
+      this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 10)
+    }
+    this.emit({ type: 'dynasty_update', kind: 'crisis_resolved', name: this.dynasty.spouseName ?? '' })
+  }
+
+  // ---- Çocuk Etkileşimi ----
+  setChildParentingStyle(childId: string, style: ParentingStyle): void {
+    const child = this.dynasty.children.find((c) => c.id === childId)
+    if (!child) return
+    child.parentingStyle = style
+    if (style === 'free') child.happiness = Math.min(100, (child.happiness ?? 60) + 15)
+    this.emit({ type: 'dynasty_update', kind: 'child_parenting', name: child.name })
+  }
+
+  spendTimeWithChild(childId: string): boolean {
+    const status = this.getDailyRoutineActions()
+    const child = this.dynasty.children.find((c) => c.id === childId)
+    if (!child) return false
+    child.happiness = Math.min(100, (child.happiness ?? 60) + 10)
+    this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 5)
+    void status
+    this.emit({ type: 'dynasty_update', kind: 'child_time', name: child.name })
+    return true
+  }
+
+  setChildCareer(childId: string, career: ChildCareer): void {
+    const child = this.dynasty.children.find((c) => c.id === childId)
+    if (!child) return
+    child.career = career
+    this.addGazette(`🎓 ${child.name} kariyerini seçti: ${childCareerDef(career)?.name}`, 'player')
+    this.emit({ type: 'dynasty_update', kind: 'child_career', name: child.name })
   }
 
   annualFocusBonus: string | null = null
@@ -4679,6 +4884,10 @@ export class GameState {
       eventChoiceHistory: this.eventChoiceHistory.map((r) => ({ ...r })),
       health: { ...this.health },
       lastAnnualSummaryYear: this.lastAnnualSummaryYear,
+      personality: this.personality,
+      playerSkills: { unlocked: [...this.playerSkills.unlocked], lifeEventsResolved: this.playerSkills.lifeEventsResolved },
+      dailyRoutineDay: this.dailyRoutineDay,
+      dailyRoutineUsed: [...this.dailyRoutineUsed],
       difficulty: this.difficulty,
       playerName: this.playerName,
       birthYear: this.birthYear,
@@ -4907,6 +5116,15 @@ export class GameState {
       this.health = { ...createHealthState(), ...data.health }
     }
     this.lastAnnualSummaryYear = data.lastAnnualSummaryYear ?? -1
+    this.personality = data.personality ?? null
+    if (data.playerSkills) {
+      this.playerSkills = {
+        unlocked: [...(data.playerSkills.unlocked ?? [])],
+        lifeEventsResolved: data.playerSkills.lifeEventsResolved ?? 0,
+      }
+    }
+    this.dailyRoutineDay = data.dailyRoutineDay ?? 0
+    this.dailyRoutineUsed = data.dailyRoutineUsed ?? []
     this.difficulty = (['easy', 'normal', 'hard'] as const).includes(data.difficulty as 'easy' | 'normal' | 'hard')
       ? (data.difficulty as 'easy' | 'normal' | 'hard')
       : 'normal'

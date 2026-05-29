@@ -21,6 +21,9 @@ export interface SpouseOption {
 
 export type ChildRiskProfile = 'low' | 'gambler' | 'illegal' | 'scandal'
 
+export type ParentingStyle = 'strict' | 'free'
+export type ChildCareer = 'businessperson' | 'politician' | 'artist' | 'scientist' | 'athlete'
+
 export interface ChildRecord {
   id: string
   name: string
@@ -29,6 +32,12 @@ export interface ChildRecord {
   educationXp: number
   riskProfile: ChildRiskProfile
   riskLabel: string
+  /** Yetiştirme tarzı — eğitim hızı vs mutluluk dengesi */
+  parentingStyle?: ParentingStyle
+  /** Çocuk mutluluğu (0-100) */
+  happiness?: number
+  /** 18 yaşında seçilen kariyer */
+  career?: ChildCareer
 }
 
 export const PLAYER_START_AGE = 18
@@ -53,6 +62,10 @@ export interface DynastyState {
   lifespanNotified: boolean
   /** Vefat sonrası miras devri bekleniyor */
   pendingDeath: PendingDeath | null
+  /** Eş memnuniyeti (0-100) */
+  spouseSatisfaction?: number
+  /** Son evlilik krizi tetiklenmesinden bu yana */
+  lastMarriageCrisisDay?: number
 }
 
 export const SPOUSE_OPTIONS: SpouseOption[] = [
@@ -113,7 +126,38 @@ export function createDynastyState(): DynastyState {
     playerStartAge: PLAYER_START_AGE,
     lifespanNotified: false,
     pendingDeath: null,
+    spouseSatisfaction: 70,
+    lastMarriageCrisisDay: 0,
   }
+}
+
+export const CHILD_CAREERS: { id: ChildCareer; name: string; emoji: string; bonusLabel: string }[] = [
+  { id: 'businessperson', name: 'İş İnsanı', emoji: '💼', bonusLabel: 'Pasif gelir +%8' },
+  { id: 'politician', name: 'Siyasetçi', emoji: '🏛️', bonusLabel: 'İtibar kazancı +%15' },
+  { id: 'artist', name: 'Sanatçı', emoji: '🎨', bonusLabel: 'İtibar +%20' },
+  { id: 'scientist', name: 'Bilim İnsanı', emoji: '🔬', bonusLabel: 'Araştırma hızı +%15' },
+  { id: 'athlete', name: 'Sporcu', emoji: '🏅', bonusLabel: 'Spor kulübü geliri +%20' },
+]
+
+export function childCareerDef(id: ChildCareer | undefined) {
+  if (!id) return null
+  return CHILD_CAREERS.find((c) => c.id === id) ?? null
+}
+
+/** Aktif varisin kariyerine göre pasif gelir bonusu */
+export function heirCareerPassiveBonus(d: DynastyState): number {
+  const heir = d.dynastyBonusId ? d.children.find((c) => c.id === d.dynastyBonusId) : null
+  if (heir?.career === 'businessperson') return 0.08
+  return 0
+}
+
+/** Eş memnuniyetine göre trait bonus çarpanı — yüksek memnuniyet bonusu güçlendirir */
+export function spouseSatisfactionMult(d: DynastyState): number {
+  const sat = d.spouseSatisfaction ?? 70
+  if (sat >= 80) return 1.5
+  if (sat >= 50) return 1.0
+  if (sat >= 30) return 0.8
+  return 0.5
 }
 
 export function gameYearsElapsed(gameTimeMs: number, bornGameDay: number): number {

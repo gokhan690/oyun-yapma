@@ -12,6 +12,8 @@ import type { BaronRecord } from '../game/BaronLegacy'
 import { assetUrl } from '../utils/assetUrl'
 import { currentRank, rankProgress } from '../game/PlayerRank'
 import { dayBonusExtra, nightBonusExtra } from '../game/PrestigeTree'
+import { PERSONALITIES, type PersonalityId } from '../game/PlayerPersonality'
+import { type ParentingStyle, type ChildCareer } from '../game/Dynasty'
 import { StatsBar } from './components/StatsBar'
 import { ShopPanel } from './components/ShopPanel'
 import type { ResearchBranch } from '../game/Research'
@@ -78,6 +80,7 @@ export class HUD {
   private heatMeterRow!: HTMLElement
   private healthBarFill!: HTMLElement
   private healthBarLabel!: HTMLElement
+  private dailyRoutineEl!: HTMLElement
   private weeklyBanner!: HTMLElement
   private goalsChip!: HTMLButtonElement
   private dayNightChip!: HTMLElement
@@ -185,6 +188,9 @@ export class HUD {
   startTutorial(delayMs = 600): void {
     if (this.tutorial.shouldShow()) {
       window.setTimeout(() => this.tutorial.start(), delayMs)
+    }
+    if (!this.state.personality) {
+      window.setTimeout(() => this.maybeShowPersonalityModal(), delayMs + 400)
     }
   }
 
@@ -445,6 +451,10 @@ export class HUD {
     healthBarOuter.appendChild(this.healthBarFill)
     healthRow.append(healthTitle, this.healthBarLabel, healthBarOuter)
     sessionPanel.appendChild(healthRow)
+
+    this.dailyRoutineEl = document.createElement('div')
+    this.dailyRoutineEl.className = 'daily-routine-row'
+    sessionPanel.appendChild(this.dailyRoutineEl)
 
     const adsPanel = document.createElement('div')
     adsPanel.className = 'quick-ads collapsible-boosts'
@@ -968,6 +978,12 @@ export class HUD {
       }
       if (ev.type === 'annual_summary') {
         this.showAnnualSummaryModal(ev.year, ev.playerAge, ev.totalEarned, ev.businessCount, ev.incomePerDay)
+      }
+      if (ev.type === 'skill_unlocked') {
+        this.modals.showAchievementToast(ev.skill.emoji, `Yeni Beceri: ${ev.skill.name}`, ev.skill.description)
+      }
+      if (ev.type === 'marriage_crisis') {
+        this.showMarriageCrisisModal()
       }
       if (ev.type === 'market_news') {
         this.renderMarketNewsBanner()
@@ -2076,6 +2092,67 @@ export class HUD {
         this.state.applyAnnualFocus('social')
         this.closeModalAndPump()
         break
+      case 'choose-personality':
+        if (id) {
+          this.state.setPersonality(id as PersonalityId)
+          this.modals.showToast(this.root, `🎭 Karakter seçildi! ${PERSONALITIES.find((p) => p.id === id)?.name}`)
+          this.closeModalAndPump()
+        }
+        break
+      case 'marriage-crisis-money':
+        this.state.resolveMarriageCrisis(true)
+        this.modals.showToast(this.root, '💍 Evlilik krizi atlatıldı')
+        this.closeModalAndPump()
+        break
+      case 'marriage-crisis-time':
+        this.state.resolveMarriageCrisis(false)
+        this.modals.showToast(this.root, '🌹 Eşine zaman ayırdın — kriz çözüldü')
+        this.closeModalAndPump()
+        break
+      case 'daily-routine':
+        if (id) {
+          const ok = this.state.doDailyRoutine(id as 'exercise' | 'read' | 'network' | 'family' | 'meditate')
+          if (ok) {
+            this.renderHealthBar()
+            this.renderDailyRoutine()
+            this.modals.showToast(this.root, '✅ Günlük aksiyon tamamlandı')
+          } else {
+            this.modals.showToast(this.root, 'Bugün hakkın kalmadı', 'important')
+          }
+        }
+        break
+      case 'spouse-gift':
+        if (this.state.giveSpouseGift()) {
+          this.modals.showToast(this.root, '🎁 Hediye verildi — memnuniyet arttı')
+          this.refreshBaronPanel()
+        } else {
+          this.modals.showToast(this.root, 'Yeterli para yok', 'important')
+        }
+        break
+      case 'child-time':
+        if (id && this.state.spendTimeWithChild(id)) {
+          this.modals.showToast(this.root, '👨‍👧 Çocuğunla vakit geçirdin')
+          this.refreshBaronPanel()
+        }
+        break
+      case 'child-parenting':
+        if (id) {
+          const [childId, style] = id.split(':')
+          if (childId && style) {
+            this.state.setChildParentingStyle(childId, style as ParentingStyle)
+            this.refreshBaronPanel()
+          }
+        }
+        break
+      case 'child-career':
+        if (id) {
+          const [childId, career] = id.split(':')
+          if (childId && career) {
+            this.state.setChildCareer(childId, career as ChildCareer)
+            this.refreshBaronPanel()
+          }
+        }
+        break
       case 'rival-acquire':
         if (id) {
           const rv = this.state.rivals.find((r) => r.id === id)
@@ -2496,6 +2573,38 @@ export class HUD {
     this.healthBarLabel.textContent = `${label} · %${health}`
   }
 
+  private renderDailyRoutine(): void {
+    if (!this.dailyRoutineEl) return
+    const status = this.state.getDailyRoutineActions()
+    const actions: { id: string; emoji: string; label: string }[] = [
+      { id: 'exercise', emoji: '🏃', label: 'Egzersiz' },
+      { id: 'read', emoji: '📚', label: 'Kitap Oku' },
+      { id: 'network', emoji: '🤝', label: 'Ağ Kur' },
+      { id: 'family', emoji: '👨‍👩‍👧', label: 'Aile Vakti' },
+      { id: 'meditate', emoji: '🧘', label: 'Meditasyon' },
+    ]
+    this.dailyRoutineEl.replaceChildren()
+    const title = document.createElement('div')
+    title.className = 'daily-routine-title'
+    title.textContent = `🌅 Günlük Aksiyonlar (${status.remaining}/${status.max})`
+    this.dailyRoutineEl.appendChild(title)
+    const grid = document.createElement('div')
+    grid.className = 'daily-routine-grid'
+    for (const a of actions) {
+      const used = status.used.includes(a.id)
+      const disabled = used || status.remaining <= 0
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = `daily-routine-btn${used ? ' routine-used' : ''}`
+      b.dataset.action = 'daily-routine'
+      b.dataset.id = a.id
+      if (disabled) b.disabled = true
+      b.innerHTML = `<span class="routine-emoji">${a.emoji}</span><span class="routine-label">${a.label}</span>`
+      grid.appendChild(b)
+    }
+    this.dailyRoutineEl.appendChild(grid)
+  }
+
   private showAnnualSummaryModal(
     year: number,
     playerAge: number,
@@ -2541,6 +2650,57 @@ export class HUD {
     })
   }
 
+  private showMarriageCrisisModal(): void {
+    const body = document.createElement('div')
+    const p = document.createElement('p')
+    p.textContent = `${this.state.dynasty.spouseName ?? 'Eşin'} son zamanlarda ihmal edildiğini düşünüyor. İlişkiniz kritik noktada. Ne yapacaksın?`
+    const btnRow = document.createElement('div')
+    btnRow.className = 'annual-summary-choices'
+    const moneyBtn = document.createElement('button')
+    moneyBtn.type = 'button'
+    moneyBtn.className = 'btn-secondary annual-choice-btn'
+    moneyBtn.dataset.action = 'marriage-crisis-money'
+    moneyBtn.innerHTML = `<strong>💍 Lüks hediye + tatil (₺100K)</strong><small>Memnuniyet +40</small>`
+    const timeBtn = document.createElement('button')
+    timeBtn.type = 'button'
+    timeBtn.className = 'btn-secondary annual-choice-btn'
+    timeBtn.dataset.action = 'marriage-crisis-time'
+    timeBtn.innerHTML = `<strong>🌹 Zaman ayır, işi azalt</strong><small>Memnuniyet +25, Stres −10</small>`
+    btnRow.append(moneyBtn, timeBtn)
+    body.append(p, btnRow)
+    this.eventDirector.enqueue({
+      id: 'marriage-crisis',
+      priority: 2,
+      run: () => this.modals.showContent('💔 Evlilik Krizi', body, [], true),
+    })
+  }
+
+  private maybeShowPersonalityModal(): void {
+    if (this.state.personality) return
+    const body = document.createElement('div')
+    const p = document.createElement('p')
+    p.className = 'annual-summary-question'
+    p.textContent = 'Sen nasıl bir baronsun? Karakterini seç — bu tüm oyunu şekillendirecek.'
+    const btnRow = document.createElement('div')
+    btnRow.className = 'annual-summary-choices'
+    const btns = PERSONALITIES.map((pers) => {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'btn-secondary annual-choice-btn'
+      b.dataset.action = 'choose-personality'
+      b.dataset.id = pers.id
+      b.innerHTML = `<strong>${pers.emoji} ${pers.name}</strong><small>${pers.description}</small>`
+      return b
+    })
+    btnRow.append(...btns)
+    body.append(p, btnRow)
+    this.eventDirector.enqueue({
+      id: 'personality-choice',
+      priority: 3,
+      run: () => this.modals.showContent('🎭 Karakterini Seç', body, [], true),
+    })
+  }
+
   private renderSessionPanel(): void {
     const clickIncome = this.state.clickIncomePerTap()
     const comboMult = this.state.comboMultiplier
@@ -2548,6 +2708,8 @@ export class HUD {
     this.sessionClickIncome.textContent = formatMoney(clickIncome)
     this.sessionComboMult.textContent = `${comboMult.toFixed(1)}x`
     this.sessionPassiveIncome.textContent = formatIncomeRate(passive)
+    this.renderHealthBar()
+    this.renderDailyRoutine()
   }
 
   private checkRankUp(): void {

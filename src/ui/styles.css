@@ -3353,6 +3353,62 @@ button.shop-card {
 }
 .annual-choice-btn strong { font-size: 0.88rem; }
 .annual-choice-btn small { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+.daily-routine-row {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.daily-routine-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.daily-routine-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+.daily-routine-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.2s ease;
+}
+.daily-routine-btn:active { transform: scale(0.94); }
+.daily-routine-btn:disabled, .daily-routine-btn.routine-used {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.routine-emoji { font-size: 1.1rem; }
+.routine-label { font-size: 0.58rem; color: var(--muted); text-align: center; }
+.spouse-satisfaction-row { margin: 8px 0 6px; }
+.spouse-satisfaction-row label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.spouse-gift-btn { margin-bottom: 10px; }
+.child-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+.child-career-prompt {
+  flex: 1 1 100%;
+  font-size: 0.68rem;
+  color: var(--accent);
+  font-weight: 700;
+  margin-top: 4px;
+}
 .biz-risk-badge {
   position: absolute;
   top: 6px;

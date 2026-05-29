@@ -1,7 +1,7 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
 import { gameDay } from '../../game/GameClock'
-import { spouseOptionsForPlayer, PLAYER_LIFESPAN, type ChildRecord } from '../../game/Dynasty'
+import { spouseOptionsForPlayer, PLAYER_LIFESPAN, CHILD_CAREERS, childCareerDef, type ChildRecord } from '../../game/Dynasty'
 import { t } from '../../i18n'
 
 function traitLabel(trait: string): string {
@@ -130,6 +130,25 @@ export class DynastyPanel {
     spouse.textContent = `${t('dynasty_spouse_label')} ${d.spouseName} · ${traitLabel(d.spouseTrait ?? '')}`
     this.root.appendChild(spouse)
 
+    // Eş memnuniyeti barı + hediye butonu
+    const sat = Math.round(d.spouseSatisfaction ?? 70)
+    const satRow = document.createElement('div')
+    satRow.className = 'spouse-satisfaction-row'
+    const satColor = sat >= 80 ? '#5ee0a0' : sat >= 50 ? '#72b7ff' : sat >= 30 ? '#f8b84e' : '#f87171'
+    const satLabel = sat >= 80 ? 'Çok Mutlu (+%50 trait bonusu)' : sat >= 50 ? 'Mutlu' : sat >= 30 ? 'Huzursuz' : 'Kritik!'
+    satRow.innerHTML = `
+      <label><span>💕 Eş Memnuniyeti</span><span>${satLabel} · %${sat}</span></label>
+      <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${sat}%;background:${satColor}"></div></div>
+    `
+    this.root.appendChild(satRow)
+    const giftBtn = document.createElement('button')
+    giftBtn.type = 'button'
+    giftBtn.className = 'btn-sm btn-secondary spouse-gift-btn'
+    giftBtn.dataset.action = 'spouse-gift'
+    giftBtn.textContent = `🎁 Hediye ver (${formatMoney(50_000)}) · +20 memnuniyet`
+    giftBtn.disabled = !this.state.canAfford(50_000)
+    this.root.appendChild(giftBtn)
+
     const kidsTitle = document.createElement('h4')
     kidsTitle.textContent = `${t('dynasty_children_label')} (${d.children.length}/3)`
     this.root.appendChild(kidsTitle)
@@ -183,22 +202,73 @@ export class DynastyPanel {
     card.className = 'dynasty-child-card'
     const isHeir = this.state.dynasty.dynastyBonusId === c.id
     const bornLabel = t('dynasty_child_born').replace('{day}', String(c.bornGameDay))
+    const happiness = Math.round(c.happiness ?? 60)
+    const ageYears = Math.floor((gameDay(this.state.gameTimeMs) - c.bornGameDay) / 365)
+    const careerInfo = childCareerDef(c.career)
     card.innerHTML = `
       <span class="dynasty-child-emoji">${isHeir ? '👑' : '🧒'}</span>
       <div>
-        <strong>${c.name}</strong>
+        <strong>${c.name} · ${ageYears} yaş</strong>
         <small>${traitLabel(c.trait)}</small>
         <small class="child-risk-warn">${c.riskLabel ?? ''}</small>
-        <small>${bornLabel} ${Math.floor(c.educationXp ?? 0)}%</small>
+        <small>${bornLabel} Eğitim ${Math.floor(c.educationXp ?? 0)}% · 😊 %${happiness}</small>
+        ${careerInfo ? `<small>🎓 ${careerInfo.emoji} ${careerInfo.name} — ${careerInfo.bonusLabel}</small>` : ''}
       </div>
     `
+    const actions = document.createElement('div')
+    actions.className = 'child-card-actions'
+
+    // Vakit geçir
+    const timeBtn = document.createElement('button')
+    timeBtn.type = 'button'
+    timeBtn.className = 'btn-sm btn-secondary'
+    timeBtn.dataset.action = 'child-time'
+    timeBtn.dataset.id = c.id
+    timeBtn.textContent = '👨‍👧 Vakit geç'
+    actions.appendChild(timeBtn)
+
+    // Yetiştirme tarzı (sadece henüz seçilmemişse)
+    if (!c.parentingStyle) {
+      const strictBtn = document.createElement('button')
+      strictBtn.type = 'button'
+      strictBtn.className = 'btn-sm btn-secondary'
+      strictBtn.dataset.action = 'child-parenting'
+      strictBtn.dataset.id = `${c.id}:strict`
+      strictBtn.textContent = '📚 Katı'
+      const freeBtn = document.createElement('button')
+      freeBtn.type = 'button'
+      freeBtn.className = 'btn-sm btn-secondary'
+      freeBtn.dataset.action = 'child-parenting'
+      freeBtn.dataset.id = `${c.id}:free`
+      freeBtn.textContent = '🎈 Serbest'
+      actions.append(strictBtn, freeBtn)
+    }
+
+    // Kariyer seçimi (18+ ve henüz seçilmemişse)
+    if (ageYears >= 18 && !c.career) {
+      const careerLabel = document.createElement('small')
+      careerLabel.className = 'child-career-prompt'
+      careerLabel.textContent = '🎯 Kariyer seç:'
+      actions.appendChild(careerLabel)
+      for (const career of CHILD_CAREERS) {
+        const cb = document.createElement('button')
+        cb.type = 'button'
+        cb.className = 'btn-sm btn-secondary'
+        cb.dataset.action = 'child-career'
+        cb.dataset.id = `${c.id}:${career.id}`
+        cb.textContent = `${career.emoji} ${career.name}`
+        actions.appendChild(cb)
+      }
+    }
+
     const pick = document.createElement('button')
     pick.type = 'button'
     pick.className = 'btn-sm btn-secondary'
     pick.dataset.action = 'dynasty-succession'
     pick.dataset.id = c.id
     pick.textContent = isHeir ? t('dynasty_heir_btn') : t('dynasty_inherit_btn')
-    card.appendChild(pick)
+    actions.appendChild(pick)
+    card.appendChild(actions)
     return card
   }
 
