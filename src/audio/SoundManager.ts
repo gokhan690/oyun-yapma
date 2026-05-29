@@ -116,6 +116,35 @@ export class SoundManager {
     window.setTimeout(() => this.thump(60, 0.28, 0.055), 150)
   }
 
+  playRaid(): void {
+    if (!this.enabled) return
+    for (let i = 0; i < 4; i++) {
+      window.setTimeout(() => this.beep(880, 0.12, 0.06, 'sawtooth'), i * 150)
+      window.setTimeout(() => this.beep(660, 0.10, 0.05, 'sawtooth'), i * 150 + 75)
+    }
+  }
+
+  playRivalAttack(): void {
+    if (!this.enabled) return
+    ;[220, 196, 175].forEach((f, i) => {
+      window.setTimeout(() => this.beep(f, 0.28, 0.055, 'sawtooth'), i * 120)
+    })
+  }
+
+  playCityUnlock(): void {
+    if (!this.enabled) return
+    ;[523, 659, 784, 1047, 1319].forEach((f, i) => {
+      window.setTimeout(() => this.beep(f, 0.18, 0.06, 'sine'), i * 70)
+    })
+  }
+
+  playVictory(): void {
+    if (!this.enabled) return
+    ;[523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => {
+      window.setTimeout(() => this.beep(f, 0.28, 0.075, 'triangle'), i * 120)
+    })
+  }
+
   setAmbient(mode: AmbientMode): void {
     if (!this.enabled || !this.ambientEnabled) return
     if (mode === this.ambientMode && this.ambientOsc) return

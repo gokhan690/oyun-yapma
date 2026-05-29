@@ -52,6 +52,8 @@ import { navLockReason, isShopHubLocked, shopHubLockReason } from '../game/Progr
 import { i18n, LANG_META, t, type LangCode } from '../i18n'
 import { applyCountry, type CountryId } from '../game/Countries'
 import { BaronAdvisor } from './components/BaronAdvisor'
+import { VictoryCinematic } from './components/VictoryCinematic'
+import type { RivalEvent } from '../game/Rivals'
 
 export class HUD {
   private root: HTMLElement
@@ -130,6 +132,7 @@ export class HUD {
   private postMetaTasks = new Map<string, () => void>()
   private metaFlowReleased = false
   private baronAdvisor = new BaronAdvisor()
+  private victoryCinematic = new VictoryCinematic()
 
   constructor(
     state: GameState,
@@ -878,6 +881,7 @@ export class HUD {
       }
       if (ev.type === 'illegal_raid') {
         const p = PRODUCERS.find((x) => x.id === ev.producerId)
+        this.sound.playRaid()
         this.modals.showToast(this.root, `🚨 Baskın! ${p?.name ?? 'Illegal iş'} — ${formatMoney(ev.fine)} ceza`)
         this.renderHeatMeter()
         this.renderAll()
@@ -1153,6 +1157,14 @@ export class HUD {
           },
         })
         this.refreshBaronPanel()
+      }
+      if (ev.type === 'victory_achieved') {
+        this.sound.playVictory()
+        this.victoryCinematic.show(ev)
+      }
+      if (ev.type === 'rival_event') {
+        this.sound.playRivalAttack()
+        this.showRivalEventModal(ev.event)
       }
       if (ev.type === 'child_crisis') {
         this.refreshBaronPanel()
@@ -2116,6 +2128,12 @@ export class HUD {
       case 'dynasty-succession-open':
         this.showSuccessionPicker(this.state.needsSuccession())
         break
+      case 'rival-respond': {
+        // id = eventId, count = responseId (reusing existing data attributes)
+        if (id && count) this.state.resolveRivalEvent(id, count)
+        this.modals.close()
+        break
+      }
       case 'rival-lobby':
         if (id && this.state.rivalLobby(id)) {
           this.modals.showToast(this.root, '🏛️ Lobi başarılı')
@@ -2425,6 +2443,7 @@ export class HUD {
       case 'unlock-city':
         if (id && this.state.unlockCity(id as import('../game/ExpansionMap').CityId)) {
           const unlockedCityDef = EXPANSION_CITIES.find((c) => c.id === id)
+          this.sound.playCityUnlock()
           if (unlockedCityDef) this.triggerCityUnlockCelebration(unlockedCityDef.label)
           else this.modals.showToast(this.root, '🗺️ Yeni şehir açıldı!')
           this.refreshSkyline()
@@ -3925,6 +3944,41 @@ export class HUD {
     banner.innerHTML = `<span class="city-unlock-emoji">🗺️</span><span class="city-unlock-text">${cityName} açıldı!</span><span class="city-unlock-sub">Yeni işletmeler ve bonuslar seni bekliyor</span>`
     document.body.appendChild(banner)
     window.setTimeout(() => banner.remove(), 3000)
+  }
+
+  private showRivalEventModal(event: RivalEvent): void {
+    const fmtShort = (n: number) => {
+      if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`
+      if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`
+      if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`
+      return `${Math.round(n)}`
+    }
+
+    const dmg = [
+      event.reputationDamage > 0 ? `İtibar: -${event.reputationDamage}` : '',
+      event.moneyDamage > 0 ? `Para: -₺${fmtShort(event.moneyDamage)}` : '',
+    ].filter(Boolean).join(' · ')
+
+    const body = `${event.description}${dmg ? `\n\n⚠️ ${dmg}` : ''}`
+
+    const buttons = event.responses.map((r) => {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'btn-secondary rival-response-btn'
+      btn.dataset.action = 'rival-respond'
+      btn.dataset.id = event.id
+      btn.dataset.count = r.id
+      const cost = r.cost > 0 ? ` · ₺${fmtShort(r.cost)}` : ''
+      const rep = r.reputationDelta !== 0 ? ` · İtibar ${r.reputationDelta > 0 ? '+' : ''}${r.reputationDelta}` : ''
+      btn.textContent = `${r.emoji} ${r.label}${cost}${rep}`
+      return btn
+    })
+
+    this.eventDirector.enqueue({
+      id: `rival-event-${event.id}`,
+      priority: 3,
+      run: () => this.modals.show(`⚔️ ${event.headline}`, body, buttons),
+    })
   }
 
   destroy(): void {

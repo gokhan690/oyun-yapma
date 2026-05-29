@@ -291,7 +291,8 @@ import {
   type UndergroundMarketAction,
 } from './UndergroundMarket'
 import { rollAdvisorTip, ADVISOR_FEE, type AdvisorTip } from './AdvisorNPC'
-import type { RivalAllianceOffer } from './Rivals'
+import type { RivalAllianceOffer, RivalEvent } from './Rivals'
+import { generateRivalEvent } from './Rivals'
 import {
   createLifestyleState,
   lifestyleMonthlyExpense,
@@ -601,6 +602,7 @@ export interface SerializableState {
   eventChoiceHistory?: EventChoiceRecord[]
   characterAlignment?: { temiz: number; acımasız: number; gölge: number }
   abilityCooldowns?: Record<string, number>
+  activeRivalEvents?: RivalEvent[]
   health?: HealthState
   lastAnnualSummaryYear?: number
   personality?: PersonalityId | null
@@ -686,6 +688,8 @@ export type GameEvent =
   | { type: 'rival_action'; rivalId: string; headline: string }
   | { type: 'rival_surpassed'; rivalName: string; rivalWorth: number }
   | { type: 'victory_unlocked'; victoryId: VictoryId; name: string; emoji: string }
+  | { type: 'victory_achieved'; victoryId: string; playerName: string; totalEarned: number; ipoCount: number; generation: number; alignment: string }
+  | { type: 'rival_event'; event: import('./Rivals').RivalEvent }
   | { type: 'child_crisis'; childName: string; crisisType: string; message: string }
   | { type: 'gazette_headline'; headline: string; category: GazetteCategory }
   | { type: 'crisis_started'; crisisId: CrisisId; title: string }
@@ -790,6 +794,8 @@ export class GameState {
   eventChoiceHistory: EventChoiceRecord[] = []
   characterAlignment: { temiz: number; acımasız: number; gölge: number } = { temiz: 0, acımasız: 0, gölge: 0 }
   abilityCooldowns: Record<string, number> = {}
+  activeRivalEvents: RivalEvent[] = []
+  private lastRivalEventDay = -1
   health = createHealthState()
   friendships = createFriendshipsState()
   mentorEnemy = createMentorEnemyState()
@@ -2607,6 +2613,7 @@ export class GameState {
     this.ipoCount++
     const ipoThemeId = themeForIpoCount(this.ipoCount)
     if (ipoThemeId) this.unlockTheme(ipoThemeId)
+    this.announceIpoUnlocks(this.ipoCount)
     this.money = finalStartingCash
     this.totalEarned = 0
     this.totalClicks = 0
@@ -2652,6 +2659,18 @@ export class GameState {
     this.checkAchievements()
     this.syncCampaignProgress()
     return points
+  }
+
+  private announceIpoUnlocks(count: number): void {
+    const msgs: Record<number, string> = {
+      1: '📈 1. IPO tamamlandı! Borsada gelişmiş analizler açıldı — kurumsal yatırımcılar sizi takip ediyor.',
+      2: '✈️ 2. IPO! Dubai piyasaları sizi fark etti — lüks ve finans merkezi sizi bekliyor.',
+      3: '🇬🇧 3. IPO! Londra finans çevrelerinde adınız duyuldu — global imparatorluk kapısı açık.',
+      4: '🌐 4. IPO! Uluslararası arenaya açıldınız — holding birleşmeleri artık mümkün.',
+      5: '👑 5. IPO! Holdinginiz zirveye ulaştı — imparatorluk yönetimi tam güçte.',
+    }
+    const msg = msgs[count]
+    if (msg) this.addGazette(msg, 'player')
   }
 
   resolveBankruptcy(reason: string): void {
@@ -3757,6 +3776,15 @@ export class GameState {
         description: unlock.description,
         emoji: unlock.emoji,
       })
+      this.emit({
+        type: 'victory_achieved',
+        victoryId: id,
+        playerName: this.playerName || 'Baron',
+        totalEarned: this.lifetimeTotalEarned,
+        ipoCount: this.ipoCount,
+        generation: this.dynasty.generation ?? 1,
+        alignment: this.characterPathLabel(),
+      })
     }
     this.refreshPlayerTitle()
   }
@@ -3825,8 +3853,61 @@ export class GameState {
     if (this.pendingRivalOffer && Date.now() > this.pendingRivalOffer.expiresAt) {
       this.pendingRivalOffer = null
     }
+    this.tickRivalEvents()
     this.checkWorldStage()
     this.checkVictoryConditions()
+  }
+
+  private tickRivalEvents(): void {
+    const day = gameDay(this.gameTimeMs)
+    if (day === this.lastRivalEventDay) return
+    this.lastRivalEventDay = day
+
+    // Remove expired events
+    this.activeRivalEvents = this.activeRivalEvents.filter((e) => e.expiresAtDay > day)
+
+    // Only generate if no active rival event pending
+    if (this.activeRivalEvents.length > 0) return
+
+    const hostile = this.rivals.filter((r) => r.attitude < 0 && r.relation !== 'bankrupt' && r.relation !== 'merged')
+    if (hostile.length === 0) return
+    const rival = hostile[Math.floor(Math.random() * hostile.length)]!
+    const event = generateRivalEvent(rival, this.financeNetWorth(), day)
+    if (!event) return
+
+    this.activeRivalEvents.push(event)
+    this.addGazette(`⚔️ ${event.headline}`, 'rival')
+    this.emit({ type: 'rival_event', event })
+  }
+
+  resolveRivalEvent(eventId: string, responseId: string): void {
+    const ev = this.activeRivalEvents.find((e) => e.id === eventId)
+    if (!ev) return
+    const response = ev.responses.find((r) => r.id === responseId)
+    if (!response) return
+
+    if (ev.reputationDamage > 0) {
+      this.reputation = Math.max(0, this.reputation - ev.reputationDamage)
+    }
+    if (ev.moneyDamage > 0) {
+      this.money = Math.max(0, this.money - ev.moneyDamage)
+      this.emit({ type: 'money_changed' })
+    }
+    if (response.cost > 0 && this.money >= response.cost) {
+      this.money -= response.cost
+      this.emit({ type: 'money_changed' })
+    }
+    if (response.reputationDelta !== 0) {
+      this.reputation = Math.max(0, Math.min(100, this.reputation + response.reputationDelta))
+    }
+    const rival = this.rivals.find((r) => r.id === ev.rivalId)
+    if (rival) {
+      if (responseId === 'buy_out') rival.relation = 'merged'
+      else if (responseId === 'price_war' || responseId === 'legal') rival.attitude = Math.min(0, rival.attitude - 20)
+      else if (responseId === 'alliance') rival.attitude = Math.min(100, rival.attitude + 30)
+    }
+    this.activeRivalEvents = this.activeRivalEvents.filter((e) => e.id !== eventId)
+    this.addGazette(`✅ ${ev.headline} — çözüldü`, 'player')
   }
 
   private maybeSpawnChildCrisis(): void {
@@ -5372,6 +5453,7 @@ export class GameState {
       eventChoiceHistory: this.eventChoiceHistory.map((r) => ({ ...r })),
       characterAlignment: { ...this.characterAlignment },
       abilityCooldowns: { ...this.abilityCooldowns },
+      activeRivalEvents: this.activeRivalEvents.map((e) => ({ ...e })),
       health: { ...this.health },
       lastAnnualSummaryYear: this.lastAnnualSummaryYear,
       personality: this.personality,
@@ -5612,6 +5694,7 @@ export class GameState {
     this.eventChoiceHistory = data.eventChoiceHistory ?? []
     this.characterAlignment = data.characterAlignment ?? { temiz: 0, acımasız: 0, gölge: 0 }
     this.abilityCooldowns = data.abilityCooldowns ?? {}
+    this.activeRivalEvents = data.activeRivalEvents ?? []
     if (data.health) {
       this.health = { ...createHealthState(), ...data.health }
     }

@@ -9147,3 +9147,26 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
 .ipo-press-headline { font-style: italic; color: var(--muted); font-size: 0.85rem; margin-bottom: 6px; text-align: center; }
 .ipo-confidence-row { display: flex; justify-content: space-between; font-size: 0.85rem; }
 .ipo-heat-risk { color: #dc2626; font-size: 0.8rem; margin-top: 6px; }
+
+/* Victory Cinematic */
+.victory-cinematic-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 10000; display: flex; align-items: center; justify-content: center; animation: vcFadeIn 0.5s ease-out; padding: 16px; }
+.victory-cinematic-overlay.victory-cinematic-out { animation: vcFadeOut 0.6s ease-in forwards; }
+.victory-cinematic-card { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border: 2px solid gold; border-radius: 24px; padding: 36px 28px; max-width: 380px; width: 100%; text-align: center; box-shadow: 0 0 60px rgba(255,215,0,0.25); animation: vcCardIn 0.6s cubic-bezier(0.175,0.885,0.32,1.275); }
+.victory-cinematic-emoji { font-size: 64px; margin-bottom: 10px; animation: vcPulse 2s infinite; display: block; }
+.victory-cinematic-title { font-size: 26px; font-weight: 800; color: gold; margin-bottom: 4px; }
+.victory-cinematic-player { font-size: 13px; color: #fbbf24; margin-bottom: 6px; font-weight: 600; }
+.victory-cinematic-subtitle { font-size: 13px; color: #a0aec0; margin-bottom: 20px; }
+.victory-cinematic-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+.vc-stat { background: rgba(255,255,255,0.07); border-radius: 10px; padding: 8px; }
+.vc-stat-label { display: block; font-size: 9px; color: #718096; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+.vc-stat-value { display: block; font-size: 13px; font-weight: 700; color: #e2e8f0; }
+.victory-cinematic-legacy { font-style: italic; color: #f6e05e; font-size: 12px; margin-bottom: 20px; padding: 0 4px; line-height: 1.5; }
+.victory-cinematic-btn { background: linear-gradient(135deg, #f6ad55, #ed8936); color: white; border: none; border-radius: 12px; padding: 12px 28px; font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; }
+.victory-cinematic-btn:active { opacity: 0.85; }
+@keyframes vcFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes vcFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes vcCardIn { from { transform: scale(0.6) translateY(40px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+@keyframes vcPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+
+/* Rival Event Response Buttons */
+.rival-response-btn { width: 100%; text-align: left; margin-top: 4px; }

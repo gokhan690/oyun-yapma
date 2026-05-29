@@ -436,3 +436,99 @@ export function attitudeLabel(attitude: number): string {
 export function personalityLabel(id: RivalPersonality): string {
   return RIVAL_FAMILY_DEFS.find((d) => d.personality === id)?.personalityLabel ?? id
 }
+
+// ─── Rival Event System ────────────────────────────────────────────────
+
+export type RivalEventKind = 'media_scandal' | 'market_manipulation' | 'business_competition' | 'political_lobbying'
+
+export interface RivalEventResponse {
+  id: string
+  label: string
+  emoji: string
+  cost: number
+  reputationDelta: number
+}
+
+export interface RivalEvent {
+  id: string
+  rivalId: string
+  rivalName: string
+  kind: RivalEventKind
+  headline: string
+  description: string
+  reputationDamage: number
+  moneyDamage: number
+  responses: RivalEventResponse[]
+  expiresAtDay: number
+}
+
+export function generateRivalEvent(rival: RivalFamilyState, playerNetWorth: number, gameDay: number): RivalEvent | null {
+  if (rival.relation === 'bankrupt' || rival.relation === 'merged') return null
+  if (rival.attitude > 20) return null  // friendly rivals don't attack
+  if (Math.random() > 0.25) return null
+
+  const isStrong = rival.netWorth > playerNetWorth
+  const kinds: RivalEventKind[] = isStrong
+    ? ['media_scandal', 'market_manipulation', 'business_competition', 'political_lobbying']
+    : ['media_scandal', 'business_competition']
+  const kind = kinds[Math.floor(Math.random() * kinds.length)]!
+
+  const halfNW = Math.max(10_000, Math.round(playerNetWorth * 0.04))
+
+  const configs: Record<RivalEventKind, { headline: string; desc: string; repDmg: number; moneyDmg: number; responses: RivalEventResponse[] }> = {
+    media_scandal: {
+      headline: `${rival.name} seni medyaya şikayet etti`,
+      desc: `${rival.name} seni kamuoyunda yıpratmaya çalışıyor. İtibarın tehdit altında.`,
+      repDmg: 8, moneyDmg: 0,
+      responses: [
+        { id: 'counter_pr', label: 'Basın toplantısı yap', emoji: '📰', cost: 50_000, reputationDelta: 12 },
+        { id: 'legal', label: 'Dava aç', emoji: '⚖️', cost: 100_000, reputationDelta: 5 },
+        { id: 'ignore', label: 'Görmezden gel', emoji: '🤷', cost: 0, reputationDelta: -4 },
+      ],
+    },
+    market_manipulation: {
+      headline: `${rival.name} piyasayı manipüle ediyor`,
+      desc: `${rival.name} koordineli satış yapıyor. Sektör gelirlerin düşüyor.`,
+      repDmg: 0, moneyDmg: halfNW,
+      responses: [
+        { id: 'buy_dip', label: 'Dipten al — riskli', emoji: '📈', cost: Math.round(halfNW * 0.8), reputationDelta: 5 },
+        { id: 'report', label: 'Düzenleyiciye şikayet et', emoji: '🏛️', cost: 25_000, reputationDelta: 8 },
+        { id: 'wait', label: 'Fırtınanın geçmesini bekle', emoji: '⏳', cost: 0, reputationDelta: 0 },
+      ],
+    },
+    business_competition: {
+      headline: `${rival.name} rakip işletme açtı`,
+      desc: `${rival.name} en kârlı sektöründe şube açtı. Aylık gelirler düşüyor.`,
+      repDmg: 0, moneyDmg: Math.round(halfNW * 0.6),
+      responses: [
+        { id: 'price_war', label: 'Fiyat savaşı başlat', emoji: '⚔️', cost: Math.round(halfNW * 0.9), reputationDelta: -3 },
+        { id: 'differentiate', label: 'Farklılaştırma stratejisi', emoji: '💡', cost: 30_000, reputationDelta: 3 },
+        { id: 'buy_out', label: 'Rakibi satın al', emoji: '🤝', cost: rival.netWorth, reputationDelta: 5 },
+      ],
+    },
+    political_lobbying: {
+      headline: `${rival.name} siyasi lobi başlattı`,
+      desc: `${rival.name} siyasi bağlantılarını seni zayıflatmak için kullanıyor.`,
+      repDmg: 6, moneyDmg: 0,
+      responses: [
+        { id: 'counter_lobby', label: 'Karşı lobi yap', emoji: '🏛️', cost: 80_000, reputationDelta: 8 },
+        { id: 'alliance', label: 'Siyasi ittifak teklif et', emoji: '🤝', cost: 50_000, reputationDelta: 4 },
+        { id: 'ignore', label: 'Görmezden gel', emoji: '🤷', cost: 0, reputationDelta: -3 },
+      ],
+    },
+  }
+
+  const cfg = configs[kind]!
+  return {
+    id: `rev_${rival.id}_${gameDay}_${kind}`,
+    rivalId: rival.id,
+    rivalName: rival.name,
+    kind,
+    headline: cfg.headline,
+    description: cfg.desc,
+    reputationDamage: cfg.repDmg,
+    moneyDamage: cfg.moneyDmg,
+    responses: cfg.responses,
+    expiresAtDay: gameDay + 3,
+  }
+}
