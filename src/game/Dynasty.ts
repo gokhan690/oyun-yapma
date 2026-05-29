@@ -45,6 +45,41 @@ export const PLAYER_START_AGE = 18
 export const PLAYER_LIFESPAN = 100
 export const SUCCESSION_START_AGE = 25
 
+export type DynastyLegacyItemId = 'family_business' | 'family_wealth' | 'family_name'
+
+export interface DynastyLegacyItem {
+  id: DynastyLegacyItemId
+  label: string
+  emoji: string
+  description: string
+  /** IPO sonrasında verilen bonus etiketi */
+  bonusLabel: string
+}
+
+export const DYNASTY_LEGACY_ITEMS: DynastyLegacyItem[] = [
+  {
+    id: 'family_business',
+    label: 'Aile İşletmesi',
+    emoji: '🏪',
+    description: 'Bir işletme sonraki nesle devredilir',
+    bonusLabel: 'Başlangıçta 1 işletme mevcut',
+  },
+  {
+    id: 'family_wealth',
+    label: 'Aile Serveti',
+    emoji: '💰',
+    description: 'Küçük bir servet birikimi aktarılır',
+    bonusLabel: 'Başlangıç parasına +₺50.000',
+  },
+  {
+    id: 'family_name',
+    label: 'Aile Adı',
+    emoji: '👑',
+    description: 'Birikmiş itibar bir sonraki nesle kalır',
+    bonusLabel: 'İtibar 20 ile başlar',
+  },
+]
+
 export interface DynastyState {
   spouseId: string | null
   spouseName: string | null
@@ -66,6 +101,10 @@ export interface DynastyState {
   spouseSatisfaction?: number
   /** Son evlilik krizi tetiklenmesinden bu yana */
   lastMarriageCrisisDay?: number
+  /** IPO sırasında seçilen miras kalemleri (kuşaklar arası taşınan) */
+  legacyItems?: DynastyLegacyItemId[]
+  /** Geçmiş nesillerde biriken toplam miras puanı */
+  accumulatedLegacyScore?: number
 }
 
 export const SPOUSE_OPTIONS: SpouseOption[] = [
@@ -291,4 +330,52 @@ export function educationXpPerGameDay(): number {
 /** @deprecated */
 export function educationXpPerGameHour(): number {
   return educationXpPerGameDay() / 24
+}
+
+/** Miras kalemi seç veya kaldır (maksimum 3) */
+export function toggleLegacyItem(d: DynastyState, itemId: DynastyLegacyItemId): void {
+  const items = d.legacyItems ?? []
+  const idx = items.indexOf(itemId)
+  if (idx >= 0) {
+    d.legacyItems = items.filter((i) => i !== itemId)
+  } else if (items.length < 3) {
+    d.legacyItems = [...items, itemId]
+  }
+}
+
+/** IPO sonrası miras bonusları — başlangıç parasına eklenir */
+export function legacyWealthBonus(d: DynastyState): number {
+  const items = d.legacyItems ?? []
+  return items.includes('family_wealth') ? 50_000 : 0
+}
+
+/** IPO sonrası miras itibarı */
+export function legacyReputationBonus(d: DynastyState): number {
+  const items = d.legacyItems ?? []
+  return items.includes('family_name') ? 20 : 0
+}
+
+/** Başlangıçta işletme mirası var mı */
+export function legacyHasFamilyBusiness(d: DynastyState): boolean {
+  return (d.legacyItems ?? []).includes('family_business')
+}
+
+/** Miras puanını hesapla — kuşak başına birikir */
+export function calculateLegacyScore(peakNetWorth: number, generation: number, ipoCount: number, victories: number): number {
+  let score = 0
+  score += Math.floor(Math.log10(Math.max(1, peakNetWorth)) * 10)
+  score += generation * 5
+  score += ipoCount * 15
+  score += victories * 30
+  return score
+}
+
+/** "Halk ne hatırlıyor?" — itibar puanına göre unvan */
+export function publicMemoryTitle(reputation: number): { title: string; emoji: string } {
+  if (reputation >= 200) return { title: 'Hayırsever Baron', emoji: '🌟' }
+  if (reputation >= 100) return { title: 'Vizyon Sahibi', emoji: '💡' }
+  if (reputation >= 50) return { title: 'Saygın İş İnsanı', emoji: '🤝' }
+  if (reputation >= 0) return { title: 'Sıradan Girişimci', emoji: '💼' }
+  if (reputation >= -50) return { title: 'Tartışmalı Figür', emoji: '⚠️' }
+  return { title: 'Zalim Baron', emoji: '😈' }
 }

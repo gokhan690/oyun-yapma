@@ -985,6 +985,18 @@ export class HUD {
       if (ev.type === 'marriage_crisis') {
         this.showMarriageCrisisModal()
       }
+      if (ev.type === 'friend_unlocked') {
+        this.toast(`🤝 Yeni arkadaş: ${ev.friendName} (${ev.typeLabel})`)
+      }
+      if (ev.type === 'enemy_appeared') {
+        this.showEnemyAppearedModal(ev.enemyName, ev.title)
+      }
+      if (ev.type === 'mentor_quest_completed') {
+        this.modals.showAchievementToast('🧓', `Mentor Görevi: ${ev.questLabel}`, ev.rewardLabel)
+      }
+      if (ev.type === 'baron_legacy_card') {
+        this.showLegacyCardModal(ev)
+      }
       if (ev.type === 'market_news') {
         this.renderMarketNewsBanner()
         this.statsBar.updateMeta()
@@ -2153,6 +2165,39 @@ export class HUD {
           }
         }
         break
+      case 'toggle-legacy-item':
+        if (id) {
+          this.state.toggleDynastyLegacyItem(id as import('../game/Dynasty').DynastyLegacyItemId)
+          this.refreshBaronPanel()
+        }
+        break
+      case 'friend-time':
+        if (id) {
+          this.state.spendTimeWithFriend(id as import('../game/Friendships').FriendTypeId)
+          this.modals.showToast(this.root, '🤝 Arkadaşınla vakit geçirdin')
+          this.refreshBaronPanel()
+        }
+        break
+      case 'friend-money':
+        if (id) {
+          if (this.state.sendMoneyToFriend(id as import('../game/Friendships').FriendTypeId)) {
+            this.modals.showToast(this.root, '💸 Para gönderildi — ilişki güçlendi')
+          } else {
+            this.modals.showToast(this.root, 'Yeterli para yok', 'important')
+          }
+          this.refreshBaronPanel()
+        }
+        break
+      case 'resolve-enemy':
+        if (id) {
+          if (this.state.resolveEnemy(id)) {
+            this.modals.showToast(this.root, '✅ Düşman bertaraf edildi!')
+          } else {
+            this.modals.showToast(this.root, 'Yeterli para yok', 'important')
+          }
+          this.refreshBaronPanel()
+        }
+        break
       case 'rival-acquire':
         if (id) {
           const rv = this.state.rivals.find((r) => r.id === id)
@@ -2672,6 +2717,46 @@ export class HUD {
       id: 'marriage-crisis',
       priority: 2,
       run: () => this.modals.showContent('💔 Evlilik Krizi', body, [], true),
+    })
+  }
+
+  private showEnemyAppearedModal(enemyName: string, title: string): void {
+    const body = document.createElement('div')
+    body.className = 'annual-summary-body'
+    const info = document.createElement('p')
+    info.className = 'annual-summary-question'
+    info.innerHTML = `<strong>😈 ${enemyName}</strong> — ${title}<br><br>Bu kişi seni her gün baltalıyor. Gelirini azaltıyor. Profil → Düşman bölümünden çözebilirsin.`
+    body.appendChild(info)
+    this.eventDirector.enqueue({
+      id: 'enemy-appeared',
+      priority: 2,
+      run: () => this.modals.showContent('⚠️ Yeni Düşman!', body, []),
+    })
+  }
+
+  private showLegacyCardModal(ev: { peakNetWorth: number; generation: number; ipoCount: number; reputation: number; legacyScore: number; publicTitle: string; publicEmoji: string }): void {
+    const { formatMoney } = (window as any).__gameUtils ?? {}
+    const fmtMoney = typeof formatMoney === 'function' ? formatMoney : (n: number) => `₺${n.toLocaleString('tr-TR')}`
+    const body = document.createElement('div')
+    body.className = 'legacy-card-body'
+    body.innerHTML = `
+      <div class="legacy-card-header">
+        <div class="legacy-card-title">Miras Kartın</div>
+        <div class="legacy-card-public">${ev.publicEmoji} "${ev.publicTitle}"</div>
+      </div>
+      <div class="legacy-card-stats">
+        <div class="legacy-stat"><span class="legacy-stat-emoji">💰</span><span class="legacy-stat-label">Peak Servet</span><span class="legacy-stat-value">${fmtMoney(ev.peakNetWorth)}</span></div>
+        <div class="legacy-stat"><span class="legacy-stat-emoji">🏛️</span><span class="legacy-stat-label">Nesil</span><span class="legacy-stat-value">${ev.generation}. nesil</span></div>
+        <div class="legacy-stat"><span class="legacy-stat-emoji">🚀</span><span class="legacy-stat-label">IPO Sayısı</span><span class="legacy-stat-value">${ev.ipoCount}</span></div>
+        <div class="legacy-stat"><span class="legacy-stat-emoji">⭐</span><span class="legacy-stat-label">İtibar</span><span class="legacy-stat-value">${ev.reputation}</span></div>
+        <div class="legacy-stat"><span class="legacy-stat-emoji">👑</span><span class="legacy-stat-label">Toplam Miras Puanı</span><span class="legacy-stat-value">${ev.legacyScore}</span></div>
+      </div>
+      <div class="legacy-card-note">Miras puanın bir sonraki nesilde başlangıç avantajı olarak döner.</div>
+    `
+    this.eventDirector.enqueue({
+      id: 'legacy-card',
+      priority: 4,
+      run: () => this.modals.showContent('🏆 Hayat Sona Erdi', body, []),
     })
   }
 

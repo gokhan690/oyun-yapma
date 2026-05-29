@@ -349,6 +349,45 @@ import {
 } from './PlayerSkills'
 import { buildBaronRecord, dynastyHistorySummary, type BaronRecord, type BaronLifeSnapshot } from './BaronLegacy'
 import {
+  createFriendshipsState,
+  tickFriendships,
+  addFriend,
+  spendTimeWithFriend,
+  sendMoneyToFriend,
+  availableToUnlockFriends,
+  friendshipIncomeMult,
+  friendshipCostMult,
+  friendshipPrestigeMult,
+  friendshipStressDaily,
+  friendshipReputationMonthly,
+  randomFriendName,
+  FRIEND_SEND_MONEY_COST,
+  type FriendshipsState,
+  type FriendTypeId,
+} from './Friendships'
+import {
+  createMentorEnemyState,
+  assignRandomMentor,
+  assignRandomEnemy,
+  checkMentorQuests,
+  completeMentorQuest,
+  enemyIncomePenalty,
+  mentorIncomeMult,
+  mentorCostMult,
+  mentorClickMult,
+  mentorPrestigeMult,
+  type MentorEnemyState,
+} from './MentorEnemy'
+import {
+  toggleLegacyItem,
+  legacyWealthBonus,
+  legacyReputationBonus,
+  legacyHasFamilyBusiness,
+  calculateLegacyScore,
+  publicMemoryTitle,
+  type DynastyLegacyItemId,
+} from './Dynasty'
+import {
   createCityState,
   canUnlockCity,
   cityDef,
@@ -535,6 +574,9 @@ export interface SerializableState {
   playerSkills?: PlayerSkillsState
   dailyRoutineDay?: number
   dailyRoutineUsed?: string[]
+  friendships?: FriendshipsState
+  mentorEnemy?: MentorEnemyState
+  legacyScore?: number
 }
 
 export interface ProducerBreakdown {
@@ -624,6 +666,11 @@ export type GameEvent =
   | { type: 'annual_summary'; year: number; playerAge: number; totalEarned: number; businessCount: number; incomePerDay: number }
   | { type: 'skill_unlocked'; skill: PlayerSkillDef }
   | { type: 'marriage_crisis' }
+  | { type: 'mentor_quest_completed'; questLabel: string; rewardLabel: string }
+  | { type: 'enemy_appeared'; enemyName: string; title: string }
+  | { type: 'friend_unlocked'; friendName: string; typeLabel: string }
+  | { type: 'legacy_selected'; items: DynastyLegacyItemId[] }
+  | { type: 'baron_legacy_card'; peakNetWorth: number; generation: number; ipoCount: number; reputation: number; legacyScore: number; publicTitle: string; publicEmoji: string }
 
 const MILESTONE_THRESHOLDS = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
 const CRIT_CHANCE = 0.1
@@ -703,6 +750,9 @@ export class GameState {
   pendingConsequences: PendingConsequence[] = []
   eventChoiceHistory: EventChoiceRecord[] = []
   health = createHealthState()
+  friendships = createFriendshipsState()
+  mentorEnemy = createMentorEnemyState()
+  legacyScore = 0
   lastAnnualSummaryYear = -1
   personality: PersonalityId | null = null
   playerSkills = createPlayerSkillsState()
@@ -1553,6 +1603,9 @@ export class GameState {
     mult *= personalityIncomeMult(this.personality)
     mult *= skillPassiveMult(this.playerSkills)
     if (gameDay(this.gameTimeMs) <= this.dailyReadBonusUntilDay) mult *= 1.05
+    mult *= friendshipIncomeMult(this.friendships)
+    mult *= mentorIncomeMult(this.mentorEnemy)
+    mult *= enemyIncomePenalty(this.mentorEnemy)
     return mult
   }
 
@@ -1576,6 +1629,7 @@ export class GameState {
     mult *= this.marketNewsClickMult()
     mult *= calendarClickMult()
     mult *= skillClickMult(this.playerSkills)
+    mult *= mentorClickMult(this.mentorEnemy)
     return mult
   }
 
@@ -1871,7 +1925,27 @@ export class GameState {
     }
 
     const record = this.finalizeBaronOnDeath(outcome.label, outcome.emoji, outcome.causeId)
+    // Miras puanı hesapla ve biriktir
+    const newLegacyScore = calculateLegacyScore(
+      this.baronLifePeakNetWorth,
+      this.dynasty.generation,
+      this.ipoCount,
+      this.victoriesUnlocked.length,
+    )
+    this.legacyScore += newLegacyScore
+    this.dynasty.accumulatedLegacyScore = (this.dynasty.accumulatedLegacyScore ?? 0) + newLegacyScore
+    const { title: publicTitle, emoji: publicEmoji } = publicMemoryTitle(this.reputation)
     this.emit({ type: 'baron_eulogy', record, hasHeir: this.dynasty.children.length > 0 })
+    this.emit({
+      type: 'baron_legacy_card',
+      peakNetWorth: this.baronLifePeakNetWorth,
+      generation: this.dynasty.generation,
+      ipoCount: this.ipoCount,
+      reputation: this.reputation,
+      legacyScore: this.legacyScore,
+      publicTitle,
+      publicEmoji,
+    })
     this.emit({
       type: 'player_death',
       age: outcome.age,
@@ -2203,7 +2277,9 @@ export class GameState {
         * this.dynastyCostMult()
         * reputationCostMult(this.reputation)
         * personalityCostMult(this.personality)
-        * skillCostMult(this.playerSkills),
+        * skillCostMult(this.playerSkills)
+        * friendshipCostMult(this.friendships)
+        * mentorCostMult(this.mentorEnemy),
     )
     const cal = activeCalendarEvents()
     const monday = cal.find((e) => e.id === 'monday_market')
@@ -2362,7 +2438,12 @@ export class GameState {
   }
 
   pendingPrestigePoints(): number {
-    return Math.floor(calcPrestigePoints(this.totalEarned, this.ipoCount) * skillPrestigeMult(this.playerSkills))
+    return Math.floor(
+      calcPrestigePoints(this.totalEarned, this.ipoCount)
+        * skillPrestigeMult(this.playerSkills)
+        * friendshipPrestigeMult(this.friendships)
+        * mentorPrestigeMult(this.mentorEnemy),
+    )
   }
 
   ipoPreview(): IpoPreviewData {
@@ -2403,7 +2484,11 @@ export class GameState {
     this.peakIncomePerDay = 0
 
     const hasStartCash2x = this.prestigeShopPurchased.includes('start_cash_2x')
-    const finalStartingCash = hasStartCash2x ? startingCash * 2 : startingCash
+    // Miras kalemleri bonusları
+    const legacyWealth = legacyWealthBonus(this.dynasty)
+    const legacyRep = legacyReputationBonus(this.dynasty)
+    const hasFamilyBiz = legacyHasFamilyBusiness(this.dynasty)
+    const finalStartingCash = (hasStartCash2x ? startingCash * 2 : startingCash) + legacyWealth
 
     this.prestigePoints += points
     this.lifetimePrestige += points
@@ -2435,6 +2520,13 @@ export class GameState {
     this.nightEarningsSession = 0
     const prevRep = this.reputation
     this.reputation = carryReputationAfterIpo(this.reputation)
+    // Aile adı mirası: IPO sonrası itibar bonusu
+    if (legacyRep > 0) this.reputation = Math.min(200, this.reputation + legacyRep)
+    // Aile işletmesi mirası: ilk işletmeyi başlangıçta ver
+    if (hasFamilyBiz) {
+      const firstProducer = PRODUCERS.find((p) => p.tier === 1)
+      if (firstProducer) this.producers[firstProducer.id] = Math.max(this.producers[firstProducer.id] ?? 0, 1)
+    }
     this.recordLegacyMonuments()
     this.recordChronicle('ipo', '🚀', `IPO #${this.ipoCount} — run sıfırlandı, prestij +${points}`)
     syncEmpireFromProducers(this.empire, this.producers)
@@ -3778,6 +3870,8 @@ export class GameState {
     this.tickHealth(day)
     this.tickSpouseSatisfaction(day)
     this.tickAnnualSummary(day)
+    this.tickFriendshipsDaily(day)
+    this.tickMentorEnemy(day)
     this.tickLifeEvents(day)
     this.checkSkillUnlocks()
     this.tickInsurance(day)
@@ -3903,6 +3997,114 @@ export class GameState {
         incomePerDay: this.incomePerDay(),
       })
     }
+  }
+
+  private lastFriendshipTickDay = 0
+  private tickFriendshipsDaily(day: number): void {
+    if (day === this.lastFriendshipTickDay) return
+    this.lastFriendshipTickDay = day
+    tickFriendships(this.friendships, day)
+    // Auto-unlock friends when totalEarned reaches threshold
+    const newFriends = availableToUnlockFriends(this.friendships, this.totalEarned)
+    for (const def of newFriends) {
+      const name = randomFriendName(def.id)
+      addFriend(this.friendships, def.id, name, day)
+      this.emit({ type: 'friend_unlocked', friendName: name, typeLabel: def.name })
+    }
+    // Monthly: reputation from neighborhood friendship
+    if (day % 30 === 0 && day > 0) {
+      const repGain = friendshipReputationMonthly(this.friendships)
+      if (repGain > 0) this.addReputation(repGain)
+    }
+    // Daily stress reduction from school friend
+    const stressDelta = friendshipStressDaily(this.friendships)
+    if (stressDelta !== 0) {
+      this.lifestyle.stress = Math.max(0, Math.min(100, this.lifestyle.stress + stressDelta))
+    }
+  }
+
+  private lastMentorTickDay = 0
+  private tickMentorEnemy(day: number): void {
+    if (day === this.lastMentorTickDay) return
+    this.lastMentorTickDay = day
+    // Assign mentor at day 3 if not yet assigned
+    if (!this.mentorEnemy.mentorId && day >= 3) {
+      this.mentorEnemy.mentorId = assignRandomMentor()
+      this.mentorEnemy.mentorUnlockedDay = day
+    }
+    // Assign enemy at totalEarned >= 10K if not yet assigned
+    if (!this.mentorEnemy.enemyId && this.totalEarned >= 10_000) {
+      this.mentorEnemy.enemyId = assignRandomEnemy()
+      this.mentorEnemy.enemyActiveDay = day
+      this.emitEnemyAppeared()
+    }
+    // Check mentor quests
+    const completable = checkMentorQuests(this.mentorEnemy, {
+      totalEarned: this.totalEarned,
+      ipoCount: this.ipoCount,
+      reputation: this.reputation,
+      businessCount: Object.keys(this.producers).filter((id) => (this.producers[id] ?? 0) > 0).length,
+    })
+    for (const quest of completable) {
+      const reward = completeMentorQuest(this.mentorEnemy, quest.id)
+      if (reward) {
+        this.emit({ type: 'mentor_quest_completed', questLabel: quest.label, rewardLabel: reward })
+      }
+    }
+  }
+
+  private emitEnemyAppeared(): void {
+    if (!this.mentorEnemy.enemyId) return
+    // Import is synchronous (already loaded), just use the pre-imported function
+    const enemies: Record<string, { name: string; title: string }> = {
+      corrupt_rival: { name: 'Necdet Avcı', title: 'Yolsuz Rakip' },
+      jealous_partner: { name: 'Sinan Koray', title: 'Kıskançlıktan Dönen Ortak' },
+      hostile_regulator: { name: 'Müfettiş Cemal', title: 'Düşman Denetçi' },
+    }
+    const e = enemies[this.mentorEnemy.enemyId] ?? { name: '?', title: '?' }
+    this.emit({ type: 'enemy_appeared', enemyName: e.name, title: e.title })
+  }
+
+  spendTimeWithFriend(typeId: FriendTypeId): void {
+    const gain = spendTimeWithFriend(this.friendships, typeId, gameDay(this.gameTimeMs))
+    if (gain > 0) {
+      this.emit({ type: 'dynasty_update', kind: 'friend_time', name: typeId })
+    }
+  }
+
+  sendMoneyToFriend(typeId: FriendTypeId): boolean {
+    if (this.money < FRIEND_SEND_MONEY_COST) return false
+    const gain = sendMoneyToFriend(this.friendships, typeId, gameDay(this.gameTimeMs))
+    if (gain > 0) {
+      this.money -= FRIEND_SEND_MONEY_COST
+      this.emit({ type: 'money_changed' })
+      this.emit({ type: 'dynasty_update', kind: 'friend_money', name: typeId })
+    }
+    return gain > 0
+  }
+
+  toggleDynastyLegacyItem(itemId: DynastyLegacyItemId): void {
+    toggleLegacyItem(this.dynasty, itemId)
+    this.emit({ type: 'legacy_selected', items: this.dynasty.legacyItems ?? [] })
+  }
+
+  resolveEnemy(method: string): boolean {
+    if (!this.mentorEnemy.enemyId || this.mentorEnemy.enemyResolved) return false
+    const costMap: Record<string, number> = {
+      money: 500_000, law: 200_000, politics: 350_000, diplomacy: 100_000,
+    }
+    const repMap: Record<string, number> = {
+      money: -20, law: 15, politics: 5, diplomacy: 10,
+    }
+    const cost = costMap[method] ?? 200_000
+    if (this.money < cost) return false
+    this.money -= cost
+    this.mentorEnemy.enemyResolved = true
+    const repDelta = repMap[method] ?? 0
+    this.addReputation(repDelta)
+    this.emit({ type: 'money_changed' })
+    this.addGazette(`Düşman bertaraf edildi (${method}) — barış sağlandı`, 'player')
+    return true
   }
 
   private lastLifeEventTickDay = 0
@@ -4888,6 +5090,9 @@ export class GameState {
       playerSkills: { unlocked: [...this.playerSkills.unlocked], lifeEventsResolved: this.playerSkills.lifeEventsResolved },
       dailyRoutineDay: this.dailyRoutineDay,
       dailyRoutineUsed: [...this.dailyRoutineUsed],
+      friendships: { friends: this.friendships.friends.map((f) => ({ ...f })), lastFriendshipTickDay: this.friendships.lastFriendshipTickDay },
+      mentorEnemy: { ...this.mentorEnemy },
+      legacyScore: this.legacyScore,
       difficulty: this.difficulty,
       playerName: this.playerName,
       birthYear: this.birthYear,
@@ -5125,6 +5330,16 @@ export class GameState {
     }
     this.dailyRoutineDay = data.dailyRoutineDay ?? 0
     this.dailyRoutineUsed = data.dailyRoutineUsed ?? []
+    if (data.friendships) {
+      this.friendships = {
+        friends: (data.friendships.friends ?? []).map((f: any) => ({ ...f })),
+        lastFriendshipTickDay: data.friendships.lastFriendshipTickDay ?? 0,
+      }
+    }
+    if (data.mentorEnemy) {
+      this.mentorEnemy = { ...createMentorEnemyState(), ...data.mentorEnemy }
+    }
+    this.legacyScore = data.legacyScore ?? 0
     this.difficulty = (['easy', 'normal', 'hard'] as const).includes(data.difficulty as 'easy' | 'normal' | 'hard')
       ? (data.difficulty as 'easy' | 'normal' | 'hard')
       : 'normal'

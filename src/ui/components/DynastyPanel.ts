@@ -1,7 +1,9 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
 import { gameDay } from '../../game/GameClock'
-import { spouseOptionsForPlayer, PLAYER_LIFESPAN, CHILD_CAREERS, childCareerDef, type ChildRecord } from '../../game/Dynasty'
+import { spouseOptionsForPlayer, PLAYER_LIFESPAN, CHILD_CAREERS, childCareerDef, DYNASTY_LEGACY_ITEMS, type ChildRecord } from '../../game/Dynasty'
+import { FRIEND_TYPES } from '../../game/Friendships'
+import { MENTORS, ENEMIES } from '../../game/MentorEnemy'
 import { t } from '../../i18n'
 
 function traitLabel(trait: string): string {
@@ -195,6 +197,161 @@ export class DynastyPanel {
         this.root.appendChild(badge)
       }
     }
+
+    this.renderLegacyItems()
+    this.renderFriends()
+    this.renderMentorEnemy()
+  }
+
+  private renderLegacyItems(): void {
+    const d = this.state.dynasty
+    const section = document.createElement('div')
+    section.className = 'legacy-section'
+    const title = document.createElement('h4')
+    title.textContent = '👑 Hanedan Mirası'
+    section.appendChild(title)
+    const desc = document.createElement('p')
+    desc.className = 'dynasty-desc'
+    desc.textContent = 'IPO sırasında nesle bırakılacak miras kalemlerini seç (maks 3).'
+    section.appendChild(desc)
+    const grid = document.createElement('div')
+    grid.className = 'legacy-items-grid'
+    const selected = d.legacyItems ?? []
+    for (const item of DYNASTY_LEGACY_ITEMS) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `legacy-item-btn${selected.includes(item.id) ? ' legacy-item-selected' : ''}`
+      btn.dataset.action = 'toggle-legacy-item'
+      btn.dataset.id = item.id
+      btn.innerHTML = `<span>${item.emoji} ${item.label}</span><small>${item.bonusLabel}</small>`
+      grid.appendChild(btn)
+    }
+    section.appendChild(grid)
+    this.root.appendChild(section)
+  }
+
+  private renderFriends(): void {
+    const state = this.state
+    const friends = state.friendships.friends
+    if (friends.length === 0) return
+    const section = document.createElement('div')
+    section.className = 'friends-section'
+    const title = document.createElement('h4')
+    title.textContent = '🤝 Arkadaşlar'
+    section.appendChild(title)
+    for (const f of friends) {
+      const def = FRIEND_TYPES.find((t) => t.id === f.typeId)
+      if (!def) continue
+      const rel = Math.round(f.relationship)
+      const relColor = rel >= 80 ? '#5ee0a0' : rel >= 50 ? '#72b7ff' : '#f8b84e'
+      const card = document.createElement('div')
+      card.className = 'friend-card'
+      card.innerHTML = `
+        <div class="friend-card-header">
+          <span class="friend-emoji">${def.emoji}</span>
+          <div>
+            <strong>${f.name}</strong>
+            <small>${def.name}</small>
+          </div>
+          <span class="friend-rel-pct" style="color:${relColor}">${rel}%</span>
+        </div>
+        <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${rel}%;background:${relColor}"></div></div>
+        ${rel >= 80 ? `<small class="friend-bonus">${def.highBonusLabel}</small>` : ''}
+      `
+      const btnRow = document.createElement('div')
+      btnRow.className = 'friend-card-actions'
+      const timeBtn = document.createElement('button')
+      timeBtn.type = 'button'
+      timeBtn.className = 'btn-sm btn-secondary'
+      timeBtn.dataset.action = 'friend-time'
+      timeBtn.dataset.id = f.typeId
+      timeBtn.textContent = '☕ Vakit geç (+8-15)'
+      const moneyBtn = document.createElement('button')
+      moneyBtn.type = 'button'
+      moneyBtn.className = 'btn-sm btn-secondary'
+      moneyBtn.dataset.action = 'friend-money'
+      moneyBtn.dataset.id = f.typeId
+      moneyBtn.textContent = `💸 Para gönder (${formatMoney(10_000)}) +15`
+      moneyBtn.disabled = !this.state.canAfford(10_000)
+      btnRow.append(timeBtn, moneyBtn)
+      card.appendChild(btnRow)
+      section.appendChild(card)
+    }
+    this.root.appendChild(section)
+  }
+
+  private renderMentorEnemy(): void {
+    const me = this.state.mentorEnemy
+    const section = document.createElement('div')
+    section.className = 'mentor-enemy-section'
+
+    if (me.mentorId) {
+      const mDef = MENTORS.find((m) => m.id === me.mentorId)
+      if (mDef) {
+        const mTitle = document.createElement('h4')
+        mTitle.textContent = '🧓 Mentor'
+        section.appendChild(mTitle)
+        const mCard = document.createElement('div')
+        mCard.className = 'mentor-card'
+        const completedCount = me.completedQuests.length
+        const totalCount = mDef.quests.length
+        mCard.innerHTML = `
+          <strong>${mDef.emoji} ${mDef.name}</strong> — ${mDef.title}
+          <small>${mDef.backstory}</small>
+          <small>Tamamlanan görevler: ${completedCount}/${totalCount}</small>
+        `
+        // Show active quests
+        for (const q of mDef.quests) {
+          const done = me.completedQuests.includes(q.id)
+          const qEl = document.createElement('div')
+          qEl.className = `mentor-quest${done ? ' mentor-quest-done' : ''}`
+          qEl.innerHTML = `${done ? '✅' : '⬜'} <strong>${q.label}</strong>: ${q.description} → ${q.rewardLabel}`
+          mCard.appendChild(qEl)
+        }
+        section.appendChild(mCard)
+      }
+    }
+
+    if (me.enemyId && !me.enemyResolved) {
+      const eDef = ENEMIES.find((e) => e.id === me.enemyId)
+      if (eDef) {
+        const eTitle = document.createElement('h4')
+        eTitle.textContent = '😈 Düşman'
+        section.appendChild(eTitle)
+        const eCard = document.createElement('div')
+        eCard.className = 'enemy-card'
+        const penalty = Math.round(eDef.dailyIncomePenalty * 100)
+        eCard.innerHTML = `
+          <strong>${eDef.emoji} ${eDef.name}</strong> — ${eDef.title}
+          <small>${eDef.backstory}</small>
+          <small class="enemy-penalty">⚠️ Günlük gelir −%${penalty}</small>
+        `
+        const resolveTitle = document.createElement('small')
+        resolveTitle.textContent = 'Çözüm yöntemleri:'
+        eCard.appendChild(resolveTitle)
+        const resolveBtns = document.createElement('div')
+        resolveBtns.className = 'enemy-resolve-btns'
+        for (const opt of eDef.resolveMethods) {
+          const btn = document.createElement('button')
+          btn.type = 'button'
+          btn.className = 'btn-sm btn-secondary'
+          btn.dataset.action = 'resolve-enemy'
+          btn.dataset.id = opt.method
+          btn.disabled = !this.state.canAfford(opt.moneyCost)
+          btn.innerHTML = `${opt.emoji} ${opt.label} (${formatMoney(opt.moneyCost)})`
+          resolveBtns.appendChild(btn)
+        }
+        eCard.appendChild(resolveBtns)
+        section.appendChild(eCard)
+      }
+    } else if (me.enemyId && me.enemyResolved) {
+      const done = document.createElement('p')
+      done.className = 'dynasty-desc'
+      done.textContent = '✅ Düşman bertaraf edildi.'
+      section.appendChild(done)
+    }
+
+    if (section.children.length > 0) this.root.appendChild(section)
   }
 
   private childCard(c: ChildRecord): HTMLElement {
