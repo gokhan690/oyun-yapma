@@ -189,7 +189,7 @@ export class AdManager {
   }
 
   hasBannerPlacement(): boolean {
-    return !this.adsRemoved && isCapacitorNative() && !!import.meta.env.VITE_ADMOB_BANNER_ID
+    return false
   }
 
   async showRewarded(type: RewardedAdType): Promise<AdRewardResult> {
