@@ -76,6 +76,8 @@ export class HUD {
   private heatMeterFill!: HTMLElement
   private heatMeterLabel!: HTMLElement
   private heatMeterRow!: HTMLElement
+  private healthBarFill!: HTMLElement
+  private healthBarLabel!: HTMLElement
   private weeklyBanner!: HTMLElement
   private goalsChip!: HTMLButtonElement
   private dayNightChip!: HTMLElement
@@ -428,6 +430,21 @@ export class HUD {
     heatCleanBtn.textContent = t('hud_radar_clean')
     heatRow.appendChild(heatCleanBtn)
     sessionPanel.appendChild(heatRow)
+
+    const healthRow = document.createElement('div')
+    healthRow.className = 'health-bar-row'
+    const healthTitle = document.createElement('span')
+    healthTitle.className = 'health-bar-title'
+    healthTitle.textContent = '❤️ Sağlık'
+    this.healthBarLabel = document.createElement('span')
+    this.healthBarLabel.className = 'health-bar-status'
+    const healthBarOuter = document.createElement('div')
+    healthBarOuter.className = 'progress-bar health-bar'
+    this.healthBarFill = document.createElement('div')
+    this.healthBarFill.className = 'progress-fill health-bar-fill'
+    healthBarOuter.appendChild(this.healthBarFill)
+    healthRow.append(healthTitle, this.healthBarLabel, healthBarOuter)
+    sessionPanel.appendChild(healthRow)
 
     const adsPanel = document.createElement('div')
     adsPanel.className = 'quick-ads collapsible-boosts'
@@ -945,6 +962,12 @@ export class HUD {
       if (ev.type === 'life_event_consequence') {
         this.modals.showToast(this.root, ev.headline)
         if (this.baronSubTab === 'lifestyle') this.lifestylePanel.render(this.state)
+      }
+      if (ev.type === 'health_changed') {
+        this.renderHealthBar()
+      }
+      if (ev.type === 'annual_summary') {
+        this.showAnnualSummaryModal(ev.year, ev.playerAge, ev.totalEarned, ev.businessCount, ev.incomePerDay)
       }
       if (ev.type === 'market_news') {
         this.renderMarketNewsBanner()
@@ -2037,6 +2060,22 @@ export class HUD {
         }
         break
       }
+      case 'annual-focus-work':
+        this.state.applyAnnualFocus('work')
+        this.closeModalAndPump()
+        break
+      case 'annual-focus-family':
+        this.state.applyAnnualFocus('family')
+        this.closeModalAndPump()
+        break
+      case 'annual-focus-health':
+        this.state.applyAnnualFocus('health')
+        this.closeModalAndPump()
+        break
+      case 'annual-focus-social':
+        this.state.applyAnnualFocus('social')
+        this.closeModalAndPump()
+        break
       case 'rival-acquire':
         if (id) {
           const rv = this.state.rivals.find((r) => r.id === id)
@@ -2403,6 +2442,8 @@ export class HUD {
       else if (choice.reputationDelta < 0) delta.push(`İtibar ${choice.reputationDelta}`)
       if (choice.stressDelta > 0) delta.push(`Stres +${choice.stressDelta}`)
       else if (choice.stressDelta < 0) delta.push(`Stres ${choice.stressDelta}`)
+      if (choice.healthDelta && choice.healthDelta > 0) delta.push(`Sağlık +${choice.healthDelta}`)
+      else if (choice.healthDelta && choice.healthDelta < 0) delta.push(`Sağlık ${choice.healthDelta}`)
       b.innerHTML = `<strong>${choice.emoji} ${choice.label}</strong><small>${delta.join(' · ')}</small>`
       return b
     })
@@ -2441,6 +2482,63 @@ export class HUD {
     this.heatMeterFill.classList.toggle('heat-high', heat >= 55)
     this.heatMeterFill.classList.toggle('heat-critical', heat >= 80)
     this.heatMeterLabel.textContent = `${this.state.illegalRiskLabel()} · ${pct}%`
+  }
+
+  private renderHealthBar(): void {
+    const health = Math.round(this.state.health.health)
+    this.healthBarFill.style.width = `${health}%`
+    this.healthBarFill.style.background = health >= 60 ? '#5ee0a0' : health >= 40 ? '#f8b84e' : '#f87171'
+    let label = 'Mükemmel'
+    if (health < 20) label = 'Kritik'
+    else if (health < 40) label = 'Zayıf'
+    else if (health < 60) label = 'Orta'
+    else if (health < 80) label = 'İyi'
+    this.healthBarLabel.textContent = `${label} · %${health}`
+  }
+
+  private showAnnualSummaryModal(
+    year: number,
+    playerAge: number,
+    totalEarned: number,
+    businessCount: number,
+    incomePerDay: number,
+  ): void {
+    const choices: { label: string; emoji: string; bonus: string; action: string }[] = [
+      { label: 'İşe odaklan', emoji: '💼', bonus: 'Gelir +%10 (30 gün)', action: 'annual-focus-work' },
+      { label: 'Aileye vakit ayır', emoji: '👨‍👩‍👧', bonus: 'Stres -15, Sağlık +5', action: 'annual-focus-family' },
+      { label: 'Sağlığa yatırım yap', emoji: '🏃', bonus: 'Sağlık +20', action: 'annual-focus-health' },
+      { label: 'Sosyal ağ kur', emoji: '🤝', bonus: 'İtibar +15', action: 'annual-focus-social' },
+    ]
+    const body = document.createElement('div')
+    body.className = 'annual-summary-body'
+    const stats = document.createElement('div')
+    stats.className = 'annual-summary-stats'
+    stats.innerHTML = `
+      <div class="annual-stat"><span class="annual-stat-label">Yaş</span><strong>${playerAge}</strong></div>
+      <div class="annual-stat"><span class="annual-stat-label">Toplam Kazanç</span><strong>${formatMoney(totalEarned)}</strong></div>
+      <div class="annual-stat"><span class="annual-stat-label">Aktif İşletme</span><strong>${businessCount}</strong></div>
+      <div class="annual-stat"><span class="annual-stat-label">Günlük Gelir</span><strong>${formatMoney(incomePerDay)}/gün</strong></div>
+    `
+    const question = document.createElement('p')
+    question.className = 'annual-summary-question'
+    question.textContent = `${year}. oyun yılı bitti. Bu yıl neye odaklanmak istersin?`
+    const btnRow = document.createElement('div')
+    btnRow.className = 'annual-summary-choices'
+    const btns = choices.map((c) => {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'btn-secondary annual-choice-btn'
+      b.dataset.action = c.action
+      b.innerHTML = `<strong>${c.emoji} ${c.label}</strong><small>${c.bonus}</small>`
+      return b
+    })
+    btnRow.append(...btns)
+    body.append(stats, question, btnRow)
+    this.eventDirector.enqueue({
+      id: `annual-summary-${year}`,
+      priority: 1,
+      run: () => this.modals.showContent(`🗓️ ${year}. Yıl Özeti`, body, [], true),
+    })
   }
 
   private renderSessionPanel(): void {

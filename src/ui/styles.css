@@ -3283,6 +3283,76 @@ button.shop-card {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.65; }
 }
+.health-bar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.health-bar-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.health-bar-status {
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-left: auto;
+}
+.health-bar {
+  flex: 1 1 100%;
+  height: 8px;
+}
+.health-bar-fill {
+  background: linear-gradient(90deg, #5ee0a0, #22c55e);
+  transition: width 0.4s ease, background 0.4s ease;
+}
+.annual-summary-body { padding: 4px 0; }
+.annual-summary-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.annual-stat {
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.annual-stat-label {
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.annual-stat strong {
+  font-size: 0.92rem;
+  color: var(--accent);
+}
+.annual-summary-question {
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+.annual-summary-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.annual-choice-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 10px 14px;
+  text-align: left;
+}
+.annual-choice-btn strong { font-size: 0.88rem; }
+.annual-choice-btn small { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
 .biz-risk-badge {
   position: absolute;
   top: 6px;

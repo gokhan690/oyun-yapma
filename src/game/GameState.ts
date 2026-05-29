@@ -316,7 +316,14 @@ import {
   type PendingConsequence,
   type LifeEventId,
   type LifeEventDef,
+  type EventChoiceRecord,
 } from './LifeEvents'
+import {
+  createHealthState,
+  dailyHealthDelta,
+  healthIncomePenalty,
+  type HealthState,
+} from './Health'
 import { buildBaronRecord, dynastyHistorySummary, type BaronRecord, type BaronLifeSnapshot } from './BaronLegacy'
 import {
   createCityState,
@@ -498,6 +505,9 @@ export interface SerializableState {
   dynastyPassiveIncome?: number
   peakIncomePerDay?: number
   prestigeShopPurchased?: string[]
+  eventChoiceHistory?: EventChoiceRecord[]
+  health?: HealthState
+  lastAnnualSummaryYear?: number
 }
 
 export interface ProducerBreakdown {
@@ -583,6 +593,8 @@ export type GameEvent =
   | { type: 'skyline_building_click'; producerId: string; income: number; name: string }
   | { type: 'life_event_triggered'; eventDef: LifeEventDef }
   | { type: 'life_event_consequence'; headline: string; moneyDelta: number }
+  | { type: 'health_changed'; health: number }
+  | { type: 'annual_summary'; year: number; playerAge: number; totalEarned: number; businessCount: number; incomePerDay: number }
 
 const MILESTONE_THRESHOLDS = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
 const CRIT_CHANCE = 0.1
@@ -660,6 +672,9 @@ export class GameState {
   lifestyle = createLifestyleState()
   lifeEvents: ActiveLifeEvent[] = []
   pendingConsequences: PendingConsequence[] = []
+  eventChoiceHistory: EventChoiceRecord[] = []
+  health = createHealthState()
+  lastAnnualSummaryYear = -1
   difficulty: 'easy' | 'normal' | 'hard' = 'normal'
   isNight = isGameNight(0)
   playerName = 'Baron'
@@ -1494,6 +1509,10 @@ export class GameState {
     mult *= stressIncomePenalty(this.lifestyle.stress, this.lifestyle.burnoutDays)
     mult *= lifestyleVehicleIncomeMult(this.lifestyle)
     mult *= this.marketSaturationPenalty()
+    mult *= healthIncomePenalty(this.health.health)
+    if (this.annualFocusBonus === 'work' && gameDay(this.gameTimeMs) <= this.annualFocusBonusUntilDay) {
+      mult *= 1.1
+    }
     return mult
   }
 
@@ -3709,6 +3728,8 @@ export class GameState {
     const day = gameDay(this.gameTimeMs)
     this.tickCalendarEvents()
     this.tickLifestyle(day)
+    this.tickHealth(day)
+    this.tickAnnualSummary(day)
     this.tickLifeEvents(day)
     this.tickInsurance(day)
     this.tickCommodities()
@@ -3777,6 +3798,42 @@ export class GameState {
     }
   }
 
+  private lastHealthTickDay = 0
+  private tickHealth(day: number): void {
+    if (day === this.lastHealthTickDay) return
+    this.lastHealthTickDay = day
+    const age = this.dynasty.playerBornGameDay > 0
+      ? Math.floor((day - this.dynasty.playerBornGameDay) / 365) + (this.dynasty.playerStartAge ?? 25)
+      : 30
+    const delta = dailyHealthDelta(age, this.lifestyle.stress, this.health)
+    this.health.health = Math.max(0, Math.min(100, this.health.health + delta))
+    if (this.health.exerciseDaysActive > 0) {
+      this.health.exerciseDaysActive--
+    }
+    this.emit({ type: 'health_changed', health: this.health.health })
+  }
+
+  private lastAnnualSummaryDay = 0
+  private tickAnnualSummary(day: number): void {
+    if (day === this.lastAnnualSummaryDay) return
+    this.lastAnnualSummaryDay = day
+    const currentYear = Math.floor(day / 365)
+    if (currentYear > 0 && currentYear !== this.lastAnnualSummaryYear) {
+      this.lastAnnualSummaryYear = currentYear
+      const playerAge = this.dynasty.playerBornGameDay > 0
+        ? Math.floor((day - this.dynasty.playerBornGameDay) / 365) + (this.dynasty.playerStartAge ?? 25)
+        : 25 + currentYear
+      this.emit({
+        type: 'annual_summary',
+        year: currentYear,
+        playerAge,
+        totalEarned: this.totalEarned,
+        businessCount: Object.values(this.producers).filter((c) => c > 0).length,
+        incomePerDay: this.incomePerDay(),
+      })
+    }
+  }
+
   private lastLifeEventTickDay = 0
   private tickLifeEvents(day: number): void {
     if (day === this.lastLifeEventTickDay) return
@@ -3794,13 +3851,16 @@ export class GameState {
           : result.reputationDelta
         this.reputation = Math.max(0, Math.min(100, this.reputation + repDelta))
       }
+      if (result.healthDelta) {
+        this.health.health = Math.max(0, Math.min(100, this.health.health + result.healthDelta))
+      }
       this.addGazette(result.headline, result.moneyDelta < 0 ? 'crisis' : 'player')
       this.emit({ type: 'life_event_consequence', headline: result.headline, moneyDelta: result.moneyDelta })
     }
     this.pendingConsequences = this.pendingConsequences.filter((c) => c.triggerGameDay > day)
     if (this.pendingConsequences.length === 0) {
       for (const def of LIFE_EVENTS) {
-        if (shouldTriggerLifeEvent(this.lifeEvents, def, day, this.totalEarned)) {
+        if (shouldTriggerLifeEvent(this.lifeEvents, def, day, this.totalEarned, this.eventChoiceHistory)) {
           this.lifeEvents.push({ eventId: def.id, seenAtGameDay: day })
           this.emit({ type: 'life_event_triggered', eventDef: def })
           break
@@ -3814,6 +3874,8 @@ export class GameState {
     if (!def) return
     const choice = def.choices.find((c) => c.id === choiceId)
     if (!choice) return
+    // Record choice in history for chain events
+    this.eventChoiceHistory.push({ eventId, choiceId, gameDay: gameDay(this.gameTimeMs) })
     if (choice.moneyDelta !== 0) {
       this.money += choice.moneyDelta
       this.emit({ type: 'money_changed' })
@@ -3827,6 +3889,9 @@ export class GameState {
     if (choice.stressDelta !== 0) {
       this.lifestyle.stress = Math.max(0, Math.min(100, this.lifestyle.stress + choice.stressDelta))
     }
+    if (choice.healthDelta) {
+      this.health.health = Math.max(0, Math.min(100, this.health.health + choice.healthDelta))
+    }
     if (choice.consequenceId && choice.consequenceDelayDays) {
       const currentDay = gameDay(this.gameTimeMs)
       this.pendingConsequences.push({
@@ -3837,6 +3902,30 @@ export class GameState {
         consequenceId: choice.consequenceId,
       })
     }
+  }
+
+  annualFocusBonus: string | null = null
+  annualFocusBonusUntilDay = 0
+
+  applyAnnualFocus(focus: 'work' | 'family' | 'health' | 'social'): void {
+    const day = gameDay(this.gameTimeMs)
+    this.annualFocusBonus = focus
+    this.annualFocusBonusUntilDay = day + 30
+    if (focus === 'family') {
+      this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 15)
+      this.health.health = Math.min(100, this.health.health + 5)
+      this.addGazette('👨‍👩‍👧 Aileye zaman ayırdın — stres azaldı, sağlık iyileşti', 'player')
+    } else if (focus === 'health') {
+      this.health.health = Math.min(100, this.health.health + 20)
+      this.health.exerciseDaysActive = 30
+      this.addGazette('🏃 Sağlığına yatırım yaptın — sağlık +20', 'player')
+    } else if (focus === 'social') {
+      this.reputation = Math.min(100, this.reputation + 15)
+      this.addGazette('🤝 Sosyal ağını genişlettin — itibar +15', 'player')
+    } else if (focus === 'work') {
+      this.addGazette('💼 İşe odaklandın — gelir bu ay %10 arttı', 'player')
+    }
+    this.emit({ type: 'money_changed' })
   }
 
   buyResidence(id: ResidenceId, count: number = 1): boolean {
@@ -4587,6 +4676,9 @@ export class GameState {
       lifestyle: { ...this.lifestyle, pets: [...this.lifestyle.pets] },
       lifeEvents: this.lifeEvents.map((e) => ({ ...e })),
       pendingConsequences: this.pendingConsequences.map((c) => ({ ...c })),
+      eventChoiceHistory: this.eventChoiceHistory.map((r) => ({ ...r })),
+      health: { ...this.health },
+      lastAnnualSummaryYear: this.lastAnnualSummaryYear,
       difficulty: this.difficulty,
       playerName: this.playerName,
       birthYear: this.birthYear,
@@ -4810,6 +4902,11 @@ export class GameState {
     }
     this.lifeEvents = data.lifeEvents ?? []
     this.pendingConsequences = data.pendingConsequences ?? []
+    this.eventChoiceHistory = data.eventChoiceHistory ?? []
+    if (data.health) {
+      this.health = { ...createHealthState(), ...data.health }
+    }
+    this.lastAnnualSummaryYear = data.lastAnnualSummaryYear ?? -1
     this.difficulty = (['easy', 'normal', 'hard'] as const).includes(data.difficulty as 'easy' | 'normal' | 'hard')
       ? (data.difficulty as 'easy' | 'normal' | 'hard')
       : 'normal'
