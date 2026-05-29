@@ -711,9 +711,12 @@ export class EventsPanel {
       const card = document.createElement('div')
       card.className = `events-mission-card${m.claimed ? ' claimed' : ''}${m.progress >= m.target && !m.claimed ? ' ready' : ''}`
       card.dataset.missionId = m.id
+      const tierClass = (m as import('../../game/Missions').MissionProgress).tier === 'easy' ? 'mission-tier-easy' : (m as import('../../game/Missions').MissionProgress).tier === 'risky' ? 'mission-tier-risky' : 'mission-tier-strategic'
+      const tierLabel = (m as import('../../game/Missions').MissionProgress).tier === 'easy' ? 'Kolay' : (m as import('../../game/Missions').MissionProgress).tier === 'risky' ? 'Riskli' : 'Stratejik'
+      const tierBadge = (m as import('../../game/Missions').MissionProgress).tier ? `<span class="mission-tier-badge ${tierClass}">${tierLabel}</span>` : ''
       card.innerHTML = `
         <div class="events-mission-head">
-          <strong>${m.label}</strong>
+          <strong>${m.label}</strong>${tierBadge}
           <small>${Math.floor(m.progress)}/${m.target}</small>
         </div>
         <p class="events-mission-reward">Ödül: ${reward}</p>

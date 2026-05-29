@@ -14,6 +14,8 @@ export interface GameEventDef {
   boostKind: BoostKind
   boostDurationMs: number
   pendingLabel: string
+  acceptLabel: string
+  acceptBoostDurationMs: number
 }
 
 export const EVENT_DEFS: GameEventDef[] = [
@@ -28,6 +30,8 @@ export const EVENT_DEFS: GameEventDef[] = [
     boostKind: 'income_2x',
     boostDurationMs: 120_000,
     pendingLabel: 'Yatırımcı teklifi',
+    acceptLabel: 'Küçük yatırım al (60sn)',
+    acceptBoostDurationMs: 60_000,
   },
   {
     id: 'tax_refund',
@@ -40,6 +44,8 @@ export const EVENT_DEFS: GameEventDef[] = [
     boostKind: 'income_2x',
     boostDurationMs: 90_000,
     pendingLabel: 'Vergi iadesi',
+    acceptLabel: 'Küçük iade al (45sn)',
+    acceptBoostDurationMs: 45_000,
   },
   {
     id: 'viral_ad',
@@ -52,6 +58,8 @@ export const EVENT_DEFS: GameEventDef[] = [
     boostKind: 'income_3x',
     boostDurationMs: 180_000,
     pendingLabel: 'Viral reklam',
+    acceptLabel: 'Küçük viral al (90sn)',
+    acceptBoostDurationMs: 90_000,
   },
 ]
 

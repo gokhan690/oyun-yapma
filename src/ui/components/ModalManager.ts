@@ -2,6 +2,12 @@ import type { IpoPreviewData } from '../../game/FinanceBank'
 import { formatMoney } from '../../game/Economy'
 import { t } from '../../i18n'
 
+function generateIpoPressHeadline(ipoCount: number, reputation: number): string {
+  if (reputation >= 75) return `"${['Türkiye\'nin en büyük halka arzı', 'Yatırımcılar kuyrukta', 'Borsa tarihine geçti'][ipoCount % 3]}"`
+  if (reputation >= 50) return `"${['Dikkat çekici halka arz', 'Piyasalar heyecanlı', 'Analistler takipte'][ipoCount % 3]}"`
+  return `"${['Tartışmalı halka arz', 'Yatırımcılar temkinli', 'Analistler soru işareti koyuyor'][ipoCount % 3]}"`
+}
+
 export class ModalManager {
   readonly layer: HTMLElement
   private goldenModal: HTMLElement | null = null
@@ -214,7 +220,7 @@ export class ModalManager {
     this.openLayer()
   }
 
-  showIpoPreview(preview: IpoPreviewData, onConfirm: () => Promise<void>): void {
+  showIpoPreview(preview: IpoPreviewData, onConfirm: () => Promise<void>, ipoContext?: { ipoCount: number; reputation: number; illegalHeat: number }): void {
     this.layer.replaceChildren()
     const scrim = document.createElement('div')
     scrim.className = 'modal-scrim'
@@ -292,7 +298,34 @@ export class ModalManager {
     const actions = document.createElement('div')
     actions.className = 'modal-actions'
     actions.append(confirmBtn, cancelBtn)
-    modal.append(icon, h2, intro, table, actions)
+
+    // Build modal content
+    const children: HTMLElement[] = [icon, h2, intro, table]
+
+    // IPO ceremony enhancements
+    if (ipoContext) {
+      const ipoInfoEl = document.createElement('div')
+      ipoInfoEl.className = 'ipo-ceremony-info'
+      const confidence = Math.min(100, Math.max(20, ipoContext.reputation))
+      const headline = generateIpoPressHeadline(ipoContext.ipoCount, ipoContext.reputation)
+      ipoInfoEl.innerHTML = `
+        <p class="ipo-press-headline">${headline}</p>
+        <div class="ipo-confidence-row">
+          <span>Yatırımcı Güveni</span>
+          <strong>${confidence}%</strong>
+        </div>
+      `
+      if (ipoContext.illegalHeat > 30) {
+        const riskNote = document.createElement('p')
+        riskNote.className = 'ipo-heat-risk'
+        riskNote.textContent = `⚠️ Uyarı: Yüksek radar (%${Math.round(ipoContext.illegalHeat)}) halka arzı riske atabilir`
+        ipoInfoEl.appendChild(riskNote)
+      }
+      children.push(ipoInfoEl)
+    }
+
+    children.push(actions)
+    modal.append(...children)
     this.layer.append(scrim, modal)
     this.openLayer()
   }
@@ -342,6 +375,10 @@ export class ModalManager {
 
   hasGoldenEventOpen(): boolean {
     return this.goldenModal !== null
+  }
+
+  getGoldenModal(): HTMLElement | null {
+    return this.goldenModal
   }
 
   showDetail(title: string, rows: { label: string; value: string }[], footer: string): void {
