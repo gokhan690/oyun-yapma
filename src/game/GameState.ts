@@ -502,6 +502,7 @@ export interface SerializableState {
   hapticsEnabled: boolean
   reducedMotion: boolean
   difficulty?: 'easy' | 'normal' | 'hard'
+  difficultyChosen?: boolean
   playerName: string
   birthYear: number
   playerGender: PlayerGender
@@ -798,6 +799,7 @@ export class GameState {
   dailyRoutineDay = 0
   dailyRoutineUsed: string[] = []
   difficulty: 'easy' | 'normal' | 'hard' = 'normal'
+  difficultyChosen = false
   isNight = isGameNight(0)
   playerName = 'Baron'
   birthYear = 0
@@ -1935,6 +1937,15 @@ export class GameState {
       hasLuxury: (this.producers.otel ?? 0) > 0 || (this.producers.uzay ?? 0) > 0,
       trait: activeDynastyTrait(this.dynasty),
       totalEarned: this.totalEarned,
+      difficulty: this.difficulty,
+    }
+  }
+
+  setDifficulty(id: 'easy' | 'normal' | 'hard'): void {
+    this.difficulty = id
+    this.difficultyChosen = true
+    if (id === 'easy' && this.totalEarned === 0 && this.ipoCount === 0) {
+      this.money = Math.max(this.money, 2000)
     }
   }
 
@@ -5273,6 +5284,7 @@ export class GameState {
       ageMilestonesShown: [...this.ageMilestonesShown],
       travel: { ...this.travel },
       difficulty: this.difficulty,
+      difficultyChosen: this.difficultyChosen,
       playerName: this.playerName,
       birthYear: this.birthYear,
       playerGender: this.playerGender,
@@ -5530,6 +5542,7 @@ export class GameState {
     this.difficulty = (['easy', 'normal', 'hard'] as const).includes(data.difficulty as 'easy' | 'normal' | 'hard')
       ? (data.difficulty as 'easy' | 'normal' | 'hard')
       : 'normal'
+    this.difficultyChosen = data.difficultyChosen ?? false
     this.playerName = data.playerName ?? 'Baron'
     this.birthYear = data.birthYear ?? 0
     this.playerGender = data.playerGender === 'female' ? 'female' : 'male'

@@ -197,6 +197,9 @@ export class HUD {
     if (!this.state.education) {
       window.setTimeout(() => this.maybeShowEducationModal(), delayMs + 800)
     }
+    if (!this.state.difficultyChosen) {
+      window.setTimeout(() => this.maybeShowDifficultyModal(), delayMs + 1200)
+    }
   }
 
   openOwnerPanel(): void {
@@ -2181,6 +2184,14 @@ export class HUD {
           this.closeModalAndPump()
         }
         break
+      case 'choose-difficulty':
+        if (id) {
+          this.state.setDifficulty(id as 'easy' | 'normal' | 'hard')
+          const diffNames: Record<string, string> = { easy: '😌 Kolay', normal: '💼 Normal', hard: '🔥 Zor' }
+          this.modals.showToast(this.root, `⚙️ Zorluk: ${diffNames[id] ?? id}`)
+          this.closeModalAndPump()
+        }
+        break
       case 'set-hobby':
         if (id) {
           this.state.setHobby(id as import('../game/Hobby').HobbyId)
@@ -2882,6 +2893,36 @@ export class HUD {
       id: 'education-choice',
       priority: 3,
       run: () => this.modals.showContent('🎓 Eğitim Geçmişi', body, [], true),
+    })
+  }
+
+  private maybeShowDifficultyModal(): void {
+    if (this.state.difficultyChosen) return
+    const body = document.createElement('div')
+    const p = document.createElement('p')
+    p.className = 'annual-summary-question'
+    p.textContent = 'Oyun zorluğunu seç. Bu seçim ölüm riskini ve başlangıç koşullarını etkiler.'
+    const diffs: { id: 'easy' | 'normal' | 'hard'; emoji: string; name: string; desc: string }[] = [
+      { id: 'easy', emoji: '😌', name: 'Kolay', desc: 'Başlangıç parası ×2, düşük ölüm riski. Rahat bir oyun.' },
+      { id: 'normal', emoji: '💼', name: 'Normal', desc: 'Dengeli deneyim. Önerilen başlangıç modu.' },
+      { id: 'hard', emoji: '🔥', name: 'Zor', desc: 'Yüksek ölüm riski, zorlu rakipler. Deneyimli oyuncular için.' },
+    ]
+    const btnRow = document.createElement('div')
+    btnRow.className = 'annual-summary-choices'
+    for (const d of diffs) {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = `btn-secondary annual-choice-btn${this.state.difficulty === d.id ? ' selected' : ''}`
+      b.dataset.action = 'choose-difficulty'
+      b.dataset.id = d.id
+      b.innerHTML = `<strong>${d.emoji} ${d.name}</strong><small>${d.desc}</small>`
+      btnRow.appendChild(b)
+    }
+    body.append(p, btnRow)
+    this.eventDirector.enqueue({
+      id: 'difficulty-choice',
+      priority: 2,
+      run: () => this.modals.showContent('⚙️ Zorluk Seviyesi', body, [], true),
     })
   }
 

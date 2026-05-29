@@ -35,6 +35,7 @@ export interface MortalityContext {
   hasLuxury: boolean
   trait: SpouseTrait | ChildTrait | null
   totalEarned: number
+  difficulty?: 'easy' | 'normal' | 'hard'
 }
 
 export interface DeathOutcome {
@@ -257,7 +258,8 @@ export function totalDailyMortalityRisk(ctx: MortalityContext): number {
   for (const { risk } of entries) {
     combined = combined + risk - combined * risk
   }
-  return Math.min(0.008, combined)
+  const cap = ctx.difficulty === 'easy' ? 0.005 : ctx.difficulty === 'hard' ? 0.015 : 0.008
+  return Math.min(cap, combined)
 }
 
 export function estimatedYearsRemaining(ctx: MortalityContext): number {
