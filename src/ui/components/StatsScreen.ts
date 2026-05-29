@@ -451,7 +451,7 @@ export class StatsScreen {
         if (ctx.politicsLevel === 'cumhurbaskan') {
           return Math.min(100, (ctx.presidentSeasons / 2) * 100)
         }
-        const levelPcts: Record<string, number> = { none: 0, belediye: 10, milletvekili: 25, bakan: 50, cumhurbaskan: 75 }
+        const levelPcts: Record<string, number> = { none: 0, belediye: 10, milletvekili: 25, bakan: 50 }
         return levelPcts[ctx.politicsLevel] ?? 0
       }
       case 'dynasty': return Math.min(100, ((ctx.dynastyGeneration - 1) / 6) * 100)

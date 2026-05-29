@@ -1715,7 +1715,7 @@ export class GameState {
     }
     const hobbyBonus = hobbyProducerBonus(this.hobby, def.id)
     if (hobbyBonus > 0) mult *= 1 + hobbyBonus
-    const cityBonus = cityProducerBonus(this.cities, def.category) ?? 0
+    const cityBonus = this.cities ? (cityProducerBonus(this.cities, def.category) ?? 0) : 0
     if (cityBonus > 0) mult *= (1 + cityBonus)
     return scaledBaseIncome(def.baseIncome, def) * owned * mult * this.passiveMultiplier()
   }

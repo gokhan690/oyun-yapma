@@ -78,7 +78,7 @@ export const CAMPAIGN_CHAPTERS: CampaignChapter[] = [
     id: 5,
     title: 'Bölüm 5 — Borsa Oyunu',
     subtitle: 'Piyasaları öğren, riski yönet.',
-    unlockAtTotalEarned: 500_000,
+    unlockAtTotalEarned: 2_000_000,
     steps: [
       { id: 'c5s1', title: 'Piyasaya Giriş', description: '500.000₺ toplam kazanç', type: 'total_earned', target: 500_000, rewardMoney: 15_000, rewardBoostMinutes: 0 },
       { id: 'c5s2', title: 'Borsa Yatırımcısı', description: 'Sezon tier 3\'e ulaş', type: 'season_tier', target: 3, rewardMoney: 20_000, rewardBoostMinutes: 5 },
@@ -194,7 +194,7 @@ export function campaignStepSnapshot(game: GameState, step: CampaignStep): numbe
     case 'reach_reputation':
       return game.reputation ?? 0
     case 'unlock_city':
-      return (game.cities?.unlocked?.includes(step.storyBeatId as import('./ExpansionMap').CityId)) ? step.target : 0
+      return step.storyBeatId && (game.cities?.unlocked?.includes(step.storyBeatId as import('./ExpansionMap').CityId)) ? step.target : 0
     default:
       return 0
   }

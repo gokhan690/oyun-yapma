@@ -48,11 +48,12 @@ export class BaronAdvisor {
       hints.push({ emoji: '⚠️', text: `Heat ${state.illegalHeat}% — yükseliyor, dikkat et`, action: 'nav-view', actionId: 'shop', priority: 2 })
     }
 
-    // IPO progress (priority 3)
+    // IPO progress (priority 3) — use real exponential threshold: 10M * 2^ipoCount
     const ipoCount = state.ipoCount ?? 0
-    const ipoThresholdVal = ipoCount === 0 ? 1_000_000 : ipoCount * 5_000_000
-    if (ipoThresholdVal > 0) {
-      const pct = Math.min(99, Math.floor(((state.totalEarned ?? 0) / ipoThresholdVal) * 100))
+    const ipoThresholdVal = 10_000_000 * Math.pow(2, Math.max(0, ipoCount))
+    const earnedForIpo = state.totalEarned ?? 0
+    if (earnedForIpo > 0) {
+      const pct = Math.min(99, Math.floor((earnedForIpo / ipoThresholdVal) * 100))
       if (pct >= 70) {
         hints.push({ emoji: '📈', text: `IPO'ya %${pct} ulaştın — pasif gelirini artır`, action: 'nav-view', actionId: 'shop', priority: 3 })
       }
