@@ -511,7 +511,10 @@ export class HUD {
     this.baronView.appendChild(this.lifestylePanel.root)
     this.statsScreen.embedIn(this.baronView)
 
-    this.earnView.append(this.weeklyBanner, this.eraStrip, this.cityStrip, this.earnModifiersEl, tapWrap, comboWrap, sessionPanel, progressStrip, this.baronAdvisor.root, adsPanel)
+    const abilityBar = document.createElement('div')
+    abilityBar.className = 'ability-bar'
+    abilityBar.id = 'ability-bar'
+    this.earnView.append(this.weeklyBanner, this.eraStrip, this.cityStrip, this.earnModifiersEl, tapWrap, comboWrap, sessionPanel, progressStrip, this.baronAdvisor.root, adsPanel, abilityBar)
     main.append(this.earnView, this.shop.root, this.baronView, this.empirePanel.root)
 
     this.adBannerSlot = document.createElement('div')
@@ -1180,9 +1183,11 @@ export class HUD {
         this.renderDayNightChip()
       }
       if (ev.type === 'market_event') {
+        if (ev.crash) this.triggerCrashFlash()
         this.refreshShop(true)
       }
       if (ev.type === 'macro_event') {
+        if (ev.crash) this.triggerCrashFlash()
         if (this.shop.getViewContext() === 'market') this.refreshShop(true)
       }
       if (ev.type === 'bankruptcy') {
@@ -2419,7 +2424,9 @@ export class HUD {
         break
       case 'unlock-city':
         if (id && this.state.unlockCity(id as import('../game/ExpansionMap').CityId)) {
-          this.modals.showToast(this.root, '🗺️ Yeni şehir açıldı!')
+          const unlockedCityDef = EXPANSION_CITIES.find((c) => c.id === id)
+          if (unlockedCityDef) this.triggerCityUnlockCelebration(unlockedCityDef.label)
+          else this.modals.showToast(this.root, '🗺️ Yeni şehir açıldı!')
           this.refreshSkyline()
           this.renderCityStrip()
           this.refreshBaronPanel()
@@ -2491,6 +2498,57 @@ export class HUD {
         }
         break
       }
+      case 'ability-click-burst':
+        if (this.state.useAbility('click_burst', 300_000)) {
+          this.state.grantPendingBoost('income_2x', 30_000, 'Tıklama Patlaması', '💥')
+          this.modals.showToast(this.root, '💥 Tıklama Patlaması! 30 saniyelik 2x boost aktif')
+          this.renderAbilityBar()
+        } else {
+          this.modals.showToast(this.root, '⏳ Tıklama Patlaması bekleme süresinde')
+        }
+        break
+      case 'ability-tax-break':
+        if (this.state.useAbility('tax_break', 480_000)) {
+          this.state.grantPendingBoost('income_2x', 60_000, 'Vergi Tatili', '🧾')
+          this.modals.showToast(this.root, '🧾 Vergi Tatili! 60 saniyelik +20% gelir aktif')
+          this.renderAbilityBar()
+        } else {
+          this.modals.showToast(this.root, '⏳ Vergi Tatili bekleme süresinde')
+        }
+        break
+      case 'ability-market-signal':
+        if (this.state.useAbility('market_signal', 600_000)) {
+          const dir = this.state.stock.trendDirection
+          const hint = dir === 'up' ? '📈 Borsa yükseliyor — al fırsatı!' : dir === 'down' ? '📉 Borsa düşüyor — dikkatli ol!' : '📊 Borsa yatay — değişim bekleniyor'
+          this.modals.showToast(this.root, hint)
+          this.renderAbilityBar()
+        } else {
+          this.modals.showToast(this.root, '⏳ Borsa Sinyali bekleme süresinde')
+        }
+        break
+      case 'ability-worker-boost':
+        if (this.state.useAbility('worker_boost', 360_000)) {
+          this.state.grantPendingBoost('income_2x', 120_000, 'Çalışan Motivasyonu', '⚡')
+          this.modals.showToast(this.root, '⚡ Çalışan Motivasyonu! 2 dakika +15% pasif gelir')
+          this.renderAbilityBar()
+        } else {
+          this.modals.showToast(this.root, '⏳ Çalışan Motivasyonu bekleme süresinde')
+        }
+        break
+      case 'ability-press-release':
+        if (this.state.reputation <= 20) {
+          this.modals.showToast(this.root, '⚠️ Basın Açıklaması için min. 20 itibar gerekli')
+          break
+        }
+        if (this.state.useAbility('press_release', 1_200_000)) {
+          this.state.reputation = Math.min(100, this.state.reputation + 5)
+          this.modals.showToast(this.root, '📰 Basın Açıklaması! +5 itibar kazandın')
+          this.renderAbilityBar()
+          this.statsBar.render()
+        } else {
+          this.modals.showToast(this.root, '⏳ Basın Açıklaması bekleme süresinde')
+        }
+        break
       default:
         break
     }
@@ -3129,7 +3187,7 @@ export class HUD {
   }
 
   private showGoldenEventModal(
-    event: { emoji: string; title: string; description: string },
+    event: { emoji: string; title: string; description: string; acceptLabel?: string },
     expiresAt: number,
   ): void {
     this.clearGoldenEventTimer()
@@ -3142,6 +3200,34 @@ export class HUD {
         void this.claimGoldenEventWithAd()
       },
     )
+    // Add accept/reject extra buttons
+    const goldenModal = this.modals.getGoldenModal()
+    if (goldenModal && event.acceptLabel) {
+      const acceptBtn = document.createElement('button')
+      acceptBtn.type = 'button'
+      acceptBtn.className = 'btn-secondary golden-accept-btn'
+      acceptBtn.textContent = `✅ ${event.acceptLabel}`
+      acceptBtn.addEventListener('click', () => {
+        if (this.state.acceptGoldenEventSmall()) {
+          this.clearGoldenEventTimer()
+          this.closeModalAndPump()
+          this.modals.showToast(this.root, '🎁 Küçük ödül alındı — Etkinlikler\'den aktifleştir')
+          this.eventsPanel.render(this.state)
+          this.updateNavBadges()
+        }
+      })
+      const rejectBtn = document.createElement('button')
+      rejectBtn.type = 'button'
+      rejectBtn.className = 'btn-ghost golden-reject-btn'
+      rejectBtn.textContent = '❌ Reddet'
+      rejectBtn.addEventListener('click', () => {
+        this.state.dismissGoldenEvent()
+        this.clearGoldenEventTimer()
+        this.closeModalAndPump()
+      })
+      goldenModal.appendChild(acceptBtn)
+      goldenModal.appendChild(rejectBtn)
+    }
     const tick = (): void => {
       if (!this.modals.hasGoldenEventOpen()) {
         this.clearGoldenEventTimer()
@@ -3368,7 +3454,7 @@ export class HUD {
         this.shop.setIpoSubTab('stock')
         this.refreshShop(true)
       }
-    })
+    }, { ipoCount: this.state.ipoCount, reputation: this.state.reputation, illegalHeat: this.state.illegalHeat })
   }
 
   private async handleAdShopBoost(): Promise<void> {
@@ -3775,10 +3861,70 @@ export class HUD {
     this.updateNavBadges()
     this.updateProgressiveUnlock()
     this.renderBaronAdvisor()
+    this.renderAbilityBar()
   }
 
   private renderBaronAdvisor(): void {
     this.baronAdvisor.render(this.state)
+  }
+
+  private renderAbilityBar(): void {
+    const bar = document.getElementById('ability-bar')
+    if (!bar) return
+    bar.replaceChildren()
+
+    const abilities = [
+      { id: 'click_burst', icon: '💥', label: 'Tıklama Patlaması', cooldownMs: 300_000, action: 'ability-click-burst' },
+      { id: 'tax_break', icon: '🧾', label: 'Vergi Tatili', cooldownMs: 480_000, action: 'ability-tax-break' },
+      { id: 'market_signal', icon: '📈', label: 'Borsa Sinyali', cooldownMs: 600_000, action: 'ability-market-signal' },
+      { id: 'worker_boost', icon: '⚡', label: 'Çalışan Mot.', cooldownMs: 360_000, action: 'ability-worker-boost' },
+      { id: 'press_release', icon: '📰', label: 'Basın Açıklaması', cooldownMs: 1_200_000, action: 'ability-press-release' },
+    ]
+
+    for (const ability of abilities) {
+      const remaining = this.state.abilityRemainingMs(ability.id)
+      const onCooldown = remaining > 0
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `ability-btn${onCooldown ? ' on-cooldown' : ''}`
+      btn.dataset.action = ability.action
+      if (onCooldown) btn.disabled = true
+
+      const iconEl = document.createElement('span')
+      iconEl.className = 'ability-btn-icon'
+      iconEl.textContent = ability.icon
+
+      const labelEl = document.createElement('span')
+      labelEl.className = 'ability-btn-label'
+      labelEl.textContent = ability.label
+
+      const cdEl = document.createElement('span')
+      cdEl.className = 'ability-btn-cd'
+      if (onCooldown) {
+        const mins = Math.ceil(remaining / 60_000)
+        cdEl.textContent = `${mins}d`
+      } else {
+        cdEl.textContent = 'Hazır'
+      }
+
+      btn.append(iconEl, labelEl, cdEl)
+      bar.appendChild(btn)
+    }
+  }
+
+  private triggerCrashFlash(): void {
+    const flash = document.createElement('div')
+    flash.className = 'crash-flash-overlay'
+    document.body.appendChild(flash)
+    window.setTimeout(() => flash.remove(), 800)
+  }
+
+  private triggerCityUnlockCelebration(cityName: string): void {
+    const banner = document.createElement('div')
+    banner.className = 'city-unlock-banner'
+    banner.innerHTML = `<span class="city-unlock-emoji">🗺️</span><span class="city-unlock-text">${cityName} açıldı!</span><span class="city-unlock-sub">Yeni işletmeler ve bonuslar seni bekliyor</span>`
+    document.body.appendChild(banner)
+    window.setTimeout(() => banner.remove(), 3000)
   }
 
   destroy(): void {

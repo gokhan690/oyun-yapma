@@ -599,6 +599,8 @@ export interface SerializableState {
   peakIncomePerDay?: number
   prestigeShopPurchased?: string[]
   eventChoiceHistory?: EventChoiceRecord[]
+  characterAlignment?: { temiz: number; acımasız: number; gölge: number }
+  abilityCooldowns?: Record<string, number>
   health?: HealthState
   lastAnnualSummaryYear?: number
   personality?: PersonalityId | null
@@ -786,6 +788,8 @@ export class GameState {
   lifeEvents: ActiveLifeEvent[] = []
   pendingConsequences: PendingConsequence[] = []
   eventChoiceHistory: EventChoiceRecord[] = []
+  characterAlignment: { temiz: number; acımasız: number; gölge: number } = { temiz: 0, acımasız: 0, gölge: 0 }
+  abilityCooldowns: Record<string, number> = {}
   health = createHealthState()
   friendships = createFriendshipsState()
   mentorEnemy = createMentorEnemyState()
@@ -1245,6 +1249,30 @@ export class GameState {
     return true
   }
 
+  acceptGoldenEventSmall(): boolean {
+    if (!this.activeEvent) return false
+    const event = this.activeEvent
+    this.activeEvent = null
+    if (this.eventExpireTimer !== null) clearTimeout(this.eventExpireTimer)
+    const boostMs = (event as import('./Events').GameEventDef).acceptBoostDurationMs ?? Math.floor(event.boostDurationMs / 2)
+    this.grantPendingBoost(
+      event.boostKind,
+      boostMs,
+      event.pendingLabel,
+      event.emoji,
+    )
+    this.emit({ type: 'event_claimed', event, reward: 0 })
+    this.emit({ type: 'pending_boost_added', label: event.pendingLabel })
+    this.scheduleNextEvent()
+    return true
+  }
+
+  dismissGoldenEvent(): void {
+    this.activeEvent = null
+    if (this.eventExpireTimer !== null) clearTimeout(this.eventExpireTimer)
+    this.scheduleNextEvent()
+  }
+
   restoreMissedEvent(): GameEventDef | null {
     const e = this.missedEvent
     this.missedEvent = null
@@ -1416,6 +1444,15 @@ export class GameState {
 
     if (Math.round(prev) !== Math.round(this.illegalHeat)) {
       this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
+    }
+    // reach_heat missions
+    this.ensureMissions()
+    for (const m of this.missions) {
+      if (m.claimed || m.type !== 'reach_heat') continue
+      if (this.illegalHeat >= m.target) {
+        m.progress = m.target
+        if (m.progress >= m.target) this.emit({ type: 'mission_complete', mission: m })
+      }
     }
   }
 
@@ -1658,6 +1695,11 @@ export class GameState {
     mult *= enemyIncomePenalty(this.mentorEnemy)
     mult *= educationIncomeMult(this.education)
     mult *= 1 + travelIncomeBonus(this.travel, gameDay(this.gameTimeMs))
+    // Character path bonus
+    const { temiz, acımasız, gölge } = this.characterAlignment
+    const pathMax = Math.max(temiz, acımasız, gölge)
+    if (pathMax >= 6) mult *= 1.05
+    if (pathMax >= 12) mult *= 1.05
     return mult
   }
 
@@ -3469,6 +3511,7 @@ export class GameState {
     this.money -= cost
     this.emit({ type: 'stock_trade', action: 'buy', amount: bought })
     this.emit({ type: 'money_changed' })
+    this.updateMissionProgress('stock_trade', 1)
     this.checkAchievements()
     return true
   }
@@ -3478,6 +3521,7 @@ export class GameState {
     if (sold <= 0) return false
     this.addMoney(revenue)
     this.emit({ type: 'stock_trade', action: 'sell', amount: sold })
+    this.updateMissionProgress('stock_trade', 1)
     return true
   }
 
@@ -4011,6 +4055,16 @@ export class GameState {
         this.money += rentalInc
         this.emit({ type: 'money_changed' })
       }
+      // Luxury lifestyle draws media attention when heat is elevated
+      const luxuryResidences = ['rezidans', 'villa', 'yali', 'saray', 'ada']
+      const luxuryLevel = luxuryResidences.indexOf(ls.residence)
+      if (this.illegalHeat > 30 && luxuryLevel >= 3) {
+        const mediaRisk = (this.illegalHeat - 30) / 200  // 0-0.35 range
+        if (Math.random() < mediaRisk) {
+          this.reputation = Math.max(0, this.reputation - 2)
+          this.addGazette('📸 Lüks yaşam tarzın medyanın dikkatini çekti — itibar hafif düştü', 'crisis')
+        }
+      }
     }
   }
 
@@ -4346,6 +4400,8 @@ export class GameState {
     if (!choice) return
     // Record choice in history for chain events
     this.eventChoiceHistory.push({ eventId, choiceId, gameDay: gameDay(this.gameTimeMs) })
+    // Alignment scoring based on choice
+    this.scoreAlignment(eventId, choiceId)
     this.playerSkills.lifeEventsResolved++
     this.checkSkillUnlocks()
     if (choice.moneyDelta !== 0) {
@@ -4377,6 +4433,39 @@ export class GameState {
         consequenceId: choice.consequenceId,
       })
     }
+  }
+
+  private scoreAlignment(eventId: string, choiceId: string): void {
+    // Choices that clearly indicate a path give +2, ambiguous choices give +1
+    const temizChoices = ['police', 'protect_workers', 'donate_charity', 'report_corruption', 'turn_down', 'legal', 'help_friend', 'honest_answer', 'refuse', 'pay_fine']
+    const acımasızChoices = ['fire_workers', 'bribe_official', 'hostile_takeover', 'sue_rival', 'deny_raise', 'reject', 'harsh_discipline', 'press_charges']
+    const gölgeChoices = ['keep', 'partner_mafia', 'bribe', 'smuggle', 'launder', 'accept_bribe', 'pay_protection', 'cover_up', 'fake_evidence', 'underground_deal']
+
+    if (temizChoices.includes(choiceId)) this.characterAlignment.temiz += 2
+    else if (acımasızChoices.includes(choiceId)) this.characterAlignment.acımasız += 2
+    else if (gölgeChoices.includes(choiceId)) this.characterAlignment.gölge += 2
+    // suppress unused param warning
+    void eventId
+  }
+
+  characterPathLabel(): string {
+    const { temiz, acımasız, gölge } = this.characterAlignment
+    const total = temiz + acımasız + gölge
+    if (total < 4) return 'Bilinmez'
+    if (temiz >= acımasız && temiz >= gölge) return 'Temiz İş İnsanı'
+    if (gölge >= acımasız) return 'Gölge Baron'
+    return 'Acımasız CEO'
+  }
+
+  useAbility(id: string, cooldownMs: number): boolean {
+    const until = this.abilityCooldowns[id] ?? 0
+    if (Date.now() < until) return false
+    this.abilityCooldowns[id] = Date.now() + cooldownMs
+    return true
+  }
+
+  abilityRemainingMs(id: string): number {
+    return Math.max(0, (this.abilityCooldowns[id] ?? 0) - Date.now())
   }
 
   checkSkillUnlocks(): void {
@@ -5281,6 +5370,8 @@ export class GameState {
       lifeEvents: this.lifeEvents.map((e) => ({ ...e })),
       pendingConsequences: this.pendingConsequences.map((c) => ({ ...c })),
       eventChoiceHistory: this.eventChoiceHistory.map((r) => ({ ...r })),
+      characterAlignment: { ...this.characterAlignment },
+      abilityCooldowns: { ...this.abilityCooldowns },
       health: { ...this.health },
       lastAnnualSummaryYear: this.lastAnnualSummaryYear,
       personality: this.personality,
@@ -5519,6 +5610,8 @@ export class GameState {
     this.lifeEvents = data.lifeEvents ?? []
     this.pendingConsequences = data.pendingConsequences ?? []
     this.eventChoiceHistory = data.eventChoiceHistory ?? []
+    this.characterAlignment = data.characterAlignment ?? { temiz: 0, acımasız: 0, gölge: 0 }
+    this.abilityCooldowns = data.abilityCooldowns ?? {}
     if (data.health) {
       this.health = { ...createHealthState(), ...data.health }
     }

@@ -9109,3 +9109,41 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
 .vp-bar-wrap { background: var(--surface); border-radius: 4px; height: 6px; overflow: hidden; margin-bottom: 4px; }
 .vp-bar { height: 100%; border-radius: 4px; transition: width 0.4s ease; min-width: 2px; }
 .vp-pct { font-size: 0.7rem; color: var(--muted); text-align: right; }
+
+/* Mission Tier Badges */
+.mission-tier-badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; margin-left: 6px; font-weight: 700; }
+.mission-tier-easy { background: #22c55e22; color: #16a34a; border: 1px solid #22c55e44; }
+.mission-tier-strategic { background: #3b82f622; color: #2563eb; border: 1px solid #3b82f644; }
+.mission-tier-risky { background: #ef444422; color: #dc2626; border: 1px solid #ef444444; }
+
+/* Ability Bar */
+.ability-bar { display: flex; gap: 8px; padding: 8px 0; overflow-x: auto; scrollbar-width: none; }
+.ability-bar::-webkit-scrollbar { display: none; }
+.ability-btn { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 10px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); cursor: pointer; position: relative; min-width: 60px; transition: opacity 0.2s; }
+.ability-btn.on-cooldown { opacity: 0.5; cursor: not-allowed; }
+.ability-btn-icon { font-size: 20px; }
+.ability-btn-label { font-size: 9px; color: var(--muted); text-align: center; line-height: 1.2; }
+.ability-btn-cd { font-size: 9px; color: var(--accent); font-weight: 700; }
+
+/* Crash Flash Overlay */
+.crash-flash-overlay { position: fixed; inset: 0; background: rgba(220,38,38,0.35); z-index: 9999; pointer-events: none; animation: crashFlash 0.8s ease-out forwards; }
+@keyframes crashFlash { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+/* City Unlock Banner */
+.city-unlock-banner { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #1d4ed8, #7c3aed); color: white; padding: 16px 24px; border-radius: 16px; text-align: center; z-index: 9000; box-shadow: 0 8px 32px rgba(0,0,0,0.4); animation: slideDownBounce 0.5s ease-out, fadeOutUp 0.5s ease-in 2.5s forwards; }
+.city-unlock-emoji { font-size: 32px; display: block; margin-bottom: 4px; }
+.city-unlock-text { font-size: 18px; font-weight: 700; display: block; }
+.city-unlock-sub { font-size: 12px; opacity: 0.85; display: block; margin-top: 4px; }
+@keyframes slideDownBounce { 0% { transform: translateX(-50%) translateY(-80px); opacity: 0; } 70% { transform: translateX(-50%) translateY(8px); } 100% { transform: translateX(-50%) translateY(0); opacity: 1; } }
+@keyframes fadeOutUp { 0% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) translateY(-30px); } }
+
+/* Golden Event Accept/Reject Buttons */
+.golden-accept-btn { display: block; width: 100%; margin-top: 8px; padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; font-size: 0.9rem; }
+.golden-reject-btn { display: block; width: 100%; margin-top: 4px; padding: 8px; background: transparent; border: none; border-radius: 10px; cursor: pointer; font-size: 0.85rem; color: var(--muted); }
+.btn-ghost { background: transparent; border: none; cursor: pointer; }
+
+/* IPO Ceremony Info */
+.ipo-ceremony-info { background: var(--surface2); border-radius: 10px; padding: 12px; margin: 8px 0; border: 1px solid var(--border); }
+.ipo-press-headline { font-style: italic; color: var(--muted); font-size: 0.85rem; margin-bottom: 6px; text-align: center; }
+.ipo-confidence-row { display: flex; justify-content: space-between; font-size: 0.85rem; }
+.ipo-heat-risk { color: #dc2626; font-size: 0.8rem; margin-top: 6px; }

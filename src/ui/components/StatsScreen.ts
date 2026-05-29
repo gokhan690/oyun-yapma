@@ -211,10 +211,12 @@ export class StatsScreen {
     const lb = this.leaderboard.getData()
     const rank = currentRank(this.state.lifetimeTotalEarned)
     const age = this.state.playerAge()
+    const { temiz, acımasız, gölge } = this.state.characterAlignment
     const rows: [string, string][] = [
       [t('stats_baron'), this.state.playerName || 'Baron'],
       [t('stats_age'), `${age} · ~${this.state.estimatedYearsRemaining()} yıl`],
       [t('stats_rank'), `${rank.emoji} ${rank.name}`],
+      ['Karakter Yolu', `${this.state.characterPathLabel()} (${temiz}/${acımasız}/${gölge})`],
       [t('stats_wallet'), formatMoney(this.state.money)],
       [t('stats_run_earned'), formatMoney(this.state.totalEarned)],
       [t('stats_lifetime'), formatMoney(this.state.lifetimeTotalEarned)],

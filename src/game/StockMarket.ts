@@ -242,6 +242,8 @@ export function tickMacro(state: StockState, now: number): MacroTickResult | nul
     return { headline: state.macroHeadline, kind: 'panic', crash: true }
   }
 
+  // Update headline with sector-specific news
+  state.macroHeadline = generateSectorNews(state)
   return null
 }
 
@@ -310,6 +312,22 @@ export function priceChangePct(ticker: StockTicker): number {
   const prev = ticker.history[ticker.history.length - 2]!
   if (prev <= 0) return 0
   return ((ticker.price - prev) / prev) * 100
+}
+
+export function generateSectorNews(state: StockState): string {
+  const fear = state.marketFear
+  const rate = state.centralBankRate
+  const techPrice = state.tickers.tech?.price ?? 100
+  const energyPrice = state.tickers.energy?.price ?? 80
+
+  if (fear >= 75) return '📉 Piyasalarda panik satışı — tüm sektörler düşüşte'
+  if (fear >= 55) return '⚠️ Merkez Bankası uyarıda — yatırımcılar temkinli'
+  if (fear <= 25) return '🚀 Borsa rekor kırdı — yatırımcı güveni zirve'
+  if (rate >= 0.07) return '🏦 Yüksek faiz baskısı — gayrimenkul ve teknoloji geri çekiliyor'
+  if (rate <= 0.03) return '💚 Düşük faiz ortamı — büyüme hisseleri öne çıkıyor'
+  if (techPrice > 130) return '💻 Teknoloji sektörü rallisi — dijital dönüşüm hızlanıyor'
+  if (energyPrice > 100) return '⚡ Enerji fiyatları yükseliyor — sanayi maliyetleri artıyor'
+  return `📊 Piyasalar dengede — faiz %${(rate * 100).toFixed(1)}, korku endeksi ${Math.round(fear)}`
 }
 
 export function portfolioSummary(state: StockState): {
