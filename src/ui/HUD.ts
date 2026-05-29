@@ -717,6 +717,48 @@ export class HUD {
     }
   }
 
+  private checkFirstManagerHint(): void {
+    if (this.state.seenStoryBeats.has('hint_first_manager')) return
+    const anyManager = Object.values(this.state.managers).some(Boolean)
+    if (!anyManager) return
+    this.state.seenStoryBeats.add('hint_first_manager')
+    window.setTimeout(() => {
+      this.modals.showToast(
+        this.root,
+        '📊 İlk yönetici! Artık bu işletme otomatik çalışacak. Daha fazla yönetici al → pasif gelir artar.',
+      )
+    }, 1200)
+  }
+
+  private checkSynergyHint(): void {
+    if (this.state.seenStoryBeats.has('hint_synergy')) return
+    const s = this.state.producers
+    const hasSynergy =
+      ((s['stajyer'] ?? 0) > 0 && (s['gazete'] ?? 0) > 0) ||
+      ((s['simit'] ?? 0) > 0 && (s['ekmek'] ?? 0) > 0) ||
+      ((s['kafe'] ?? 0) > 0 && (s['restoran'] ?? 0) > 0)
+    if (!hasSynergy) return
+    this.state.seenStoryBeats.add('hint_synergy')
+    window.setTimeout(() => {
+      this.modals.showToast(
+        this.root,
+        '⚡ Sinerji! Bu işletmeler birlikte daha fazla kazandırıyor — Güçlendir → Sinerji sekmesini kontrol et.',
+      )
+    }, 800)
+  }
+
+  private checkPrestigeHint(): void {
+    if (this.state.seenStoryBeats.has('hint_prestige')) return
+    if (this.state.totalEarned < 1_000_000) return
+    this.state.seenStoryBeats.add('hint_prestige')
+    window.setTimeout(() => {
+      this.modals.showToast(
+        this.root,
+        '👑 IPO zamanı! 1 milyon kazandın. Prestij yaparak daha güçlü başlayabilirsin — Güçlendir → Prestij.',
+      )
+    }, 1000)
+  }
+
   private startIdleDetection(): void {
     const IDLE_THRESHOLD_MS = 3 * 60 * 1000 // 3 minutes
     const check = (): void => {
@@ -822,6 +864,7 @@ export class HUD {
         this.scheduleUiSync()
         this.renderProgressStrip()
         this.checkRankUp()
+        this.checkPrestigeHint()
       }
       if (ev.type === 'click') {
         this.root.classList.add('money-pulse')
@@ -902,6 +945,10 @@ export class HUD {
           this.particles.spawnMoneyToHeader()
           this.tutorial.onPurchaseMade()
           this.maybePromptFirstBusinessAd()
+          this.checkSynergyHint()
+        }
+        if (ev.type === 'manager_hired') {
+          this.checkFirstManagerHint()
         }
         this.statsBar.updateMeta()
         this.syncFlowClasses()
