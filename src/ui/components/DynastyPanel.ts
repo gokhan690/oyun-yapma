@@ -5,6 +5,7 @@ import { spouseOptionsForPlayer, PLAYER_LIFESPAN, CHILD_CAREERS, childCareerDef,
 import { FRIEND_TYPES } from '../../game/Friendships'
 import { MENTORS, ENEMIES } from '../../game/MentorEnemy'
 import { HOBBIES } from '../../game/Hobby'
+import { TRAVEL_DESTINATIONS, availableDestinations } from '../../game/Travel'
 import { t } from '../../i18n'
 
 function traitLabel(trait: string): string {
@@ -99,6 +100,8 @@ export class DynastyPanel {
     }
 
     this.renderHobby()
+    this.renderTravel()
+    this.renderFamilyTree()
     this.renderSocialStatus()
   }
 
@@ -492,6 +495,84 @@ export class DynastyPanel {
       <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${fill}%;background:var(--accent,#d4af37)"></div></div>
     `
     section.appendChild(bar)
+    this.root.appendChild(section)
+  }
+
+  private renderTravel(): void {
+    const section = document.createElement('div')
+    section.className = 'travel-section'
+    const h4 = document.createElement('h4')
+    h4.textContent = '✈️ Seyahat'
+    section.appendChild(h4)
+
+    const available = availableDestinations(this.state.totalEarned)
+    const travelState = this.state.travel
+    const day = gameDay(this.state.gameTimeMs)
+    const bonusActive = travelState.travelBonusUntilDay > day
+
+    if (travelState.lastDestinationId) {
+      const lastDef = TRAVEL_DESTINATIONS.find((d) => d.id === travelState.lastDestinationId)
+      if (lastDef) {
+        const badge = document.createElement('p')
+        badge.className = 'dynasty-desc'
+        badge.textContent = `Son seyahat: ${lastDef.emoji} ${lastDef.name} · Toplam ${travelState.totalTrips} gezi${bonusActive ? ` · ✨ ${lastDef.bonusLabel}` : ''}`
+        section.appendChild(badge)
+      }
+    }
+
+    if (available.length === 0) {
+      const hint = document.createElement('p')
+      hint.className = 'dynasty-desc'
+      hint.textContent = `İlk destinasyon ${formatMoney(TRAVEL_DESTINATIONS[0]!.unlockAt)} toplam kazançta açılır.`
+      section.appendChild(hint)
+    } else {
+      const grid = document.createElement('div')
+      grid.className = 'travel-grid'
+      for (const dest of available) {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = 'btn-secondary travel-btn'
+        btn.dataset.action = 'go-travel'
+        btn.dataset.id = dest.id
+        btn.disabled = !this.state.canAfford(dest.cost)
+        btn.innerHTML = `
+          <span class="travel-emoji">${dest.emoji}</span>
+          <span class="travel-name">${dest.name}</span>
+          <small>${dest.durationDays} gün · ${formatMoney(dest.cost)}</small>
+          <small>${dest.bonusLabel}</small>
+        `
+        grid.appendChild(btn)
+      }
+      section.appendChild(grid)
+    }
+    this.root.appendChild(section)
+  }
+
+  private renderFamilyTree(): void {
+    const history = this.state.baronHistory
+    if (!history || history.length === 0) return
+    const section = document.createElement('div')
+    section.className = 'family-tree-section'
+    const h4 = document.createElement('h4')
+    h4.textContent = '🌳 Soy Ağacı'
+    section.appendChild(h4)
+    const tree = document.createElement('div')
+    tree.className = 'family-tree'
+    for (let i = history.length - 1; i >= 0; i--) {
+      const rec = history[i]!
+      const node = document.createElement('div')
+      node.className = 'family-tree-node'
+      const peakFmt = formatMoney(rec.peakNetWorth)
+      node.innerHTML = `
+        <span class="tree-gen">Nesil ${rec.generation}</span>
+        <span class="tree-name">${rec.name ?? 'Baron'}</span>
+        <span class="tree-years">${rec.birthYear}–${rec.deathYear} (${rec.ageAtDeath} yaş)</span>
+        <span class="tree-peak">💰 ${peakFmt}</span>
+        ${rec.achievements.length > 0 ? `<small>${rec.achievements[0]}</small>` : ''}
+      `
+      tree.appendChild(node)
+    }
+    section.appendChild(tree)
     this.root.appendChild(section)
   }
 

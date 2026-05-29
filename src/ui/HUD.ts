@@ -2222,6 +2222,16 @@ export class HUD {
           this.refreshBaronPanel()
         }
         break
+      case 'go-travel':
+        if (id) {
+          if (this.state.goTravel(id as import('../game/Travel').TravelDestinationId)) {
+            this.modals.showToast(this.root, '✈️ Tatile çıkıldı!')
+          } else {
+            this.modals.showToast(this.root, 'Yeterli para veya kilidin açık değil', 'important')
+          }
+          this.refreshBaronPanel()
+        }
+        break
       case 'rival-acquire':
         if (id) {
           const rv = this.state.rivals.find((r) => r.id === id)

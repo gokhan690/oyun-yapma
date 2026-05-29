@@ -8949,3 +8949,79 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
   font-size: 0.82rem;
 }
 .social-status-row { margin-top: 8px; }
+
+/* ===== Seyahat, Soy Ağacı ===== */
+.travel-section, .family-tree-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #3a3220);
+}
+.travel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+.travel-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 6px;
+  font-size: 0.8rem;
+  text-align: center;
+}
+.travel-emoji { font-size: 1.5rem; }
+.travel-name { font-weight: 700; }
+.travel-btn small { font-size: 0.7rem; color: var(--text-dim, #b9ad8c); }
+
+/* Soy ağacı */
+.family-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.family-tree-node {
+  background: var(--surface2, #1f1a10);
+  border: 1px solid var(--border, #3a3220);
+  border-left: 3px solid var(--accent, #d4af37);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 2px 8px;
+  font-size: 0.8rem;
+}
+.tree-gen {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 0.7rem;
+  color: var(--accent, #d4af37);
+  font-weight: 700;
+}
+.tree-name {
+  grid-column: 2;
+  grid-row: 1;
+  font-weight: 700;
+}
+.tree-years {
+  grid-column: 3;
+  grid-row: 1;
+  font-size: 0.7rem;
+  color: var(--text-dim, #b9ad8c);
+  text-align: right;
+}
+.tree-peak {
+  grid-column: 2;
+  grid-row: 2;
+  font-size: 0.75rem;
+  color: var(--green, #5ee0a0);
+}
+.family-tree-node small {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  color: var(--text-dim, #b9ad8c);
+  font-size: 0.72rem;
+}

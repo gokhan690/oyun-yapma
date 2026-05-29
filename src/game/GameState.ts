@@ -403,6 +403,15 @@ import {
   type HobbyState,
 } from './Hobby'
 import {
+  createTravelState,
+  travelDestinationDef,
+  travelResearchBonus,
+  travelIncomeBonus,
+  travelPrestigeBonus,
+  type TravelState,
+  type TravelDestinationId,
+} from './Travel'
+import {
   createCityState,
   canUnlockCity,
   cityDef,
@@ -595,6 +604,7 @@ export interface SerializableState {
   education?: EducationId | null
   hobby?: HobbyState
   ageMilestonesShown?: number[]
+  travel?: TravelState
 }
 
 export interface ProducerBreakdown {
@@ -776,6 +786,7 @@ export class GameState {
   education: EducationId | null = null
   hobby = createHobbyState()
   ageMilestonesShown: number[] = []
+  travel = createTravelState()
   lastAnnualSummaryYear = -1
   personality: PersonalityId | null = null
   playerSkills = createPlayerSkillsState()
@@ -1630,13 +1641,15 @@ export class GameState {
     mult *= mentorIncomeMult(this.mentorEnemy)
     mult *= enemyIncomePenalty(this.mentorEnemy)
     mult *= educationIncomeMult(this.education)
+    mult *= 1 + travelIncomeBonus(this.travel, gameDay(this.gameTimeMs))
     return mult
   }
 
   passiveMultiplier(): number {
     const eduResearch = educationResearchBonus(this.education)
     const hobResearch = hobbyResearchBonus(this.hobby)
-    return this.globalMultiplier() * researchPassiveBonus(this.research) * (1 + this.dayNightPassiveBonus()) * (1 + eduResearch + hobResearch)
+    const travelRes = travelResearchBonus(this.travel, gameDay(this.gameTimeMs))
+    return this.globalMultiplier() * researchPassiveBonus(this.research) * (1 + this.dayNightPassiveBonus()) * (1 + eduResearch + hobResearch + travelRes)
   }
 
   clickMultiplier(): number {
@@ -2470,7 +2483,8 @@ export class GameState {
       calcPrestigePoints(this.totalEarned, this.ipoCount)
         * skillPrestigeMult(this.playerSkills)
         * friendshipPrestigeMult(this.friendships)
-        * mentorPrestigeMult(this.mentorEnemy),
+        * mentorPrestigeMult(this.mentorEnemy)
+        * (1 + travelPrestigeBonus(this.travel, gameDay(this.gameTimeMs))),
     )
   }
 
@@ -4194,6 +4208,40 @@ export class GameState {
     this.emit({ type: 'legacy_selected', items: this.dynasty.legacyItems ?? [] })
   }
 
+  goTravel(destinationId: TravelDestinationId): boolean {
+    const def = travelDestinationDef(destinationId)
+    if (!def || this.totalEarned < def.unlockAt) return false
+    if (!this.canAfford(def.cost)) return false
+    this.spendMoney(def.cost)
+    const day = gameDay(this.gameTimeMs)
+    // Apply stress reduction via lifestyle
+    this.lifestyle.stress = Math.max(0, this.lifestyle.stress - def.stressReduction)
+    // Apply income penalty (reuse vacation system)
+    this.lifestyle.vacationActiveUntilDay = day + def.incomePenaltyDays
+    // Apply bonus
+    this.travel.lastDestinationId = destinationId
+    this.travel.totalTrips++
+    if (def.bonusDurationDays > 0) {
+      this.travel.travelBonusUntilDay = day + def.bonusDurationDays
+      this.travel.travelBonusType = def.bonusType
+      this.travel.travelBonusValue = def.bonusValue
+    } else {
+      this.travel.travelBonusUntilDay = 0
+      this.travel.travelBonusType = null
+    }
+    // Reputation bonus (flat)
+    if (def.bonusType === 'reputation') {
+      this.addReputation(def.bonusValue)
+    }
+    // Health improvement
+    const healthGain = Math.floor(def.stressReduction * 0.3)
+    this.health.health = Math.min(100, this.health.health + healthGain)
+    this.emit({ type: 'health_changed', health: this.health.health })
+    this.emit({ type: 'money_changed' })
+    this.addGazette(`✈️ ${def.name} tatiline gidildi — stres eridi, bonuslar aktif`, 'player')
+    return true
+  }
+
   resolveEnemy(method: string): boolean {
     if (!this.mentorEnemy.enemyId || this.mentorEnemy.enemyResolved) return false
     const costMap: Record<string, number> = {
@@ -5202,6 +5250,7 @@ export class GameState {
       education: this.education,
       hobby: { ...this.hobby },
       ageMilestonesShown: [...this.ageMilestonesShown],
+      travel: { ...this.travel },
       difficulty: this.difficulty,
       playerName: this.playerName,
       birthYear: this.birthYear,
@@ -5454,6 +5503,9 @@ export class GameState {
       this.hobby = { ...createHobbyState(), ...data.hobby }
     }
     this.ageMilestonesShown = data.ageMilestonesShown ?? []
+    if (data.travel) {
+      this.travel = { ...createTravelState(), ...data.travel }
+    }
     this.difficulty = (['easy', 'normal', 'hard'] as const).includes(data.difficulty as 'easy' | 'normal' | 'hard')
       ? (data.difficulty as 'easy' | 'normal' | 'hard')
       : 'normal'
