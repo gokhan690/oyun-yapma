@@ -1400,10 +1400,18 @@ export class GameState {
       this.checkAchievements()
     }
 
-    if (this.illegalHeat >= 80 && !this.seenStoryBeats.has('heat_critical')) {
+    if (this.illegalHeat >= 90 && !this.seenStoryBeats.has('heat_90')) {
+      this.triggerStoryBeat('heat_90')
+    } else if (this.illegalHeat >= 80 && !this.seenStoryBeats.has('heat_critical')) {
       this.triggerStoryBeat('heat_critical')
+    } else if (this.illegalHeat >= 70 && !this.seenStoryBeats.has('heat_70')) {
+      this.triggerStoryBeat('heat_70')
     } else if (this.illegalHeat >= 55 && !this.seenStoryBeats.has('heat_high')) {
       this.triggerStoryBeat('heat_high')
+    } else if (this.illegalHeat >= 50 && !this.seenStoryBeats.has('heat_50')) {
+      this.triggerStoryBeat('heat_50')
+    } else if (this.illegalHeat >= 30 && !this.seenStoryBeats.has('heat_30')) {
+      this.triggerStoryBeat('heat_30')
     }
 
     if (Math.round(prev) !== Math.round(this.illegalHeat)) {

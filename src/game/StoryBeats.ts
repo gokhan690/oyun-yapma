@@ -5,7 +5,11 @@ export interface StoryBeat {
 
 export const STORY_BEATS: StoryBeat[] = [
   { id: 'illegal_first', text: 'Karanlık tarafa adım attın. Yüksek gelir, yüksek risk — radar seni izlemeye başladı.' },
+  { id: 'heat_30', text: '⚠️ Heat %30: Medyada söylentiler dolaşıyor. Şimdilik endişe yok — ama tetikte ol.' },
+  { id: 'heat_50', text: '🔍 Heat %50: Vergi dairesi senin dosyana baktı. Bir aksiyon aldıysan izleri sil.' },
+  { id: 'heat_70', text: '🚨 Heat %70: Baskın uyarısı geldi! Derhal avukat tut ya da aklama yap.' },
   { id: 'heat_high', text: 'Radar yoğunlaşıyor. Avukat veya rüşvet düşünmeden önce bir baskın gelebilir.' },
+  { id: 'heat_90', text: '🔴 Heat %90: Operasyon başladı! Bir sonraki baskın tüm underground gelirini silebilir.' },
   { id: 'heat_critical', text: 'Kritik seviye! Her gün baskın riski artıyor. Underground menüsünden heat temizle.' },
   { id: 'comeback', text: 'Seni özledik Baron! 2026\'da imparatorluğunu kurmaya devam et.' },
   { id: 'streak_7', text: '7 günlük seri! Sadık bir baron oldun. Ödüllerin büyüyor.' },
