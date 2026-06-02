@@ -271,31 +271,39 @@ export function portfolioValue(state: StockState): number {
   return Object.values(state.tickers).reduce((s, t) => s + t.shares * t.price, 0)
 }
 
-export function buyShares(state: StockState, tickerId: string, amount: number, money: number): { cost: number; bought: number } {
+/** Alım/satım komisyonu — %1 (Aşama 9 — borsa dengesi) */
+export const STOCK_COMMISSION = 0.01
+
+export function buyShares(state: StockState, tickerId: string, amount: number, money: number): { cost: number; bought: number; commission: number } {
   const ticker = state.tickers[tickerId]
-  if (!ticker) return { cost: 0, bought: 0 }
-  const maxShares = Math.floor(money / ticker.price)
+  if (!ticker) return { cost: 0, bought: 0, commission: 0 }
+  const effectivePrice = ticker.price * (1 + STOCK_COMMISSION)
+  const maxShares = Math.floor(money / effectivePrice)
   const bought = Math.min(amount, maxShares)
-  if (bought <= 0) return { cost: 0, bought: 0 }
-  const cost = bought * ticker.price
+  if (bought <= 0) return { cost: 0, bought: 0, commission: 0 }
+  const baseCost = bought * ticker.price
+  const commission = Math.ceil(baseCost * STOCK_COMMISSION)
+  const cost = baseCost + commission
   const totalShares = ticker.shares + bought
   const prevAvg = Number.isFinite(ticker.avgBuyPrice) ? ticker.avgBuyPrice : 0
   ticker.avgBuyPrice = totalShares > 0
     ? (prevAvg * ticker.shares + ticker.price * bought) / totalShares
     : 0
   ticker.shares = totalShares
-  return { cost, bought }
+  return { cost, bought, commission }
 }
 
-export function sellShares(state: StockState, tickerId: string, amount: number): { revenue: number; sold: number } {
+export function sellShares(state: StockState, tickerId: string, amount: number): { revenue: number; sold: number; commission: number } {
   const ticker = state.tickers[tickerId]
-  if (!ticker) return { revenue: 0, sold: 0 }
+  if (!ticker) return { revenue: 0, sold: 0, commission: 0 }
   const sold = Math.min(amount, ticker.shares)
-  if (sold <= 0) return { revenue: 0, sold: 0 }
-  const revenue = sold * ticker.price
+  if (sold <= 0) return { revenue: 0, sold: 0, commission: 0 }
+  const grossRevenue = sold * ticker.price
+  const commission = Math.ceil(grossRevenue * STOCK_COMMISSION)
+  const revenue = grossRevenue - commission
   ticker.shares -= sold
   if (ticker.shares === 0) ticker.avgBuyPrice = 0
-  return { revenue, sold }
+  return { revenue, sold, commission }
 }
 
 export function profitLoss(ticker: StockTicker): number {

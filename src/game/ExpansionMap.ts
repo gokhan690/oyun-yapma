@@ -51,6 +51,9 @@ export function canUnlockCity(
   return { ok: true }
 }
 
+/** Şehir bonusu max %25 ile sınırlı (Aşama 8 — ekonomi dengesi) */
+export const CITY_BONUS_CAP = 0.25
+
 export function cityProducerBonus(cities: CityState, producerCategory: string | undefined): number {
   if (!producerCategory) return 0
   let bonus = 0
@@ -58,5 +61,5 @@ export function cityProducerBonus(cities: CityState, producerCategory: string | 
     const def = EXPANSION_CITIES.find(c => c.id === cityId)
     bonus += def?.categoryBonuses?.[producerCategory] ?? 0
   }
-  return bonus
+  return Math.min(bonus, CITY_BONUS_CAP)
 }
