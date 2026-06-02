@@ -1,10 +1,11 @@
-export type NavView = 'earn' | 'shop' | 'market' | 'events' | 'profile'
+export type NavView = 'earn' | 'career' | 'shop' | 'market' | 'events' | 'profile'
 
 import { assetUrl } from '../../utils/assetUrl'
 import { t } from '../../i18n'
 import type { Translations } from '../../i18n/keys'
 
 const NAV_ICONS: Record<NavView, string> = {
+  career: assetUrl('icons/nav/earn.svg'),
   earn: assetUrl('icons/nav/earn.svg'),
   shop: assetUrl('icons/nav/shop.svg'),
   market: assetUrl('icons/nav/empire.svg'),
@@ -12,10 +13,10 @@ const NAV_ICONS: Record<NavView, string> = {
   profile: assetUrl('icons/nav/profile.svg'),
 }
 
-/** Alt menü: Şehir · İş · Piyasa · Baron */
+/** Alt menü: Kariyer · İş · Piyasa · Olaylar · Baron */
 export class BottomNav {
   readonly root: HTMLElement
-  private active: NavView = 'earn'
+  private active: NavView = 'career'
   private buttons = new Map<NavView, HTMLButtonElement>()
   private badgeBaron!: HTMLElement
   private badgeShop!: HTMLElement
@@ -23,6 +24,7 @@ export class BottomNav {
   private badgeEvents!: HTMLElement
   private labels = new Map<NavView, HTMLElement>()
   private static readonly LABEL_KEYS: Record<NavView, keyof Translations> = {
+    career: 'nav_city',
     earn: 'nav_city',
     shop: 'nav_business',
     market: 'nav_market',
@@ -34,7 +36,7 @@ export class BottomNav {
     this.root = document.createElement('nav')
     this.root.className = 'bottom-nav bottom-nav-five'
     const defs: { id: NavView; label: string }[] = [
-      { id: 'earn', label: t('nav_city') },
+      { id: 'career', label: 'Kariyer' },
       { id: 'shop', label: t('nav_business') },
       { id: 'market', label: t('nav_market') },
       { id: 'events', label: t('tab_events') },
@@ -46,7 +48,7 @@ export class BottomNav {
       btn.className = 'nav-btn'
       btn.dataset.action = 'nav-view'
       btn.dataset.id = d.id
-      if (d.id === 'earn') btn.classList.add('active')
+      if (d.id === 'career') btn.classList.add('active')
       const iconWrap = document.createElement('span')
       iconWrap.className = 'nav-icon'
       const img = document.createElement('img')
@@ -106,7 +108,11 @@ export class BottomNav {
 
   relabel(): void {
     for (const [id, el] of this.labels) {
-      el.textContent = t(BottomNav.LABEL_KEYS[id])
+      if (id === 'career') {
+        el.textContent = 'Kariyer'
+      } else {
+        el.textContent = t(BottomNav.LABEL_KEYS[id])
+      }
     }
   }
 

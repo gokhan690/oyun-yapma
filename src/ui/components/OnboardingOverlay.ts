@@ -1,17 +1,29 @@
 import { i18n, LANG_META, type LangCode } from '../../i18n'
 import { COUNTRIES, type CountryId } from '../../game/Countries'
+import {
+  CAREER_JOBS,
+  CHARACTER_BACKGROUNDS,
+  type CareerJobId,
+  type CharacterBackgroundId,
+} from '../../game/Career'
+import {
+  DIFFICULTY_OPTIONS,
+  DEFAULT_CHARACTER,
+  type CharacterCreationResult,
+} from '../../game/CharacterCreation'
 
-/**
- * First-run setup shown before the game starts: pick a language, then a
- * country. The chosen country sets the starting city + franchise cities.
- */
 export class OnboardingOverlay {
   private root: HTMLElement | null = null
   private selectedLang: LangCode
   private selectedCountry: CountryId = 'tr'
-  private readonly onComplete: (country: CountryId) => void
+  private characterName = DEFAULT_CHARACTER.name
+  private selectedGender: 'male' | 'female' = DEFAULT_CHARACTER.gender
+  private selectedBackground: CharacterBackgroundId = DEFAULT_CHARACTER.backgroundId
+  private selectedJob: CareerJobId = DEFAULT_CHARACTER.startingJobId
+  private selectedDifficulty: 'easy' | 'normal' | 'hard' = DEFAULT_CHARACTER.difficulty
+  private readonly onComplete: (country: CountryId, character: CharacterCreationResult) => void
 
-  constructor(onComplete: (country: CountryId) => void) {
+  constructor(onComplete: (country: CountryId, character: CharacterCreationResult) => void) {
     this.onComplete = onComplete
     this.selectedLang = i18n.getLang()
   }
@@ -62,9 +74,208 @@ export class OnboardingOverlay {
     next.className = 'onboarding-next-btn'
     next.textContent = '→'
     next.setAttribute('aria-label', 'Next')
-    next.addEventListener('click', () => this.renderCountryStep())
+    next.addEventListener('click', () => this.renderCharacterStep())
 
     card.append(h, sub, grid, next)
+    this.root.appendChild(card)
+  }
+
+  private renderCharacterStep(): void {
+    if (!this.root) return
+    this.clear()
+    const card = document.createElement('div')
+    card.className = 'onboarding-card onboarding-card-wide'
+
+    const h = document.createElement('h1')
+    h.className = 'onboarding-title'
+    h.textContent = '👤 Karakterini Oluştur'
+
+    // İsim
+    const nameSection = document.createElement('div')
+    nameSection.className = 'ob-section'
+    const nameLabel = document.createElement('label')
+    nameLabel.className = 'ob-label'
+    nameLabel.textContent = 'İsmin'
+    const nameInput = document.createElement('input')
+    nameInput.type = 'text'
+    nameInput.className = 'ob-name-input'
+    nameInput.value = this.characterName
+    nameInput.placeholder = 'Baron...'
+    nameInput.maxLength = 20
+    nameInput.addEventListener('input', () => {
+      this.characterName = nameInput.value.trim() || DEFAULT_CHARACTER.name
+    })
+    nameSection.append(nameLabel, nameInput)
+
+    // Cinsiyet
+    const genderSection = document.createElement('div')
+    genderSection.className = 'ob-section'
+    const genderLabel = document.createElement('p')
+    genderLabel.className = 'ob-label'
+    genderLabel.textContent = 'Cinsiyet'
+    const genderRow = document.createElement('div')
+    genderRow.className = 'ob-gender-row'
+    for (const [id, label, emoji] of [['male', 'Erkek', '👨'], ['female', 'Kadın', '👩']] as const) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `ob-gender-btn${this.selectedGender === id ? ' active' : ''}`
+      btn.innerHTML = `<span>${emoji}</span><span>${label}</span>`
+      btn.addEventListener('click', () => {
+        this.selectedGender = id
+        genderRow.querySelectorAll('.ob-gender-btn').forEach((b) => b.classList.remove('active'))
+        btn.classList.add('active')
+      })
+      genderRow.appendChild(btn)
+    }
+    genderSection.append(genderLabel, genderRow)
+
+    const next = document.createElement('button')
+    next.type = 'button'
+    next.className = 'onboarding-next-btn'
+    next.textContent = 'İleri →'
+    next.addEventListener('click', () => this.renderBackgroundStep())
+
+    card.append(h, nameSection, genderSection, next)
+    this.root.appendChild(card)
+  }
+
+  private renderBackgroundStep(): void {
+    if (!this.root) return
+    this.clear()
+    const card = document.createElement('div')
+    card.className = 'onboarding-card onboarding-card-wide'
+
+    const h = document.createElement('h1')
+    h.className = 'onboarding-title'
+    h.textContent = '🌱 Geçmişini Seç'
+    const sub = document.createElement('p')
+    sub.className = 'onboarding-sub'
+    sub.textContent = 'Başlangıç bonusunu etkiler. Oyunu kırmaz, farklı hissettir.'
+
+    const grid = document.createElement('div')
+    grid.className = 'ob-background-grid'
+    for (const bg of CHARACTER_BACKGROUNDS) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `ob-background-btn${this.selectedBackground === bg.id ? ' active' : ''}`
+      btn.innerHTML =
+        `<span class="ob-bg-emoji">${bg.emoji}</span>` +
+        `<span class="ob-bg-name">${bg.name}</span>` +
+        `<span class="ob-bg-bonus">${bg.bonusLabel}</span>` +
+        `<span class="ob-bg-desc">${bg.description}</span>`
+      btn.addEventListener('click', () => {
+        this.selectedBackground = bg.id
+        grid.querySelectorAll('.ob-background-btn').forEach((b) => b.classList.remove('active'))
+        btn.classList.add('active')
+      })
+      grid.appendChild(btn)
+    }
+
+    const next = document.createElement('button')
+    next.type = 'button'
+    next.className = 'onboarding-next-btn'
+    next.textContent = 'İleri →'
+    next.addEventListener('click', () => this.renderJobStep())
+
+    const back = document.createElement('button')
+    back.type = 'button'
+    back.className = 'onboarding-back-btn'
+    back.textContent = '← Geri'
+    back.addEventListener('click', () => this.renderCharacterStep())
+
+    card.append(h, sub, grid, back, next)
+    this.root.appendChild(card)
+  }
+
+  private renderJobStep(): void {
+    if (!this.root) return
+    this.clear()
+    const card = document.createElement('div')
+    card.className = 'onboarding-card onboarding-card-wide'
+
+    const h = document.createElement('h1')
+    h.className = 'onboarding-title'
+    h.textContent = '💼 İlk İşini Seç'
+    const sub = document.createElement('p')
+    sub.className = 'onboarding-sub'
+    sub.textContent = 'Hedefe ulaşınca (10.000₺) kendi işini kurabilirsin.'
+
+    const grid = document.createElement('div')
+    grid.className = 'ob-job-grid'
+    for (const job of CAREER_JOBS) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `ob-job-btn${this.selectedJob === job.id ? ' active' : ''}`
+      btn.innerHTML =
+        `<span class="ob-job-emoji">${job.emoji}</span>` +
+        `<span class="ob-job-name">${job.name}</span>` +
+        `<span class="ob-job-wage">₺${job.baseDailyWage}/gün</span>` +
+        `<span class="ob-job-desc">${job.description}</span>`
+      btn.addEventListener('click', () => {
+        this.selectedJob = job.id
+        grid.querySelectorAll('.ob-job-btn').forEach((b) => b.classList.remove('active'))
+        btn.classList.add('active')
+      })
+      grid.appendChild(btn)
+    }
+
+    const next = document.createElement('button')
+    next.type = 'button'
+    next.className = 'onboarding-next-btn'
+    next.textContent = 'İleri →'
+    next.addEventListener('click', () => this.renderDifficultyStep())
+
+    const back = document.createElement('button')
+    back.type = 'button'
+    back.className = 'onboarding-back-btn'
+    back.textContent = '← Geri'
+    back.addEventListener('click', () => this.renderBackgroundStep())
+
+    card.append(h, sub, grid, back, next)
+    this.root.appendChild(card)
+  }
+
+  private renderDifficultyStep(): void {
+    if (!this.root) return
+    this.clear()
+    const card = document.createElement('div')
+    card.className = 'onboarding-card'
+
+    const h = document.createElement('h1')
+    h.className = 'onboarding-title'
+    h.textContent = '⚙️ Zorluk Seç'
+
+    const grid = document.createElement('div')
+    grid.className = 'ob-difficulty-grid'
+    for (const diff of DIFFICULTY_OPTIONS) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `ob-difficulty-btn${this.selectedDifficulty === diff.id ? ' active' : ''}`
+      btn.innerHTML =
+        `<span class="ob-diff-emoji">${diff.emoji}</span>` +
+        `<span class="ob-diff-name">${diff.name}</span>` +
+        `<span class="ob-diff-desc">${diff.description}</span>`
+      btn.addEventListener('click', () => {
+        this.selectedDifficulty = diff.id
+        grid.querySelectorAll('.ob-difficulty-btn').forEach((b) => b.classList.remove('active'))
+        btn.classList.add('active')
+      })
+      grid.appendChild(btn)
+    }
+
+    const next = document.createElement('button')
+    next.type = 'button'
+    next.className = 'onboarding-next-btn'
+    next.textContent = 'İleri →'
+    next.addEventListener('click', () => this.renderCountryStep())
+
+    const back = document.createElement('button')
+    back.type = 'button'
+    back.className = 'onboarding-back-btn'
+    back.textContent = '← Geri'
+    back.addEventListener('click', () => this.renderJobStep())
+
+    card.append(h, grid, back, next)
     this.root.appendChild(card)
   }
 
@@ -76,10 +287,10 @@ export class OnboardingOverlay {
 
     const h = document.createElement('h1')
     h.className = 'onboarding-title'
-    h.textContent = '🌍 ' + this.countryHeading()
+    h.textContent = '🌍 Ülkeni Seç'
     const sub = document.createElement('p')
     sub.className = 'onboarding-sub'
-    sub.textContent = this.countrySub()
+    sub.textContent = 'Başkentinde başlarsın; franchise için 2 büyük şehrin daha açılır.'
 
     const grid = document.createElement('div')
     grid.className = 'onboarding-country-grid'
@@ -102,51 +313,29 @@ export class OnboardingOverlay {
     const start = document.createElement('button')
     start.type = 'button'
     start.className = 'onboarding-start-btn'
-    start.textContent = this.startLabel()
-    start.addEventListener('click', () => {
-      this.finish()
-    })
+    start.textContent = '🚀 Başla'
+    start.addEventListener('click', () => this.finish())
 
-    card.append(h, sub, grid, start)
+    const back = document.createElement('button')
+    back.type = 'button'
+    back.className = 'onboarding-back-btn'
+    back.textContent = '← Geri'
+    back.addEventListener('click', () => this.renderDifficultyStep())
+
+    card.append(h, sub, grid, back, start)
     this.root.appendChild(card)
   }
 
   private finish(): void {
     this.root?.remove()
     this.root = null
-    this.onComplete(this.selectedCountry)
-  }
-
-  private countryHeading(): string {
-    const map: Partial<Record<LangCode, string>> = {
-      tr: 'Ülkeni seç', en: 'Choose your country', de: 'Wähle dein Land',
-      fr: 'Choisis ton pays', es: 'Elige tu país', pt: 'Escolha seu país',
-      ru: 'Выберите страну', ja: '国を選択', zh: '选择你的国家', ar: 'اختر بلدك',
+    const character: CharacterCreationResult = {
+      name: this.characterName,
+      gender: this.selectedGender,
+      backgroundId: this.selectedBackground,
+      startingJobId: this.selectedJob,
+      difficulty: this.selectedDifficulty,
     }
-    return map[this.selectedLang] ?? map.en!
-  }
-
-  private countrySub(): string {
-    const map: Partial<Record<LangCode, string>> = {
-      tr: 'Başkentinde başlarsın; franchise için 2 büyük şehrin daha açılır.',
-      en: 'You start in its capital; 2 more major cities unlock for franchises.',
-      de: 'Du startest in der Hauptstadt; 2 weitere Großstädte für Franchises.',
-      fr: 'Tu démarres dans la capitale ; 2 grandes villes en plus pour les franchises.',
-      es: 'Empiezas en su capital; se desbloquean 2 grandes ciudades para franquicias.',
-      pt: 'Você começa na capital; mais 2 grandes cidades para franquias.',
-      ru: 'Старт в столице; ещё 2 крупных города для франшиз.',
-      ja: '首都からスタート。フランチャイズ用に2都市が解放されます。',
-      zh: '从首都开始；解锁另外2座大城市用于加盟。',
-      ar: 'تبدأ في العاصمة؛ تُفتح مدينتان كبيرتان للامتياز.',
-    }
-    return map[this.selectedLang] ?? map.en!
-  }
-
-  private startLabel(): string {
-    const map: Partial<Record<LangCode, string>> = {
-      tr: 'Başla', en: 'Start', de: 'Start', fr: 'Commencer', es: 'Empezar',
-      pt: 'Começar', ru: 'Начать', ja: '開始', zh: '开始', ar: 'ابدأ',
-    }
-    return map[this.selectedLang] ?? map.en!
+    this.onComplete(this.selectedCountry, character)
   }
 }

@@ -1,4 +1,4 @@
-import { gameDay } from './GameClock'
+import { lifeGameTimeMs, MS_PER_GAME_DAY } from './GameClock'
 import type { PendingDeath } from './Mortality'
 
 export type SpouseTrait = 'merchant' | 'diplomat' | 'innovator' | 'risk_taker'
@@ -200,7 +200,8 @@ export function spouseSatisfactionMult(d: DynastyState): number {
 }
 
 export function gameYearsElapsed(gameTimeMs: number, bornGameDay: number): number {
-  const days = gameDay(gameTimeMs) - bornGameDay
+  const lifeMs = lifeGameTimeMs(gameTimeMs)
+  const days = Math.floor(lifeMs / MS_PER_GAME_DAY) + 1 - bornGameDay
   return Math.max(0, days / 365.25)
 }
 

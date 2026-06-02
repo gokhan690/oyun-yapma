@@ -9170,3 +9170,76 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
 
 /* Rival Event Response Buttons */
 .rival-response-btn { width: 100%; text-align: left; margin-top: 4px; }
+
+
+/* ====================== ONBOARDING GENİŞLETİLMİŞ ====================== */
+.onboarding-card-wide { max-width: 520px; width: 96vw; }
+.ob-section { margin-bottom: 16px; }
+.ob-label { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; display: block; }
+.ob-name-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface2); color: var(--text); font-size: 16px; outline: none; }
+.ob-name-input:focus { border-color: var(--accent); }
+.ob-gender-row { display: flex; gap: 10px; }
+.ob-gender-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 8px; border: 2px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.ob-gender-btn.active { border-color: var(--accent); background: rgba(201,127,0,0.08); }
+.ob-background-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; max-height: 60vh; overflow-y: auto; }
+.ob-background-btn { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; padding: 10px 12px; border: 2px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--text); cursor: pointer; transition: all 0.15s; }
+.ob-background-btn.active { border-color: var(--accent); background: rgba(201,127,0,0.1); }
+.ob-bg-emoji { font-size: 24px; }
+.ob-bg-name { font-size: 13px; font-weight: 700; }
+.ob-bg-bonus { font-size: 11px; font-weight: 600; color: var(--green); }
+.ob-bg-desc { font-size: 10px; color: var(--muted); line-height: 1.3; }
+.ob-job-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; max-height: 60vh; overflow-y: auto; }
+.ob-job-btn { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; padding: 10px 12px; border: 2px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--text); cursor: pointer; transition: all 0.15s; }
+.ob-job-btn.active { border-color: var(--accent); background: rgba(201,127,0,0.1); }
+.ob-job-emoji { font-size: 24px; }
+.ob-job-name { font-size: 13px; font-weight: 700; }
+.ob-job-wage { font-size: 11px; font-weight: 600; color: var(--accent); }
+.ob-job-desc { font-size: 10px; color: var(--muted); line-height: 1.3; }
+.ob-difficulty-grid { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.ob-difficulty-btn { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 2px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--text); cursor: pointer; transition: all 0.15s; text-align: left; }
+.ob-difficulty-btn.active { border-color: var(--accent); background: rgba(201,127,0,0.1); }
+.ob-diff-emoji { font-size: 28px; flex-shrink: 0; }
+.ob-diff-name { font-size: 14px; font-weight: 700; display: block; }
+.ob-diff-desc { font-size: 12px; color: var(--muted); }
+.onboarding-back-btn { background: none; border: 1.5px solid var(--border); border-radius: 10px; color: var(--muted); padding: 8px 16px; font-size: 13px; cursor: pointer; margin-right: 8px; }
+
+/* ====================== KARİYER PANELİ ====================== */
+.career-panel { padding: 12px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.career-header { display: flex; flex-direction: column; gap: 2px; }
+.career-title { font-size: 20px; font-weight: 800; margin: 0; color: var(--text); }
+.career-job-name { font-size: 13px; color: var(--muted); margin: 0; }
+.career-stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.career-stat { background: var(--surface2); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 2px; }
+.career-stat-label { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+.career-stat-value { font-size: 15px; font-weight: 800; color: var(--text); }
+.career-xp-row, .career-stress-row { display: flex; flex-direction: column; gap: 4px; }
+.career-xp-label, .career-stress-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+.career-xp-bar, .career-stress-bar { height: 8px; border-radius: 4px; background: var(--surface2); overflow: hidden; }
+.career-xp-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), #f59e0b); transition: width 0.4s; }
+.career-stress-fill { height: 100%; border-radius: 4px; background: var(--green); transition: width 0.4s; }
+.career-stress-fill.stress-mid { background: #f59e0b; }
+.career-stress-fill.stress-high { background: var(--accent2); }
+.career-first-goal { background: var(--surface2); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.career-goal-title { font-size: 13px; font-weight: 700; color: var(--text); margin: 0; }
+.career-goal-progress { display: flex; flex-direction: column; gap: 4px; }
+.career-goal-progress span { font-size: 11px; color: var(--muted); }
+.career-goal-bar { height: 10px; border-radius: 5px; background: var(--border); }
+.career-goal-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--green), #34d399); transition: width 0.4s; }
+.career-goal-done { font-size: 13px; font-weight: 600; color: var(--green); }
+.career-actions-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 6px; }
+.career-actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.career-action-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); cursor: pointer; text-align: left; transition: all 0.15s; }
+.career-action-btn:hover:not(:disabled) { border-color: var(--accent); background: rgba(201,127,0,0.05); }
+.career-action-btn.used, .career-action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.career-action-emoji { font-size: 20px; }
+.career-action-label { font-size: 12px; font-weight: 700; }
+.career-action-reward { font-size: 11px; color: var(--green); font-weight: 600; }
+.career-entrepreneur-section { padding-top: 4px; }
+.career-entrepreneur-btn { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px; border: 2px solid var(--green); border-radius: 14px; background: rgba(4,120,87,0.06); color: var(--text); cursor: pointer; font-size: 14px; font-weight: 700; transition: all 0.15s; }
+.career-entrepreneur-btn:hover:not(:disabled) { background: rgba(4,120,87,0.12); }
+.career-entrepreneur-btn.locked { border-color: var(--border); color: var(--muted); cursor: not-allowed; }
+.career-entrepreneur-btn small { font-size: 11px; font-weight: 400; color: var(--muted); }
+.career-entrepreneur-card { background: var(--surface2); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.career-ent-stat { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+.career-ent-stat strong { font-weight: 700; color: var(--accent); }
+.career-ent-tip { font-size: 12px; color: var(--muted); padding-top: 8px; border-top: 1px solid var(--border); line-height: 1.5; }

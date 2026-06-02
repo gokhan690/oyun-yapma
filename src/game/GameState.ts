@@ -439,6 +439,18 @@ import {
 import { obsolescenceMult, modernizeCost } from './TechObsolescence'
 import { pickDisaster, disasterDamage } from './NaturalDisasters'
 import { progressPathSnapshot, type ProgressPathSnapshot } from './ProgressPath'
+import {
+  createCareerState,
+  applyCareerAction,
+  applyDailyWage,
+  backgroundDef,
+  FIRST_GOAL_TARGET,
+  type CareerState,
+  type CareerActionId,
+  type CharacterBackgroundId,
+} from './Career'
+import type { CharacterCreationResult } from './CharacterCreation'
+import { startingMoneyForBackground } from './CharacterCreation'
 
 export interface PendingUndo {
   id: string
@@ -616,6 +628,8 @@ export interface SerializableState {
   hobby?: HobbyState
   ageMilestonesShown?: number[]
   travel?: TravelState
+  career?: import('./Career').CareerState
+  characterBackground?: import('./Career').CharacterBackgroundId | null
 }
 
 export interface ProducerBreakdown {
@@ -888,6 +902,8 @@ export class GameState {
   baronLifeRaidsUninsured = 0
   baronLifeChildCrises = 0
   baronLifeFactoryRaidDamage = 0
+  career: CareerState = createCareerState()
+  characterBackground: CharacterBackgroundId | null = null
   cities = createCityState()
   torpil = createTorpilState()
   producerModernized: Record<string, boolean> = {}
@@ -947,6 +963,47 @@ export class GameState {
     for (const p of PRODUCERS) this.managerAutoBuy[p.id] = false
     this.ensureMissions()
     this.applyOwnerFlags(loadOwnerFlags())
+  }
+
+  /** Karakter oluşturma ekranından gelen sonucu uygula */
+  applyCharacterCreation(result: CharacterCreationResult): void {
+    this.playerName = result.name || 'Baron'
+    this.playerGender = result.gender
+    this.difficulty = result.difficulty
+    this.difficultyChosen = true
+    this.characterBackground = result.backgroundId
+    this.career.jobId = result.startingJobId
+    this.career.backgroundId = result.backgroundId
+
+    const startMoney = startingMoneyForBackground(result.backgroundId, result.difficulty)
+    this.money = startMoney
+    this.totalEarned = startMoney
+
+    const bg = backgroundDef(result.backgroundId)
+    if (bg?.startingReputationBonus) {
+      this.reputation = Math.min(100, this.reputation + bg.startingReputationBonus)
+    }
+  }
+
+  /** Kariyer aksiyonu yap */
+  doCareerAction(actionId: CareerActionId): { money: number; levelUp: boolean } {
+    const day = Math.floor(this.gameTimeMs / (12 * 1000)) + 1
+    const result = applyCareerAction(this.career, actionId, day)
+    if (result.money > 0) {
+      this.addMoney(result.money, false)
+    }
+    if (!this.career.firstGoalComplete && this.money >= FIRST_GOAL_TARGET) {
+      this.career.firstGoalComplete = true
+    }
+    this.emit({ type: 'money_changed' })
+    return { money: result.money, levelUp: result.levelUp }
+  }
+
+  /** Girişimci ol */
+  becomeEntrepreneur(): void {
+    if (this.money < FIRST_GOAL_TARGET && !this.career.firstGoalComplete) return
+    this.career.isEntrepreneur = true
+    this.career.firstGoalComplete = true
   }
 
   applyOwnerFlags(flags: OwnerFlags): void {
@@ -1882,6 +1939,7 @@ export class GameState {
     const day = gameDay(this.gameTimeMs)
     if (day === this.lastDynastyGameDay) return
     this.lastDynastyGameDay = day
+    this.tickCareerDailyWage(day)
     const metaReady = this.isMetaSystemsReady()
     syncEmpireFromProducers(this.empire, this.producers)
     const { matchBonus, election, matches } = tickEmpireDaily(this.empire, this.producers, this.gameTimeMs, gameYear(this.gameTimeMs))
@@ -4053,6 +4111,16 @@ export class GameState {
     })
   }
 
+  private tickCareerDailyWage(day: number): void {
+    const wage = applyDailyWage(this.career, day)
+    if (wage > 0) {
+      this.addMoney(wage, true)
+      if (!this.career.firstGoalComplete && this.money >= FIRST_GOAL_TARGET) {
+        this.career.firstGoalComplete = true
+      }
+    }
+  }
+
   private tickMetaSystems(): void {
     if (!this.isMetaSystemsReady()) {
       this.tickCommodities()
@@ -5572,6 +5640,8 @@ export class GameState {
       dynastyPassiveIncome: this.dynastyPassiveIncome,
       peakIncomePerDay: this.peakIncomePerDay,
       prestigeShopPurchased: [...this.prestigeShopPurchased],
+      career: { ...this.career, actionsUsedToday: [...this.career.actionsUsedToday] },
+      characterBackground: this.characterBackground,
     }
   }
 
@@ -5725,6 +5795,12 @@ export class GameState {
     this.ageMilestonesShown = data.ageMilestonesShown ?? []
     if (data.travel) {
       this.travel = { ...createTravelState(), ...data.travel }
+    }
+    if (data.career) {
+      this.career = { ...createCareerState(), ...data.career, actionsUsedToday: [...(data.career.actionsUsedToday ?? [])] }
+    }
+    if (data.characterBackground !== undefined) {
+      this.characterBackground = data.characterBackground ?? null
     }
     this.difficulty = (['easy', 'normal', 'hard'] as const).includes(data.difficulty as 'easy' | 'normal' | 'hard')
       ? (data.difficulty as 'easy' | 'normal' | 'hard')

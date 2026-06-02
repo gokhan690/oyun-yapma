@@ -1,10 +1,33 @@
 import { t } from '../i18n'
 
 export const GAME_START_YEAR = 2026
-/** 12 gerçek saniye = 1 oyun günü */
+/** 12 gerçek saniye = 1 ekonomi günü (para/işletme zamanı) */
 export const REAL_SECONDS_PER_GAME_DAY = 12
-
 export const MS_PER_GAME_DAY = REAL_SECONDS_PER_GAME_DAY * 1000
+
+/**
+ * Hayat zamanı çarpanı: ekonomi zamanından 6x hızlı akar.
+ * 1 gerçek dakika = 1 oyun ayı (2 sn/gün × 30 gün = 60 sn)
+ * Yani 1 gerçek saat ≈ 5 oyun yılı
+ */
+export const LIFE_TIME_SCALE = 6
+
+/** Hayat zamanı ms cinsinden — yaş/varis/çocuk hesapları için */
+export function lifeGameTimeMs(econTimeMs: number): number {
+  return econTimeMs * LIFE_TIME_SCALE
+}
+
+/** Hayat takviminde geçen gün sayısı */
+export function lifeGameDay(econTimeMs: number): number {
+  return Math.floor(lifeGameTimeMs(econTimeMs) / MS_PER_GAME_DAY) + 1
+}
+
+/** Hayat takviminde geçen yıl */
+export function lifeGameYear(econTimeMs: number): number {
+  const d = new Date(Date.UTC(GAME_START_YEAR, 0, 1))
+  d.setUTCDate(d.getUTCDate() + lifeGameDay(econTimeMs) - 1)
+  return d.getUTCFullYear()
+}
 
 const MONTH_KEYS = [
   'month_jan', 'month_feb', 'month_mar', 'month_apr', 'month_may', 'month_jun',

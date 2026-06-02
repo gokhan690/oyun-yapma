@@ -45,6 +45,7 @@ import { activeTicker } from '../game/StockMarket'
 import { parseFranchiseAction } from './components/shop/FranchiseBlock'
 import { markRecentlyBought } from './components/shop/ShopBusinessTierView'
 import { LifestylePanel } from './components/LifestylePanel'
+import { CareerPanel } from './components/CareerPanel'
 import { FRANCHISE_CITIES, franchiseOpenFailureReason } from '../game/Franchise'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
@@ -109,6 +110,7 @@ export class HUD {
   private settings: SettingsPanel
   private statsScreen: StatsScreen
   private lifestylePanel: LifestylePanel
+  private careerPanel!: CareerPanel
   private tutorial: Tutorial
   private leaderboard: Leaderboard
   private skyline!: Skyline
@@ -163,6 +165,20 @@ export class HUD {
     })
     this.statsScreen = new StatsScreen(state, this.leaderboard)
     this.lifestylePanel = new LifestylePanel()
+    this.careerPanel = new CareerPanel(
+      state,
+      (actionId) => {
+        const res = state.doCareerAction(actionId)
+        if (res.levelUp) this.toast('🎉 Kariyer seviyesi arttı!')
+        else if (res.money > 0) this.toast(`+${res.money.toLocaleString('tr-TR')}₺ kazandın`)
+        this.careerPanel.render()
+      },
+      () => {
+        state.becomeEntrepreneur()
+        this.toast('🚀 Artık tam zamanlı girişimcisin!')
+        this.careerPanel.render()
+      },
+    )
     this.tutorial = new Tutorial(state)
     this.tutorial.setTabHandler((tab) => this.shop.setTab(tab, this.state))
     this.tutorial.setMandatoryCompleteHandler(() => this.handleIntroFlowReady())
@@ -178,7 +194,7 @@ export class HUD {
     this.startIdleDetection()
     this.renderAll()
     this.updateNavBadges()
-    this.setView('earn')
+    this.setView('career')
     if (this.state.hasPendingBankruptcyRecovery()) {
       window.setTimeout(() => {
         this.showBankruptcyPopup(
@@ -518,7 +534,7 @@ export class HUD {
     abilityBar.className = 'ability-bar'
     abilityBar.id = 'ability-bar'
     this.earnView.append(this.weeklyBanner, this.eraStrip, this.cityStrip, this.earnModifiersEl, tapWrap, comboWrap, sessionPanel, progressStrip, this.baronAdvisor.root, adsPanel, abilityBar)
-    main.append(this.earnView, this.shop.root, this.baronView, this.empirePanel.root)
+    main.append(this.earnView, this.shop.root, this.baronView, this.empirePanel.root, this.careerPanel.root)
 
     this.adBannerSlot = document.createElement('div')
     this.adBannerSlot.className = 'ad-banner-slot'
@@ -544,12 +560,16 @@ export class HUD {
       this.baronSubTab = 'profile'
     }
     this.earnView.hidden = view !== 'earn'
+    this.careerPanel.root.hidden = view !== 'career'
     this.shop.root.hidden = view !== 'shop' && view !== 'market'
     this.baronView.hidden = view !== 'profile' && view !== 'events'
     this.empirePanel.root.hidden = true
     this.empirePanel.root.classList.remove('empire-overlay-open')
-    this.gameMain.classList.toggle('earn-active', view === 'earn')
-    this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'market' || view === 'events' || view === 'profile')
+    this.gameMain.classList.toggle('earn-active', view === 'earn' || view === 'career')
+    this.gameMain.classList.toggle('shop-scroll-lock', view === 'shop' || view === 'market' || view === 'events' || view === 'profile' || view === 'career')
+    if (view === 'career') {
+      this.careerPanel.render()
+    }
     this.root.dataset.view = view
     document.body.dataset.view = view
     if (view === 'shop') {

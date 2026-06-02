@@ -68,9 +68,10 @@ async function bootstrap(): Promise<void> {
 
     const setupDone = localStorage.getItem('baron_setup_done') === '1'
     if (!saveLoaded && !setupDone) {
-      const onboarding = new OnboardingOverlay((country) => {
+      const onboarding = new OnboardingOverlay((country, character) => {
         state.country = country
         applyCountry(country)
+        state.applyCharacterCreation(character)
         localStorage.setItem('baron_setup_done', '1')
         saveManager.save(state)
         hud.renderAll()
