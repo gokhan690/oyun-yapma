@@ -20,9 +20,186 @@ export interface SpouseOption {
 }
 
 export type ChildRiskProfile = 'low' | 'gambler' | 'illegal' | 'scandal'
-
 export type ParentingStyle = 'strict' | 'free'
 export type ChildCareer = 'businessperson' | 'politician' | 'artist' | 'scientist' | 'athlete'
+
+/** Varis rolleri — 18 yaş sonrası şirkette pozisyon (Aşama 14) */
+export type HeirRoleId =
+  | 'operasyon'
+  | 'finans'
+  | 'teknoloji'
+  | 'siyasi'
+  | 'hukukcu'
+  | 'golge'
+  | 'aileci'
+
+export interface HeirRoleDef {
+  id: HeirRoleId
+  name: string
+  emoji: string
+  description: string
+  bonusLabel: string
+  passiveBonus?: number
+  stockBonus?: number
+  ipoBonus?: number
+  researchBonus?: number
+  reputationBonus?: number
+  lobbiCostDiscount?: number
+  illegalBonus?: number
+  raidPenaltyReduction?: number
+  inheritanceLossReduction?: number
+  inheritanceBonus?: number
+  heatBonus?: number
+}
+
+export const HEIR_ROLES: HeirRoleDef[] = [
+  {
+    id: 'operasyon',
+    name: 'Operasyon Varisi',
+    emoji: '🏭',
+    description: 'Şirket operasyonlarını yönetir.',
+    bonusLabel: 'Legal gelir +%8',
+    passiveBonus: 0.08,
+  },
+  {
+    id: 'finans',
+    name: 'Finans Varisi',
+    emoji: '📊',
+    description: 'Borsa ve yatırım uzmanı.',
+    bonusLabel: 'Borsa +%8, IPO +%5',
+    stockBonus: 0.08,
+    ipoBonus: 0.05,
+  },
+  {
+    id: 'teknoloji',
+    name: 'Teknoloji Varisi',
+    emoji: '💻',
+    description: 'Ar-Ge ve teknoloji lideri.',
+    bonusLabel: 'Tech +%10, Araştırma +%8',
+    researchBonus: 0.08,
+    passiveBonus: 0.05,
+  },
+  {
+    id: 'siyasi',
+    name: 'Siyasi Varis',
+    emoji: '🏛️',
+    description: 'İtibar ve lobi ağı kurar.',
+    bonusLabel: 'İtibar +%10, Lobi -%10',
+    reputationBonus: 0.10,
+    lobbiCostDiscount: 0.10,
+  },
+  {
+    id: 'hukukcu',
+    name: 'Hukukçu Varis',
+    emoji: '⚖️',
+    description: 'Baskın cezalarını ve miras kayıplarını azaltır.',
+    bonusLabel: 'Baskın cezası -%15, Miras kaybı -%8',
+    raidPenaltyReduction: 0.15,
+    inheritanceLossReduction: 0.08,
+  },
+  {
+    id: 'golge',
+    name: 'Gölge Varis',
+    emoji: '🌑',
+    description: 'Yeraltı bağlantıları var, yüksek risk.',
+    bonusLabel: 'Illegal +%15, Heat +%10',
+    illegalBonus: 0.15,
+    heatBonus: 10,
+  },
+  {
+    id: 'aileci',
+    name: 'Aileci Varis',
+    emoji: '👨‍👩‍👦',
+    description: 'Miras aktarımını optimize eder.',
+    bonusLabel: 'Miras aktarımı +%8',
+    inheritanceBonus: 0.08,
+  },
+]
+
+export function heirRoleDef(id: HeirRoleId | null | undefined): HeirRoleDef | null {
+  if (!id) return null
+  return HEIR_ROLES.find((r) => r.id === id) ?? null
+}
+
+/** Varis eğitim yolları — 10 yaş civarı seçilir (Aşama 13) */
+export type ChildEducationPath =
+  | 'isletme'
+  | 'finans'
+  | 'teknoloji'
+  | 'siyaset'
+  | 'hukuk'
+  | 'medya'
+  | 'golge_baglantilari'
+
+export interface ChildEducationPathDef {
+  id: ChildEducationPath
+  name: string
+  emoji: string
+  description: string
+  leadsToRole: HeirRoleId
+}
+
+export const CHILD_EDUCATION_PATHS: ChildEducationPathDef[] = [
+  { id: 'isletme', name: 'İşletme', emoji: '💼', description: 'Legal gelir yönü', leadsToRole: 'operasyon' },
+  { id: 'finans', name: 'Finans', emoji: '📊', description: 'Borsa/IPO uzmanı', leadsToRole: 'finans' },
+  { id: 'teknoloji', name: 'Teknoloji', emoji: '💻', description: 'Tech/research', leadsToRole: 'teknoloji' },
+  { id: 'siyaset', name: 'Siyaset', emoji: '🏛️', description: 'İtibar/lobi', leadsToRole: 'siyasi' },
+  { id: 'hukuk', name: 'Hukuk', emoji: '⚖️', description: 'Baskın/miras koruması', leadsToRole: 'hukukcu' },
+  { id: 'medya', name: 'Medya', emoji: '📺', description: 'İtibar/skandal azaltma', leadsToRole: 'siyasi' },
+  { id: 'golge_baglantilari', name: 'Gölge Bağlantılar', emoji: '🌑', description: 'Illegal gelir + risk', leadsToRole: 'golge' },
+]
+
+/** Miras aktarım oranları (Aşama 16) */
+export interface InheritanceResult {
+  transferPct: number
+  reason: string[]
+}
+
+export function calculateInheritance(
+  hasWill: boolean,
+  hasTrust: boolean,
+  hasHeirSelected: boolean,
+  heat: number,
+  hasLawyerHeir: boolean,
+  siblingCount: number,
+): InheritanceResult {
+  const reasons: string[] = []
+  let pct = 0.75
+
+  if (hasWill && hasHeirSelected) {
+    pct = 0.92
+    reasons.push('Vasiyet + seçili varis: %92')
+  } else if (hasWill) {
+    pct = 0.85
+    reasons.push('Vasiyet var: %85')
+  } else {
+    reasons.push('Vasiyet yok: %75')
+  }
+
+  if (hasTrust) {
+    pct += 0.05
+    reasons.push('Aile vakfı: +%5')
+  }
+
+  if (heat >= 70) {
+    const heatPenalty = heat >= 90 ? 0.35 : heat >= 70 ? 0.20 : 0.10
+    pct -= heatPenalty
+    reasons.push(`Heat yüksek: -%${Math.round(heatPenalty * 100)}`)
+  }
+
+  if (siblingCount > 1 && !hasWill) {
+    const dispute = Math.min(0.25, siblingCount * 0.08)
+    pct -= dispute
+    reasons.push(`Kardeş kavgası riski: -%${Math.round(dispute * 100)}`)
+  }
+
+  if (hasLawyerHeir) {
+    pct += 0.08
+    reasons.push('Hukukçu varis: +%8')
+  }
+
+  return { transferPct: Math.max(0.4, Math.min(0.95, pct)), reason: reasons }
+}
 
 export interface ChildRecord {
   id: string
@@ -32,12 +209,15 @@ export interface ChildRecord {
   educationXp: number
   riskProfile: ChildRiskProfile
   riskLabel: string
-  /** Yetiştirme tarzı — eğitim hızı vs mutluluk dengesi */
   parentingStyle?: ParentingStyle
-  /** Çocuk mutluluğu (0-100) */
   happiness?: number
-  /** 18 yaşında seçilen kariyer */
   career?: ChildCareer
+  /** Eğitim yolu (10 yaş) */
+  educationPath?: ChildEducationPath
+  /** Varis rolü (18 yaş sonrası) */
+  heirRole?: HeirRoleId
+  /** Varis olarak seçildi mi? */
+  isHeirCandidate?: boolean
 }
 
 export const PLAYER_START_AGE = 18
@@ -101,10 +281,16 @@ export interface DynastyState {
   spouseSatisfaction?: number
   /** Son evlilik krizi tetiklenmesinden bu yana */
   lastMarriageCrisisDay?: number
-  /** IPO sırasında seçilen miras kalemleri (kuşaklar arası taşınan) */
   legacyItems?: DynastyLegacyItemId[]
-  /** Geçmiş nesillerde biriken toplam miras puanı */
   accumulatedLegacyScore?: number
+  /** Vasiyet hazırlandı mı? (Aşama 15) */
+  hasWill?: boolean
+  /** Aile vakfı / trust kuruldu mu? (Aşama 15) */
+  hasTrust?: boolean
+  /** Aile anayasası yazıldı mı? (Aşama 15) */
+  hasFamilyConstitution?: boolean
+  /** Nesil bonusu (Aşama 19 — hanedan puanı) */
+  dynastyGenerationBonus?: number
 }
 
 export const SPOUSE_OPTIONS: SpouseOption[] = [
@@ -186,8 +372,23 @@ export function childCareerDef(id: ChildCareer | undefined) {
 /** Aktif varisin kariyerine göre pasif gelir bonusu */
 export function heirCareerPassiveBonus(d: DynastyState): number {
   const heir = d.dynastyBonusId ? d.children.find((c) => c.id === d.dynastyBonusId) : null
-  if (heir?.career === 'businessperson') return 0.08
+  if (!heir) return 0
+  // Varis rolüne göre bonus (Aşama 14)
+  const role = heirRoleDef(heir.heirRole)
+  if (role?.passiveBonus) return role.passiveBonus
+  // Geriye dönük uyumluluk
+  if (heir.career === 'businessperson') return 0.08
   return 0
+}
+
+/** Nesil bonusu (Aşama 19 — hanedan) */
+export function dynastyGenerationBonus(generation: number): number {
+  if (generation <= 1) return 0
+  if (generation === 2) return 0.02
+  if (generation === 3) return 0.04
+  if (generation <= 5) return 0.06
+  if (generation <= 7) return 0.08
+  return 0.10
 }
 
 /** Eş memnuniyetine göre trait bonus çarpanı — yüksek memnuniyet bonusu güçlendirir */
