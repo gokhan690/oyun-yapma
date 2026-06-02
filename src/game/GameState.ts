@@ -140,6 +140,11 @@ import {
   dynastyGenerationBonus,
   pickChildRiskProfile,
   migrateChildRecord,
+  heirRoleDef,
+  calculateInheritance,
+  CHILD_EDUCATION_PATHS,
+  type ChildEducationPath,
+  type HeirRoleId,
 } from './Dynasty'
 import {
   rollDailyMortality,
@@ -1539,6 +1544,11 @@ export class GameState {
     heat *= heatGainReduction(this.undergroundTree)
     heat *= 1 - empirePoliticsHeatReduction(this.empire.politics)
     heat += this.empire.darkIndustry.heatBonus
+    // Gölge Varis heat ekler, Karanlık Çevre geçmişi de (Aşama 14 + 1)
+    const heirRole = this.activeHeirRole()
+    if (heirRole?.heatBonus) heat += heirRole.heatBonus
+    const bg = backgroundDef(this.characterBackground)
+    if (bg?.heatBonus) heat += bg.heatBonus
     return Math.max(0, heat)
   }
 
@@ -1597,6 +1607,9 @@ export class GameState {
       if (Math.random() > chance) continue
       let finePct = (p.riskFinePct ?? 0.15) * (0.8 + this.illegalHeat / 200)
       finePct *= 1 - raidFineReduction(this.undergroundTree)
+      // Hukukçu Varis baskın cezasını azaltır (Aşama 14)
+      const heirRaidReduction = this.activeHeirRole()?.raidPenaltyReduction ?? 0
+      if (heirRaidReduction > 0) finePct *= 1 - heirRaidReduction
       if (hasRaidInsurance(this.prestigeTree) && this.raidsToday === 0) finePct *= 0.5
       if (this.insurance.illegal && this.raidsToday === 0) {
         this.raidsToday++
@@ -1780,7 +1793,10 @@ export class GameState {
     const hobResearch = hobbyResearchBonus(this.hobby)
     const travelRes = travelResearchBonus(this.travel, gameDay(this.gameTimeMs))
     const homeRes = homeRoomResearchBonus(this.lifestyle)
-    return this.globalMultiplier() * researchPassiveBonus(this.research) * (1 + this.dayNightPassiveBonus()) * (1 + eduResearch + hobResearch + travelRes + homeRes)
+    // Üniversiteli geçmişi + Teknoloji Varisi araştırma bonusu (Aşama 1 + 14)
+    const bgResearch = backgroundDef(this.characterBackground)?.researchBonus ?? 0
+    const heirResearch = this.activeHeirRole()?.researchBonus ?? 0
+    return this.globalMultiplier() * researchPassiveBonus(this.research) * (1 + this.dayNightPassiveBonus()) * (1 + eduResearch + hobResearch + travelRes + homeRes + bgResearch + heirResearch)
   }
 
   clickMultiplier(): number {
@@ -1800,7 +1816,23 @@ export class GameState {
     mult *= calendarClickMult()
     mult *= skillClickMult(this.playerSkills)
     mult *= mentorClickMult(this.mentorEnemy)
+    // Karakter geçmişi aktif gelir bonusu (Satışçı — Aşama 1)
+    const bg = backgroundDef(this.characterBackground)
+    if (bg?.clickBonus) mult *= 1 + bg.clickBonus
     return mult
+  }
+
+  /** Aktif varisin rol tanımı (Aşama 14 — varis bonusları) */
+  activeHeirRole() {
+    const heir = this.dynasty.dynastyBonusId
+      ? this.dynasty.children.find((c) => c.id === this.dynasty.dynastyBonusId)
+      : null
+    return heirRoleDef(heir?.heirRole)
+  }
+
+  /** Aktif varisin illegal gelir bonusu (Gölge Varis) */
+  private heirIllegalBonus(): number {
+    return this.activeHeirRole()?.illegalBonus ?? 0
   }
 
   producerIncome(def: ProducerDef): number {
@@ -1816,6 +1848,7 @@ export class GameState {
     mult *= this.weeklyProducerBonus(def.id)
     if (def.illegal) mult *= traitIllegalMult(activeDynastyTrait(this.dynasty))
     if (def.illegal) mult *= personalityIllegalMult(this.personality)
+    if (def.illegal) mult *= 1 + this.heirIllegalBonus()
     mult *= this.marketNewsProducerMult(def.id)
     mult *= spouseProducerBonus(this.dynasty, def.id, hasNode(this.prestigeTree, 'dynasty_1'))
     if (def.illegal) mult *= illegalIncomeBonus(this.undergroundTree)
@@ -2187,6 +2220,7 @@ export class GameState {
     mult *= this.weeklyProducerBonus(def.id)
     if (def.illegal) mult *= traitIllegalMult(activeDynastyTrait(this.dynasty))
     if (def.illegal) mult *= personalityIllegalMult(this.personality)
+    if (def.illegal) mult *= 1 + this.heirIllegalBonus()
     mult *= this.marketNewsProducerMult(def.id)
     mult *= spouseProducerBonus(this.dynasty, def.id, hasNode(this.prestigeTree, 'dynasty_1'))
     if (def.illegal) mult *= illegalIncomeBonus(this.undergroundTree)
@@ -4769,6 +4803,81 @@ export class GameState {
     child.career = career
     this.addGazette(`🎓 ${child.name} kariyerini seçti: ${childCareerDef(career)?.name}`, 'player')
     this.emit({ type: 'dynasty_update', kind: 'child_career', name: child.name })
+  }
+
+  /** Çocuk eğitim yolu seç (10 yaş — Aşama 13) */
+  setChildEducationPath(childId: string, path: ChildEducationPath): void {
+    const child = this.dynasty.children.find((c) => c.id === childId)
+    if (!child) return
+    child.educationPath = path
+    const def = CHILD_EDUCATION_PATHS.find((p) => p.id === path)
+    this.addGazette(`📚 ${child.name} eğitim yolunu seçti: ${def?.name ?? path}`, 'player')
+    this.emit({ type: 'dynasty_update', kind: 'child_education', name: child.name })
+  }
+
+  /** Varis rolü ata (18 yaş sonrası — Aşama 14) */
+  setHeirRole(childId: string, role: HeirRoleId): void {
+    const child = this.dynasty.children.find((c) => c.id === childId)
+    if (!child) return
+    child.heirRole = role
+    const def = heirRoleDef(role)
+    this.addGazette(`👔 ${child.name} şirkette rol aldı: ${def?.name ?? role}`, 'player')
+    this.emit({ type: 'dynasty_update', kind: 'heir_role', name: child.name })
+  }
+
+  /** Vasiyet hazırla (Aşama 15) */
+  prepareWill(): boolean {
+    const cost = 100_000
+    if (this.dynasty.hasWill) return false
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.dynasty.hasWill = true
+    this.addGazette('📜 Vasiyet hazırlandı — miras kaybı azalacak', 'player')
+    this.emit({ type: 'money_changed' })
+    this.emit({ type: 'dynasty_update', kind: 'will' })
+    return true
+  }
+
+  /** Aile vakfı / trust kur (Aşama 15) */
+  createFamilyTrust(): boolean {
+    const cost = 500_000
+    if (this.dynasty.hasTrust) return false
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.dynasty.hasTrust = true
+    this.addGazette('🏛️ Aile vakfı kuruldu — servet koruması arttı', 'player')
+    this.emit({ type: 'money_changed' })
+    this.emit({ type: 'dynasty_update', kind: 'trust' })
+    return true
+  }
+
+  /** Aile anayasası yaz (Aşama 15) */
+  writeFamilyConstitution(): boolean {
+    const cost = 250_000
+    if (this.dynasty.hasFamilyConstitution) return false
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.dynasty.hasFamilyConstitution = true
+    this.addGazette('📋 Aile anayasası yazıldı — kardeş kavgası azalacak', 'player')
+    this.emit({ type: 'money_changed' })
+    this.emit({ type: 'dynasty_update', kind: 'constitution' })
+    return true
+  }
+
+  /** Mevcut miras aktarım oranı (Aşama 16) */
+  inheritancePreview(): { transferPct: number; reason: string[] } {
+    const heir = this.dynasty.dynastyBonusId
+      ? this.dynasty.children.find((c) => c.id === this.dynasty.dynastyBonusId)
+      : null
+    const hasLawyerHeir = heir?.heirRole === 'hukukcu'
+    return calculateInheritance(
+      !!this.dynasty.hasWill,
+      !!this.dynasty.hasTrust,
+      !!this.dynasty.dynastyBonusId,
+      this.illegalHeat,
+      hasLawyerHeir,
+      this.dynasty.children.length,
+    )
   }
 
   annualFocusBonus: string | null = null
