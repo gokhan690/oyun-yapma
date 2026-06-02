@@ -444,6 +444,7 @@ import {
   applyCareerAction,
   applyDailyWage,
   backgroundDef,
+  careerStressPenalty,
   FIRST_GOAL_TARGET,
   type CareerState,
   type CareerActionId,
@@ -1763,6 +1764,12 @@ export class GameState {
     const pathMax = Math.max(temiz, acımasız, gölge)
     if (pathMax >= 6) mult *= 1.05
     if (pathMax >= 12) mult *= 1.05
+    // Kariyer stresi cezası (Aşama 7 — bonus sınırları)
+    mult *= 1 - careerStressPenalty(this.career.stress)
+    // Soft cap: çok fazla bonus üst üste binemesin
+    // İlk IPO öncesi max 8x, sonra 4x/IPO artışı
+    const softCap = Math.max(8, 8 + this.ipoCount * 4)
+    if (mult > softCap) mult = softCap + (mult - softCap) * 0.25
     return mult
   }
 
