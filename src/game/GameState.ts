@@ -137,6 +137,7 @@ import {
   childCareerDef,
   spouseSatisfactionMult,
   heirCareerPassiveBonus,
+  dynastyGenerationBonus,
   pickChildRiskProfile,
   migrateChildRecord,
 } from './Dynasty'
@@ -1766,8 +1767,9 @@ export class GameState {
     if (pathMax >= 12) mult *= 1.05
     // Kariyer stresi cezası (Aşama 7 — bonus sınırları)
     mult *= 1 - careerStressPenalty(this.career.stress)
+    // Hanedan nesil bonusu (Aşama 19 — küçük kalıcı kazanım)
+    mult *= 1 + dynastyGenerationBonus(this.dynasty.generation)
     // Soft cap: çok fazla bonus üst üste binemesin
-    // İlk IPO öncesi max 8x, sonra 4x/IPO artışı
     const softCap = Math.max(8, 8 + this.ipoCount * 4)
     if (mult > softCap) mult = softCap + (mult - softCap) * 0.25
     return mult
