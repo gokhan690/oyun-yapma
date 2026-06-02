@@ -451,6 +451,7 @@ import {
   applyDailyWage,
   backgroundDef,
   careerStressPenalty,
+  dailyCareerWage,
   FIRST_GOAL_TARGET,
   type CareerState,
   type CareerActionId,
@@ -637,6 +638,7 @@ export interface SerializableState {
   travel?: TravelState
   career?: import('./Career').CareerState
   characterBackground?: import('./Career').CharacterBackgroundId | null
+  netWorthHistory?: number[]
 }
 
 export interface ProducerBreakdown {
@@ -911,6 +913,9 @@ export class GameState {
   baronLifeFactoryRaidDamage = 0
   career: CareerState = createCareerState()
   characterBackground: CharacterBackgroundId | null = null
+  /** Net değer geçmişi (grafik için) — son 60 örnek, ~her 10sn */
+  netWorthHistory: number[] = []
+  private lastNetWorthSample = 0
   cities = createCityState()
   torpil = createTorpilState()
   producerModernized: Record<string, boolean> = {}
@@ -1132,6 +1137,7 @@ export class GameState {
         this.tickIllegalRisk(now)
         this.tickIllegalHeat(now)
         this.tickNearMiss(now)
+        this.sampleNetWorth(now)
       }
       if (flowReady && !this.gamePaused && now - this.lastGameClockEmit > 1000) {
         this.lastGameClockEmit = now
@@ -2928,6 +2934,44 @@ export class GameState {
 
   financeNetWorth(): number {
     return netWorth(this.money, portfolioValue(this.stock), this.bank)
+  }
+
+  /** Net değer örneği al (grafik geçmişi için) — periyodik çağrılır */
+  sampleNetWorth(now: number): void {
+    if (now - this.lastNetWorthSample < 10_000) return
+    this.lastNetWorthSample = now
+    this.netWorthHistory.push(Math.round(this.financeNetWorth()))
+    if (this.netWorthHistory.length > 60) this.netWorthHistory.shift()
+  }
+
+  /** Net değeri grafik için elle kaydet (IPO, miras gibi anlarda) */
+  pushNetWorthSample(): void {
+    this.netWorthHistory.push(Math.round(this.financeNetWorth()))
+    if (this.netWorthHistory.length > 60) this.netWorthHistory.shift()
+  }
+
+  /** Gelir kaynakları dökümü (halka grafik için) — Aşama 3 */
+  incomeBreakdown(): { label: string; value: number; color: 'green' | 'blue' | 'cyan' | 'gold' | 'red' | 'purple' }[] {
+    const legal = this.legalIncomePerDay()
+    const illegal = this.illegalIncomePerDay()
+    const stockYield = portfolioValue(this.stock) * 0.002
+    const rentalIncome = lifestyleRentalIncome(this.lifestyle)
+    const careerWage = this.career.isEntrepreneur ? 0 : dailyCareerWage(this.career)
+    const out: { label: string; value: number; color: 'green' | 'blue' | 'cyan' | 'gold' | 'red' | 'purple' }[] = []
+    if (legal > 0) out.push({ label: 'Legal İşletmeler', value: legal, color: 'green' })
+    if (stockYield > 0) out.push({ label: 'Borsa', value: stockYield, color: 'blue' })
+    if (rentalIncome > 0) out.push({ label: 'Kira', value: rentalIncome, color: 'cyan' })
+    if (careerWage > 0) out.push({ label: 'Kariyer', value: careerWage, color: 'gold' })
+    if (illegal > 0) out.push({ label: 'Illegal', value: illegal, color: 'red' })
+    return out
+  }
+
+  /** Aylık gider tahmini (gelir/gider barı için) */
+  estimatedMonthlyExpense(): number {
+    const lifestyleExp = lifestyleMonthlyExpense(this.lifestyle)
+    const loanInterest = this.bank.loan * (this.stock.centralBankRate ?? 0.02) / 12
+    const insuranceExp = insuranceDailyCost(this.insurance) * 30
+    return Math.floor(lifestyleExp + loanInterest + insuranceExp)
   }
 
   maxAvailableLoan(): number {
@@ -5802,6 +5846,7 @@ export class GameState {
       prestigeShopPurchased: [...this.prestigeShopPurchased],
       career: { ...this.career, actionsUsedToday: [...this.career.actionsUsedToday] },
       characterBackground: this.characterBackground,
+      netWorthHistory: [...this.netWorthHistory],
     }
   }
 
@@ -5961,6 +6006,9 @@ export class GameState {
     }
     if (data.characterBackground !== undefined) {
       this.characterBackground = data.characterBackground ?? null
+    }
+    if (Array.isArray(data.netWorthHistory)) {
+      this.netWorthHistory = data.netWorthHistory.slice(-60)
     }
     this.difficulty = (['easy', 'normal', 'hard'] as const).includes(data.difficulty as 'easy' | 'normal' | 'hard')
       ? (data.difficulty as 'easy' | 'normal' | 'hard')
