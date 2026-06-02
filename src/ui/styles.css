@@ -9261,3 +9261,18 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
 .career-timeskip-btn { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px; border: 2px dashed var(--border); border-radius: 12px; background: var(--surface2); color: var(--text); cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.15s; }
 .career-timeskip-btn:hover { border-color: var(--accent); background: rgba(201,127,0,0.05); }
 .career-timeskip-btn small { font-size: 11px; font-weight: 400; color: var(--muted); }
+
+/* ====================== MİRAS PLANI + VARİS ROLLERİ ====================== */
+.inheritance-section { margin-top: 14px; padding: 12px; background: var(--surface2); border-radius: 12px; border: 1px solid var(--border); }
+.inheritance-section h4 { margin: 0 0 8px; font-size: 14px; }
+.inheritance-preview { margin-bottom: 8px; }
+.inheritance-preview label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.inheritance-reasons { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-direction: column; gap: 3px; }
+.inheritance-reasons li { font-size: 11px; color: var(--muted); padding-left: 14px; position: relative; }
+.inheritance-reasons li::before { content: "•"; position: absolute; left: 4px; color: var(--accent); }
+.inheritance-plan-grid { display: flex; flex-direction: column; gap: 6px; }
+.inheritance-btn { display: flex !important; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 10px 12px !important; }
+.inheritance-btn small { font-size: 10px; color: var(--muted); font-weight: 400; }
+.inheritance-btn.plan-done { border-color: var(--green) !important; color: var(--green) !important; opacity: 0.85; }
+.role-suggested { border-color: var(--accent) !important; background: rgba(201,127,0,0.1) !important; font-weight: 700; }
+.child-career-prompt { display: block; width: 100%; margin-top: 4px; font-weight: 700; color: var(--muted); }

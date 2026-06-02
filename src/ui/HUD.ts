@@ -2278,6 +2278,50 @@ export class HUD {
           }
         }
         break
+      case 'child-education-path':
+        if (id) {
+          const [childId, path] = id.split(':')
+          if (childId && path) {
+            this.state.setChildEducationPath(childId, path as import('../game/Dynasty').ChildEducationPath)
+            this.modals.showToast(this.root, '📚 Eğitim yolu seçildi')
+            this.refreshBaronPanel()
+          }
+        }
+        break
+      case 'heir-role':
+        if (id) {
+          const [childId, role] = id.split(':')
+          if (childId && role) {
+            this.state.setHeirRole(childId, role as import('../game/Dynasty').HeirRoleId)
+            this.modals.showToast(this.root, '👔 Varis şirkette rol aldı')
+            this.refreshBaronPanel()
+          }
+        }
+        break
+      case 'prepare-will':
+        if (this.state.prepareWill()) {
+          this.modals.showToast(this.root, '📜 Vasiyet hazırlandı')
+        } else {
+          this.modals.showToast(this.root, 'Yeterli para yok', 'important')
+        }
+        this.refreshBaronPanel()
+        break
+      case 'create-trust':
+        if (this.state.createFamilyTrust()) {
+          this.modals.showToast(this.root, '🏛️ Aile vakfı kuruldu')
+        } else {
+          this.modals.showToast(this.root, 'Yeterli para yok', 'important')
+        }
+        this.refreshBaronPanel()
+        break
+      case 'write-constitution':
+        if (this.state.writeFamilyConstitution()) {
+          this.modals.showToast(this.root, '📋 Aile anayasası yazıldı')
+        } else {
+          this.modals.showToast(this.root, 'Yeterli para yok', 'important')
+        }
+        this.refreshBaronPanel()
+        break
       case 'choose-education':
         if (id) {
           this.state.setEducation(id as import('../game/Education').EducationId)

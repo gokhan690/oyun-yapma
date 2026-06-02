@@ -1,7 +1,7 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
 import { gameDay } from '../../game/GameClock'
-import { spouseOptionsForPlayer, PLAYER_LIFESPAN, CHILD_CAREERS, childCareerDef, DYNASTY_LEGACY_ITEMS, type ChildRecord } from '../../game/Dynasty'
+import { spouseOptionsForPlayer, PLAYER_LIFESPAN, childCareerDef, DYNASTY_LEGACY_ITEMS, CHILD_EDUCATION_PATHS, HEIR_ROLES, heirRoleDef, type ChildRecord } from '../../game/Dynasty'
 import { FRIEND_TYPES } from '../../game/Friendships'
 import { MENTORS, ENEMIES } from '../../game/MentorEnemy'
 import { HOBBIES } from '../../game/Hobby'
@@ -207,9 +207,80 @@ export class DynastyPanel {
     }
 
     this.renderLegacyItems()
+    this.renderInheritancePlan()
     this.renderHomeRooms()
     this.renderFriends()
     this.renderMentorEnemy()
+  }
+
+  /** Miras planı paneli — vasiyet, trust, aile anayasası (Aşama 15-16) */
+  private renderInheritancePlan(): void {
+    const d = this.state.dynasty
+    const age = this.state.playerAge()
+    // 50+ yaş veya çocuk varsa göster
+    if (age < 50 && d.children.length === 0) return
+
+    const section = document.createElement('div')
+    section.className = 'inheritance-section'
+    const title = document.createElement('h4')
+    title.textContent = '📜 Miras Planı'
+    section.appendChild(title)
+
+    const preview = this.state.inheritancePreview()
+    const pctEl = document.createElement('div')
+    pctEl.className = 'inheritance-preview'
+    const pct = Math.round(preview.transferPct * 100)
+    const color = pct >= 85 ? '#5ee0a0' : pct >= 70 ? '#72b7ff' : '#f8b84e'
+    pctEl.innerHTML = `
+      <label><span>Tahmini Miras Aktarımı</span><span style="color:${color};font-weight:700">%${pct}</span></label>
+      <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${pct}%;background:${color}"></div></div>
+    `
+    section.appendChild(pctEl)
+
+    const reasons = document.createElement('ul')
+    reasons.className = 'inheritance-reasons'
+    for (const r of preview.reason) {
+      const li = document.createElement('li')
+      li.textContent = r
+      reasons.appendChild(li)
+    }
+    section.appendChild(reasons)
+
+    const grid = document.createElement('div')
+    grid.className = 'inheritance-plan-grid'
+
+    const willBtn = document.createElement('button')
+    willBtn.type = 'button'
+    willBtn.className = `btn-sm btn-secondary inheritance-btn${d.hasWill ? ' plan-done' : ''}`
+    willBtn.dataset.action = 'prepare-will'
+    willBtn.disabled = d.hasWill || !this.state.canAfford(100_000)
+    willBtn.innerHTML = d.hasWill
+      ? '✅ Vasiyet Hazır'
+      : `📜 Vasiyet Hazırla<small>${formatMoney(100_000)} · miras kaybı azalır</small>`
+    grid.appendChild(willBtn)
+
+    const trustBtn = document.createElement('button')
+    trustBtn.type = 'button'
+    trustBtn.className = `btn-sm btn-secondary inheritance-btn${d.hasTrust ? ' plan-done' : ''}`
+    trustBtn.dataset.action = 'create-trust'
+    trustBtn.disabled = d.hasTrust || !this.state.canAfford(500_000)
+    trustBtn.innerHTML = d.hasTrust
+      ? '✅ Aile Vakfı Kuruldu'
+      : `🏛️ Aile Vakfı Kur<small>${formatMoney(500_000)} · +%5 koruma</small>`
+    grid.appendChild(trustBtn)
+
+    const constBtn = document.createElement('button')
+    constBtn.type = 'button'
+    constBtn.className = `btn-sm btn-secondary inheritance-btn${d.hasFamilyConstitution ? ' plan-done' : ''}`
+    constBtn.dataset.action = 'write-constitution'
+    constBtn.disabled = d.hasFamilyConstitution || !this.state.canAfford(250_000)
+    constBtn.innerHTML = d.hasFamilyConstitution
+      ? '✅ Aile Anayasası Yazıldı'
+      : `📋 Aile Anayasası<small>${formatMoney(250_000)} · kardeş kavgası azalır</small>`
+    grid.appendChild(constBtn)
+
+    section.appendChild(grid)
+    this.root.appendChild(section)
   }
 
   private renderHomeRooms(): void {
@@ -406,6 +477,8 @@ export class DynastyPanel {
     const happiness = Math.round(c.happiness ?? 60)
     const ageYears = Math.floor((gameDay(this.state.gameTimeMs) - c.bornGameDay) / 365)
     const careerInfo = childCareerDef(c.career)
+    const eduPathDef = c.educationPath ? CHILD_EDUCATION_PATHS.find((p) => p.id === c.educationPath) : null
+    const roleDef = heirRoleDef(c.heirRole)
     card.innerHTML = `
       <span class="dynasty-child-emoji">${isHeir ? '👑' : '🧒'}</span>
       <div>
@@ -413,11 +486,53 @@ export class DynastyPanel {
         <small>${traitLabel(c.trait)}</small>
         <small class="child-risk-warn">${c.riskLabel ?? ''}</small>
         <small>${bornLabel} Eğitim ${Math.floor(c.educationXp ?? 0)}% · 😊 %${happiness}</small>
-        ${careerInfo ? `<small>🎓 ${careerInfo.emoji} ${careerInfo.name} — ${careerInfo.bonusLabel}</small>` : ''}
+        ${eduPathDef ? `<small>📚 ${eduPathDef.emoji} ${eduPathDef.name}</small>` : ''}
+        ${roleDef ? `<small>👔 ${roleDef.emoji} ${roleDef.name} — ${roleDef.bonusLabel}</small>` : ''}
+        ${careerInfo && !roleDef ? `<small>🎓 ${careerInfo.emoji} ${careerInfo.name} — ${careerInfo.bonusLabel}</small>` : ''}
       </div>
     `
     const actions = document.createElement('div')
     actions.className = 'child-card-actions'
+
+    // Eğitim yolu seçimi (10+ yaş ve henüz seçilmemişse — Aşama 13)
+    if (ageYears >= 10 && !c.educationPath) {
+      const eduLabel = document.createElement('small')
+      eduLabel.className = 'child-career-prompt'
+      eduLabel.textContent = '📚 Eğitim yolu seç:'
+      actions.appendChild(eduLabel)
+      for (const path of CHILD_EDUCATION_PATHS) {
+        const eb = document.createElement('button')
+        eb.type = 'button'
+        eb.className = 'btn-sm btn-secondary'
+        eb.dataset.action = 'child-education-path'
+        eb.dataset.id = `${c.id}:${path.id}`
+        eb.title = path.description
+        eb.textContent = `${path.emoji} ${path.name}`
+        actions.appendChild(eb)
+      }
+    }
+
+    // Varis rolü atama (18+ yaş ve henüz rol almamışsa — Aşama 14)
+    if (ageYears >= 18 && !c.heirRole) {
+      const roleLabel = document.createElement('small')
+      roleLabel.className = 'child-career-prompt'
+      roleLabel.textContent = '👔 Şirkette rol ver:'
+      actions.appendChild(roleLabel)
+      // Eğitim yoluna uygun rolü öne çıkar
+      const suggestedRole = c.educationPath
+        ? CHILD_EDUCATION_PATHS.find((p) => p.id === c.educationPath)?.leadsToRole
+        : null
+      for (const role of HEIR_ROLES) {
+        const rb = document.createElement('button')
+        rb.type = 'button'
+        rb.className = `btn-sm btn-secondary${role.id === suggestedRole ? ' role-suggested' : ''}`
+        rb.dataset.action = 'heir-role'
+        rb.dataset.id = `${c.id}:${role.id}`
+        rb.title = `${role.description} · ${role.bonusLabel}`
+        rb.textContent = `${role.emoji} ${role.name}${role.id === suggestedRole ? ' ⭐' : ''}`
+        actions.appendChild(rb)
+      }
+    }
 
     // Vakit geçir
     const timeBtn = document.createElement('button')
@@ -443,23 +558,6 @@ export class DynastyPanel {
       freeBtn.dataset.id = `${c.id}:free`
       freeBtn.textContent = '🎈 Serbest'
       actions.append(strictBtn, freeBtn)
-    }
-
-    // Kariyer seçimi (18+ ve henüz seçilmemişse)
-    if (ageYears >= 18 && !c.career) {
-      const careerLabel = document.createElement('small')
-      careerLabel.className = 'child-career-prompt'
-      careerLabel.textContent = '🎯 Kariyer seç:'
-      actions.appendChild(careerLabel)
-      for (const career of CHILD_CAREERS) {
-        const cb = document.createElement('button')
-        cb.type = 'button'
-        cb.className = 'btn-sm btn-secondary'
-        cb.dataset.action = 'child-career'
-        cb.dataset.id = `${c.id}:${career.id}`
-        cb.textContent = `${career.emoji} ${career.name}`
-        actions.appendChild(cb)
-      }
     }
 
     const pick = document.createElement('button')
