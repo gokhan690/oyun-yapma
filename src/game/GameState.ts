@@ -3349,25 +3349,41 @@ export class GameState {
   }
 
   /** Offline kazancı hesapla — otomatik verilmez */
+  /**
+   * Offline gelir cap (Aşama 17 — offline sistem).
+   * Real saat cinsinden offline süre → max gelir süresi (real dakika):
+   * 1s=15dk | 6s=30dk | 24s=60dk | 72s=120dk | 168s+=240dk
+   */
+  private offlineRealCapMs(awayMs: number): number {
+    const awayHours = awayMs / (60 * 60 * 1000)
+    const capMinutes = awayHours <= 1 ? 15
+      : awayHours <= 6 ? 30
+      : awayHours <= 24 ? 60
+      : awayHours <= 72 ? 120
+      : 240
+    return capMinutes * 60 * 1000
+  }
+
   applyOfflineEarnings(lastSaveTime: number): number {
     const awayMs = Date.now() - lastSaveTime
     this.lastActiveAt = Date.now()
     this.pendingOfflineEarnings = 0
 
     if (awayMs >= COMEBACK_MIN_AWAY_MS && this.comebackClaimedDay !== todayKey()) {
-      const elapsed = Math.min(awayMs, this.offlineCapMs())
-      const gameDaysAway = elapsed / MS_PER_GAME_DAY
+      const capMs = this.offlineRealCapMs(awayMs)
+      const gameDaysAway = capMs / MS_PER_GAME_DAY
       let base = 0
       for (const p of PRODUCERS) {
         base += this.producerIncome(p) * gameDaysAway
       }
-      const mult = awayMs >= 72 * 60 * 60 * 1000 ? 3 : awayMs >= 48 * 60 * 60 * 1000 ? 2 : 1.5
+      const mult = awayMs >= 72 * 60 * 60 * 1000 ? 1.5 : 1.2
       this.comebackPending = Math.floor(base * mult)
       this.triggerStoryBeat('comeback')
       this.emit({ type: 'comeback_ready', amount: this.comebackPending })
     }
 
-    const elapsed = Math.min(awayMs, this.offlineCapMs())
+    const capMs = this.offlineRealCapMs(awayMs)
+    const elapsed = Math.min(awayMs, capMs)
     if (elapsed < MS_PER_GAME_DAY) return 0
     const gameDaysAway = elapsed / MS_PER_GAME_DAY
     let amount = 0
