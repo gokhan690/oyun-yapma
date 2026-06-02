@@ -46,6 +46,14 @@ import { parseFranchiseAction } from './components/shop/FranchiseBlock'
 import { markRecentlyBought } from './components/shop/ShopBusinessTierView'
 import { LifestylePanel } from './components/LifestylePanel'
 import { CareerPanel } from './components/CareerPanel'
+import {
+  TIME_SKIP_OPTIONS,
+  getTimeSkipWarnings,
+  rollTimeSkipRisks,
+  timeSkipEconMs,
+  type TimeSkipOption,
+} from '../game/TimeSkip'
+import { playerGameAge } from '../game/Dynasty'
 import { FRANCHISE_CITIES, franchiseOpenFailureReason } from '../game/Franchise'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
@@ -178,6 +186,7 @@ export class HUD {
         this.toast('🚀 Artık tam zamanlı girişimcisin!')
         this.careerPanel.render()
       },
+      () => this.showTimeSkipModal(),
     )
     this.tutorial = new Tutorial(state)
     this.tutorial.setTabHandler((tab) => this.shop.setTab(tab, this.state))
@@ -3174,6 +3183,152 @@ export class HUD {
       locks[view] = navLockReason(view, this.state.producers, this.state.totalEarned)
     }
     this.bottomNav.setNavLocked(locks)
+  }
+
+  showTimeSkipModal(): void {
+    const s = this.state
+    const ctx = {
+      heat: s.illegalHeat,
+      loan: s.bank.loan,
+      totalIncome: s.incomePerDay() * 365,
+      playerAge: playerGameAge(s.gameTimeMs, s.dynasty),
+      stress: s.career.stress,
+      hasHeir: !!s.dynasty.activeHeirId,
+      hasWill: false,
+      stockPortfolioValue: 0,
+      reputation: s.reputation,
+    }
+
+    const body = document.createElement('div')
+    body.className = 'timeskip-modal'
+
+    const intro = document.createElement('p')
+    intro.className = 'timeskip-intro'
+    intro.textContent = 'Hayat zamanını ileri sar. Para düşük gelir, riskler çalışır.'
+    body.appendChild(intro)
+
+    const grid = document.createElement('div')
+    grid.className = 'timeskip-grid'
+
+    for (const opt of TIME_SKIP_OPTIONS) {
+      const warnings = getTimeSkipWarnings(opt.id, ctx)
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = `timeskip-option-btn${warnings.length > 0 ? ' has-warning' : ''}`
+      const incomePct = Math.round(opt.incomeRatio * 100)
+      btn.innerHTML =
+        `<span class="ts-emoji">${opt.emoji}</span>` +
+        `<span class="ts-label">${opt.label}</span>` +
+        `<span class="ts-income">Gelir: %${incomePct}</span>` +
+        `<span class="ts-desc">${opt.description}</span>` +
+        (warnings.length > 0 ? `<span class="ts-warn">⚠️ ${warnings.length} risk</span>` : '')
+      btn.addEventListener('click', () => {
+        this.modals.close()
+        this.executeTimeSkip(opt.id, ctx)
+      })
+      grid.appendChild(btn)
+    }
+
+    body.appendChild(grid)
+
+    const cancelBtn = document.createElement('button')
+    cancelBtn.type = 'button'
+    cancelBtn.className = 'btn-secondary'
+    cancelBtn.textContent = 'Vazgeç'
+    cancelBtn.addEventListener('click', () => this.modals.close())
+
+    this.modals.showContent('⏳ Zamanı İleri Sar', body, [cancelBtn])
+  }
+
+  private executeTimeSkip(skipId: TimeSkipOption, ctx: Parameters<typeof getTimeSkipWarnings>[1]): void {
+    const opt = TIME_SKIP_OPTIONS.find((o) => o.id === skipId)
+    if (!opt) return
+
+    const warnings = getTimeSkipWarnings(skipId, ctx)
+    if (warnings.length > 0) {
+      const warnBody = document.createElement('div')
+      warnBody.className = 'timeskip-warnings'
+      const introEl = document.createElement('p')
+      introEl.textContent = 'Bu riskler gerçekleşebilir. Yine de devam etmek istiyor musun?'
+      warnBody.appendChild(introEl)
+      for (const w of warnings) {
+        const el = document.createElement('p')
+        el.className = 'timeskip-warn-item'
+        el.textContent = w
+        warnBody.appendChild(el)
+      }
+      const continueBtn = document.createElement('button')
+      continueBtn.type = 'button'
+      continueBtn.className = 'btn-primary'
+      continueBtn.textContent = 'Devam Et'
+      continueBtn.addEventListener('click', () => {
+        this.modals.close()
+        this.applyTimeSkip(skipId)
+      })
+      const cancelBtn = document.createElement('button')
+      cancelBtn.type = 'button'
+      cancelBtn.className = 'btn-secondary'
+      cancelBtn.textContent = 'Vazgeç'
+      cancelBtn.addEventListener('click', () => this.modals.close())
+      this.modals.showContent(`⚠️ ${opt.label} — Riskler`, warnBody, [continueBtn, cancelBtn])
+      return
+    }
+    this.applyTimeSkip(skipId)
+  }
+
+  private applyTimeSkip(skipId: TimeSkipOption): void {
+    const s = this.state
+    const opt = TIME_SKIP_OPTIONS.find((o) => o.id === skipId)
+    if (!opt) return
+
+    const lifeMonths = opt.lifeMonths > 0
+      ? opt.lifeMonths
+      : opt.id === 'retirement' ? Math.max(1, 55 - playerGameAge(s.gameTimeMs, s.dynasty)) * 12
+      : opt.id === 'heir18' ? (() => {
+          const child = s.dynasty.children.find((c) => !c.career)
+          if (!child) return 12
+          const bornDay = child.bornGameDay
+          const currentDay = Math.floor(s.gameTimeMs / (12 * 1000)) + 1
+          const childAge = (currentDay - bornDay) / 365.25
+          return Math.max(1, Math.round((18 - childAge) * 12))
+        })() : 12
+
+    const econMs = timeSkipEconMs(lifeMonths)
+    const grossIncome = s.incomePerDay() * (econMs / (12 * 1000))
+    const netIncome = Math.floor(grossIncome * opt.incomeRatio)
+    const expenses = Math.floor(grossIncome * opt.expenseRatio * 0.15)
+
+    s.gameTimeMs += econMs
+    const finalMoney = Math.max(0, netIncome - expenses)
+    if (finalMoney > 0) s.addMoney(finalMoney, true)
+
+    const ctx = {
+      heat: s.illegalHeat,
+      loan: s.bank.loan,
+      totalIncome: s.incomePerDay() * 365,
+      playerAge: playerGameAge(s.gameTimeMs, s.dynasty),
+      stress: s.career.stress,
+      hasHeir: !!s.dynasty.activeHeirId,
+      hasWill: false,
+      stockPortfolioValue: 0,
+      reputation: s.reputation,
+    }
+    const risks = rollTimeSkipRisks(skipId, ctx)
+
+    let summary = `${opt.emoji} ${opt.label} tamamlandı\n+${finalMoney.toLocaleString('tr-TR')}₺ net kazanç`
+    if (risks.length > 0) {
+      for (const r of risks) {
+        summary += `\n${r.emoji} ${r.message}`
+        if (r.id === 'raid') {
+          const fine = Math.floor(s.money * 0.15)
+          s.money = Math.max(0, s.money - fine)
+        }
+      }
+    }
+
+    this.toast(summary.split('\n')[0])
+    this.renderAll()
+    this.careerPanel.render()
   }
 
   showOfflinePopup(amount: number): void {

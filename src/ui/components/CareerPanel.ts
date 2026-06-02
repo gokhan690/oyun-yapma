@@ -13,15 +13,18 @@ export class CareerPanel {
   private state: GameState
   private onAction: (actionId: CareerActionId) => void
   private onBecomeEntrepreneur: () => void
+  private onTimeSkip: () => void
 
   constructor(
     state: GameState,
     onAction: (actionId: CareerActionId) => void,
     onBecomeEntrepreneur: () => void,
+    onTimeSkip: () => void = () => {},
   ) {
     this.state = state
     this.onAction = onAction
     this.onBecomeEntrepreneur = onBecomeEntrepreneur
+    this.onTimeSkip = onTimeSkip
     this.root = document.createElement('div')
     this.root.className = 'career-panel tab-panel'
     this.root.hidden = true
@@ -233,6 +236,12 @@ export class CareerPanel {
       </div>
     `
 
-    this.root.append(header, infoCard)
+    const timeSkipBtn = document.createElement('button')
+    timeSkipBtn.type = 'button'
+    timeSkipBtn.className = 'career-timeskip-btn'
+    timeSkipBtn.innerHTML = `<span>⏳ Zamanı İleri Sar</span><small>Çocuk büyüt, varis yetişir, yaşı ilerlet</small>`
+    timeSkipBtn.addEventListener('click', () => this.onTimeSkip())
+
+    this.root.append(header, infoCard, timeSkipBtn)
   }
 }
