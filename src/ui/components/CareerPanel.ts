@@ -7,6 +7,7 @@ import {
   FIRST_GOAL_TARGET,
   type CareerActionId,
 } from '../../game/Career'
+import { Dashboard } from './Dashboard'
 
 export class CareerPanel {
   readonly root: HTMLElement
@@ -14,6 +15,7 @@ export class CareerPanel {
   private onAction: (actionId: CareerActionId) => void
   private onBecomeEntrepreneur: () => void
   private onTimeSkip: () => void
+  private dashboard: Dashboard
 
   constructor(
     state: GameState,
@@ -25,6 +27,7 @@ export class CareerPanel {
     this.onAction = onAction
     this.onBecomeEntrepreneur = onBecomeEntrepreneur
     this.onTimeSkip = onTimeSkip
+    this.dashboard = new Dashboard(state)
     this.root = document.createElement('div')
     this.root.className = 'career-panel tab-panel'
     this.root.hidden = true
@@ -36,6 +39,10 @@ export class CareerPanel {
     const career = s.career
     const job = careerJobDef(career.jobId)
     this.root.replaceChildren()
+
+    // Ana dashboard her zaman üstte (Aşama 2)
+    this.dashboard.render()
+    this.root.appendChild(this.dashboard.root)
 
     const pageTitle = careerPageLabel(career.isEntrepreneur, s.totalEarned)
 
