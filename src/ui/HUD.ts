@@ -51,6 +51,7 @@ import {
   getTimeSkipWarnings,
   rollTimeSkipRisks,
   timeSkipEconMs,
+  predictTimeSkip,
   type TimeSkipOption,
 } from '../game/TimeSkip'
 import { playerGameAge } from '../game/Dynasty'
@@ -3284,48 +3285,12 @@ export class HUD {
     this.modals.showContent('⏳ Zamanı İleri Sar', body, [cancelBtn])
   }
 
-  private executeTimeSkip(skipId: TimeSkipOption, ctx: Parameters<typeof getTimeSkipWarnings>[1]): void {
-    const opt = TIME_SKIP_OPTIONS.find((o) => o.id === skipId)
-    if (!opt) return
-
-    const warnings = getTimeSkipWarnings(skipId, ctx)
-    if (warnings.length > 0) {
-      const warnBody = document.createElement('div')
-      warnBody.className = 'timeskip-warnings'
-      const introEl = document.createElement('p')
-      introEl.textContent = 'Bu riskler gerçekleşebilir. Yine de devam etmek istiyor musun?'
-      warnBody.appendChild(introEl)
-      for (const w of warnings) {
-        const el = document.createElement('p')
-        el.className = 'timeskip-warn-item'
-        el.textContent = w
-        warnBody.appendChild(el)
-      }
-      const continueBtn = document.createElement('button')
-      continueBtn.type = 'button'
-      continueBtn.className = 'btn-primary'
-      continueBtn.textContent = 'Devam Et'
-      continueBtn.addEventListener('click', () => {
-        this.modals.close()
-        this.applyTimeSkip(skipId)
-      })
-      const cancelBtn = document.createElement('button')
-      cancelBtn.type = 'button'
-      cancelBtn.className = 'btn-secondary'
-      cancelBtn.textContent = 'Vazgeç'
-      cancelBtn.addEventListener('click', () => this.modals.close())
-      this.modals.showContent(`⚠️ ${opt.label} — Riskler`, warnBody, [continueBtn, cancelBtn])
-      return
-    }
-    this.applyTimeSkip(skipId)
-  }
-
-  private applyTimeSkip(skipId: TimeSkipOption): void {
+  /** Time skip seçeneğinin gerçek hayat-ayı uzunluğunu çöz */
+  private resolveTimeSkipMonths(skipId: TimeSkipOption): number {
     const s = this.state
     const opt = TIME_SKIP_OPTIONS.find((o) => o.id === skipId)
-    if (!opt) return
-
-    const lifeMonths = opt.lifeMonths > 0
+    if (!opt) return 12
+    return opt.lifeMonths > 0
       ? opt.lifeMonths
       : opt.id === 'retirement' ? Math.max(1, 55 - playerGameAge(s.gameTimeMs, s.dynasty)) * 12
       : opt.id === 'heir18' ? (() => {
@@ -3336,6 +3301,92 @@ export class HUD {
           const childAge = (currentDay - bornDay) / 365.25
           return Math.max(1, Math.round((18 - childAge) * 12))
         })() : 12
+  }
+
+  /** Detaylı tahmin ekranı göster (Aşama 12 — para hilesi olmadığını kanıtlar) */
+  private executeTimeSkip(skipId: TimeSkipOption, ctx: Parameters<typeof getTimeSkipWarnings>[1]): void {
+    const s = this.state
+    const opt = TIME_SKIP_OPTIONS.find((o) => o.id === skipId)
+    if (!opt) return
+
+    const lifeMonths = this.resolveTimeSkipMonths(skipId)
+    const currentDay = Math.floor(s.gameTimeMs / (12 * 1000)) + 1
+    const children = s.dynasty.children.map((c) => ({
+      name: c.name,
+      ageYears: Math.floor((currentDay - c.bornGameDay) / 365.25),
+    }))
+    const pred = predictTimeSkip(lifeMonths, opt, ctx, s.incomePerDay(), 12 * 1000, children)
+
+    const body = document.createElement('div')
+    body.className = 'timeskip-predict'
+
+    // Olacaklar bölümü
+    const changes = document.createElement('div')
+    changes.className = 'ts-predict-section'
+    changes.innerHTML = `<h4 class="ts-predict-h">📅 Olacaklar</h4>`
+    const changeList = document.createElement('ul')
+    changeList.className = 'ts-predict-list'
+    changeList.innerHTML = `<li>Karakter <strong>${ctx.playerAge} → ${pred.newPlayerAge} yaş</strong></li>`
+    for (const c of pred.childAges) {
+      changeList.innerHTML += `<li>${c.name} <strong>${c.from} → ${c.to} yaş</strong></li>`
+    }
+    if (pred.childAges.length > 0) {
+      changeList.innerHTML += `<li>Çocukların eğitimi ilerleyecek</li>`
+    }
+    changes.appendChild(changeList)
+    body.appendChild(changes)
+
+    // Para tahmini bölümü
+    const money = document.createElement('div')
+    money.className = 'ts-predict-section'
+    money.innerHTML = `<h4 class="ts-predict-h">💰 Tahmini Para</h4>`
+    const fmt = (n: number) => `${n >= 0 ? '' : '-'}${formatMoney(Math.abs(n))}`
+    money.innerHTML += `
+      <div class="ts-money-row"><span>Brüt gelir</span><span>${formatMoney(pred.grossIncome)}</span></div>
+      <div class="ts-money-row"><span>Skip verimi (%${Math.round(opt.incomeRatio * 100)})</span><span class="ts-pos">${formatMoney(pred.netIncome)}</span></div>
+      <div class="ts-money-row"><span>Giderler</span><span class="ts-neg">-${formatMoney(pred.expenses)}</span></div>
+      <div class="ts-money-row"><span>Risk düzeltmesi</span><span class="ts-neg">-${formatMoney(pred.riskAdjustment)}</span></div>
+      <div class="ts-money-row ts-money-final"><span>Tahmini net</span><span class="${pred.finalEstimate >= 0 ? 'ts-pos' : 'ts-neg'}">${fmt(pred.finalEstimate)}</span></div>
+    `
+    body.appendChild(money)
+
+    // Riskler bölümü
+    if (pred.warnings.length > 0) {
+      const risks = document.createElement('div')
+      risks.className = 'ts-predict-section'
+      risks.innerHTML = `<h4 class="ts-predict-h ts-predict-h-warn">⚠️ Riskler</h4>`
+      const rl = document.createElement('ul')
+      rl.className = 'ts-predict-list ts-predict-risks'
+      for (const w of pred.warnings) {
+        rl.innerHTML += `<li>${w}</li>`
+      }
+      risks.appendChild(rl)
+      body.appendChild(risks)
+    }
+
+    const continueBtn = document.createElement('button')
+    continueBtn.type = 'button'
+    continueBtn.className = 'btn-primary'
+    continueBtn.textContent = '⏩ Devam Et'
+    continueBtn.addEventListener('click', () => {
+      this.modals.close()
+      this.applyTimeSkip(skipId)
+    })
+    const cancelBtn = document.createElement('button')
+    cancelBtn.type = 'button'
+    cancelBtn.className = 'btn-secondary'
+    cancelBtn.textContent = 'Vazgeç'
+    cancelBtn.addEventListener('click', () => this.modals.close())
+
+    this.modals.showContent(`${opt.emoji} ${opt.label}`, body, [continueBtn, cancelBtn])
+  }
+
+  private applyTimeSkip(skipId: TimeSkipOption): void {
+    const s = this.state
+    const opt = TIME_SKIP_OPTIONS.find((o) => o.id === skipId)
+    if (!opt) return
+
+    const lifeMonths = this.resolveTimeSkipMonths(skipId)
 
     const econMs = timeSkipEconMs(lifeMonths)
     const grossIncome = s.incomePerDay() * (econMs / (12 * 1000))

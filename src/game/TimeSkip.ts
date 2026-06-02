@@ -205,3 +205,59 @@ export function adTimeSkipBonus(skipId: TimeSkipOption): number {
   if (def.lifeMonths <= 12) return 0.10
   return 0
 }
+
+export interface TimeSkipPrediction {
+  lifeMonths: number
+  newPlayerAge: number
+  grossIncome: number
+  netIncome: number
+  expenses: number
+  riskAdjustment: number
+  finalEstimate: number
+  warnings: string[]
+  childAges: { name: string; from: number; to: number }[]
+}
+
+/**
+ * Time skip tahmini — ekranda gösterilecek detaylı önizleme (Aşama 12).
+ * Oyuncu para hilesi olmadığını net görür.
+ */
+export function predictTimeSkip(
+  lifeMonths: number,
+  opt: TimeSkipDef,
+  ctx: TimeSkipContext,
+  incomePerDayGameMs: number,
+  econMsPerGameDay: number,
+  children: { name: string; ageYears: number }[],
+): TimeSkipPrediction {
+  const econMs = timeSkipEconMs(lifeMonths)
+  const gameDays = econMs / econMsPerGameDay
+  const grossIncome = incomePerDayGameMs * gameDays
+  const netIncome = Math.floor(grossIncome * opt.incomeRatio)
+  const expenses = Math.floor(grossIncome * opt.expenseRatio * 0.15)
+  // Risk düzeltmesi: heat/borç/yaş arttıkça beklenen kayıp
+  let riskAdjustment = 0
+  if (ctx.heat >= 50) riskAdjustment += grossIncome * 0.05 * (ctx.heat / 100)
+  if (ctx.loan > ctx.totalIncome) riskAdjustment += ctx.loan * 0.05
+  riskAdjustment = Math.floor(riskAdjustment)
+  const finalEstimate = netIncome - expenses - riskAdjustment
+
+  const ageGain = Math.floor(lifeMonths / 12)
+  const childAges = children.map((c) => ({
+    name: c.name,
+    from: c.ageYears,
+    to: c.ageYears + ageGain,
+  }))
+
+  return {
+    lifeMonths,
+    newPlayerAge: ctx.playerAge + ageGain,
+    grossIncome: Math.floor(grossIncome),
+    netIncome,
+    expenses,
+    riskAdjustment,
+    finalEstimate,
+    warnings: getTimeSkipWarnings(opt.id, ctx),
+    childAges,
+  }
+}

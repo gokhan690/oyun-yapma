@@ -9330,3 +9330,20 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
 .dash-heir-line { font-size: 10px; color: var(--green); font-weight: 600; }
 .dash-heir-line.dash-heir-none { color: #f8b84e; }
 .gauge-chart, .donut-chart, .line-chart, .spark { display: block; }
+
+/* ====================== TIME SKIP TAHMİN EKRANI ====================== */
+.timeskip-predict { display: flex; flex-direction: column; gap: 14px; }
+.ts-predict-section { background: var(--surface2); border-radius: 12px; padding: 10px 12px; }
+.ts-predict-h { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin: 0 0 8px; }
+.ts-predict-h-warn { color: #f8b84e; }
+.ts-predict-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.ts-predict-list li { font-size: 12px; color: var(--text); padding-left: 16px; position: relative; }
+.ts-predict-list li::before { content: "→"; position: absolute; left: 0; color: var(--accent); }
+.ts-predict-risks li::before { content: "⚠"; color: #f8b84e; }
+.ts-predict-risks li { color: var(--muted); }
+.ts-money-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; color: var(--text); }
+.ts-money-row span:first-child { color: var(--muted); }
+.ts-money-final { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 7px; font-weight: 800; font-size: 14px; }
+.ts-money-final span:first-child { color: var(--text); }
+.ts-pos { color: var(--green); font-weight: 700; }
+.ts-neg { color: var(--accent2); font-weight: 700; }
