@@ -2488,10 +2488,13 @@ export class GameState {
   producerCostFor(def: ProducerDef, owned: number, count = 1): number {
     const raw = producerCost(def, owned, count)
     const efficiencyDiscount = researchEfficiencyBonus(this.research)
+    // Aile Şirketi geçmişi işletme maliyetini düşürür (Aşama 1)
+    const bgCostDiscount = backgroundDef(this.characterBackground)?.costDiscount ?? 0
     let cost = Math.floor(
       raw
         * (1 - producerCostDiscount(this.prestigeTree))
         * (1 - efficiencyDiscount)
+        * (1 - bgCostDiscount)
         * this.dynastyCostMult()
         * reputationCostMult(this.reputation)
         * personalityCostMult(this.personality)
@@ -3819,6 +3822,12 @@ export class GameState {
     if (delta === 0) return
     // Diplomat kişiliği pozitif itibar kazancını güçlendirir
     if (delta > 0) delta = delta * personalityReputationMult(this.personality)
+    // Siyasi Varis + Sıfırdan Gelen geçmişi pozitif itibarı artırır (Aşama 14 + 1)
+    if (delta > 0) {
+      delta *= 1 + this.heirReputationBonus()
+      const bg = backgroundDef(this.characterBackground)
+      if (bg?.id === 'sifirdan_gelen') delta *= 1.1
+    }
     const prev = this.reputation
     this.reputation = clampReputation(this.reputation + delta)
     if (this.reputation !== prev) {
@@ -4870,7 +4879,7 @@ export class GameState {
       ? this.dynasty.children.find((c) => c.id === this.dynasty.dynastyBonusId)
       : null
     const hasLawyerHeir = heir?.heirRole === 'hukukcu'
-    return calculateInheritance(
+    const base = calculateInheritance(
       !!this.dynasty.hasWill,
       !!this.dynasty.hasTrust,
       !!this.dynasty.dynastyBonusId,
@@ -4878,6 +4887,23 @@ export class GameState {
       hasLawyerHeir,
       this.dynasty.children.length,
     )
+    // Aileci Varis miras aktarımını artırır (Aşama 14)
+    const role = heirRoleDef(heir?.heirRole)
+    if (role?.inheritanceBonus) {
+      base.transferPct = Math.min(0.95, base.transferPct + role.inheritanceBonus)
+      base.reason.push(`${role.name}: +%${Math.round(role.inheritanceBonus * 100)}`)
+    }
+    // Aile anayasası kardeş kavgasını yumuşatır
+    if (this.dynasty.hasFamilyConstitution && this.dynasty.children.length > 1) {
+      base.transferPct = Math.min(0.95, base.transferPct + 0.05)
+      base.reason.push('Aile anayasası: +%5')
+    }
+    return base
+  }
+
+  /** Siyasi Varis itibar kazancı bonusu (Aşama 14) */
+  heirReputationBonus(): number {
+    return this.activeHeirRole()?.reputationBonus ?? 0
   }
 
   annualFocusBonus: string | null = null
