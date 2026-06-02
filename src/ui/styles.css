@@ -9276,3 +9276,9 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
 .inheritance-btn.plan-done { border-color: var(--green) !important; color: var(--green) !important; opacity: 0.85; }
 .role-suggested { border-color: var(--accent) !important; background: rgba(201,127,0,0.1) !important; font-weight: 700; }
 .child-career-prompt { display: block; width: 100%; margin-top: 4px; font-weight: 700; color: var(--muted); }
+
+/* ====================== AİLE SİSTEMİ YAŞ KİLİDİ ====================== */
+.family-locked-banner { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 20px 16px; background: var(--surface2); border-radius: 12px; border: 1px dashed var(--border); margin: 8px 0; }
+.family-locked-emoji { font-size: 36px; opacity: 0.6; }
+.family-locked-banner strong { font-size: 14px; color: var(--text); }
+.family-locked-banner p { font-size: 12px; color: var(--muted); margin: 0; line-height: 1.5; }

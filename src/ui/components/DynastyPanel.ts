@@ -106,7 +106,22 @@ export class DynastyPanel {
     this.renderSocialStatus()
   }
 
+  /** Aile sistemi yaş kapısı (Aşama 11 — ~25 yaş civarı açılır) */
+  private static readonly FAMILY_UNLOCK_AGE = 25
+
   private renderMarriage(): void {
+    const age = this.state.playerAge()
+    if (age < DynastyPanel.FAMILY_UNLOCK_AGE) {
+      const locked = document.createElement('div')
+      locked.className = 'family-locked-banner'
+      locked.innerHTML = `
+        <span class="family-locked-emoji">💍</span>
+        <strong>Aile sistemi ${DynastyPanel.FAMILY_UNLOCK_AGE} yaşında açılır</strong>
+        <p>Şu an ${age} yaşındasın. Önce kariyerine ve işine odaklan — evlilik ve çocuk sistemi olgunlaşınca açılacak.</p>
+      `
+      this.root.appendChild(locked)
+      return
+    }
     const p = document.createElement('p')
     p.className = 'dynasty-desc'
     p.textContent = this.state.playerGender === 'female'
