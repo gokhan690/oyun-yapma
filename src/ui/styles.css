@@ -9567,3 +9567,27 @@ html.reduced-motion .dashboard, html.reduced-motion .money-pop, html.reduced-mot
 .biz-level-max { color: var(--green); background: rgba(52,211,153,0.12); }
 .biz-levelup-btn { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 12px !important; text-align: left; }
 .biz-levelup-btn small { font-size: 10px; opacity: 0.85; font-weight: 400; }
+
+/* ====================== İMPARATORLUK DEPARTMANLARI (Karar 11-13) ====================== */
+.departments-panel { margin-top: 12px; }
+.dept-header { margin-bottom: 10px; }
+.dept-title { font-size: 16px; font-weight: 800; margin: 0; }
+.dept-sub { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
+.dept-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dept-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.dept-card.dept-locked { opacity: 0.55; }
+.dept-card-head { display: flex; align-items: center; gap: 6px; }
+.dept-emoji { font-size: 18px; }
+.dept-card-head strong { font-size: 13px; flex: 1; }
+.dept-level-badge { font-size: 11px; font-weight: 800; color: var(--accent); background: rgba(201,127,0,0.12); border-radius: 6px; padding: 2px 6px; }
+.dept-bonus { font-size: 10px; color: var(--green); font-weight: 600; }
+.dept-unlock { font-size: 10px; color: var(--muted); }
+.dept-progress { height: 5px; background: var(--surface); border-radius: 999px; overflow: hidden; }
+.dept-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); border-radius: 999px; transition: width 0.4s; }
+.dept-upgrade-btn { padding: 7px !important; font-size: 12px; }
+.dept-max-badge { font-size: 11px; font-weight: 700; color: var(--green); text-align: center; padding: 6px; background: rgba(52,211,153,0.1); border-radius: 8px; }
+.dept-task { margin-top: 2px; }
+.dept-task-label { font-size: 9px; color: var(--muted); }
+.dept-task-ready { animation: deptTaskPulse 1.5s infinite; }
+.dept-task-btn { width: 100%; padding: 6px !important; font-size: 11px; }
+@keyframes deptTaskPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }

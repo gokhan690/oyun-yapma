@@ -447,6 +447,22 @@ import { pickDisaster, disasterDamage } from './NaturalDisasters'
 import { progressPathSnapshot, type ProgressPathSnapshot } from './ProgressPath'
 import { firmLevelIncomeMult, firmLevelUpCost, FIRM_MAX_LEVEL } from './FirmLevels'
 import {
+  createDepartmentState,
+  departmentUpgradeCost,
+  departmentDef,
+  isDepartmentTaskComplete,
+  operasyonLegalBonus,
+  finansProducerBonus,
+  pazarlamaGlobalBonus,
+  hukukRaidReduction,
+  argeBonus,
+  lojistikCostReduction,
+  guvenlikRivalReduction,
+  aileOfisiInheritanceBonus,
+  DEPARTMENT_MAX_LEVEL,
+  type DepartmentId,
+} from './EmpireDepartments'
+import {
   createCareerState,
   applyCareerAction,
   applyDailyWage,
@@ -641,6 +657,8 @@ export interface SerializableState {
   characterBackground?: import('./Career').CharacterBackgroundId | null
   netWorthHistory?: number[]
   producerLevels?: Record<string, number>
+  departments?: Record<string, number>
+  departmentTasksClaimed?: import('./EmpireDepartments').DepartmentId[]
 }
 
 export interface ProducerBreakdown {
@@ -915,6 +933,10 @@ export class GameState {
   characterBackground: CharacterBackgroundId | null = null
   /** Firma seviyeleri (Karar 9) — varsayılan 1 */
   producerLevels: Record<string, number> = {}
+  /** İmparatorluk departman seviyeleri (Karar 11-12) */
+  departments: Record<DepartmentId, number> = createDepartmentState()
+  /** Tamamlanıp ödülü alınmış departman görevleri (Karar 13) */
+  departmentTasksClaimed: DepartmentId[] = []
   /** Net değer geçmişi (grafik için) — son 60 örnek, ~her 10sn */
   netWorthHistory: number[] = []
   private lastNetWorthSample = 0
@@ -1038,6 +1060,72 @@ export class GameState {
     this.addGazette(`⬆️ ${producerName(def)} Lv.${level + 1}'e yükseltildi`, 'player')
     this.emit({ type: 'money_changed' })
     this.emit({ type: 'purchase' })
+    return true
+  }
+
+  // ——— İmparatorluk departmanları (Karar 11-13) ———
+
+  departmentLevel(id: DepartmentId): number {
+    return this.departments[id] ?? 0
+  }
+
+  departmentUpgradeCostFor(id: DepartmentId): number {
+    return departmentUpgradeCost(id, this.departmentLevel(id))
+  }
+
+  /** Departmanı bir seviye yükselt */
+  upgradeDepartment(id: DepartmentId): boolean {
+    const level = this.departmentLevel(id)
+    if (level >= DEPARTMENT_MAX_LEVEL) return false
+    const def = departmentDef(id)
+    if (this.totalEarned < def.unlockAt) return false
+    const cost = this.departmentUpgradeCostFor(id)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.departments[id] = level + 1
+    this.addGazette(`🏛️ ${def.name} departmanı Lv.${level + 1}'e yükseltildi`, 'player')
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  /** Departman açık mı? */
+  isDepartmentUnlocked(id: DepartmentId): boolean {
+    return this.totalEarned >= departmentDef(id).unlockAt
+  }
+
+  /** Departman görevi tamamlandı mı? (henüz ödül alınmamış) */
+  departmentTaskReady(id: DepartmentId): boolean {
+    if (this.departmentTasksClaimed.includes(id)) return false
+    return isDepartmentTaskComplete(id, this.departmentTaskContext())
+  }
+
+  private departmentTaskContext() {
+    const leveledFirms = Object.values(this.producerLevels).filter((l) => l >= 2).length
+    const ownedBusinesses = Object.values(this.producers).filter((n) => n > 0).length
+    const researchNodes = Object.values(this.research).filter((l) => l > 0).length
+    const rivalDeals = this.rivals.filter((r) => r.relation === 'allied' || r.relation === 'merged').length
+    return {
+      leveledFirms,
+      netWorth: this.financeNetWorth(),
+      ownedBusinesses,
+      heat: this.illegalHeat,
+      researchNodes,
+      rivalDeals,
+      hasWill: !!this.dynasty.hasWill,
+    }
+  }
+
+  /** Departman görev ödülünü al (Karar 13) — departman seviye + para */
+  claimDepartmentTask(id: DepartmentId): boolean {
+    if (!this.departmentTaskReady(id)) return false
+    this.departmentTasksClaimed.push(id)
+    // Ödül: bedava 1 seviye + küçük itibar
+    const level = this.departmentLevel(id)
+    if (level < DEPARTMENT_MAX_LEVEL) this.departments[id] = level + 1
+    this.addReputation(5)
+    const def = departmentDef(id)
+    this.addGazette(`✅ ${def.name} görevi tamamlandı — bedava seviye + itibar`, 'player')
+    this.emit({ type: 'money_changed' })
     return true
   }
 
@@ -1678,6 +1766,9 @@ export class GameState {
       // Hukukçu Varis baskın cezasını azaltır (Aşama 14)
       const heirRaidReduction = this.activeHeirRole()?.raidPenaltyReduction ?? 0
       if (heirRaidReduction > 0) finePct *= 1 - heirRaidReduction
+      // Hukuk departmanı baskın cezasını azaltır (Karar 12)
+      const hukukReduction = hukukRaidReduction(this.departmentLevel('hukuk'))
+      if (hukukReduction > 0) finePct *= 1 - hukukReduction
       if (hasRaidInsurance(this.prestigeTree) && this.raidsToday === 0) finePct *= 0.5
       if (this.insurance.illegal && this.raidsToday === 0) {
         this.raidsToday++
@@ -1850,6 +1941,8 @@ export class GameState {
     mult *= 1 - careerStressPenalty(this.career.stress)
     // Hanedan nesil bonusu (Aşama 19 — küçük kalıcı kazanım)
     mult *= 1 + dynastyGenerationBonus(this.dynasty.generation)
+    // Pazarlama departmanı — tüm gelir (Karar 12)
+    mult *= 1 + pazarlamaGlobalBonus(this.departmentLevel('pazarlama'))
     // Soft cap: çok fazla bonus üst üste binemesin
     const softCap = Math.max(8, 8 + this.ipoCount * 4)
     if (mult > softCap) mult = softCap + (mult - softCap) * 0.25
@@ -1864,7 +1957,9 @@ export class GameState {
     // Üniversiteli geçmişi + Teknoloji Varisi araştırma bonusu (Aşama 1 + 14)
     const bgResearch = backgroundDef(this.characterBackground)?.researchBonus ?? 0
     const heirResearch = this.activeHeirRole()?.researchBonus ?? 0
-    return this.globalMultiplier() * researchPassiveBonus(this.research) * (1 + this.dayNightPassiveBonus()) * (1 + eduResearch + hobResearch + travelRes + homeRes + bgResearch + heirResearch)
+    // Ar-Ge departmanı (Karar 12)
+    const argeRes = argeBonus(this.departmentLevel('arge'))
+    return this.globalMultiplier() * researchPassiveBonus(this.research) * (1 + this.dayNightPassiveBonus()) * (1 + eduResearch + hobResearch + travelRes + homeRes + bgResearch + heirResearch + argeRes)
   }
 
   clickMultiplier(): number {
@@ -1947,6 +2042,9 @@ export class GameState {
     if (hobbyBonus > 0) mult *= 1 + hobbyBonus
     const cityBonus = this.cities ? (cityProducerBonus(this.cities, def.category) ?? 0) : 0
     if (cityBonus > 0) mult *= (1 + cityBonus)
+    // İmparatorluk departman bonusları (Karar 12)
+    if (!def.illegal) mult *= 1 + operasyonLegalBonus(this.departmentLevel('operasyon'))
+    if (def.category === 'finance') mult *= 1 + finansProducerBonus(this.departmentLevel('finans'))
     return scaledBaseIncome(def.baseIncome, def) * owned * mult * this.passiveMultiplier()
   }
 
@@ -2580,11 +2678,14 @@ export class GameState {
     const efficiencyDiscount = researchEfficiencyBonus(this.research)
     // Aile Şirketi geçmişi işletme maliyetini düşürür (Aşama 1)
     const bgCostDiscount = backgroundDef(this.characterBackground)?.costDiscount ?? 0
+    // Lojistik departmanı maliyet indirimi (Karar 12)
+    const lojistikDiscount = lojistikCostReduction(this.departmentLevel('lojistik'))
     let cost = Math.floor(
       raw
         * (1 - producerCostDiscount(this.prestigeTree))
         * (1 - efficiencyDiscount)
         * (1 - bgCostDiscount)
+        * (1 - lojistikDiscount)
         * this.dynastyCostMult()
         * reputationCostMult(this.reputation)
         * personalityCostMult(this.personality)
@@ -4147,11 +4248,13 @@ export class GameState {
     const response = ev.responses.find((r) => r.id === responseId)
     if (!response) return
 
+    // Güvenlik departmanı rakip hasarını azaltır (Karar 12)
+    const guvenlikRed = guvenlikRivalReduction(this.departmentLevel('guvenlik'))
     if (ev.reputationDamage > 0) {
-      this.reputation = Math.max(0, this.reputation - ev.reputationDamage)
+      this.reputation = Math.max(0, this.reputation - ev.reputationDamage * (1 - guvenlikRed))
     }
     if (ev.moneyDamage > 0) {
-      this.money = Math.max(0, this.money - ev.moneyDamage)
+      this.money = Math.max(0, this.money - Math.floor(ev.moneyDamage * (1 - guvenlikRed)))
       this.emit({ type: 'money_changed' })
     }
     if (response.cost > 0 && this.money >= response.cost) {
@@ -5032,6 +5135,12 @@ export class GameState {
     if (this.dynasty.hasFamilyConstitution && this.dynasty.children.length > 1) {
       base.transferPct = Math.min(0.95, base.transferPct + 0.05)
       base.reason.push('Aile anayasası: +%5')
+    }
+    // Aile Ofisi departmanı miras korumasını artırır (Karar 12)
+    const aileOfisi = aileOfisiInheritanceBonus(this.departmentLevel('aile_ofisi'))
+    if (aileOfisi > 0) {
+      base.transferPct = Math.min(0.95, base.transferPct + aileOfisi)
+      base.reason.push(`Aile Ofisi: +%${Math.round(aileOfisi * 100)}`)
     }
     return base
   }
@@ -5953,6 +6062,8 @@ export class GameState {
       characterBackground: this.characterBackground,
       netWorthHistory: [...this.netWorthHistory],
       producerLevels: { ...this.producerLevels },
+      departments: { ...this.departments },
+      departmentTasksClaimed: [...this.departmentTasksClaimed],
     }
   }
 
@@ -6118,6 +6229,12 @@ export class GameState {
     }
     if (data.producerLevels) {
       this.producerLevels = { ...data.producerLevels }
+    }
+    if (data.departments) {
+      this.departments = { ...createDepartmentState(), ...data.departments }
+    }
+    if (Array.isArray(data.departmentTasksClaimed)) {
+      this.departmentTasksClaimed = [...data.departmentTasksClaimed]
     }
     this.difficulty = (['easy', 'normal', 'hard'] as const).includes(data.difficulty as 'easy' | 'normal' | 'hard')
       ? (data.difficulty as 'easy' | 'normal' | 'hard')

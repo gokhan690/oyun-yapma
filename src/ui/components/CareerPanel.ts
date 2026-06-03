@@ -10,6 +10,7 @@ import {
   type CareerJobId,
 } from '../../game/Career'
 import { Dashboard } from './Dashboard'
+import { DepartmentsPanel } from './DepartmentsPanel'
 import { incomeExpenseBars } from './Charts'
 
 export class CareerPanel {
@@ -20,6 +21,7 @@ export class CareerPanel {
   private onTimeSkip: () => void
   private onSelectJob: (jobId: CareerJobId) => void
   private dashboard: Dashboard
+  private departmentsPanel: DepartmentsPanel
 
   constructor(
     state: GameState,
@@ -34,6 +36,7 @@ export class CareerPanel {
     this.onTimeSkip = onTimeSkip
     this.onSelectJob = onSelectJob
     this.dashboard = new Dashboard(state)
+    this.departmentsPanel = new DepartmentsPanel(state, () => this.render())
     this.root = document.createElement('div')
     this.root.className = 'career-panel tab-panel'
     this.root.hidden = true
@@ -303,12 +306,15 @@ export class CareerPanel {
       </div>
     `
 
+    // İmparatorluk departman yönetimi (Karar 11-13)
+    this.departmentsPanel.render()
+
     const timeSkipBtn = document.createElement('button')
     timeSkipBtn.type = 'button'
     timeSkipBtn.className = 'career-timeskip-btn'
     timeSkipBtn.innerHTML = `<span>⏳ Zamanı İleri Sar</span><small>Çocuk büyüt, varis yetişir, yaşı ilerlet</small>`
     timeSkipBtn.addEventListener('click', () => this.onTimeSkip())
 
-    this.root.append(header, infoCard, report, timeSkipBtn)
+    this.root.append(header, infoCard, report, this.departmentsPanel.root, timeSkipBtn)
   }
 }
