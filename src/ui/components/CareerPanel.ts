@@ -8,6 +8,7 @@ import {
   type CareerActionId,
 } from '../../game/Career'
 import { Dashboard } from './Dashboard'
+import { incomeExpenseBars } from './Charts'
 
 export class CareerPanel {
   readonly root: HTMLElement
@@ -243,12 +244,27 @@ export class CareerPanel {
       </div>
     `
 
+    // Aylık gelir/gider raporu (Aşama 3C)
+    const monthlyIncome = Math.floor(s.incomePerDay() * 30)
+    const monthlyExpense = s.estimatedMonthlyExpense()
+    const net = monthlyIncome - monthlyExpense
+    const report = document.createElement('div')
+    report.className = 'career-monthly-report'
+    report.innerHTML = `
+      <h3 class="career-report-title">📊 Aylık Rapor</h3>
+      ${incomeExpenseBars(monthlyIncome, monthlyExpense)}
+      <div class="career-report-net">
+        <span>Net Aylık Kâr</span>
+        <strong class="${net >= 0 ? 'ts-pos' : 'ts-neg'}">${net >= 0 ? '+' : ''}${formatMoney(net)}</strong>
+      </div>
+    `
+
     const timeSkipBtn = document.createElement('button')
     timeSkipBtn.type = 'button'
     timeSkipBtn.className = 'career-timeskip-btn'
     timeSkipBtn.innerHTML = `<span>⏳ Zamanı İleri Sar</span><small>Çocuk büyüt, varis yetişir, yaşı ilerlet</small>`
     timeSkipBtn.addEventListener('click', () => this.onTimeSkip())
 
-    this.root.append(header, infoCard, timeSkipBtn)
+    this.root.append(header, infoCard, report, timeSkipBtn)
   }
 }
