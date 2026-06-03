@@ -570,6 +570,11 @@ export class HUD {
   }
 
   private setView(view: NavView): void {
+    // Karar 14-15: Piyasa kilitliyse hangi yoldan gelinirse gelinsin girilemez
+    if (view === 'market' && !this.state.isMarketUnlocked()) {
+      this.showMarketLockScreen()
+      return
+    }
     const previousView = this.bottomNav.getActive()
     this.goalsSheet.close()
     this.closeModalAndPump()
@@ -1434,6 +1439,11 @@ export class HUD {
         if (id === 'profile' && this.suppressProfileNav) break
         if (id) {
           const view = id as NavView
+          // Karar 14: Piyasa için zengin kilit kontrolü
+          if (view === 'market' && !this.state.isMarketUnlocked()) {
+            this.showMarketLockScreen()
+            return
+          }
           const reason = navLockReason(view, this.state.producers, this.state.totalEarned)
           if (reason) {
             this.toast(reason)
@@ -3245,6 +3255,29 @@ export class HUD {
       locks[view] = navLockReason(view, this.state.producers, this.state.totalEarned)
     }
     this.bottomNav.setNavLocked(locks)
+  }
+
+  /** Piyasa kilit ekranı (Karar 14-15) */
+  private showMarketLockScreen(): void {
+    const body = document.createElement('div')
+    body.className = 'market-lock-screen'
+    const nw = this.state.financeNetWorth()
+    const pct = Math.min(100, Math.round((nw / 50_000) * 100))
+    body.innerHTML = `
+      <div class="market-lock-emoji">📈🔒</div>
+      <h3 class="market-lock-title">Piyasa Kilitli</h3>
+      <p class="market-lock-reason">${this.state.marketLockReason()}</p>
+      <div class="market-lock-progress">
+        <div class="market-lock-bar"><div class="market-lock-fill" style="width:${pct}%"></div></div>
+        <small>Net değer: ${formatMoney(nw)} / ${formatMoney(50_000)} (%${pct})</small>
+      </div>
+    `
+    const closeBtn = document.createElement('button')
+    closeBtn.type = 'button'
+    closeBtn.className = 'btn-secondary'
+    closeBtn.textContent = 'Anladım'
+    closeBtn.addEventListener('click', () => this.modals.close())
+    this.modals.showContent('📈 Piyasa', body, [closeBtn])
   }
 
   showTimeSkipModal(): void {

@@ -1013,6 +1013,20 @@ export class GameState {
     return this.career.isEntrepreneur || this.career.jobId !== null
   }
 
+  /** Piyasa açık mı? (Karar 14 — net değer / geçmiş / banka kariyeri) */
+  isMarketUnlocked(): boolean {
+    if (this.financeNetWorth() >= 50_000) return true
+    if (this.characterBackground === 'finansci') return true
+    if (this.career.jobId === 'banka_calisani' && this.career.level >= 3) return true
+    return false
+  }
+
+  /** Piyasa kilit gerekçesi (kilit ekranında gösterilir) */
+  marketLockReason(): string | null {
+    if (this.isMarketUnlocked()) return null
+    return 'Açmak için: 50.000₺ net değer · veya Finansçı geçmiş · veya Banka Çalışanı (Seviye 3)'
+  }
+
   /** Kariyer aksiyonu yap */
   doCareerAction(actionId: CareerActionId): { money: number; levelUp: boolean } {
     const day = Math.floor(this.gameTimeMs / (12 * 1000)) + 1

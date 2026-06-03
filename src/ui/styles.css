@@ -9545,3 +9545,13 @@ html.reduced-motion .dashboard, html.reduced-motion .money-pop, html.reduced-mot
 .cj-name { font-size: 13px; font-weight: 700; }
 .cj-wage { font-size: 11px; font-weight: 600; color: var(--accent); }
 .cj-desc { font-size: 10px; color: var(--muted); line-height: 1.3; }
+
+/* ====================== PİYASA KİLİT EKRANI (Karar 14-15) ====================== */
+.market-lock-screen { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 10px 0; }
+.market-lock-emoji { font-size: 44px; }
+.market-lock-title { font-size: 18px; font-weight: 800; color: var(--text); margin: 0; }
+.market-lock-reason { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0; padding: 0 8px; }
+.market-lock-progress { width: 100%; display: flex; flex-direction: column; gap: 5px; align-items: center; }
+.market-lock-bar { width: 100%; height: 10px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
+.market-lock-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); border-radius: 999px; transition: width 0.5s; }
+.market-lock-progress small { font-size: 11px; color: var(--muted); }
