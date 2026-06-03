@@ -9560,3 +9560,10 @@ html.reduced-motion .dashboard, html.reduced-motion .money-pop, html.reduced-mot
 .career-goal-stage { padding: 6px 0; }
 .career-goal-stage + .career-goal-stage { border-top: 1px solid var(--border); margin-top: 6px; }
 .goal-stage-done .career-goal-title { color: var(--green); }
+
+/* ====================== FİRMA SEVİYE GELİŞTİRME (Karar 9) ====================== */
+.biz-level-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.biz-level-badge { font-size: 11px; font-weight: 800; color: var(--accent); background: rgba(201,127,0,0.12); border-radius: 8px; padding: 4px 8px; flex-shrink: 0; }
+.biz-level-max { color: var(--green); background: rgba(52,211,153,0.12); }
+.biz-levelup-btn { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 12px !important; text-align: left; }
+.biz-levelup-btn small { font-size: 10px; opacity: 0.85; font-weight: 400; }

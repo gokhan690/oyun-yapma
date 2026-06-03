@@ -1,4 +1,4 @@
-import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, type ProducerDef, type UpgradeDef } from './Economy'
+import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, producerName, type ProducerDef, type UpgradeDef } from './Economy'
 import { PRESTIGE_SHOP_ITEMS } from './PrestigeShop'
 import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, ipoThreshold, prestigeMultiplier } from './Prestige'
 import { getActiveSynergies, globalSynergyBonus, producerSynergyBonus } from './Synergies'
@@ -445,6 +445,7 @@ import {
 import { obsolescenceMult, modernizeCost } from './TechObsolescence'
 import { pickDisaster, disasterDamage } from './NaturalDisasters'
 import { progressPathSnapshot, type ProgressPathSnapshot } from './ProgressPath'
+import { firmLevelIncomeMult, firmLevelUpCost, FIRM_MAX_LEVEL } from './FirmLevels'
 import {
   createCareerState,
   applyCareerAction,
@@ -639,6 +640,7 @@ export interface SerializableState {
   career?: import('./Career').CareerState
   characterBackground?: import('./Career').CharacterBackgroundId | null
   netWorthHistory?: number[]
+  producerLevels?: Record<string, number>
 }
 
 export interface ProducerBreakdown {
@@ -911,6 +913,8 @@ export class GameState {
   baronLifeFactoryRaidDamage = 0
   career: CareerState = createCareerState()
   characterBackground: CharacterBackgroundId | null = null
+  /** Firma seviyeleri (Karar 9) — varsayılan 1 */
+  producerLevels: Record<string, number> = {}
   /** Net değer geçmişi (grafik için) — son 60 örnek, ~her 10sn */
   netWorthHistory: number[] = []
   private lastNetWorthSample = 0
@@ -1011,6 +1015,30 @@ export class GameState {
   /** Oyuncunun aktif bir işi var mı? (jobless fallback için) */
   hasCareerJob(): boolean {
     return this.career.isEntrepreneur || this.career.jobId !== null
+  }
+
+  /** Firma seviye atlatma maliyeti (Karar 9) */
+  firmLevelUpCostFor(def: ProducerDef): number {
+    const owned = this.producers[def.id] ?? 0
+    return firmLevelUpCost(def, this.producerLevel(def.id), owned)
+  }
+
+  /** Firmayı bir seviye yükselt (Karar 9) */
+  levelUpFirm(producerId: string): boolean {
+    const def = PRODUCERS.find((p) => p.id === producerId)
+    if (!def) return false
+    const owned = this.producers[producerId] ?? 0
+    if (owned <= 0) return false
+    const level = this.producerLevel(producerId)
+    if (level >= FIRM_MAX_LEVEL) return false
+    const cost = this.firmLevelUpCostFor(def)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.producerLevels[producerId] = level + 1
+    this.addGazette(`⬆️ ${producerName(def)} Lv.${level + 1}'e yükseltildi`, 'player')
+    this.emit({ type: 'money_changed' })
+    this.emit({ type: 'purchase' })
+    return true
   }
 
   /** Piyasa açık mı? (Karar 14 — net değer / geçmiş / banka kariyeri) */
@@ -1875,6 +1903,11 @@ export class GameState {
     return this.activeHeirRole()?.illegalBonus ?? 0
   }
 
+  /** Firma seviyesi (Karar 9) — varsayılan 1 */
+  producerLevel(id: string): number {
+    return this.producerLevels[id] ?? 1
+  }
+
   producerIncome(def: ProducerDef): number {
     const owned = this.producers[def.id] ?? 0
     if (owned === 0) return 0
@@ -1883,6 +1916,8 @@ export class GameState {
       const u = UPGRADES.find((x) => x.id === id)
       if (u?.effect === 'producer_mult' && u.producerId === def.id) mult *= u.value
     }
+    // Firma seviye bonusu (Karar 9)
+    mult *= firmLevelIncomeMult(this.producerLevel(def.id))
     mult *= 1 + producerSynergyBonus(def.id, this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
     mult *= managerMultiplier(this.managers, def.id)
     mult *= this.weeklyProducerBonus(def.id)
@@ -5917,6 +5952,7 @@ export class GameState {
       career: { ...this.career, actionsUsedToday: [...this.career.actionsUsedToday] },
       characterBackground: this.characterBackground,
       netWorthHistory: [...this.netWorthHistory],
+      producerLevels: { ...this.producerLevels },
     }
   }
 
@@ -6079,6 +6115,9 @@ export class GameState {
     }
     if (Array.isArray(data.netWorthHistory)) {
       this.netWorthHistory = data.netWorthHistory.slice(-60)
+    }
+    if (data.producerLevels) {
+      this.producerLevels = { ...data.producerLevels }
     }
     this.difficulty = (['easy', 'normal', 'hard'] as const).includes(data.difficulty as 'easy' | 'normal' | 'hard')
       ? (data.difficulty as 'easy' | 'normal' | 'hard')

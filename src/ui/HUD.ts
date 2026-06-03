@@ -2579,6 +2579,14 @@ export class HUD {
           this.refreshShop(true)
         }
         break
+      case 'levelup-firm':
+        if (id && this.state.levelUpFirm(id)) {
+          this.modals.showToast(this.root, '⬆️ Firma geliştirildi — gelir arttı')
+          this.refreshShop(true)
+        } else {
+          this.modals.showToast(this.root, 'Yeterli para yok', 'important')
+        }
+        break
       case 'open-franchise': {
         const parsed = id ? parseFranchiseAction(id) : null
         if (!parsed) {

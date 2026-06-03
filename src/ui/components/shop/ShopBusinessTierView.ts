@@ -17,6 +17,7 @@ export function markRecentlyBought(id: string): void {
   recentlyBoughtAt[id] = Date.now()
 }
 import { modernizeCost } from '../../../game/TechObsolescence'
+import { FIRM_MAX_LEVEL, firmLevelBonusLabel } from '../../../game/FirmLevels'
 import { appendFranchiseSection } from './FranchiseBlock'
 import { getActiveSynergies } from '../../../game/Synergies'
 import { sortProducers, formatRoi, producerRoiSeconds, type BizSortOrder } from '../../../game/ShopAdvisor'
@@ -259,6 +260,28 @@ export function updateHeroBusinessCard(
   const extra = card.querySelector('.biz-hero-extra')!
   extra.replaceChildren()
   if (owned > 0) {
+    // Firma seviye geliştirme (Karar 9)
+    const level = state.producerLevel(p.id)
+    const levelRow = document.createElement('div')
+    levelRow.className = 'biz-level-row'
+    if (level >= FIRM_MAX_LEVEL) {
+      levelRow.innerHTML = `<span class="biz-level-badge biz-level-max">⭐ Lv.${level} MAKS</span>`
+    } else {
+      const lvCost = state.firmLevelUpCostFor(p)
+      const lvBtn = document.createElement('button')
+      lvBtn.type = 'button'
+      lvBtn.className = 'btn-primary biz-levelup-btn'
+      lvBtn.dataset.action = 'levelup-firm'
+      lvBtn.dataset.id = p.id
+      lvBtn.disabled = !state.canAfford(lvCost)
+      lvBtn.innerHTML = `<span>⬆️ Geliştir → Lv.${level + 1}</span><small>${firmLevelBonusLabel(level + 1)} · ${formatMoney(lvCost)}</small>`
+      const badge = document.createElement('span')
+      badge.className = 'biz-level-badge'
+      badge.textContent = `Lv.${level}`
+      levelRow.append(badge, lvBtn)
+    }
+    extra.appendChild(levelRow)
+
     // Sell quantity selector
     const sellWrap = document.createElement('div')
     sellWrap.className = 'biz-sell-wrap'
