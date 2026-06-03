@@ -29,6 +29,7 @@ import {
 import { prestigeMultiplier } from '../../game/Prestige'
 import { managerCost, hasManager } from '../../game/Managers'
 import { profitLoss, priceChangePct, portfolioSummary, sparklinePath, STOCK_DEFS, fearLabel, isBankruptTicker } from '../../game/StockMarket'
+import { gauge } from './Charts'
 import { depositRate, bondRate, loanRate, projectInterestTick, interestTickCountdownMs, INTEREST_TICK_MS } from '../../game/FinanceBank'
 import { PRESTIGE_TREE_NODES, canBuyNode, hasNode } from '../../game/PrestigeTree'
 import { dailyGoalProgress, scaledDailyGoalTarget } from '../../game/DailyGoal'
@@ -924,9 +925,20 @@ export class ShopPanel {
     macro.className = 'finance-macro-bar'
     const ratePct = (state.stock.centralBankRate * 100).toFixed(1)
     const fear = state.stock.marketFear
+    // Piyasa korkusu gauge'u (Aşama 6)
+    const fearGauge = gauge(fear, {
+      size: 72,
+      label: 'Korku',
+      thresholds: [
+        { at: 30, color: 'green' },
+        { at: 60, color: 'blue' },
+        { at: 80, color: 'orange' },
+        { at: 100, color: 'red' },
+      ],
+    })
     macro.innerHTML = `
       <div class="finance-macro-stat"><small>${i18nT('finance_central_rate')}</small><strong>%${ratePct}</strong></div>
-      <div class="finance-macro-stat"><small>${i18nT('finance_market_fear')}</small><strong class="${fear >= 60 ? 'pl-negative' : fear <= 35 ? 'pl-positive' : ''}">${Math.round(fear)} · ${fearLabel(fear)}</strong></div>
+      <div class="finance-macro-gauge">${fearGauge}<small>${fearLabel(fear)}</small></div>
       <div class="finance-macro-stat"><small>${i18nT('finance_prestige_pts')}</small><strong>${Math.floor(state.prestigePoints)}</strong></div>
     `
     if (state.stock.macroHeadline) {

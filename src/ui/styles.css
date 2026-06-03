@@ -9347,3 +9347,19 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
 .ts-money-final span:first-child { color: var(--text); }
 .ts-pos { color: var(--green); font-weight: 700; }
 .ts-neg { color: var(--accent2); font-weight: 700; }
+
+/* ====================== İŞLETME VERİMLİLİK RENGİ (Aşama 4) ====================== */
+.biz-hero-card { position: relative; }
+.biz-hero-card::before { content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 4px 0 0 4px; background: transparent; transition: background 0.3s; }
+.biz-eff-green::before { background: #34d399; box-shadow: 0 0 8px rgba(52,211,153,0.5); }
+.biz-eff-yellow::before { background: #fbbf24; }
+.biz-eff-orange::before { background: #fb923c; }
+.biz-eff-red::before { background: #f87171; }
+.biz-eff-illegal::before { background: linear-gradient(180deg, #1a1a1a, #f87171); box-shadow: 0 0 8px rgba(248,113,113,0.4); }
+.biz-hero-roi { font-weight: 700; }
+.biz-eff-green .biz-hero-roi { color: #34d399; }
+.biz-eff-red .biz-hero-roi { color: #f87171; }
+
+/* ====================== BORSA PİYASA KORKU GAUGE (Aşama 5) ====================== */
+.finance-macro-gauge { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.finance-macro-gauge small { font-size: 10px; color: var(--muted); font-weight: 600; }

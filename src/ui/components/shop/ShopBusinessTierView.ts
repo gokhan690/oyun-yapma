@@ -205,6 +205,20 @@ export function updateHeroBusinessCard(
   const roiSec = maxCount >= 1 ? producerRoiSeconds(state, p, effectiveBuy) : Infinity
   roiEl.textContent = `ROI ~${formatRoi(roiSec)}`
 
+  // Verimlilik rengi (Aşama 4) — ROI'ye göre köşe göstergesi
+  card.classList.remove('biz-eff-green', 'biz-eff-yellow', 'biz-eff-orange', 'biz-eff-red', 'biz-eff-illegal')
+  if (p.illegal) {
+    card.classList.add('biz-eff-illegal')
+  } else if (roiSec < 300) {
+    card.classList.add('biz-eff-green')
+  } else if (roiSec < 1800) {
+    card.classList.add('biz-eff-yellow')
+  } else if (roiSec < 10800) {
+    card.classList.add('biz-eff-orange')
+  } else {
+    card.classList.add('biz-eff-red')
+  }
+
   card.querySelectorAll('.biz-milestone-dot').forEach((dot) => {
     const ms = Number((dot as HTMLElement).dataset.milestone)
     dot.classList.toggle('reached', owned >= ms)
