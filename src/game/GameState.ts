@@ -2983,18 +2983,23 @@ export class GameState {
     if (this.netWorthHistory.length > 60) this.netWorthHistory.shift()
   }
 
-  /** Gelir kaynakları dökümü (halka grafik için) — Aşama 3 */
+  /** Gelir kaynakları dökümü (halka grafik için) — Karar 4: detaylı ayrım */
   incomeBreakdown(): { label: string; value: number; color: 'green' | 'blue' | 'cyan' | 'gold' | 'red' | 'purple' }[] {
-    const legal = this.legalIncomePerDay()
+    const legalTotal = this.legalIncomePerDay()
     const illegal = this.illegalIncomePerDay()
     const stockYield = portfolioValue(this.stock) * 0.002
     const rentalIncome = lifestyleRentalIncome(this.lifestyle)
     const careerWage = this.career.isEntrepreneur ? 0 : dailyCareerWage(this.career)
+    // Şehir/franchise payını legal işletmelerden ayır
+    const franchiseShare = franchiseIncomeBonus(this.franchises)
+    const franchiseIncome = legalTotal * (franchiseShare / (1 + franchiseShare))
+    const legalCore = Math.max(0, legalTotal - franchiseIncome)
     const out: { label: string; value: number; color: 'green' | 'blue' | 'cyan' | 'gold' | 'red' | 'purple' }[] = []
-    if (legal > 0) out.push({ label: 'Legal İşletmeler', value: legal, color: 'green' })
-    if (stockYield > 0) out.push({ label: 'Borsa', value: stockYield, color: 'blue' })
-    if (rentalIncome > 0) out.push({ label: 'Kira', value: rentalIncome, color: 'cyan' })
-    if (careerWage > 0) out.push({ label: 'Kariyer', value: careerWage, color: 'gold' })
+    if (legalCore > 0) out.push({ label: 'Legal İşletmeler', value: legalCore, color: 'green' })
+    if (franchiseIncome > 0) out.push({ label: 'Şehir/Franchise', value: franchiseIncome, color: 'purple' })
+    if (stockYield > 0) out.push({ label: 'Borsa/Piyasa', value: stockYield, color: 'blue' })
+    if (rentalIncome > 0) out.push({ label: 'Kira/Yaşam', value: rentalIncome, color: 'cyan' })
+    if (careerWage > 0) out.push({ label: 'Kariyer/Maaş', value: careerWage, color: 'gold' })
     if (illegal > 0) out.push({ label: 'Illegal', value: illegal, color: 'red' })
     return out
   }
