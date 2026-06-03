@@ -137,7 +137,7 @@ export class CareerPanel {
     const actionsGrid = document.createElement('div')
     actionsGrid.className = 'career-actions-grid'
     for (const a of actionDefs) {
-      const used = career.actionsUsedToday.includes(a.id) && a.id !== 'egitim_al'
+      const used = career.actionsUsedToday.includes(a.id)
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = `career-action-btn${used ? ' used' : ''}`

@@ -302,12 +302,14 @@ export function applyCareerAction(
   currentDay: number,
 ): { money: number; xp: number; stressDelta: number; levelUp: boolean } {
   if (career.isEntrepreneur) return { money: 0, xp: 0, stressDelta: 0, levelUp: false }
-  if (career.actionsUsedToday.includes(actionId) && actionId !== 'egitim_al') {
-    return { money: 0, xp: 0, stressDelta: 0, levelUp: false }
-  }
+  // Önce gün sıfırlaması, sonra kontrol (sıralama düzeltmesi)
   if (career.lastActionDay !== currentDay) {
     career.actionsUsedToday = []
     career.lastActionDay = currentDay
+  }
+  // Karar 18: Her aksiyon (eğitim dahil) günde 1 kez
+  if (career.actionsUsedToday.includes(actionId)) {
+    return { money: 0, xp: 0, stressDelta: 0, levelUp: false }
   }
 
   const job = careerJobDef(career.jobId)

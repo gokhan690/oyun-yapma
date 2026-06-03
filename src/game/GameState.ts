@@ -2101,18 +2101,36 @@ export class GameState {
     const child = this.dynasty.children.find((c) => c.id === childId)
     if (!child) return false
     const prevName = this.playerName
+
+    // Karar 25: Miras GERÇEKTEN servete uygulanır
+    const preview = this.inheritancePreview()
+    const keep = preview.transferPct
+    const moneyBefore = this.money
+    const depositBefore = this.bank.deposit ?? 0
+    this.money = Math.floor(this.money * keep)
+    if (depositBefore > 0) this.bank.deposit = Math.floor(depositBefore * keep)
+    const lostCash = (moneyBefore - this.money) + (depositBefore - (this.bank.deposit ?? 0))
+    if (lostCash > 0) {
+      this.addGazette(`⚖️ Miras devri: servetin %${Math.round(keep * 100)}'i korundu — ${formatMoney(lostCash)} vergi/kayıp`, 'player')
+    }
+
     this.playerName = child.name
     this.dynasty.activeHeirId = child.id
     this.dynasty.dynastyBonusId = child.id
     this.dynasty.generation++
-    this.dynasty.playerBornGameDay = gameDay(this.gameTimeMs)
+    this.dynasty.playerBornGameDay = lifeGameDay(this.gameTimeMs) // hayat-günü (Düzeltme)
     this.dynasty.playerStartAge = SUCCESSION_START_AGE
     this.dynasty.lifespanNotified = false
     this.dynasty.pendingDeath = null
+    // Yeni nesil: vasiyet/trust durumu sıfırlanır (yeni baron yeniden planlamalı)
+    this.dynasty.hasWill = false
+    this.dynasty.hasTrust = false
+    this.dynasty.hasFamilyConstitution = false
     this.recordChronicle('dynasty', '👑', `${child.name} imparatorluğu devraldı — ${this.dynasty.generation}. nesil`)
     this.triggerStoryBeat('succession')
     this.resetBaronLifeTracking()
     this.emit({ type: 'dynasty_update', kind: 'succession', name: child.name })
+    this.emit({ type: 'money_changed' })
     this.emit({ type: 'story_beat', beatId: 'succession', text: `${prevName} emekli oldu. ${child.name} (${SUCCESSION_START_AGE} yaş) imparatorluğu devraldı.` })
     return true
   }
