@@ -9477,3 +9477,21 @@ html.reduced-motion .dashboard, html.reduced-motion .money-pop, html.reduced-mot
 @keyframes ipoFadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ipoFadeOut { from { opacity: 1; } to { opacity: 0; } }
 @keyframes ipoCardIn { from { transform: scale(0.7) translateY(30px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+
+/* ====================== YAŞAM ÇİZGİSİ + OYUNCU KARTI (Section 9) ====================== */
+.life-timeline-section { margin: 10px 0 14px; }
+.life-info-card { background: linear-gradient(135deg, var(--surface2), var(--surface)); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 4px; }
+.life-info-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; color: var(--text); }
+.life-info-sub { font-size: 11px; font-weight: 500; color: var(--muted); }
+.life-timeline { position: relative; padding: 0 4px 38px; }
+.life-timeline-track { position: relative; height: 6px; background: var(--surface2); border-radius: 999px; }
+.life-timeline-fill { height: 100%; background: linear-gradient(90deg, #34d399, #fbbf24, #fb923c); border-radius: 999px; transition: width 0.6s; }
+.life-timeline-now { position: absolute; top: -10px; transform: translateX(-50%); font-size: 16px; transition: left 0.6s; }
+.life-timeline-marks { position: relative; height: 0; }
+.life-mark { position: absolute; top: 4px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 1px; opacity: 0.5; }
+.life-mark.reached { opacity: 1; }
+.life-mark-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+.life-mark.reached .life-mark-dot { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.life-mark-label { font-size: 8px; color: var(--muted); white-space: nowrap; }
+.life-mark.reached .life-mark-label { color: var(--text); font-weight: 600; }
+.life-mark-age { font-size: 7px; color: var(--muted); }

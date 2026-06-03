@@ -1,6 +1,7 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
-import { gameDay } from '../../game/GameClock'
+import { gameDay, gameCalendarDate } from '../../game/GameClock'
+import { cityDef } from '../../game/ExpansionMap'
 import { spouseOptionsForPlayer, PLAYER_LIFESPAN, childCareerDef, DYNASTY_LEGACY_ITEMS, CHILD_EDUCATION_PATHS, HEIR_ROLES, heirRoleDef, type ChildRecord } from '../../game/Dynasty'
 import { FRIEND_TYPES } from '../../game/Friendships'
 import { MENTORS, ENEMIES } from '../../game/MentorEnemy'
@@ -58,6 +59,7 @@ export class DynastyPanel {
     `
     this.root.appendChild(ageBar)
 
+    this.renderLifeTimeline(age)
     this.renderMortalityRisks()
 
     const crises = this.state.childCrises
@@ -754,6 +756,65 @@ export class DynastyPanel {
       tree.appendChild(node)
     }
     section.appendChild(tree)
+    this.root.appendChild(section)
+  }
+
+  /** Yaşam çizgisi + oyuncu bilgi kartı (Section 9 — Zaman ve yaş görseli) */
+  private renderLifeTimeline(age: number): void {
+    const s = this.state
+    const cal = gameCalendarDate(s.gameTimeMs)
+    const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
+    const dateLabel = `${months[cal.getUTCMonth()]} ${cal.getUTCFullYear()}`
+    const city = cityDef(s.activeCityId())
+    const d = s.dynasty
+    const familyLabel = d.spouseName
+      ? `Evli${d.children.length > 0 ? ` · ${d.children.length} çocuk` : ''}`
+      : 'Bekar'
+
+    const section = document.createElement('div')
+    section.className = 'life-timeline-section'
+
+    // Oyuncu bilgi kartı
+    const info = document.createElement('div')
+    info.className = 'life-info-card'
+    info.innerHTML = `
+      <div class="life-info-row"><span>👤 ${s.playerName}</span><span>${age} yaş</span></div>
+      <div class="life-info-row life-info-sub"><span>📅 ${dateLabel}</span><span>${city.emoji} ${city.label}</span></div>
+      <div class="life-info-row life-info-sub"><span>👨‍👩‍👧 ${familyLabel}</span><span>Nesil ${d.generation}</span></div>
+    `
+    section.appendChild(info)
+
+    // Yaşam çizgisi: 22 Başlangıç → 30 Aile → 50 Miras → 60 Emeklilik → 70 Risk
+    const milestones = [
+      { age: 25, label: 'Aile', emoji: '💍' },
+      { age: 40, label: 'Olgunluk', emoji: '🏢' },
+      { age: 50, label: 'Miras', emoji: '📜' },
+      { age: 60, label: 'Emeklilik', emoji: '🌅' },
+      { age: 70, label: 'Risk', emoji: '⚠️' },
+    ]
+    const minAge = 18
+    const maxAge = 80
+    const agePct = Math.min(100, Math.max(0, ((age - minAge) / (maxAge - minAge)) * 100))
+    const marks = milestones.map((m) => {
+      const pct = Math.min(100, Math.max(0, ((m.age - minAge) / (maxAge - minAge)) * 100))
+      const reached = age >= m.age
+      return `<div class="life-mark${reached ? ' reached' : ''}" style="left:${pct}%">
+        <span class="life-mark-dot"></span>
+        <span class="life-mark-label">${m.emoji} ${m.label}</span>
+        <span class="life-mark-age">${m.age}</span>
+      </div>`
+    }).join('')
+
+    const timeline = document.createElement('div')
+    timeline.className = 'life-timeline'
+    timeline.innerHTML = `
+      <div class="life-timeline-track">
+        <div class="life-timeline-fill" style="width:${agePct}%"></div>
+        <div class="life-timeline-now" style="left:${agePct}%" title="${age} yaş">🧍</div>
+      </div>
+      <div class="life-timeline-marks">${marks}</div>
+    `
+    section.appendChild(timeline)
     this.root.appendChild(section)
   }
 
