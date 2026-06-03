@@ -9363,3 +9363,24 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
 /* ====================== BORSA PİYASA KORKU GAUGE (Aşama 5) ====================== */
 .finance-macro-gauge { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .finance-macro-gauge small { font-size: 10px; color: var(--muted); font-weight: 600; }
+
+/* ====================== ÇOCUK/VARİS KART GÖRSELLERİ (Aşama 7) ====================== */
+.child-card-body { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.child-growth-timeline { margin: 5px 0 2px; }
+.child-growth-track { height: 5px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
+.child-growth-fill { height: 100%; background: linear-gradient(90deg, #34d399, #fbbf24); border-radius: 999px; transition: width 0.5s; }
+.child-growth-marks { display: flex; justify-content: space-between; font-size: 8px; color: var(--muted); margin-top: 2px; }
+.child-edu-row { display: flex; flex-direction: column; gap: 3px; margin: 3px 0; }
+.child-role-line { color: var(--green); font-weight: 600; }
+
+/* ====================== MİRAS SERVET AKTARIM BARI (Aşama 11) ====================== */
+.inheritance-wealth-bar { margin: 8px 0; }
+.iw-stacked { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--surface); }
+.iw-seg { height: 100%; transition: width 0.5s; }
+.iw-keep { background: linear-gradient(90deg, #34d399, #5ee0a0); }
+.iw-loss { background: linear-gradient(90deg, #f8b84e, #f87171); }
+.iw-legend { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10px; color: var(--muted); }
+.iw-legend-item { display: flex; align-items: center; gap: 4px; }
+.iw-dot { width: 8px; height: 8px; border-radius: 50%; }
+.iw-dot-keep { background: #34d399; }
+.iw-dot-loss { background: #f87171; }

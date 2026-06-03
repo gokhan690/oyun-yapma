@@ -252,6 +252,26 @@ export class DynastyPanel {
     `
     section.appendChild(pctEl)
 
+    // Servet aktarım görseli — korunacak vs kayıp (Aşama 11 görsel)
+    const nw = this.state.financeNetWorth()
+    if (nw > 0) {
+      const transfer = Math.floor(nw * preview.transferPct)
+      const loss = nw - transfer
+      const wealthBar = document.createElement('div')
+      wealthBar.className = 'inheritance-wealth-bar'
+      wealthBar.innerHTML = `
+        <div class="iw-stacked">
+          <div class="iw-seg iw-keep" style="width:${pct}%" title="Varise geçecek"></div>
+          <div class="iw-seg iw-loss" style="width:${100 - pct}%" title="Vergi/kayıp"></div>
+        </div>
+        <div class="iw-legend">
+          <span class="iw-legend-item"><span class="iw-dot iw-dot-keep"></span>Varise: ${formatMoney(transfer)}</span>
+          <span class="iw-legend-item"><span class="iw-dot iw-dot-loss"></span>Kayıp: ${formatMoney(loss)}</span>
+        </div>
+      `
+      section.appendChild(wealthBar)
+    }
+
     const reasons = document.createElement('ul')
     reasons.className = 'inheritance-reasons'
     for (const r of preview.reason) {
@@ -494,15 +514,26 @@ export class DynastyPanel {
     const careerInfo = childCareerDef(c.career)
     const eduPathDef = c.educationPath ? CHILD_EDUCATION_PATHS.find((p) => p.id === c.educationPath) : null
     const roleDef = heirRoleDef(c.heirRole)
+    // Büyüme timeline: 0 → 5 → 10 → 15 → 18 (Aşama 7)
+    const growthPct = Math.min(100, (Math.min(ageYears, 18) / 18) * 100)
+    const eduXp = Math.floor(c.educationXp ?? 0)
     card.innerHTML = `
       <span class="dynasty-child-emoji">${isHeir ? '👑' : '🧒'}</span>
-      <div>
+      <div class="child-card-body">
         <strong>${c.name} · ${ageYears} yaş</strong>
         <small>${traitLabel(c.trait)}</small>
         <small class="child-risk-warn">${c.riskLabel ?? ''}</small>
-        <small>${bornLabel} Eğitim ${Math.floor(c.educationXp ?? 0)}% · 😊 %${happiness}</small>
-        ${eduPathDef ? `<small>📚 ${eduPathDef.emoji} ${eduPathDef.name}</small>` : ''}
-        ${roleDef ? `<small>👔 ${roleDef.emoji} ${roleDef.name} — ${roleDef.bonusLabel}</small>` : ''}
+        <small>${bornLabel} · 😊 %${happiness}</small>
+        <div class="child-growth-timeline">
+          <div class="child-growth-track"><div class="child-growth-fill" style="width:${growthPct}%"></div></div>
+          <div class="child-growth-marks"><span>0</span><span>5</span><span>10</span><span>15</span><span>18</span></div>
+        </div>
+        ${eduPathDef ? `
+          <div class="child-edu-row">
+            <small>📚 ${eduPathDef.emoji} ${eduPathDef.name}: %${eduXp}</small>
+            <div class="chart-progress" style="height:6px"><div class="chart-progress-fill" style="width:${eduXp}%;background:#60a5fa"></div></div>
+          </div>` : ''}
+        ${roleDef ? `<small class="child-role-line">👔 ${roleDef.emoji} ${roleDef.name} — ${roleDef.bonusLabel}</small>` : ''}
         ${careerInfo && !roleDef ? `<small>🎓 ${careerInfo.emoji} ${careerInfo.name} — ${careerInfo.bonusLabel}</small>` : ''}
       </div>
     `
