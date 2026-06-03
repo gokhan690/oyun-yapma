@@ -9533,3 +9533,15 @@ html.reduced-motion .dashboard, html.reduced-motion .money-pop, html.reduced-mot
 .dash-card-title { color: var(--token-accent-gold-dim); opacity: 0.9; }
 /* İkonlu hızlı okuma — emoji boyut tutarlılığı */
 .dash-cell-label, .ts-predict-h, .career-report-title { font-feature-settings: "tnum"; }
+
+/* ====================== İŞSİZ FALLBACK — İŞE GİR (Düzeltme 3) ====================== */
+.career-jobless { display: flex; flex-direction: column; gap: 12px; }
+.career-jobless-head { text-align: center; }
+.career-jobless-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.career-jobless-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--text); cursor: pointer; text-align: left; transition: all 0.15s; }
+.career-jobless-btn:hover { border-color: var(--accent); background: rgba(201,127,0,0.06); }
+.career-jobless-btn:active { transform: scale(0.97); }
+.cj-emoji { font-size: 24px; }
+.cj-name { font-size: 13px; font-weight: 700; }
+.cj-wage { font-size: 11px; font-weight: 600; color: var(--accent); }
+.cj-desc { font-size: 10px; color: var(--muted); line-height: 1.3; }

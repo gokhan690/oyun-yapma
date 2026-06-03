@@ -55,7 +55,7 @@ import {
   predictTimeSkip,
   type TimeSkipOption,
 } from '../game/TimeSkip'
-import { playerGameAge } from '../game/Dynasty'
+import { playerGameAge, childAgeYearsExact } from '../game/Dynasty'
 import { FRANCHISE_CITIES, franchiseOpenFailureReason } from '../game/Franchise'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
@@ -191,6 +191,12 @@ export class HUD {
         this.careerPanel.render()
       },
       () => this.showTimeSkipModal(),
+      (jobId) => {
+        state.setCareerJob(jobId)
+        this.toast('💼 İşe girdin! İlk maaşın yakında.')
+        this.careerPanel.render()
+        this.renderAll()
+      },
     )
     this.tutorial = new Tutorial(state)
     this.tutorial.setTabHandler((tab) => this.shop.setTab(tab, this.state))
@@ -3305,11 +3311,9 @@ export class HUD {
       ? opt.lifeMonths
       : opt.id === 'retirement' ? Math.max(1, 55 - playerGameAge(s.gameTimeMs, s.dynasty)) * 12
       : opt.id === 'heir18' ? (() => {
-          const child = s.dynasty.children.find((c) => !c.career)
+          const child = s.dynasty.children.find((c) => !c.heirRole)
           if (!child) return 12
-          const bornDay = child.bornGameDay
-          const currentDay = Math.floor(s.gameTimeMs / (12 * 1000)) + 1
-          const childAge = (currentDay - bornDay) / 365.25
+          const childAge = childAgeYearsExact(s.gameTimeMs, child.bornGameDay)
           return Math.max(1, Math.round((18 - childAge) * 12))
         })() : 12
   }
@@ -3321,10 +3325,9 @@ export class HUD {
     if (!opt) return
 
     const lifeMonths = this.resolveTimeSkipMonths(skipId)
-    const currentDay = Math.floor(s.gameTimeMs / (12 * 1000)) + 1
     const children = s.dynasty.children.map((c) => ({
       name: c.name,
-      ageYears: Math.floor((currentDay - c.bornGameDay) / 365.25),
+      ageYears: childAgeYearsExact(s.gameTimeMs, c.bornGameDay),
     }))
     const pred = predictTimeSkip(lifeMonths, opt, ctx, s.incomePerDay(), 12 * 1000, children)
 

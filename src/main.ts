@@ -74,6 +74,11 @@ async function bootstrap(): Promise<void> {
         state.applyCharacterCreation(character)
         localStorage.setItem('baron_setup_done', '1')
         saveManager.save(state)
+        // Düzeltme 1: Onboarding bitince zamanı KESİN başlat (tutorial'a bağlı kalma)
+        if (!state.isTicking()) {
+          state.startTick()
+          state.startEventLoop()
+        }
         hud.renderAll()
         hud.startTutorial(300)
       })

@@ -95,7 +95,7 @@ import {
   hasNode,
 } from './PrestigeTree'
 import { localDayKey, yesterdayLocalKey, calendarWeekKey } from './dateUtils'
-import { gameDay, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSecondsToGameMs, gameCalendarDate } from './GameClock'
+import { gameDay, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSecondsToGameMs, gameCalendarDate, lifeGameDay, LIFE_TIME_SCALE } from './GameClock'
 import {
   createEmpireState,
   syncEmpireFromProducers,
@@ -125,7 +125,6 @@ import {
   traitCostMult,
   traitIllegalMult,
   traitPassiveMult,
-  educationXpPerGameDay,
   playerGameAge,
   SUCCESSION_START_AGE,
   PLAYER_START_AGE,
@@ -138,6 +137,7 @@ import {
   spouseSatisfactionMult,
   heirCareerPassiveBonus,
   dynastyGenerationBonus,
+  childAgeYearsExact,
   pickChildRiskProfile,
   migrateChildRecord,
   heirRoleDef,
@@ -995,6 +995,24 @@ export class GameState {
     if (bg?.startingReputationBonus) {
       this.reputation = Math.min(100, this.reputation + bg.startingReputationBonus)
     }
+
+    // Düzeltme 1: Karakter+iş seçimi bitince oyun KESİN başlamalı.
+    // Tutorial'a bel bağlamadan zamanı akıt.
+    this.onboardingComplete = true
+    this.tutorialDone = true
+    this.gamePaused = false
+  }
+
+  /** İlk işi seç (Kariyer ekranı fallback — Düzeltme 3) */
+  setCareerJob(jobId: import('./Career').CareerJobId): void {
+    this.career.jobId = jobId
+    this.career.isEntrepreneur = false
+    this.emit({ type: 'money_changed' })
+  }
+
+  /** Oyuncunun aktif bir işi var mı? (jobless fallback için) */
+  hasCareerJob(): boolean {
+    return this.career.isEntrepreneur || this.career.jobId !== null
   }
 
   /** Kariyer aksiyonu yap */
@@ -1100,6 +1118,10 @@ export class GameState {
     return this.isMetaSystemsReady()
       && this.hasAnyBusiness()
       && this.playTimeMs >= DAILY_REWARD_MIN_PLAY_MS
+  }
+
+  isTicking(): boolean {
+    return this.tickHandle !== null
   }
 
   startTick(): void {
@@ -2006,15 +2028,24 @@ export class GameState {
       this.triggerStoryBeat('year_2027')
     }
     if (metaReady) this.tickMortality()
+    // Düzeltme 4-5: Çocuk doğumu HAYAT zamanıyla ve doğal aralıklarla
     if (!this.dynasty.spouseName || this.dynasty.children.length >= 3) return
-    const married = this.dynasty.marriedGameDay ?? day
-    if (day - married < 5) return
-    if (Math.random() > 0.4) return
+    const lifeDay = lifeGameDay(this.gameTimeMs)
+    const marriedLifeDay = this.dynasty.marriedLifeDay ?? lifeDay
+    // Evlilikten sonra min 1 hayat yılı geçmeli
+    if (lifeDay - marriedLifeDay < 365) return
+    // En küçük çocukla min 2 hayat yılı ara olmalı
+    if (this.dynasty.children.length > 0) {
+      const youngest = this.dynasty.children[this.dynasty.children.length - 1]!
+      if (childAgeYearsExact(this.gameTimeMs, youngest.bornGameDay) < 2) return
+    }
+    // Düşük ihtimal — sert aralık kapıları zaten kümelenmeyi önler
+    if (Math.random() > 0.04) return
     const child = {
       id: `c${day}_${this.dynasty.children.length}`,
       name: pickChildName(this.dynasty.children),
       trait: randomChildTrait(),
-      bornGameDay: day,
+      bornGameDay: lifeDay, // hayat-günü olarak sakla (oyuncu yaşıyla tutarlı)
       educationXp: 0,
       ...pickChildRiskProfile(),
     }
@@ -2025,9 +2056,11 @@ export class GameState {
 
   private tickChildEducation(gameMsDelta: number): void {
     if (this.dynasty.children.length === 0) return
-    const days = gameMsDelta / MS_PER_GAME_DAY
+    // Eğitim de HAYAT zamanıyla ilerler (çocuk yaşıyla uyumlu — Düzeltme 5)
+    // Düşük oran: ~0.02/hayat-günü → 100 XP ≈ 14 hayat yılında dolar (18 yaşta rol için hazır)
+    const lifeDays = (gameMsDelta * LIFE_TIME_SCALE) / MS_PER_GAME_DAY
     const academyMult = this.dynastyAcademyActive() ? 2 : 1
-    const gain = educationXpPerGameDay() * days * academyMult
+    const gain = 0.02 * lifeDays * academyMult
     if (gain <= 0) return
     for (const child of this.dynasty.children) {
       if (child.educationXp >= CHILD_EDUCATION_MAX) continue
@@ -2046,6 +2079,7 @@ export class GameState {
     this.dynasty.spouseName = s.name
     this.dynasty.spouseTrait = s.trait
     this.dynasty.marriedGameDay = gameDay(this.gameTimeMs)
+    this.dynasty.marriedLifeDay = lifeGameDay(this.gameTimeMs)
     this.emit({ type: 'dynasty_update', kind: 'married', name: s.name })
     this.emit({ type: 'money_changed' })
     return true

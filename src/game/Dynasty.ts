@@ -265,6 +265,8 @@ export interface DynastyState {
   spouseName: string | null
   spouseTrait: SpouseTrait | null
   marriedGameDay: number | null
+  /** Evlilik hayat-günü (çocuk doğum aralığı için — Düzeltme 4) */
+  marriedLifeDay?: number | null
   children: ChildRecord[]
   activeHeirId: string | null
   generation: number
@@ -410,6 +412,19 @@ export function playerGameAge(gameTimeMs: number, dynasty: DynastyState): number
   const born = dynasty.playerBornGameDay ?? 1
   const start = dynasty.playerStartAge ?? PLAYER_START_AGE
   return Math.floor(start + gameYearsElapsed(gameTimeMs, born))
+}
+
+/**
+ * Çocuk yaşı (yıl) — HAYAT zamanıyla, oyuncu yaşıyla aynı ölçek (Düzeltme 4-5).
+ * bornGameDay artık hayat-günü olarak saklanır (lifeGameDay).
+ */
+export function childAgeYears(gameTimeMs: number, bornGameDay: number): number {
+  return Math.floor(gameYearsElapsed(gameTimeMs, bornGameDay))
+}
+
+/** Çocuk yaşı kesirli (ondalık) — heir18 hesabı gibi yerler için */
+export function childAgeYearsExact(gameTimeMs: number, bornGameDay: number): number {
+  return gameYearsElapsed(gameTimeMs, bornGameDay)
 }
 
 export function yearsUntilLifespan(gameTimeMs: number, dynasty: DynastyState): number {

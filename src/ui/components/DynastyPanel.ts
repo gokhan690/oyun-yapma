@@ -1,8 +1,8 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
-import { gameDay, gameCalendarDate } from '../../game/GameClock'
+import { gameDay, gameCalendarDate, lifeGameDay } from '../../game/GameClock'
 import { cityDef } from '../../game/ExpansionMap'
-import { spouseOptionsForPlayer, PLAYER_LIFESPAN, childCareerDef, DYNASTY_LEGACY_ITEMS, CHILD_EDUCATION_PATHS, HEIR_ROLES, heirRoleDef, type ChildRecord } from '../../game/Dynasty'
+import { spouseOptionsForPlayer, PLAYER_LIFESPAN, childCareerDef, childAgeYears, DYNASTY_LEGACY_ITEMS, CHILD_EDUCATION_PATHS, HEIR_ROLES, heirRoleDef, type ChildRecord } from '../../game/Dynasty'
 import { FRIEND_TYPES } from '../../game/Friendships'
 import { MENTORS, ENEMIES } from '../../game/MentorEnemy'
 import { HOBBIES } from '../../game/Hobby'
@@ -183,9 +183,10 @@ export class DynastyPanel {
     if (d.children.length === 0) {
       const wait = document.createElement('p')
       wait.className = 'dynasty-desc'
-      const day = gameDay(this.state.gameTimeMs)
-      const married = d.marriedGameDay ?? day
-      wait.textContent = day - married < 5
+      // Evlilikten sonra 1 hayat yılı geçtiyse çocuk yakın (Düzeltme 4)
+      const lifeDay = lifeGameDay(this.state.gameTimeMs)
+      const marriedLife = d.marriedLifeDay ?? lifeDay
+      wait.textContent = lifeDay - marriedLife < 365
         ? t('dynasty_wait_early')
         : t('dynasty_wait_soon')
       this.root.appendChild(wait)
@@ -512,7 +513,7 @@ export class DynastyPanel {
     const isHeir = this.state.dynasty.dynastyBonusId === c.id
     const bornLabel = t('dynasty_child_born').replace('{day}', String(c.bornGameDay))
     const happiness = Math.round(c.happiness ?? 60)
-    const ageYears = Math.floor((gameDay(this.state.gameTimeMs) - c.bornGameDay) / 365)
+    const ageYears = childAgeYears(this.state.gameTimeMs, c.bornGameDay)
     const careerInfo = childCareerDef(c.career)
     const eduPathDef = c.educationPath ? CHILD_EDUCATION_PATHS.find((p) => p.id === c.educationPath) : null
     const roleDef = heirRoleDef(c.heirRole)

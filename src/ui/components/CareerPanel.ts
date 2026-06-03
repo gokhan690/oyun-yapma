@@ -1,11 +1,13 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
 import {
+  CAREER_JOBS,
   careerJobDef,
   dailyCareerWage,
   careerPageLabel,
   FIRST_GOAL_TARGET,
   type CareerActionId,
+  type CareerJobId,
 } from '../../game/Career'
 import { Dashboard } from './Dashboard'
 import { incomeExpenseBars } from './Charts'
@@ -16,6 +18,7 @@ export class CareerPanel {
   private onAction: (actionId: CareerActionId) => void
   private onBecomeEntrepreneur: () => void
   private onTimeSkip: () => void
+  private onSelectJob: (jobId: CareerJobId) => void
   private dashboard: Dashboard
 
   constructor(
@@ -23,11 +26,13 @@ export class CareerPanel {
     onAction: (actionId: CareerActionId) => void,
     onBecomeEntrepreneur: () => void,
     onTimeSkip: () => void = () => {},
+    onSelectJob: (jobId: CareerJobId) => void = () => {},
   ) {
     this.state = state
     this.onAction = onAction
     this.onBecomeEntrepreneur = onBecomeEntrepreneur
     this.onTimeSkip = onTimeSkip
+    this.onSelectJob = onSelectJob
     this.dashboard = new Dashboard(state)
     this.root = document.createElement('div')
     this.root.className = 'career-panel tab-panel'
@@ -46,6 +51,12 @@ export class CareerPanel {
     this.root.appendChild(this.dashboard.root)
 
     const pageTitle = careerPageLabel(career.isEntrepreneur, s.totalEarned)
+
+    // Düzeltme 3: İşsiz fallback — jobId yoksa iş seçtir
+    if (!career.isEntrepreneur && !career.jobId) {
+      this.renderJoblessFallback()
+      return
+    }
 
     if (career.isEntrepreneur) {
       this.renderEntrepreneurMode(pageTitle)
@@ -213,6 +224,36 @@ export class CareerPanel {
     })
     section.appendChild(btn)
     return section
+  }
+
+  /** İşsiz oyuncuya iş seçtir (Düzeltme 3 — eski kayıt/jobId boş) */
+  private renderJoblessFallback(): void {
+    const wrap = document.createElement('div')
+    wrap.className = 'career-jobless'
+    const head = document.createElement('div')
+    head.className = 'career-jobless-head'
+    head.innerHTML = `
+      <h2 class="career-title">💼 Henüz bir işin yok</h2>
+      <p class="career-job-name">Kariyerine başlamak için ilk işini seç.</p>
+    `
+    wrap.appendChild(head)
+
+    const grid = document.createElement('div')
+    grid.className = 'career-jobless-grid'
+    for (const job of CAREER_JOBS) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'career-jobless-btn'
+      btn.innerHTML =
+        `<span class="cj-emoji">${job.emoji}</span>` +
+        `<span class="cj-name">${job.name}</span>` +
+        `<span class="cj-wage">₺${job.baseDailyWage}/gün</span>` +
+        `<span class="cj-desc">${job.description}</span>`
+      btn.addEventListener('click', () => this.onSelectJob(job.id))
+      grid.appendChild(btn)
+    }
+    wrap.appendChild(grid)
+    this.root.appendChild(wrap)
   }
 
   private renderEntrepreneurMode(pageTitle: string): void {
