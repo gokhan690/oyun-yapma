@@ -11,6 +11,7 @@ import { formatProgressLine } from '../game/ProgressPath'
 import type { BaronRecord } from '../game/BaronLegacy'
 import { assetUrl } from '../utils/assetUrl'
 import { currentRank, rankProgress } from '../game/PlayerRank'
+import { prestigeMultiplier } from '../game/Prestige'
 import { dayBonusExtra, nightBonusExtra } from '../game/PrestigeTree'
 import { PERSONALITIES, type PersonalityId } from '../game/PlayerPersonality'
 import { EDUCATIONS } from '../game/Education'
@@ -63,6 +64,7 @@ import { i18n, LANG_META, t, type LangCode } from '../i18n'
 import { applyCountry, type CountryId } from '../game/Countries'
 import { BaronAdvisor } from './components/BaronAdvisor'
 import { VictoryCinematic } from './components/VictoryCinematic'
+import { IpoCelebration } from './components/IpoCelebration'
 import type { RivalEvent } from '../game/Rivals'
 
 export class HUD {
@@ -144,6 +146,7 @@ export class HUD {
   private metaFlowReleased = false
   private baronAdvisor = new BaronAdvisor()
   private victoryCinematic = new VictoryCinematic()
+  private ipoCelebration = new IpoCelebration()
 
   constructor(
     state: GameState,
@@ -3743,13 +3746,31 @@ export class HUD {
     const preview = this.state.ipoPreview()
     this.modals.showIpoPreview(preview, async () => {
       this.modals.close()
+      const oldMult = prestigeMultiplier(this.state.prestigePoints)
+      const citiesBefore = this.state.cities.unlocked.length
       const points = this.state.doPrestige()
       if (points > 0) {
         await this.ads.showInterstitial()
-        const cash = preview.startingCash
-        this.modals.showToast(this.root, `IPO! +${points} hisse · ${formatMoney(cash)} başlangıç`)
-        this.shop.setIpoSubTab('stock')
-        this.refreshShop(true)
+        const newMult = prestigeMultiplier(this.state.prestigePoints)
+        const newCity = this.state.cities.unlocked.length > citiesBefore
+          ? cityDef(this.state.cities.unlocked[this.state.cities.unlocked.length - 1]!).label
+          : null
+        void hapticIpo()
+        // IPO kutlama sineması (Section 13)
+        this.ipoCelebration.show({
+          playerName: this.state.playerName,
+          ipoNumber: this.state.ipoCount,
+          pointsEarned: points,
+          oldMultiplier: oldMult,
+          newMultiplier: newMult,
+          startingCash: preview.startingCash,
+          unlockedCity: newCity,
+          reputation: this.state.reputation,
+        }, () => {
+          this.shop.setIpoSubTab('stock')
+          this.refreshShop(true)
+          this.renderAll()
+        })
       }
     }, { ipoCount: this.state.ipoCount, reputation: this.state.reputation, illegalHeat: this.state.illegalHeat })
   }

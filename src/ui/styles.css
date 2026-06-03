@@ -9454,3 +9454,26 @@ html.reduced-motion .dashboard, html.reduced-motion .money-pop, html.reduced-mot
 .city-connector { flex: 1; height: 2px; background: var(--border); margin: 0 1px; margin-bottom: 10px; }
 .city-connector-on { background: linear-gradient(90deg, var(--accent), var(--green)); }
 .city-path-hint { font-size: 10px; color: var(--green); font-weight: 600; text-align: center; }
+
+/* ====================== IPO KUTLAMA SİNEMASI (Section 13) ====================== */
+.ipo-celebration-overlay { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(6,13,24,0.92); backdrop-filter: blur(6px); animation: ipoFadeIn 0.4s ease; overflow: hidden; padding: 16px; }
+.ipo-celebration-overlay.ipo-celebration-out { animation: ipoFadeOut 0.5s ease forwards; }
+.ipo-confetti-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.ipo-confetti { position: absolute; top: -12px; width: 8px; height: 12px; border-radius: 2px; animation: ipoConfettiFall linear infinite; }
+@keyframes ipoConfettiFall { 0% { transform: translateY(-12px) rotate(0deg); opacity: 1; } 100% { transform: translateY(105vh) rotate(720deg); opacity: 0.7; } }
+.ipo-celebration-card { background: linear-gradient(135deg, #122035 0%, #0a1628 60%, #1a2d4a 100%); border: 2px solid var(--accent); border-radius: 24px; padding: 28px 24px; max-width: 380px; width: 100%; text-align: center; box-shadow: 0 0 60px rgba(251,191,36,0.3); animation: ipoCardIn 0.6s var(--ease-spring); position: relative; z-index: 1; }
+.ipo-bell { font-size: 52px; animation: ipoBellRing 0.8s ease 3; display: block; }
+@keyframes ipoBellRing { 0%,100% { transform: rotate(0); } 25% { transform: rotate(18deg); } 75% { transform: rotate(-18deg); } }
+.ipo-celebration-title { font-size: 24px; font-weight: 800; color: var(--accent); margin: 6px 0 2px; }
+.ipo-celebration-sub { font-size: 13px; color: var(--token-text-muted); margin-bottom: 14px; }
+.ipo-newspaper { background: #f4ecd8; color: #1a1a1a; border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; transform: rotate(-1.5deg); box-shadow: var(--shadow-md); }
+.ipo-newspaper-tag { font-size: 9px; letter-spacing: 1px; color: #8a6d3b; font-weight: 700; display: block; }
+.ipo-newspaper-headline { font-size: 14px; font-style: italic; color: #1a1a1a; }
+.ipo-chart-rise { margin-bottom: 14px; }
+.ipo-effects { display: flex; flex-direction: column; gap: 5px; margin-bottom: 18px; text-align: left; }
+.ipo-effect-row { font-size: 12px; color: var(--green); font-weight: 600; padding: 4px 10px; background: rgba(52,211,153,0.08); border-radius: 8px; }
+.ipo-celebration-btn { width: 100%; padding: 13px; border: none; border-radius: 14px; background: linear-gradient(135deg, var(--accent), #d97706); color: #1a1a1a; font-size: 15px; font-weight: 800; cursor: pointer; }
+.ipo-celebration-btn:active { transform: scale(0.96); }
+@keyframes ipoFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ipoFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ipoCardIn { from { transform: scale(0.7) translateY(30px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
