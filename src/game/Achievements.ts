@@ -6,6 +6,10 @@ export interface AchievementDef {
   description: string
   emoji: string
   reward: number
+  /** Para dışı ödüller (Karar 22) */
+  rewardReputation?: number
+  rewardCareerXp?: number
+  rewardLabel?: string
   check: (ctx: AchievementContext) => boolean
 }
 
@@ -46,9 +50,10 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'first_100k', name: 'Yükselen Yıldız', description: '100K kazan', emoji: '⭐', reward: 5000, check: (c) => c.totalEarned >= 100_000 },
   { id: 'millionaire', name: 'İlk Milyoner', description: '1M toplam kazanç', emoji: '🤑', reward: 50_000, check: (c) => c.totalEarned >= 1_000_000 },
   // Karar 23: Tıklama/combo başarıları kaldırıldı — yerine iş/kariyer kilometre taşları
-  { id: 'first_job', name: 'İşe Giriş', description: 'İlk işine gir', emoji: '💼', reward: 100, check: (c) => c.hasJob === true },
-  { id: 'career_lv5', name: 'Yükselen Çalışan', description: 'Kariyer seviyesi 5', emoji: '📈', reward: 2000, check: (c) => (c.careerLevel ?? 0) >= 5 },
-  { id: 'entrepreneur', name: 'Girişimci', description: 'Tam zamanlı girişimci ol', emoji: '🚀', reward: 5000, check: (c) => c.isEntrepreneur === true },
+  // Karar 22: para dışı ödüller (itibar/XP)
+  { id: 'first_job', name: 'İşe Giriş', description: 'İlk işine gir', emoji: '💼', reward: 100, rewardReputation: 3, rewardLabel: 'İtibar +3', check: (c) => c.hasJob === true },
+  { id: 'career_lv5', name: 'Yükselen Çalışan', description: 'Kariyer seviyesi 5', emoji: '📈', reward: 0, rewardCareerXp: 50, rewardReputation: 5, rewardLabel: 'Kariyer XP +50 · İtibar +5', check: (c) => (c.careerLevel ?? 0) >= 5 },
+  { id: 'entrepreneur', name: 'Girişimci', description: 'Tam zamanlı girişimci ol', emoji: '🚀', reward: 0, rewardReputation: 10, rewardLabel: 'İtibar +10', check: (c) => c.isEntrepreneur === true },
   { id: 'first_business', name: 'İlk İşletme', description: '1 işletme satın al', emoji: '🏪', reward: 100, check: (c) => Object.values(c.producers).some((n) => n >= 1) },
   { id: 'five_businesses', name: 'Çeşitlendirme', description: '5 farklı işletme', emoji: '🏢', reward: 5000, check: (c) => Object.values(c.producers).filter((n) => n >= 1).length >= 5 },
   { id: 'boss', name: 'Patron', description: 'Her işletmeden en az 1', emoji: '🎩', reward: 100_000, check: (c) => Object.values(c.producers).every((n) => n >= 1) },

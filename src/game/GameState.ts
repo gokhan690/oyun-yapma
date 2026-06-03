@@ -5869,8 +5869,13 @@ export class GameState {
     const newOnes = checkNewAchievements(ctx)
     for (const a of newOnes) {
       this.achievements.add(a.id)
-      // Karar 21: başarı ödülü günlük gelire göre ölçeklenir (sabit büyük para yok)
-      this.addMoney(this.scaledAchievementReward(a.reward))
+      // Karar 21: para ödülü günlük gelire göre ölçeklenir (sabit büyük para yok)
+      if (a.reward > 0) this.addMoney(this.scaledAchievementReward(a.reward))
+      // Karar 22: para dışı ödüller (itibar / kariyer XP)
+      if (a.rewardReputation) this.addReputation(a.rewardReputation)
+      if (a.rewardCareerXp && !this.career.isEntrepreneur) {
+        this.career.xp += a.rewardCareerXp
+      }
       this.emit({ type: 'achievement', def: a })
     }
   }

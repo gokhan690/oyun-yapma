@@ -181,16 +181,37 @@ export class Dashboard {
     grid.append(heatGauge, stressGauge)
     card.appendChild(grid)
 
-    // Borç + rakip uyarı satırı
+    // Zengin risk uyarıları (Karar 5)
     const extras: string[] = []
-    if (s.bank.loan > 0) extras.push(`💳 Borç: ${formatMoney(s.bank.loan)}`)
+    if (s.bank.loan > 0) {
+      const debtRatio = s.financeNetWorth() > 0 ? s.bank.loan / s.financeNetWorth() : 1
+      extras.push(`💳 Borç: ${formatMoney(s.bank.loan)}${debtRatio > 0.5 ? ' ⚠️ yüksek' : ''}`)
+    }
     if (heat >= 70) extras.push('🚨 Baskın riski yüksek!')
     if (stress >= 80) extras.push('🏥 Sağlık riski!')
+    // Rakip tehdidi
+    const hostileRivals = s.rivals.filter((r) => r.attitude < 0 && r.relation !== 'bankrupt' && r.relation !== 'merged')
+    if (hostileRivals.length > 0) {
+      extras.push(`⚔️ ${hostileRivals.length} düşman aile tehdit ediyor`)
+    }
+    // Piyasa riski
+    const fear = Math.round(s.stock.marketFear ?? 0)
+    if (fear >= 60) extras.push(`📉 Piyasa korkusu yüksek (${fear})`)
+    // Miras riski
+    const age = playerGameAge(s.gameTimeMs, s.dynasty)
+    if (age >= 50 && !s.dynasty.dynastyBonusId && s.dynasty.children.length > 0) {
+      extras.push('👑 Varis seçilmedi — miras riski')
+    }
     if (extras.length > 0) {
       const warn = document.createElement('div')
       warn.className = 'dash-risk-warn'
       warn.innerHTML = extras.map((e) => `<span>${e}</span>`).join('')
       card.appendChild(warn)
+    } else {
+      const ok = document.createElement('div')
+      ok.className = 'dash-risk-ok'
+      ok.textContent = '✅ Riskler kontrol altında'
+      card.appendChild(ok)
     }
     return card
   }

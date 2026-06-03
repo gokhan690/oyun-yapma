@@ -9591,3 +9591,6 @@ html.reduced-motion .dashboard, html.reduced-motion .money-pop, html.reduced-mot
 .dept-task-ready { animation: deptTaskPulse 1.5s infinite; }
 .dept-task-btn { width: 100%; padding: 6px !important; font-size: 11px; }
 @keyframes deptTaskPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+/* Risk paneli — kontrol altında durumu (Karar 5) */
+.dash-risk-ok { font-size: 11px; color: var(--green); font-weight: 600; text-align: center; margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--border); }
