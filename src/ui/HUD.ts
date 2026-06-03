@@ -2750,19 +2750,27 @@ export class HUD {
   }
 
   private renderCityStrip(): void {
-    const city = cityDef(this.state.activeCityId())
     const cityId = this.state.activeCityId()
     const unlockable = EXPANSION_CITIES.some((c) =>
       !this.state.cities.unlocked.includes(c.id)
       && canUnlockCity(c.id, this.state.cities, this.state.money, this.state.reputation, this.state.ipoCount).ok,
     )
+    // Yatay şehir ilerleme yolu (Aşama 14)
+    const nodes = EXPANSION_CITIES.map((c, i) => {
+      const unlocked = this.state.cities.unlocked.includes(c.id)
+      const active = c.id === cityId
+      const canUnlock = !unlocked && canUnlockCity(c.id, this.state.cities, this.state.money, this.state.reputation, this.state.ipoCount).ok
+      const cls = active ? 'city-node-active' : unlocked ? 'city-node-unlocked' : canUnlock ? 'city-node-ready' : 'city-node-locked'
+      const connector = i > 0 ? `<span class="city-connector${unlocked ? ' city-connector-on' : ''}"></span>` : ''
+      return `${connector}<span class="city-node ${cls}" title="${c.label}">${unlocked ? c.emoji : '🔒'}<small>${c.label}</small></span>`
+    }).join('')
     const hasDisasterRisk = DISASTERS.some((d) => d.affectedCities.includes(cityId))
     const insured = this.state.insurance.business
-    const riskLabel = hasDisasterRisk ? (insured ? ' · 🛡️ Sigortalı' : ' · ⚠️ Afet riski') : ''
+    const riskLabel = hasDisasterRisk ? (insured ? '🛡️ Sigortalı' : '⚠️ Afet riski') : ''
     this.cityStrip.innerHTML = `
-      <button type="button" class="city-strip-btn" data-action="open-expansion">
-        ${city.emoji} ${city.label} · Baron #${this.state.baronCounter}${riskLabel}
-        ${unlockable ? ' · 🗺️ Yeni şehir!' : ''}
+      <button type="button" class="city-strip-path" data-action="open-expansion">
+        <div class="city-path-row">${nodes}</div>
+        ${unlockable ? '<span class="city-path-hint">🗺️ Yeni şehir açılabilir!</span>' : riskLabel ? `<span class="city-path-hint">${riskLabel}</span>` : ''}
       </button>
     `
   }

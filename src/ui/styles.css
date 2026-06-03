@@ -9439,3 +9439,18 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
   .btn-primary, .btn-secondary, .career-action-btn, .biz-hero-buy, .dash-card, .biz-hero-card { transition: none !important; }
 }
 html.reduced-motion .dashboard, html.reduced-motion .money-pop, html.reduced-motion .income-grew { animation: none !important; }
+
+/* ====================== ŞEHİR İLERLEME YOLU (Aşama 14) ====================== */
+.city-strip-path { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+.city-path-row { display: flex; align-items: center; justify-content: space-between; gap: 2px; }
+.city-node { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 18px; flex-shrink: 0; transition: transform 0.2s; }
+.city-node small { font-size: 8px; color: var(--muted); white-space: nowrap; }
+.city-node-active { transform: scale(1.15); }
+.city-node-active small { color: var(--accent); font-weight: 700; }
+.city-node-locked { opacity: 0.4; filter: grayscale(1); }
+.city-node-ready { animation: cityPulse 1.5s infinite; }
+.city-node-ready small { color: var(--green); font-weight: 700; }
+@keyframes cityPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.city-connector { flex: 1; height: 2px; background: var(--border); margin: 0 1px; margin-bottom: 10px; }
+.city-connector-on { background: linear-gradient(90deg, var(--accent), var(--green)); }
+.city-path-hint { font-size: 10px; color: var(--green); font-weight: 600; text-align: center; }
