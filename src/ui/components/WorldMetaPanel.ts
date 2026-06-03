@@ -178,6 +178,11 @@ export class WorldMetaPanel {
       const conflict = sectorConflict(share, pressure)
       return `${s}${conflict !== 'none' ? ' ⚡' : ''}`
     }).join(', ')
+    // Güç karşılaştırması: oyuncu vs rakip (Aşama 15)
+    const playerWorth = this.state.financeNetWorth()
+    const rivalWorth = rival.netWorth
+    const total = playerWorth + rivalWorth
+    const playerPct = total > 0 ? Math.round((playerWorth / total) * 100) : 50
     card.innerHTML = `
       <div class="rival-head">
         <span>${rival.emoji}</span>
@@ -186,6 +191,16 @@ export class WorldMetaPanel {
       </div>
       <small>${t('world_value_label')} ${formatMoney(rival.netWorth)} · ${personalityLabel(rival.personality)}</small>
       <small>${t('world_sectors_label')} ${sectors}</small>
+      <div class="rival-power-bar">
+        <div class="rival-power-track">
+          <div class="rival-power-player" style="width:${playerPct}%"></div>
+          <div class="rival-power-rival" style="width:${100 - playerPct}%"></div>
+        </div>
+        <div class="rival-power-labels">
+          <span class="rival-power-you">Sen %${playerPct}</span>
+          <span class="rival-power-them">Rakip %${100 - playerPct}</span>
+        </div>
+      </div>
     `
     if (rival.relation !== 'merged') {
       const actions = document.createElement('div')

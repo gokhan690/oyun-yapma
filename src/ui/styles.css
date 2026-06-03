@@ -9407,3 +9407,12 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
 .victory-fill-dynasty { background: linear-gradient(90deg, #7c3aed, #a78bfa) !important; }
 .victory-fill-shadow { background: linear-gradient(90deg, #991b1b, #ef4444) !important; }
 .victory-done { box-shadow: 0 0 16px rgba(251,191,36,0.3); }
+
+/* ====================== RAKİP GÜÇ KARŞILAŞTIRMA BARI (Aşama 15) ====================== */
+.rival-power-bar { margin-top: 6px; }
+.rival-power-track { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--surface); }
+.rival-power-player { background: linear-gradient(90deg, #34d399, #5ee0a0); height: 100%; transition: width 0.5s; }
+.rival-power-rival { background: linear-gradient(90deg, #f87171, #991b1b); height: 100%; transition: width 0.5s; }
+.rival-power-labels { display: flex; justify-content: space-between; margin-top: 3px; font-size: 9px; }
+.rival-power-you { color: #34d399; font-weight: 700; }
+.rival-power-them { color: #f87171; font-weight: 700; }
