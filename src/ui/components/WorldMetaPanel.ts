@@ -124,12 +124,12 @@ export class WorldMetaPanel {
       const done = this.state.victoriesUnlocked.includes(v.id)
       const pct = victoryProgress(ctx, v.id)
       const card = document.createElement('div')
-      card.className = `victory-card${done ? ' victory-done' : ''}`
+      card.className = `victory-card victory-${v.id}${done ? ' victory-done' : ''}`
       card.innerHTML = `
         <span class="victory-emoji">${v.emoji}</span>
         <strong>${v.name}</strong>
         <small>${v.description}</small>
-        <div class="progress-bar victory-progress"><div class="progress-fill" style="width:${done ? 100 : pct}%"></div></div>
+        <div class="progress-bar victory-progress"><div class="progress-fill victory-fill-${v.id}" style="width:${done ? 100 : pct}%"></div></div>
         <span class="victory-pct">${done ? `✓ ${mechanicForVictory(v.id).title} açık` : `%${Math.floor(pct)}`}</span>
       `
       grid.appendChild(card)

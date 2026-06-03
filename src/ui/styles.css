@@ -9396,3 +9396,14 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
 .career-report-title { font-size: 13px; font-weight: 700; margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
 .career-report-net { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 13px; }
 .career-report-net strong { font-size: 16px; }
+
+/* ====================== ZAFER YOLLARI RENK KODLAMASI (Aşama 10/16) ====================== */
+.victory-economic { border-left: 3px solid #fbbf24; }
+.victory-political { border-left: 3px solid #1e40af; }
+.victory-dynasty { border-left: 3px solid #a78bfa; }
+.victory-shadow { border-left: 3px solid #ef4444; }
+.victory-fill-economic { background: linear-gradient(90deg, #d97706, #fbbf24) !important; }
+.victory-fill-political { background: linear-gradient(90deg, #1e3a8a, #60a5fa) !important; }
+.victory-fill-dynasty { background: linear-gradient(90deg, #7c3aed, #a78bfa) !important; }
+.victory-fill-shadow { background: linear-gradient(90deg, #991b1b, #ef4444) !important; }
+.victory-done { box-shadow: 0 0 16px rgba(251,191,36,0.3); }
