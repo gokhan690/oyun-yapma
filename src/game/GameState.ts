@@ -739,8 +739,6 @@ export type GameEvent =
   | { type: 'social_status_changed'; score: number; title: string }
 
 const MILESTONE_THRESHOLDS = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
-const CRIT_CHANCE = 0.1
-const CRIT_MULT = 5
 const BASE_CLICK = 6
 const BASE_OFFLINE_CAP_GAME_DAYS = 365
 const BASE_OFFLINE_CAP_MS = BASE_OFFLINE_CAP_GAME_DAYS * MS_PER_GAME_DAY
@@ -2492,28 +2490,13 @@ export class GameState {
     this.emit({ type: 'weekly_updated', progress: this.weekly.progress, target: this.weekly.target })
   }
 
-  click(x: number, y: number): void {
-    const now = performance.now()
-    if (now - this.lastClickTime < COMBO_WINDOW_MS) {
-      this.comboCount++
-    } else {
-      this.comboCount = 1
-    }
-    this.lastClickTime = now
-    this.comboMultiplier = this.comboMultFromCount(this.comboCount)
-    if (this.comboCount > this.comboBest) this.comboBest = this.comboCount
-
-    this.totalClicks++
-    this.updateMissionProgress('clicks', 1)
-
-    const critical = Math.random() < CRIT_CHANCE
-    const amount = BASE_CLICK * this.clickMultiplier() * (critical ? CRIT_MULT : 1)
-    this.addMoney(amount)
-    this.emit({ type: 'click', amount, critical, x, y, combo: this.comboCount })
-    this.emit({ type: 'combo_changed', combo: this.comboCount, multiplier: this.comboMultiplier })
-
-    if (Math.random() < 0.002) this.luckyChestReady = true
-    this.checkAchievements()
+  /**
+   * Tıklama artık PARA ÜRETMEZ (Karar 1-2: oyun clicker değil).
+   * Sadece UI etkileşimi olarak kalır — combo/critical/click income kaldırıldı.
+   */
+  click(_x: number, _y: number): void {
+    // Para kazanma kariyer, işletme, imparatorluk, piyasa vb. sistemlerden gelir.
+    // Tıklama görsel geri bildirimden ibaret; ekonomiye dokunmaz.
   }
 
   canAfford(cost: number): boolean {
@@ -2675,6 +2658,8 @@ export class GameState {
 
   availableUpgrades(): UpgradeDef[] {
     return UPGRADES.filter((u) => {
+      // Karar 6: tıklama yükseltmeleri kaldırıldı (tıklama para üretmiyor)
+      if (u.effect === 'click_mult') return false
       if (this.purchasedUpgrades.has(u.id)) return false
       if (u.requiresTotalEarned != null && this.totalEarned < u.requiresTotalEarned) return false
       if (u.requiresProducer != null && (this.producers[u.requiresProducer] ?? 0) <= 0) return false
@@ -5660,6 +5645,16 @@ export class GameState {
     return this.activeCrisis !== null && !this.activeCrisis.resolved
   }
 
+  /**
+   * Başarı ödülünü günlük gelire göre ölçekle (Karar 21).
+   * Erken oyunda dev para vermez; def.reward üst sınır olarak kalır.
+   */
+  private scaledAchievementReward(baseReward: number): number {
+    const dailyIncome = Math.max(0, this.incomePerDay())
+    const cap = Math.round(dailyIncome * 3) + 200
+    return Math.min(baseReward, cap)
+  }
+
   private checkAchievements(): void {
     const ctx = {
       totalEarned: this.totalEarned,
@@ -5686,11 +5681,15 @@ export class GameState {
       undergroundLawyerUsed: this.undergroundLawyerUsed,
       dynastyMarried: !!this.dynasty.spouseName,
       advisorBuys: this.advisorBuys,
+      hasJob: this.hasCareerJob(),
+      careerLevel: this.career.level,
+      isEntrepreneur: this.career.isEntrepreneur,
     }
     const newOnes = checkNewAchievements(ctx)
     for (const a of newOnes) {
       this.achievements.add(a.id)
-      this.addMoney(a.reward)
+      // Karar 21: başarı ödülü günlük gelire göre ölçeklenir (sabit büyük para yok)
+      this.addMoney(this.scaledAchievementReward(a.reward))
       this.emit({ type: 'achievement', def: a })
     }
   }

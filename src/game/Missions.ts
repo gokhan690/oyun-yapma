@@ -25,10 +25,11 @@ export interface MissionProgress {
 }
 
 const EASY_POOL: Omit<MissionDef, 'id'>[] = [
-  { type: 'clicks', label: 'kez tıkla', target: 50, tier: 'easy', rewardMoney: 80 },
-  { type: 'clicks', label: 'kez tıkla', target: 100, tier: 'easy', rewardMoney: 200 },
-  { type: 'claim_daily', label: 'günlük ödül topla', target: 1, tier: 'easy', rewardMoney: 200 },
+  // Karar 23: tıklama görevleri kaldırıldı — kazanç/işletme görevleri
+  { type: 'earn_money', label: '₺ kazan', target: 800, tier: 'easy', rewardMoney: 100 },
   { type: 'earn_money', label: '₺ kazan', target: 1_500, tier: 'easy', rewardMoney: 120 },
+  { type: 'claim_daily', label: 'günlük ödül topla', target: 1, tier: 'easy', rewardMoney: 200 },
+  { type: 'buy_business', label: 'işletme satın al', target: 1, tier: 'easy', rewardMoney: 150 },
   { type: 'season_tier', label: 'sezon tier ödülü topla', target: 1, tier: 'easy', rewardMoney: 300 },
 ]
 

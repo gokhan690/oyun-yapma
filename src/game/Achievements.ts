@@ -34,6 +34,10 @@ export interface AchievementContext {
   undergroundLawyerUsed: boolean
   dynastyMarried: boolean
   advisorBuys: number
+  /** Kariyer/iş başarıları için (Karar 23) */
+  hasJob?: boolean
+  careerLevel?: number
+  isEntrepreneur?: boolean
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -41,12 +45,10 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'first_1k', name: 'Girişimci', description: '1.000₺ kazan', emoji: '💼', reward: 200, check: (c) => c.totalEarned >= 1000 },
   { id: 'first_100k', name: 'Yükselen Yıldız', description: '100K kazan', emoji: '⭐', reward: 5000, check: (c) => c.totalEarned >= 100_000 },
   { id: 'millionaire', name: 'İlk Milyoner', description: '1M toplam kazanç', emoji: '🤑', reward: 50_000, check: (c) => c.totalEarned >= 1_000_000 },
-  { id: 'click_100', name: 'Tıklayıcı', description: '100 tıklama', emoji: '👆', reward: 100, check: (c) => c.totalClicks >= 100 },
-  { id: 'click_1k', name: 'Tıklama Tutkunu', description: '1.000 tıklama', emoji: '👊', reward: 1000, check: (c) => c.totalClicks >= 1000 },
-  { id: 'click_10k', name: 'Tıklama Canavarı', description: '10.000 tıklama', emoji: '🦾', reward: 10_000, check: (c) => c.totalClicks >= 10_000 },
-  { id: 'combo_10', name: 'Hızlı Eller', description: '10 combo', emoji: '⚡', reward: 300, check: (c) => c.comboBest >= 10 },
-  { id: 'combo_30', name: 'Tek Elin Gücü', description: '30 combo', emoji: '🔥', reward: 2000, check: (c) => c.comboBest >= 30 },
-  { id: 'combo_50', name: 'Combo Kralı', description: '50 combo', emoji: '👑', reward: 10_000, check: (c) => c.comboBest >= 50 },
+  // Karar 23: Tıklama/combo başarıları kaldırıldı — yerine iş/kariyer kilometre taşları
+  { id: 'first_job', name: 'İşe Giriş', description: 'İlk işine gir', emoji: '💼', reward: 100, check: (c) => c.hasJob === true },
+  { id: 'career_lv5', name: 'Yükselen Çalışan', description: 'Kariyer seviyesi 5', emoji: '📈', reward: 2000, check: (c) => (c.careerLevel ?? 0) >= 5 },
+  { id: 'entrepreneur', name: 'Girişimci', description: 'Tam zamanlı girişimci ol', emoji: '🚀', reward: 5000, check: (c) => c.isEntrepreneur === true },
   { id: 'first_business', name: 'İlk İşletme', description: '1 işletme satın al', emoji: '🏪', reward: 100, check: (c) => Object.values(c.producers).some((n) => n >= 1) },
   { id: 'five_businesses', name: 'Çeşitlendirme', description: '5 farklı işletme', emoji: '🏢', reward: 5000, check: (c) => Object.values(c.producers).filter((n) => n >= 1).length >= 5 },
   { id: 'boss', name: 'Patron', description: 'Her işletmeden en az 1', emoji: '🎩', reward: 100_000, check: (c) => Object.values(c.producers).every((n) => n >= 1) },
