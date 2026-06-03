@@ -9941,3 +9941,115 @@ html.theme-light .dash-card, html.theme-light .game-card { overflow: hidden; }
 }
 .dash-cell-body { display: flex; flex-direction: column; min-width: 0; }
 html.theme-light .dash-cell-risk .dash-cell-value { color: var(--coral, #ff6f61) !important; }
+
+/* ╔══════════════════════════════════════════════════╗
+   ║  ORTAK SAYFA YAPISI — PageHeader / KPI / Matrix     ║
+   ╚══════════════════════════════════════════════════╝ */
+
+/* ——— Sayfa üst bölümü (tüm sayfalarda ortak) ——— */
+.page-header { margin-bottom: 14px; }
+.page-header-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.ph-profile { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ph-avatar {
+  width: 50px; height: 50px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 27px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff6e0, #ffcf7a);
+  border: 2.5px solid #fff; box-shadow: 0 4px 12px rgba(255,160,40,0.4);
+}
+.ph-profile-info { min-width: 0; }
+.ph-name { font-size: 15px; font-weight: 800; color: var(--text-main, #123a52); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ph-rank { font-size: 12px; font-weight: 700; color: var(--gold-dark, #c79518); }
+.ph-meta { font-size: 11px; color: var(--text-soft, #5f7f91); font-weight: 600; }
+.ph-icons { display: flex; gap: 7px; flex-shrink: 0; }
+.ph-icon-btn {
+  position: relative; width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 17px; cursor: pointer;
+  background: linear-gradient(180deg, #ffffff, #fff3d6);
+  border: 1.5px solid rgba(246,200,76,0.6);
+  box-shadow: 0 4px 10px rgba(8,90,120,0.12);
+}
+.ph-icon-btn:active { transform: translateY(2px); box-shadow: 0 1px 4px rgba(8,90,120,0.12); }
+.ph-bell-badge {
+  position: absolute; top: -3px; right: -3px; min-width: 16px; height: 16px; padding: 0 4px;
+  background: var(--coral, #ff6f61); color: #fff; font-size: 9px; font-weight: 800;
+  border-radius: 999px; display: flex; align-items: center; justify-content: center; border: 1.5px solid #fff;
+}
+/* ——— Büyük başlık + altın dekor ——— */
+.page-header-title { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.ph-title-text {
+  margin: 0; font-size: 21px; font-weight: 900; letter-spacing: 0.5px; text-align: center;
+  color: var(--text-main, #123a52);
+  text-shadow: 0 2px 0 rgba(255,255,255,0.6);
+}
+.ph-title-deco { color: var(--gold, #f6c84c); font-size: 13px; filter: drop-shadow(0 1px 1px rgba(199,149,24,0.4)); }
+.page-header-title::after,
+.page-header-title::before { content: ""; height: 2px; flex: 0 0 28px; border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold, #f6c84c)); }
+.page-header-title::after { background: linear-gradient(90deg, var(--gold, #f6c84c), transparent); }
+
+/* ——— Yatay KPI şeridi ——— */
+.page-kpi-strip { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; margin-bottom: 12px; overflow-x: auto; scrollbar-width: none; }
+.page-kpi-strip::-webkit-scrollbar { display: none; }
+.page-kpi-cell {
+  display: flex; align-items: center; gap: 8px; padding: 10px; min-width: 96px;
+  background: linear-gradient(180deg, #ffffff, #fff6dd);
+  border: 1.5px solid rgba(246,200,76,0.5); border-radius: 18px;
+  box-shadow: 0 5px 12px rgba(8,90,120,0.1);
+}
+.page-kpi-icon {
+  width: 30px; height: 30px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; border-radius: 11px; background: rgba(255,255,255,0.85); box-shadow: inset 0 0 0 1px rgba(246,200,76,0.4);
+}
+.page-kpi-body { display: flex; flex-direction: column; min-width: 0; }
+.page-kpi-label { font-size: 9.5px; color: var(--text-soft, #5f7f91); font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
+.page-kpi-value { font-size: 14px; font-weight: 800; color: var(--text-main, #123a52); white-space: nowrap; }
+.kpi-cash .page-kpi-value { color: var(--orange-dark, #e8801c); }
+.kpi-nw .page-kpi-value { color: var(--teal-dark, #078b83); }
+.kpi-income .page-kpi-value { color: var(--success, #28c76f); }
+.kpi-risk .page-kpi-value { color: var(--coral, #ff6f61); }
+
+/* ——— Completion ring kartı ——— */
+.completion-ring { display: block; margin: 0 auto; }
+
+/* ——— Seviye matrisi ——— */
+.level-matrix { display: flex; flex-direction: column; gap: 7px; }
+.lm-row { display: flex; align-items: center; gap: 8px; }
+.lm-label { font-size: 11px; font-weight: 700; color: var(--text-main, #123a52); width: 88px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lm-track { flex: 1; height: 9px; background: #e6eef2; border-radius: 999px; overflow: hidden; }
+.lm-fill { height: 100%; border-radius: 999px; transition: width 0.5s; }
+.lm-value { font-size: 10px; font-weight: 800; color: var(--text-soft, #5f7f91); width: 34px; text-align: right; flex-shrink: 0; }
+
+/* ——— Liste satırı (görev/firma/varis ortak) ——— */
+.list-row {
+  display: flex; align-items: center; gap: 10px; padding: 12px;
+  background: linear-gradient(180deg, #fffdf7, #fff7e4);
+  border: 1.5px solid rgba(246,200,76,0.45); border-radius: 18px;
+  box-shadow: 0 5px 12px rgba(8,90,120,0.08); margin-bottom: 8px;
+}
+.list-row-icon {
+  width: 44px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 22px; border-radius: 14px; background: rgba(19,184,166,0.1);
+}
+.list-row-body { flex: 1; min-width: 0; }
+.list-row-title { font-size: 13px; font-weight: 800; color: var(--text-main, #123a52); }
+.list-row-desc { font-size: 11px; color: var(--text-soft, #5f7f91); }
+.list-row-right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+/* ====================== BAŞARILAR VE GÖREVLER (referans düzen) ====================== */
+.ach-summary-card { display: flex; align-items: center; gap: 14px; }
+.ach-ring-wrap { flex-shrink: 0; }
+.ach-trophy-path { flex: 1; min-width: 0; }
+.ach-trophy-title { font-size: 13px; font-weight: 800; color: var(--gold-dark, #c79518); margin-bottom: 12px; }
+.ach-trophy-track { position: relative; height: 8px; background: #e6eef2; border-radius: 999px; margin: 0 8px 20px; }
+.ach-trophy-fill { height: 100%; background: linear-gradient(90deg, #2fd0c0, #28c76f, #f6c84c); border-radius: 999px; transition: width 0.6s; }
+.ach-trophy-mile { position: absolute; top: -9px; transform: translateX(-50%); width: 26px; height: 26px; border-radius: 50%; background: #fff; border: 2px solid #e6eef2; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.ach-trophy-mile.reached { border-color: var(--gold, #f6c84c); box-shadow: 0 2px 8px rgba(246,200,76,0.5); }
+.ach-trophy-labels { display: flex; justify-content: space-between; margin: 0 4px; font-size: 9px; color: var(--text-soft, #5f7f91); }
+.ach-cat-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; margin-bottom: 8px; }
+.ach-cat-tabs::-webkit-scrollbar { display: none; }
+.ach-cat-btn { flex-shrink: 0; padding: 7px 13px; border-radius: 999px; border: 1.5px solid rgba(246,200,76,0.5); background: #fffdf7; color: var(--text-soft, #5f7f91); font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+html.theme-light .ach-cat-btn.active { background: linear-gradient(180deg, #2fd0c0, #0fa99b); color: #fff; border-color: transparent; box-shadow: 0 4px 10px rgba(15,169,155,0.3); }
+.ach-list { display: flex; flex-direction: column; }
+.ach-row.ach-earned .list-row-icon { background: rgba(40,199,111,0.14); }
+.ach-row:not(.ach-earned) { opacity: 0.7; }
+.ach-reward-box { flex-shrink: 0; font-size: 10px; font-weight: 700; color: var(--orange-dark, #e8801c); background: rgba(255,155,54,0.12); border-radius: 10px; padding: 5px 8px; white-space: nowrap; }

@@ -212,4 +212,52 @@ export function incomeExpenseBars(income: number, expense: number): string {
   </div>`
 }
 
+/**
+ * Tamamlama halkası (completion ring) — başarılar için.
+ * Ortada büyük oran, çevrede ilerleme.
+ */
+export function completionRing(
+  done: number,
+  total: number,
+  opts: { size?: number; color?: ChartColor } = {},
+): string {
+  const size = opts.size ?? 120
+  const cx = size / 2
+  const cy = size / 2
+  const stroke = 12
+  const r = size / 2 - stroke
+  const pct = total > 0 ? done / total : 0
+  const circ = 2 * Math.PI * r
+  const dash = `${(pct * circ).toFixed(2)} ${((1 - pct) * circ).toFixed(2)}`
+  const color = opts.color ? COLORS[opts.color] : COLORS.blue
+  const gradId = `ring-${Math.random().toString(36).slice(2, 8)}`
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="completion-ring">
+    <defs>
+      <linearGradient id="${gradId}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="${COLORS.blue}"/>
+        <stop offset="100%" stop-color="${COLORS.green}"/>
+      </linearGradient>
+    </defs>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e6eef2" stroke-width="${stroke}"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="url(#${gradId})" stroke-width="${stroke}"
+      stroke-dasharray="${dash}" stroke-dashoffset="${(circ / 4).toFixed(2)}" stroke-linecap="round"
+      transform="rotate(-90 ${cx} ${cy})"/>
+    <text x="${cx}" y="${cy - 2}" fill="${color}" font-size="${size * 0.26}" font-weight="800" text-anchor="middle">${Math.round(pct * 100)}%</text>
+    <text x="${cx}" y="${cy + size * 0.16}" fill="#5f7f91" font-size="${size * 0.1}" font-weight="600" text-anchor="middle">${done}/${total}</text>
+  </svg>`
+}
+
+/** Yatay seviye matrisi — departman seviyeleri için */
+export function levelMatrix(rows: { label: string; level: number; max: number; color?: ChartColor }[]): string {
+  return `<div class="level-matrix">${rows.map((r) => {
+    const pct = Math.round((r.level / r.max) * 100)
+    const col = r.color ? COLORS[r.color] : COLORS.blue
+    return `<div class="lm-row">
+      <span class="lm-label">${r.label}</span>
+      <div class="lm-track"><div class="lm-fill" style="width:${pct}%;background:${col}"></div></div>
+      <span class="lm-value">${r.level}/${r.max}</span>
+    </div>`
+  }).join('')}</div>`
+}
+
 export { COLORS as CHART_COLORS }

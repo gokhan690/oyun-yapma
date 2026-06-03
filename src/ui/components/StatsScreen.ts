@@ -14,6 +14,7 @@ import { RIVAL_FAMILY_DEFS, isRivalUnlocked, nextLockedRivalDef } from '../../ga
 import { t } from '../../i18n'
 import { PRESTIGE_TREE_NODES, hasNode, ownedNodeCount } from '../../game/PrestigeTree'
 import { ipoThreshold } from '../../game/Prestige'
+import { completionRing } from './Charts'
 
 export class StatsScreen {
   readonly layer: HTMLElement
@@ -257,12 +258,12 @@ export class StatsScreen {
 
   private getAchievementCategory(id: string): string {
     const money = new Set(['first_100','first_1k','first_100k','millionaire','earn_10m','earn_100m','billion_earned','lifetime_1m'])
-    const click = new Set(['click_100','click_1k','click_10k','combo_10','combo_30','combo_50'])
+    const career = new Set(['first_job','career_lv5','entrepreneur'])
     const biz = new Set(['first_business','five_businesses','boss','stajyer_10','robot_5','fabrika_3','uydu_1','merkez_1','kafe_5','all_businesses','mega_biz','biz_50','data_center_1','drone_10','football_1','superlig_club','politics_1','galaksiyum_1','siyah_fabrika_1','hedge_1','mars_1','multiverse_1','luxury_1','codex_legal','codex_all'])
     const prestige = new Set(['prestige_1','prestige_5','ipo_3','stock_10','tree_5','tree_6','stock_3','stock_trader','season_15','season_30','theme_3'])
     const underground = new Set(['illegal_1','illegal_all','heat_max_survive','underground_lawyer'])
     if (money.has(id)) return 'money'
-    if (click.has(id)) return 'click'
+    if (career.has(id)) return 'career'
     if (biz.has(id)) return 'biz'
     if (prestige.has(id)) return 'prestige'
     if (underground.has(id)) return 'underground'
@@ -270,24 +271,47 @@ export class StatsScreen {
   }
 
   private renderAchievements(): void {
+    const done = this.state.achievements.size
+    const total = ACHIEVEMENTS.length
+
+    // ——— Büyük özet kartı: completion ring + kupa yolu (referans düzen) ———
+    const summary = document.createElement('div')
+    summary.className = 'stats-section ach-summary-card'
+    const ringWrap = document.createElement('div')
+    ringWrap.className = 'ach-ring-wrap'
+    ringWrap.innerHTML = completionRing(done, total, { size: 116 })
+    const trophy = document.createElement('div')
+    trophy.className = 'ach-trophy-path'
+    const milestones = [
+      { pct: 10, emoji: '🥉', label: 'Bronz' },
+      { pct: 30, emoji: '🥈', label: 'Gümüş' },
+      { pct: 55, emoji: '🥇', label: 'Altın' },
+      { pct: 80, emoji: '🏆', label: 'Elmas' },
+      { pct: 100, emoji: '👑', label: 'Efsane' },
+    ]
+    const curPct = total > 0 ? (done / total) * 100 : 0
+    trophy.innerHTML = `
+      <div class="ach-trophy-title">🏆 Başarı Kupası</div>
+      <div class="ach-trophy-track">
+        <div class="ach-trophy-fill" style="width:${Math.min(100, curPct)}%"></div>
+        ${milestones.map((m) => {
+          const reached = curPct >= m.pct
+          return `<div class="ach-trophy-mile${reached ? ' reached' : ''}" style="left:${m.pct}%" title="${m.label} · %${m.pct}"><span>${reached ? m.emoji : '🔒'}</span></div>`
+        }).join('')}
+      </div>
+      <div class="ach-trophy-labels">${milestones.map((m) => `<span>%${m.pct}</span>`).join('')}</div>
+    `
+    summary.append(ringWrap, trophy)
+    this.content.appendChild(summary)
+
+    // ——— Kategori sekmeleri (tıklama kaldırıldı) ———
     const section = document.createElement('div')
     section.className = 'stats-section achievements-section'
-    const header = document.createElement('div')
-    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:4px'
-    const title = document.createElement('h3')
-    title.style.margin = '0'
-    title.textContent = '🏆 Başarımlar'
-    const countBadge = document.createElement('span')
-    countBadge.style.cssText = 'font-size:0.75rem;color:var(--muted);font-weight:700'
-    countBadge.textContent = `${this.state.achievements.size}/${ACHIEVEMENTS.length}`
-    header.append(title, countBadge)
-    section.appendChild(header)
-
     const catDefs = [
       { id: 'all', label: '🗂️ Tümü' },
       { id: 'money', label: '💰 Para' },
-      { id: 'click', label: '👆 Tıklama' },
       { id: 'biz', label: '🏢 İşletme' },
+      { id: 'career', label: '💼 Kariyer' },
       { id: 'prestige', label: '👑 Prestij' },
       { id: 'underground', label: '🕶️ Gizli' },
       { id: 'special', label: '⭐ Özel' },
@@ -307,9 +331,6 @@ export class StatsScreen {
     }
     section.appendChild(tabs)
 
-    const gallery = document.createElement('div')
-    gallery.className = 'achievements-gallery'
-
     const filtered = this.achCategory === 'all'
       ? ACHIEVEMENTS
       : ACHIEVEMENTS.filter((a) => this.getAchievementCategory(a.id) === this.achCategory)
@@ -320,22 +341,32 @@ export class StatsScreen {
       return db - da
     })
 
+    // ——— Görev/başarı listesi — satır satır (referans düzen) ———
+    const list = document.createElement('div')
+    list.className = 'ach-list'
     for (const a of sorted) {
-      const done = this.state.achievements.has(a.id)
-      const badge = document.createElement('div')
-      badge.className = `ach-badge${done ? ' earned' : ''}`
-      const tooltip = document.createElement('div')
-      tooltip.className = 'ach-badge-tooltip'
-      tooltip.textContent = `${a.name}: ${a.description}${done ? ` · Ödül: ${formatMoney(a.reward)}` : ' · Henüz kazanılmadı'}`
-      badge.innerHTML = `
-        <span class="ach-badge-emoji">${done ? a.emoji : '🔒'}</span>
-        <span class="ach-badge-name">${done ? a.name : '???'}</span>
+      const earned = this.state.achievements.has(a.id)
+      const rewardParts: string[] = []
+      if (a.reward > 0) rewardParts.push(formatMoney(a.reward))
+      if (a.rewardReputation) rewardParts.push(`⭐${a.rewardReputation}`)
+      if (a.rewardCareerXp) rewardParts.push(`XP+${a.rewardCareerXp}`)
+      const rewardText = rewardParts.join(' · ') || '—'
+      const row = document.createElement('div')
+      row.className = `list-row ach-row${earned ? ' ach-earned' : ''}`
+      row.innerHTML = `
+        <div class="list-row-icon">${earned ? a.emoji : '🔒'}</div>
+        <div class="list-row-body">
+          <div class="list-row-title">${earned ? a.name : '???'}</div>
+          <div class="list-row-desc">${earned ? a.description : 'Henüz kazanılmadı'}</div>
+        </div>
+        <div class="ach-reward-box">🎁 ${rewardText}</div>
+        <div class="list-row-right">
+          <span class="status-badge ${earned ? 'profit' : 'neutral'}">${earned ? 'TAMAMLANDI' : 'KİLİTLİ'}</span>
+        </div>
       `
-      badge.appendChild(tooltip)
-      gallery.appendChild(badge)
+      list.appendChild(row)
     }
-
-    section.appendChild(gallery)
+    section.appendChild(list)
     this.content.appendChild(section)
   }
 
