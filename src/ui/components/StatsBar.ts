@@ -65,13 +65,22 @@ export class StatsBar {
     return el
   }
 
+  private lastMoneyValue = 0
+
   /** Cüzdan anında güncellenir; chip'ler sadece updateMeta=true iken yenilenir */
   render(updateMeta = true): void {
     this.walletLabel.textContent = t('stat_wallet')
     const formatted = formatMoneyHero(this.state.money)
     if (this.moneyEl.textContent !== formatted) {
+      // Para arttıysa pop animasyonu (Aşama 18)
+      if (!this.state.reducedMotion && this.state.money > this.lastMoneyValue && this.lastMoneyValue > 0) {
+        this.moneyEl.classList.remove('money-pop')
+        void this.moneyEl.offsetWidth
+        this.moneyEl.classList.add('money-pop')
+      }
       this.moneyEl.textContent = formatted
     }
+    this.lastMoneyValue = this.state.money
     this.moneyEl.classList.remove('money-tier-green', 'money-tier-gold', 'money-tier-platinum')
     this.moneyEl.classList.add(`money-tier-${moneyHeroTier(this.state.money)}`)
     if (updateMeta) this.updateMeta()

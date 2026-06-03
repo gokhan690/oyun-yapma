@@ -9416,3 +9416,26 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
 .rival-power-labels { display: flex; justify-content: space-between; margin-top: 3px; font-size: 9px; }
 .rival-power-you { color: #34d399; font-weight: 700; }
 .rival-power-them { color: #f87171; font-weight: 700; }
+
+/* ====================== MİKRO ANİMASYONLAR (Aşama 18) ====================== */
+.btn-primary, .btn-secondary, .career-action-btn, .biz-hero-buy { transition: transform 0.12s var(--ease-spring), filter 0.15s, opacity 0.15s; }
+.btn-primary:active, .btn-secondary:active, .career-action-btn:active:not(:disabled), .biz-hero-buy:active:not(:disabled) { transform: scale(0.94); }
+.dash-card, .biz-hero-card, .rival-card, .victory-card { transition: transform 0.18s var(--ease-spring), box-shadow 0.2s; }
+.dash-card:active, .biz-hero-card:active { transform: translateY(1px); }
+@media (hover: hover) {
+  .biz-hero-card:hover, .dash-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+}
+@keyframes cardGlowPulse { 0%,100% { box-shadow: 0 0 0 rgba(52,211,153,0); } 50% { box-shadow: 0 0 18px rgba(52,211,153,0.5); } }
+.biz-new-badge:not([hidden]) ~ * , .biz-owned.biz-eff-green { }
+@keyframes numberPop { 0% { transform: scale(1); } 40% { transform: scale(1.12); color: var(--green); } 100% { transform: scale(1); } }
+.money-pop { animation: numberPop 0.5s var(--ease-spring); }
+@keyframes slideUpFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.dashboard, .career-monthly-report, .inheritance-section { animation: slideUpFade 0.3s ease-out; }
+.income-grew { animation: numberPop 0.6s var(--ease-spring); }
+
+/* Reduced motion — animasyonları kapat */
+@media (prefers-reduced-motion: reduce) {
+  .dashboard, .career-monthly-report, .inheritance-section, .money-pop, .income-grew { animation: none !important; }
+  .btn-primary, .btn-secondary, .career-action-btn, .biz-hero-buy, .dash-card, .biz-hero-card { transition: none !important; }
+}
+html.reduced-motion .dashboard, html.reduced-motion .money-pop, html.reduced-motion .income-grew { animation: none !important; }
