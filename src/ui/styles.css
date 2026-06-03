@@ -3728,20 +3728,47 @@ html.theme-red .skyline-building {
 
 /* Açık / Beyaz tema */
 html.theme-light {
-  --bg: #f0f4f8;
-  --surface: #ffffff;
-  --surface2: #e8eef5;
-  --accent: #d08800;
-  --accent2: #dc2626;
-  --green: #059669;
-  --blue: #2563eb;
-  --text: #1a2030;
-  --muted: #6b7584;
-  --border: #cbd5e1;
-  --glow: 0 0 28px rgba(208, 136, 0, 0.22);
+  /* ——— Samimi Tycoon Tasarım Paleti ——— */
+  --bg-top: #18b9f2;
+  --bg-bottom: #d9fff4;
+  --panel: #fff8e8;
+  --panel-soft: #fffdf6;
+  --panel-blue: #dff8ff;
+  --primary: #00aeb5;
+  --primary-dark: #05818a;
+  --accent-orange: #ff9f2e;
+  --accent-orange-dark: #e27600;
+  --gold: #f7c948;
+  --gold-dark: #c88a13;
+  --success: #32c766;
+  --danger: #ef4b4b;
+  --warning: #ffb02e;
+  --text-soft: #47708a;
+  --white: #ffffff;
+  --radius-xl: 26px;
+  --radius-lg: 20px;
+  --shadow-card: 0 8px 18px rgba(0, 83, 115, 0.18);
+  --shadow-button: 0 5px 0 rgba(0, 0, 0, 0.12);
+
+  /* ——— Köprü değişkenleri (mevcut tüm componentler bunları kullanır) ——— */
+  --bg: #cdeefb;
+  --surface: #fff8e8;
+  --surface2: #dff8ff;
+  --accent: #ff9f2e;
+  --accent2: #ef4b4b;
+  --green: #32c766;
+  --blue: #00aeb5;
+  --text: #0e3b5c;
+  --muted: #47708a;
+  --border: rgba(247, 201, 72, 0.5);
+  --glow: 0 0 24px rgba(255, 159, 46, 0.3);
+  --radius: 20px;
 }
 html.theme-light body {
-  background: linear-gradient(180deg, #ddeeff 0%, #f0f4f8 42%, #e8f0fa 100%);
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,0.5), transparent 38%),
+    linear-gradient(180deg, #18b9f2 0%, #6be6f2 42%, #d9fff4 100%);
+  background-attachment: fixed;
 }
 html.theme-light .hud-header {
   background: linear-gradient(180deg, #c8dff5 0%, var(--bg) 88%);
@@ -9607,3 +9634,153 @@ html.reduced-motion .dashboard, html.reduced-motion .money-pop, html.reduced-mot
 .biz-up-name { flex: 1; font-weight: 600; }
 .biz-up-cost { font-size: 10px; color: var(--accent); font-weight: 600; }
 .biz-up-status { font-size: 10px; color: var(--green); font-weight: 700; }
+
+/* ╔══════════════════════════════════════════════════════════════╗
+   ║  SAMİMİ TYCOON TASARIM SİSTEMİ — tüm sayfalar ortak (theme-light) ║
+   ╚══════════════════════════════════════════════════════════════╝ */
+
+/* ——— Ortak kart: GameCard ——— */
+html.theme-light .game-card,
+html.theme-light .dash-card,
+html.theme-light .career-monthly-report,
+html.theme-light .inheritance-section,
+html.theme-light .life-info-card,
+html.theme-light .dept-card,
+html.theme-light .career-entrepreneur-card,
+html.theme-light .shop-card,
+html.theme-light .stats-section,
+html.theme-light .ts-predict-section {
+  background: linear-gradient(180deg, #fffdf6, #fff8e8) !important;
+  border: 2px solid rgba(247, 201, 72, 0.55) !important;
+  border-radius: var(--radius-xl, 26px) !important;
+  box-shadow: var(--shadow-card, 0 8px 18px rgba(0,83,115,0.18)) !important;
+  backdrop-filter: none !important;
+}
+html.theme-light .dash-card-sm { border-radius: var(--radius-lg, 20px) !important; }
+html.theme-light .dash-card-networth {
+  background: linear-gradient(180deg, #e7fbff, #c8f4f7) !important;
+  border-color: rgba(0, 174, 181, 0.4) !important;
+}
+
+/* ——— Ortak başlık ——— */
+html.theme-light .dash-card-title,
+html.theme-light .career-report-title,
+html.theme-light .dept-title,
+html.theme-light .ts-predict-h,
+html.theme-light .game-section-title,
+html.theme-light .stats-section h3 {
+  color: var(--gold-dark, #c88a13) !important;
+  font-weight: 800 !important;
+}
+
+/* ——— Üst KPI şeridi ——— */
+html.theme-light .dash-topbar { gap: 8px; }
+html.theme-light .dash-cell {
+  background: linear-gradient(180deg, #ffffff, #fff3d6) !important;
+  border: 2px solid rgba(247, 201, 72, 0.5) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 10px rgba(0,83,115,0.1) !important;
+  backdrop-filter: none !important;
+}
+html.theme-light .dash-cell-label { color: var(--text-soft, #47708a) !important; }
+html.theme-light .dash-cell-value { color: var(--text, #0e3b5c) !important; text-shadow: none !important; }
+html.theme-light .dash-cell-cash .dash-cell-value { color: var(--accent-orange-dark, #e27600) !important; }
+html.theme-light .dash-cell-nw .dash-cell-value { color: var(--primary-dark, #05818a) !important; }
+
+/* ——— Ortak butonlar ——— */
+html.theme-light .btn-primary,
+html.theme-light .btn-main,
+html.theme-light .career-action-btn,
+html.theme-light .biz-hero-buy,
+html.theme-light .dept-upgrade-btn,
+html.theme-light .biz-levelup-btn,
+html.theme-light .career-entrepreneur-btn {
+  background: linear-gradient(180deg, #ffbd4a, #ff8b1f) !important;
+  color: #fff !important;
+  border: 2px solid #ffd47a !important;
+  border-radius: 16px !important;
+  box-shadow: 0 5px 0 rgba(0,0,0,0.12) !important;
+  font-weight: 800 !important;
+}
+html.theme-light .btn-secondary,
+html.theme-light .btn-sm.btn-secondary {
+  background: linear-gradient(180deg, #20c8c8, #009aa5) !important;
+  color: #fff !important;
+  border: 2px solid #8ff5ed !important;
+  border-radius: 14px !important;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.1) !important;
+  font-weight: 700 !important;
+}
+html.theme-light .btn-primary:active,
+html.theme-light .btn-secondary:active,
+html.theme-light .career-action-btn:active:not(:disabled) {
+  transform: translateY(3px) !important;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.12) !important;
+}
+html.theme-light .btn-primary:disabled,
+html.theme-light .btn-secondary:disabled,
+html.theme-light .career-action-btn.used {
+  background: #e7edf0 !important;
+  color: #7a8d99 !important;
+  border-color: #c7d4da !important;
+  box-shadow: none !important;
+}
+
+/* ——— Ana metin rengi ——— */
+html.theme-light .career-title,
+html.theme-light .market-lock-title,
+html.theme-light h2, html.theme-light h3, html.theme-light h4 {
+  color: var(--text, #0e3b5c) !important;
+}
+
+/* ——— Alt menü ——— */
+html.theme-light .bottom-nav {
+  background: rgba(255, 248, 232, 0.96) !important;
+  border-top: 2px solid rgba(247, 201, 72, 0.55) !important;
+  border-radius: 24px 24px 0 0 !important;
+  box-shadow: 0 -8px 20px rgba(0,83,115,0.12) !important;
+}
+html.theme-light .nav-btn { color: var(--text, #0e3b5c) !important; font-weight: 700; border-radius: 16px; }
+html.theme-light .nav-btn.active {
+  background: linear-gradient(180deg, #32d1b8, #0da091) !important;
+  color: #fff !important;
+}
+html.theme-light .nav-btn.active .nav-label { color: #fff !important; }
+
+/* ——— Üst header ——— */
+html.theme-light .hud-header {
+  background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, transparent 90%) !important;
+}
+html.theme-light .stats-bar-hero, html.theme-light .stats-hero {
+  background: linear-gradient(180deg, #fffdf6, #fff3d6) !important;
+  border: 2px solid rgba(247,201,72,0.55) !important;
+  border-radius: var(--radius-lg, 20px) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+/* ——— Progress barlar yumuşak ——— */
+html.theme-light .chart-progress, html.theme-light .progress-bar { background: #e3eef2 !important; }
+
+/* ——— Durum rozetleri ——— */
+.status-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 999px;
+}
+.status-badge.profit { background: rgba(50,199,102,0.16); color: #1d9e4b; }
+.status-badge.risk { background: rgba(239,75,75,0.14); color: #d23b3b; }
+.status-badge.neutral { background: rgba(247,201,72,0.2); color: #c88a13; }
+
+/* ——— Modal kart cream ——— */
+html.theme-light .modal-card, html.theme-light .modal-content {
+  background: linear-gradient(180deg, #fffdf6, #fff8e8) !important;
+  border: 2px solid rgba(247,201,72,0.55) !important;
+  border-radius: var(--radius-xl, 26px) !important;
+}
+
+/* ——— Firma/işletme kartı cream ——— */
+html.theme-light .biz-hero-card {
+  background: linear-gradient(180deg, #fffdf6, #fff8e8) !important;
+  border: 2px solid rgba(247,201,72,0.5) !important;
+  border-radius: var(--radius-lg, 20px) !important;
+  box-shadow: var(--shadow-card) !important;
+}
