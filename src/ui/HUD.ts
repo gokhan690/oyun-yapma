@@ -2587,6 +2587,17 @@ export class HUD {
           this.modals.showToast(this.root, 'Yeterli para yok', 'important')
         }
         break
+      case 'buy-firm-upgrade':
+        if (id) {
+          const [pid, uid] = id.split(':')
+          if (pid && uid && this.state.buyFirmUpgrade(pid, uid)) {
+            this.modals.showToast(this.root, '🛠️ Geliştirme yapıldı — gelir arttı')
+            this.refreshShop(true)
+          } else {
+            this.modals.showToast(this.root, 'Yeterli para yok', 'important')
+          }
+        }
+        break
       case 'open-franchise': {
         const parsed = id ? parseFranchiseAction(id) : null
         if (!parsed) {

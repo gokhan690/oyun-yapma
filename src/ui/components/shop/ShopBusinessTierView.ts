@@ -18,6 +18,7 @@ export function markRecentlyBought(id: string): void {
 }
 import { modernizeCost } from '../../../game/TechObsolescence'
 import { FIRM_MAX_LEVEL, firmLevelBonusLabel } from '../../../game/FirmLevels'
+import { firmUpgradesForProducer } from '../../../game/FirmUpgrades'
 import { appendFranchiseSection } from './FranchiseBlock'
 import { getActiveSynergies } from '../../../game/Synergies'
 import { sortProducers, formatRoi, producerRoiSeconds, type BizSortOrder } from '../../../game/ShopAdvisor'
@@ -281,6 +282,37 @@ export function updateHeroBusinessCard(
       levelRow.append(badge, lvBtn)
     }
     extra.appendChild(levelRow)
+
+    // Kategoriye özel geliştirmeler (Karar 8-10)
+    const upgrades = firmUpgradesForProducer(p)
+    const purchased = state.firmUpgradesPurchased(p.id)
+    if (upgrades.length > 0) {
+      const upWrap = document.createElement('div')
+      upWrap.className = 'biz-upgrades-wrap'
+      const upTitle = document.createElement('div')
+      upTitle.className = 'biz-upgrades-title'
+      upTitle.textContent = '🛠️ Geliştirmeler'
+      upWrap.appendChild(upTitle)
+      const upGrid = document.createElement('div')
+      upGrid.className = 'biz-upgrades-grid'
+      for (const up of upgrades) {
+        const isPurchased = purchased.includes(up.id)
+        const cost = state.firmUpgradeCostFor(p, up.id)
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = `biz-upgrade-btn${isPurchased ? ' biz-upgrade-owned' : ''}`
+        btn.dataset.action = 'buy-firm-upgrade'
+        btn.dataset.id = `${p.id}:${up.id}`
+        btn.disabled = isPurchased || !state.canAfford(cost)
+        btn.title = up.description
+        btn.innerHTML = isPurchased
+          ? `<span class="biz-up-emoji">${up.emoji}</span><span class="biz-up-name">${up.name}</span><span class="biz-up-status">✅ +%${Math.round(up.incomeBonus * 100)}</span>`
+          : `<span class="biz-up-emoji">${up.emoji}</span><span class="biz-up-name">${up.name}</span><span class="biz-up-cost">+%${Math.round(up.incomeBonus * 100)} · ${formatMoney(cost)}</span>`
+        upGrid.appendChild(btn)
+      }
+      upWrap.appendChild(upGrid)
+      extra.appendChild(upWrap)
+    }
 
     // Sell quantity selector
     const sellWrap = document.createElement('div')

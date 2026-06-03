@@ -447,6 +447,12 @@ import { pickDisaster, disasterDamage } from './NaturalDisasters'
 import { progressPathSnapshot, type ProgressPathSnapshot } from './ProgressPath'
 import { firmLevelIncomeMult, firmLevelUpCost, FIRM_MAX_LEVEL } from './FirmLevels'
 import {
+  firmUpgradeDef,
+  firmUpgradeIncomeBonus,
+  firmUpgradeHeatBonus,
+  firmUpgradeCost,
+} from './FirmUpgrades'
+import {
   createDepartmentState,
   departmentUpgradeCost,
   departmentDef,
@@ -657,6 +663,7 @@ export interface SerializableState {
   characterBackground?: import('./Career').CharacterBackgroundId | null
   netWorthHistory?: number[]
   producerLevels?: Record<string, number>
+  producerUpgrades?: Record<string, string[]>
   departments?: Record<string, number>
   departmentTasksClaimed?: import('./EmpireDepartments').DepartmentId[]
 }
@@ -933,6 +940,8 @@ export class GameState {
   characterBackground: CharacterBackgroundId | null = null
   /** Firma seviyeleri (Karar 9) — varsayılan 1 */
   producerLevels: Record<string, number> = {}
+  /** Kategoriye özel firma geliştirmeleri (Karar 8-10) — producerId → upgradeId[] */
+  producerUpgrades: Record<string, string[]> = {}
   /** İmparatorluk departman seviyeleri (Karar 11-12) */
   departments: Record<DepartmentId, number> = createDepartmentState()
   /** Tamamlanıp ödülü alınmış departman görevleri (Karar 13) */
@@ -1061,6 +1070,38 @@ export class GameState {
     this.emit({ type: 'money_changed' })
     this.emit({ type: 'purchase' })
     return true
+  }
+
+  /** İşletmenin satın alınmış geliştirmeleri (Karar 8-10) */
+  firmUpgradesPurchased(producerId: string): string[] {
+    return this.producerUpgrades[producerId] ?? []
+  }
+
+  /** Bir firma geliştirmesi satın al (Karar 8-10) */
+  buyFirmUpgrade(producerId: string, upgradeId: string): boolean {
+    const def = PRODUCERS.find((p) => p.id === producerId)
+    if (!def) return false
+    const owned = this.producers[producerId] ?? 0
+    if (owned <= 0) return false
+    const purchased = this.producerUpgrades[producerId] ?? []
+    if (purchased.includes(upgradeId)) return false
+    const up = firmUpgradeDef(def, upgradeId)
+    if (!up) return false
+    const cost = firmUpgradeCost(def, up, owned)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.producerUpgrades[producerId] = [...purchased, upgradeId]
+    this.addGazette(`${up.emoji} ${producerName(def)}: ${up.name} geliştirmesi yapıldı`, 'player')
+    this.emit({ type: 'money_changed' })
+    this.emit({ type: 'purchase' })
+    return true
+  }
+
+  /** İşletme için geliştirme maliyeti */
+  firmUpgradeCostFor(def: ProducerDef, upgradeId: string): number {
+    const up = firmUpgradeDef(def, upgradeId)
+    if (!up) return Infinity
+    return firmUpgradeCost(def, up, this.producers[def.id] ?? 0)
   }
 
   // ——— İmparatorluk departmanları (Karar 11-13) ———
@@ -1705,6 +1746,11 @@ export class GameState {
     if (heirRole?.heatBonus) heat += heirRole.heatBonus
     const bg = backgroundDef(this.characterBackground)
     if (bg?.heatBonus) heat += bg.heatBonus
+    // Illegal firma geliştirmelerinin ek heat'i (Karar 10)
+    for (const p of PRODUCERS) {
+      if (!p.illegal || (this.producers[p.id] ?? 0) <= 0) continue
+      heat += firmUpgradeHeatBonus(p, this.producerUpgrades[p.id] ?? [])
+    }
     return Math.max(0, heat)
   }
 
@@ -2013,6 +2059,8 @@ export class GameState {
     }
     // Firma seviye bonusu (Karar 9)
     mult *= firmLevelIncomeMult(this.producerLevel(def.id))
+    // Kategoriye özel geliştirme bonusu (Karar 8-10)
+    mult *= 1 + firmUpgradeIncomeBonus(def, this.producerUpgrades[def.id] ?? [])
     mult *= 1 + producerSynergyBonus(def.id, this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
     mult *= managerMultiplier(this.managers, def.id)
     mult *= this.weeklyProducerBonus(def.id)
@@ -6067,6 +6115,7 @@ export class GameState {
       characterBackground: this.characterBackground,
       netWorthHistory: [...this.netWorthHistory],
       producerLevels: { ...this.producerLevels },
+      producerUpgrades: Object.fromEntries(Object.entries(this.producerUpgrades).map(([k, v]) => [k, [...v]])),
       departments: { ...this.departments },
       departmentTasksClaimed: [...this.departmentTasksClaimed],
     }
@@ -6234,6 +6283,11 @@ export class GameState {
     }
     if (data.producerLevels) {
       this.producerLevels = { ...data.producerLevels }
+    }
+    if (data.producerUpgrades) {
+      this.producerUpgrades = Object.fromEntries(
+        Object.entries(data.producerUpgrades).map(([k, v]) => [k, [...(v as string[])]]),
+      )
     }
     if (data.departments) {
       this.departments = { ...createDepartmentState(), ...data.departments }
