@@ -1041,9 +1041,9 @@ export class GameState {
     return { money: result.money, levelUp: result.levelUp }
   }
 
-  /** Girişimci ol */
+  /** Girişimci ol — Karar 19: 10.000₺ net değer gerekir */
   becomeEntrepreneur(): void {
-    if (this.money < FIRST_GOAL_TARGET && !this.career.firstGoalComplete) return
+    if (this.financeNetWorth() < FIRST_GOAL_TARGET) return
     this.career.isEntrepreneur = true
     this.career.firstGoalComplete = true
   }

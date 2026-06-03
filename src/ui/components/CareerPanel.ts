@@ -171,34 +171,37 @@ export class CareerPanel {
   }
 
   private renderFirstGoal(): HTMLElement {
-    const career = this.state.career
-    const money = this.state.money
+    const s = this.state
+    const money = s.money
     const section = document.createElement('div')
     section.className = 'career-first-goal'
 
-    if (career.firstGoalComplete) {
-      section.innerHTML = `<div class="career-goal-done">✅ İlk hedef tamamlandı! Artık işletme açabilirsin.</div>`
-      return section
-    }
+    // Karar 19: İki aşamalı hedef
+    const hasBusiness = Object.values(s.producers as Record<string, number>).some((n) => n > 0)
+    const netWorth = s.financeNetWorth()
 
-    const pct = Math.min(100, Math.round((money / FIRST_GOAL_TARGET) * 100))
-    const title = document.createElement('p')
-    title.className = 'career-goal-title'
-    title.textContent = `🎯 İlk Hedef: ${formatMoney(FIRST_GOAL_TARGET)} biriktir`
+    // Hedef 1: 500₺ kazan + ilk işletmeyi aç
+    const goal1Done = hasBusiness
+    const goal1Pct = goal1Done ? 100 : Math.min(100, Math.round((money / 500) * 100))
+    // Hedef 2: 10.000₺ net değere ulaş
+    const goal2Pct = Math.min(100, Math.round((netWorth / FIRST_GOAL_TARGET) * 100))
 
-    const progress = document.createElement('div')
-    progress.className = 'career-goal-progress'
-    const progressLabel = document.createElement('span')
-    progressLabel.textContent = `${formatMoney(money)} / ${formatMoney(FIRST_GOAL_TARGET)} (${pct}%)`
-    const bar = document.createElement('div')
-    bar.className = 'progress-bar career-goal-bar'
-    const fill = document.createElement('div')
-    fill.className = 'progress-fill career-goal-fill'
-    fill.style.width = `${pct}%`
-    bar.appendChild(fill)
-    progress.append(progressLabel, bar)
+    const makeGoal = (icon: string, label: string, done: boolean, pct: number, sub: string): string => `
+      <div class="career-goal-stage${done ? ' goal-stage-done' : ''}">
+        <p class="career-goal-title">${done ? '✅' : icon} ${label}</p>
+        ${done ? '' : `
+          <div class="career-goal-progress">
+            <span>${sub}</span>
+            <div class="progress-bar career-goal-bar"><div class="progress-fill career-goal-fill" style="width:${pct}%"></div></div>
+          </div>`}
+      </div>`
 
-    section.append(title, progress)
+    section.innerHTML =
+      makeGoal('🎯', 'Hedef 1: İlk küçük işletmeni aç', goal1Done, goal1Pct,
+        `${formatMoney(money)} / ${formatMoney(500)} — sonra mağazadan işletme al`) +
+      makeGoal('🏆', `Hedef 2: ${formatMoney(FIRST_GOAL_TARGET)} net değer → girişimci ol`, false, goal2Pct,
+        `${formatMoney(netWorth)} / ${formatMoney(FIRST_GOAL_TARGET)} (${goal2Pct}%)`)
+
     return section
   }
 
@@ -206,9 +209,9 @@ export class CareerPanel {
     const section = document.createElement('div')
     section.className = 'career-entrepreneur-section'
 
-    const career = this.state.career
-    const money = this.state.money
-    const canBecomeEntrepreneur = money >= FIRST_GOAL_TARGET || career.firstGoalComplete
+    // Karar 19: Girişimci için 10.000₺ NET DEĞER gerekir
+    const netWorth = this.state.financeNetWorth()
+    const canBecomeEntrepreneur = netWorth >= FIRST_GOAL_TARGET
 
     const btn = document.createElement('button')
     btn.type = 'button'
@@ -217,7 +220,7 @@ export class CareerPanel {
     if (canBecomeEntrepreneur) {
       btn.innerHTML = `<span>🚀 İşten Ayrıl & Girişimci Ol</span><small>Maaşlı işi bırak, kendi işine odaklan</small>`
     } else {
-      btn.innerHTML = `<span>🔒 Önce ${formatMoney(FIRST_GOAL_TARGET)} biriktir</span><small>Kariyer geliri + işletmeler ile büyü</small>`
+      btn.innerHTML = `<span>🔒 Önce ${formatMoney(FIRST_GOAL_TARGET)} net değere ulaş</span><small>Kariyer geliri + işletmeler ile büyü</small>`
     }
     btn.addEventListener('click', () => {
       if (canBecomeEntrepreneur) this.onBecomeEntrepreneur()
