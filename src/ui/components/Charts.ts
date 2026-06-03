@@ -4,15 +4,16 @@
  * Oyunun "modern iş imparatorluğu" tasarım diline uygun.
  */
 
+// Samimi Tycoon paleti — grafikler temayla uyumlu, canlı
 const COLORS = {
-  green: '#34d399',
-  red: '#f87171',
-  gold: '#fbbf24',
-  blue: '#60a5fa',
-  cyan: '#22d3ee',
-  purple: '#a78bfa',
-  orange: '#fb923c',
-  muted: '#64748b',
+  green: '#28c76f',   // success
+  red: '#ff6f61',     // coral (risk)
+  gold: '#f6c84c',    // altın
+  blue: '#13b8a6',    // teal
+  cyan: '#5ddcff',    // gökyüzü mavi
+  purple: '#a37cf0',  // mor (franchise)
+  orange: '#ff9b36',  // turuncu
+  muted: '#9bb4c2',
 }
 
 export type ChartColor = keyof typeof COLORS
@@ -62,23 +63,30 @@ export function lineChart(
   if (values.length < 2) {
     return `<svg class="line-chart" width="100%" height="${height}" viewBox="0 0 ${width} ${height}"><text x="${width / 2}" y="${height / 2}" fill="#64748b" font-size="11" text-anchor="middle">Veri toplanıyor…</text></svg>`
   }
-  const pad = 4
+  const pad = 6
   const pts = normalize(values, width, height, pad)
   const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
   const rising = values[values.length - 1]! >= values[0]!
-  const color = rising ? COLORS.green : COLORS.red
+  // Yükselişte teal→yeşil, düşüşte coral
+  const color = rising ? COLORS.blue : COLORS.red
+  const color2 = rising ? COLORS.green : COLORS.orange
   const gradId = `grad-${Math.random().toString(36).slice(2, 8)}`
+  const lineId = `line-${Math.random().toString(36).slice(2, 8)}`
   const fillPath = `${line} L${pts[pts.length - 1]!.x.toFixed(1)},${height - pad} L${pts[0]!.x.toFixed(1)},${height - pad} Z`
   return `<svg class="line-chart" width="100%" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
     <defs>
       <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${color}" stop-opacity="0.35"/>
-        <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+        <stop offset="0%" stop-color="${color2}" stop-opacity="0.45"/>
+        <stop offset="100%" stop-color="${color2}" stop-opacity="0.02"/>
+      </linearGradient>
+      <linearGradient id="${lineId}" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="${color}"/>
+        <stop offset="100%" stop-color="${color2}"/>
       </linearGradient>
     </defs>
     ${opts.showFill !== false ? `<path d="${fillPath}" fill="url(#${gradId})"/>` : ''}
-    <path d="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="${pts[pts.length - 1]!.x.toFixed(1)}" cy="${pts[pts.length - 1]!.y.toFixed(1)}" r="3" fill="${color}"/>
+    <path d="${line}" fill="none" stroke="url(#${lineId})" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${pts[pts.length - 1]!.x.toFixed(1)}" cy="${pts[pts.length - 1]!.y.toFixed(1)}" r="4.5" fill="#fff" stroke="${color2}" stroke-width="2.5"/>
   </svg>`
 }
 
@@ -99,7 +107,7 @@ export function donutChart(segments: DonutSegment[], opts: { size?: number } = {
   const stroke = 16
   const total = segments.reduce((s, seg) => s + seg.value, 0)
   if (total <= 0) {
-    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#2d4a6f" stroke-width="${stroke}"/></svg>`
+    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e6eef2" stroke-width="${stroke}"/></svg>`
   }
   const circ = 2 * Math.PI * r
   let offset = 0
@@ -115,8 +123,9 @@ export function donutChart(segments: DonutSegment[], opts: { size?: number } = {
     })
     .join('')
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="donut-chart">
-    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#1a2d4a" stroke-width="${stroke}"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e6eef2" stroke-width="${stroke}"/>
     ${arcs}
+    <circle cx="${cx}" cy="${cy}" r="${r - stroke / 2 - 1}" fill="#fffdf7"/>
   </svg>`
 }
 
@@ -156,11 +165,13 @@ export function gauge(
     color = th.color
   }
   const largeArc = v > 50 ? 1 : 0
+  // İğne ucu noktası
   return `<svg width="${size}" height="${size * 0.7}" viewBox="0 0 ${size} ${size * 0.7}" class="gauge-chart">
-    <path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 1 1 ${bgX.toFixed(1)},${bgY.toFixed(1)}" fill="none" stroke="#1a2d4a" stroke-width="${stroke}" stroke-linecap="round"/>
+    <path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 1 1 ${bgX.toFixed(1)},${bgY.toFixed(1)}" fill="none" stroke="#e6eef2" stroke-width="${stroke}" stroke-linecap="round"/>
     <path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${largeArc} 1 ${x2.toFixed(1)},${y2.toFixed(1)}" fill="none" stroke="${COLORS[color]}" stroke-width="${stroke}" stroke-linecap="round"/>
-    <text x="${cx}" y="${cy - 2}" fill="${COLORS[color]}" font-size="${size * 0.18}" font-weight="800" text-anchor="middle">${Math.round(v)}</text>
-    ${opts.label ? `<text x="${cx}" y="${cy + size * 0.12}" fill="#94a3b8" font-size="${size * 0.08}" text-anchor="middle">${opts.label}</text>` : ''}
+    <circle cx="${x2.toFixed(1)}" cy="${y2.toFixed(1)}" r="${stroke / 2 + 1}" fill="#fff" stroke="${COLORS[color]}" stroke-width="2.5"/>
+    <text x="${cx}" y="${cy - 2}" fill="${COLORS[color]}" font-size="${size * 0.2}" font-weight="800" text-anchor="middle">${Math.round(v)}</text>
+    ${opts.label ? `<text x="${cx}" y="${cy + size * 0.13}" fill="#5f7f91" font-size="${size * 0.085}" font-weight="600" text-anchor="middle">${opts.label}</text>` : ''}
   </svg>`
 }
 

@@ -2,6 +2,7 @@ import type { GameState } from '../../game/GameState'
 import { formatMoney, formatIncomeRate } from '../../game/Economy'
 import { progressPathSnapshot } from '../../game/ProgressPath'
 import { playerGameAge } from '../../game/Dynasty'
+import { cityDef } from '../../game/ExpansionMap'
 import { lineChart, donutChart, gauge, type DonutSegment } from './Charts'
 
 /**
@@ -21,29 +22,53 @@ export class Dashboard {
   render(): void {
     this.root.replaceChildren()
     this.root.append(
+      this.renderProfileBar(),
       this.renderTopBar(),
       this.renderNetWorthCard(),
       this.renderCardGrid(),
     )
   }
 
-  /** Üst bar: nakit, net değer, gelir, yaş */
+  /** Profil barı: avatar + isim + unvan + yaş + şehir (referans görsel) */
+  private renderProfileBar(): HTMLElement {
+    const s = this.state
+    const age = playerGameAge(s.gameTimeMs, s.dynasty)
+    const snap = progressPathSnapshot(s.totalEarned, s.ipoCount)
+    const city = cityDef(s.activeCityId())
+    const avatar = s.playerGender === 'female' ? '👩‍💼' : '👨‍💼'
+    const bar = document.createElement('div')
+    bar.className = 'dash-profile-bar'
+    bar.innerHTML = `
+      <div class="dash-avatar">${avatar}</div>
+      <div class="dash-profile-info">
+        <div class="dash-profile-name">${s.playerName} <span class="dash-profile-gen">·  Nesil ${s.dynasty.generation}</span></div>
+        <div class="dash-profile-title">${snap.currentEmoji} ${snap.currentRank}</div>
+      </div>
+      <div class="dash-profile-meta">
+        <span class="dash-profile-chip">🎂 ${age}</span>
+        <span class="dash-profile-chip">${city.emoji} ${city.label}</span>
+      </div>
+    `
+    return bar
+  }
+
+  /** Üst KPI şeridi: ikon + etiket + değer */
   private renderTopBar(): HTMLElement {
     const s = this.state
     const bar = document.createElement('div')
     bar.className = 'dash-topbar'
-    const age = playerGameAge(s.gameTimeMs, s.dynasty)
     const nw = s.financeNetWorth()
-    const cells: { label: string; value: string; cls: string }[] = [
-      { label: 'Nakit', value: formatMoney(s.money), cls: 'dash-cell-cash' },
-      { label: 'Net Değer', value: formatMoney(nw), cls: 'dash-cell-nw' },
-      { label: 'Gelir', value: `${formatIncomeRate(s.incomePerDay())}`, cls: 'dash-cell-income' },
-      { label: 'Yaş', value: `${age}`, cls: 'dash-cell-age' },
+    const riskLabel = s.illegalHeat >= 70 || (s.lifestyle.stress ?? 0) >= 80 ? 'Yüksek' : s.illegalHeat >= 40 ? 'Orta' : 'Düşük'
+    const cells: { icon: string; label: string; value: string; cls: string }[] = [
+      { icon: '💵', label: 'Nakit', value: formatMoney(s.money), cls: 'dash-cell-cash' },
+      { icon: '📈', label: 'Net Değer', value: formatMoney(nw), cls: 'dash-cell-nw' },
+      { icon: '🪙', label: 'Günlük Gelir', value: `${formatIncomeRate(s.incomePerDay())}`, cls: 'dash-cell-income' },
+      { icon: '🛡️', label: 'Risk', value: riskLabel, cls: 'dash-cell-risk' },
     ]
     for (const c of cells) {
       const el = document.createElement('div')
       el.className = `dash-cell ${c.cls}`
-      el.innerHTML = `<span class="dash-cell-label">${c.label}</span><strong class="dash-cell-value">${c.value}</strong>`
+      el.innerHTML = `<span class="dash-cell-icon">${c.icon}</span><div class="dash-cell-body"><span class="dash-cell-label">${c.label}</span><strong class="dash-cell-value">${c.value}</strong></div>`
       bar.appendChild(el)
     }
     return bar
