@@ -9495,3 +9495,41 @@ html.reduced-motion .dashboard, html.reduced-motion .money-pop, html.reduced-mot
 .life-mark-label { font-size: 8px; color: var(--muted); white-space: nowrap; }
 .life-mark.reached .life-mark-label { color: var(--text); font-weight: 600; }
 .life-mark-age { font-size: 7px; color: var(--muted); }
+
+/* ====================== TASARIM DİLİ CİLASI (Section 17) ====================== */
+/* Cam efekti kartlar — modern iş imparatorluğu hissi */
+.dash-card, .career-monthly-report, .inheritance-section, .life-info-card {
+  background: linear-gradient(135deg, rgba(26,45,74,0.55), rgba(18,32,53,0.75));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(96,165,250,0.12);
+}
+.dash-card-networth {
+  border: 1px solid rgba(251,191,36,0.22);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+/* Altın detay — kart başlıklarında ince üst çizgi */
+.dash-card-networth::after {
+  content: ""; position: absolute; top: 0; left: 12px; right: 12px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(251,191,36,0.5), transparent);
+}
+.dash-card-networth { position: relative; }
+/* Büyük net sayılar — net değer ve nakit vurgusu */
+.dash-networth-value, .dash-cell-cash .dash-cell-value, .dash-cell-nw .dash-cell-value {
+  text-shadow: 0 0 16px rgba(251,191,36,0.15);
+  font-variant-numeric: tabular-nums;
+}
+/* Neon vurgu — risk/heat kritik durumda */
+.dash-card-risk { border-color: rgba(248,113,113,0.15); }
+/* Üst bar hücreleri hafif cam */
+.dash-cell {
+  background: linear-gradient(135deg, rgba(26,45,74,0.5), rgba(18,32,53,0.7));
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+/* Tüm progress dolgulara yumuşak geçiş ışıltısı */
+.chart-progress-glow { position: relative; }
+/* Kart başlıkları tutarlı altın-soluk renk */
+.dash-card-title { color: var(--token-accent-gold-dim); opacity: 0.9; }
+/* İkonlu hızlı okuma — emoji boyut tutarlılığı */
+.dash-cell-label, .ts-predict-h, .career-report-title { font-feature-settings: "tnum"; }
