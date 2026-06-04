@@ -152,13 +152,45 @@ export class DynastyPanel {
 
   private renderFamily(): void {
     const d = this.state.dynasty
-    const spouse = document.createElement('p')
-    spouse.className = 'dynasty-spouse-line'
-    spouse.textContent = `${t('dynasty_spouse_label')} ${d.spouseName} · ${traitLabel(d.spouseTrait ?? '')}`
-    this.root.appendChild(spouse)
+    const sat = Math.round(d.spouseSatisfaction ?? 70)
+
+    // ——— Aile özet kartı: eş + arma + nüfuz/birlik (referans düzen) ———
+    const childHappinessAvg = d.children.length > 0
+      ? Math.round(d.children.reduce((s, c) => s + (c.happiness ?? 60), 0) / d.children.length)
+      : 70
+    const familyUnity = Math.round((sat + childHappinessAvg) / 2)
+    const familyInfluence = Math.min(100, this.state.dynasty.generation * 12 + d.children.length * 6 + Math.round(this.state.reputation / 3))
+    const summary = document.createElement('div')
+    summary.className = 'game-card family-summary-card'
+    summary.innerHTML = `
+      <div class="fam-summary-grid">
+        <div class="fam-spouse">
+          <div class="fam-spouse-avatar">${d.spouseTrait ? '💞' : '💍'}</div>
+          <div class="fam-spouse-name">${d.spouseName}</div>
+          <div class="fam-spouse-trait">${traitLabel(d.spouseTrait ?? '')}</div>
+        </div>
+        <div class="fam-crest">
+          <div class="fam-crest-emoji">👑</div>
+          <div class="fam-crest-name">${this.state.playerName} Ailesi</div>
+          <div class="fam-crest-gen">Nesil ${this.state.dynasty.generation}</div>
+        </div>
+        <div class="fam-meters">
+          <div class="fam-meter">
+            <span class="fam-meter-label">Aile Nüfuzu</span>
+            <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${familyInfluence}%;background:#13b8a6"></div></div>
+            <span class="fam-meter-val">%${familyInfluence}</span>
+          </div>
+          <div class="fam-meter">
+            <span class="fam-meter-label">Aile Birliği</span>
+            <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${familyUnity}%;background:#28c76f"></div></div>
+            <span class="fam-meter-val">%${familyUnity}</span>
+          </div>
+        </div>
+      </div>
+    `
+    this.root.appendChild(summary)
 
     // Eş memnuniyeti barı + hediye butonu
-    const sat = Math.round(d.spouseSatisfaction ?? 70)
     const satRow = document.createElement('div')
     satRow.className = 'spouse-satisfaction-row'
     const satColor = sat >= 80 ? '#5ee0a0' : sat >= 50 ? '#72b7ff' : sat >= 30 ? '#f8b84e' : '#f87171'

@@ -10064,3 +10064,21 @@ html.theme-light .ach-cat-btn.active { background: linear-gradient(180deg, #2fd0
 .dept-verim { font-size: 10px; font-weight: 700; color: var(--text-soft, #5f7f91); }
 .dept-matrix-card { margin-top: 12px; padding: 14px !important; }
 .dept-matrix-card .dash-card-title { margin-bottom: 10px; }
+
+/* ====================== AİLE ÖZET KARTI (referans düzen) ====================== */
+.family-summary-card { margin-bottom: 12px; padding: 14px !important; }
+.fam-summary-grid { display: grid; grid-template-columns: 1fr 1.1fr 1.3fr; gap: 10px; align-items: center; }
+.fam-spouse, .fam-crest { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px; }
+.fam-spouse-avatar, .fam-crest-emoji {
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 24px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff6e0, #ffcf7a);
+  border: 2px solid #fff; box-shadow: 0 3px 8px rgba(255,160,40,0.3);
+}
+.fam-crest-emoji { background: radial-gradient(circle at 35% 30%, #d6f7f1, #6fe0d4); box-shadow: 0 3px 8px rgba(19,184,166,0.3); }
+.fam-spouse-name, .fam-crest-name { font-size: 12px; font-weight: 800; color: var(--text-main, #123a52); }
+.fam-spouse-trait, .fam-crest-gen { font-size: 10px; color: var(--text-soft, #5f7f91); }
+.fam-meters { display: flex; flex-direction: column; gap: 8px; }
+.fam-meter { display: grid; grid-template-columns: 1fr auto; gap: 2px 6px; align-items: center; }
+.fam-meter-label { font-size: 10px; font-weight: 700; color: var(--text-soft, #5f7f91); grid-column: 1 / -1; }
+.fam-meter .dynasty-age-track { grid-column: 1; }
+.fam-meter-val { font-size: 11px; font-weight: 800; color: var(--text-main, #123a52); grid-column: 2; }
