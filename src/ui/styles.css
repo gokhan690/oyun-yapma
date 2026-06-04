@@ -10053,3 +10053,14 @@ html.theme-light .ach-cat-btn.active { background: linear-gradient(180deg, #2fd0
 .ach-row.ach-earned .list-row-icon { background: rgba(40,199,111,0.14); }
 .ach-row:not(.ach-earned) { opacity: 0.7; }
 .ach-reward-box { flex-shrink: 0; font-size: 10px; font-weight: 700; color: var(--orange-dark, #e8801c); background: rgba(255,155,54,0.12); border-radius: 10px; padding: 5px 8px; white-space: nowrap; }
+
+/* ====================== İMPARATORLUK — numara rozeti + durum + matris ====================== */
+.dept-num {
+  width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; color: #fff; border-radius: 7px;
+  background: linear-gradient(180deg, #34d9c2, #0fa99b);
+}
+.dept-status-row { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+.dept-verim { font-size: 10px; font-weight: 700; color: var(--text-soft, #5f7f91); }
+.dept-matrix-card { margin-top: 12px; padding: 14px !important; }
+.dept-matrix-card .dash-card-title { margin-bottom: 10px; }
