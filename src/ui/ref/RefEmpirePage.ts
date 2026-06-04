@@ -16,11 +16,22 @@ const DEPTS: Dept[] = [
   { asset: REF_ASSETS_V2_GENERIC.departments.operations,     name: 'Operasyon', lvl: 5 },
   { asset: REF_ASSETS_V2_GENERIC.departments.finance,        name: 'Finans',    lvl: 6 },
   { asset: REF_ASSETS_V2_GENERIC.departments.marketing,      name: 'Pazarlama', lvl: 4 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.hr,             name: 'İK',        lvl: 3 },
   { asset: REF_ASSETS_V2_GENERIC.departments.legal,          name: 'Hukuk',     lvl: 3 },
   { asset: REF_ASSETS_V2_GENERIC.departments.rnd,            name: 'Ar-Ge',     lvl: 5 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.logistics,      name: 'Lojistik',  lvl: 4 },
   { asset: REF_ASSETS_V2_GENERIC.departments.security,       name: 'Güvenlik',  lvl: 2 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.globalStrategy, name: 'Strateji',  lvl: 4 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.prMedia,        name: 'PR/Medya',  lvl: 3 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.familyOffice,   name: 'Aile Ofisi', lvl: 4 },
   { asset: REF_ASSETS_V2_GENERIC.departments.politics,       name: 'Siyaset',   lvl: 1 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.globalStrategy, name: 'Strateji',  lvl: 4 },
+]
+
+interface DeptTask { ico: string; name: string; reward: string; pct: number }
+const DEPT_TASKS: DeptTask[] = [
+  { ico: '⚙️', name: 'Operasyonu Sv 6’ya çıkar', reward: '+%8 gelir', pct: 72 },
+  { ico: '🛡️', name: 'Güvenlik ağını güçlendir',  reward: '-%30 baskın', pct: 40 },
+  { ico: '🧪', name: 'Ar-Ge projesini tamamla',    reward: 'Yeni sektör', pct: 55 },
 ]
 
 export class RefEmpirePage implements RefPage {
@@ -65,8 +76,26 @@ export class RefEmpirePage implements RefPage {
     }).join('')
     this.el.appendChild(cityGrid)
 
-    // Departmanlar
-    this.el.appendChild(sectionTitle('Departmanlar'))
+    // Öncelikli departman görevleri
+    this.el.appendChild(sectionTitle('Öncelikli Görevler'))
+    const tasks = document.createElement('div')
+    tasks.className = 'ref-dept-tasks'
+    tasks.innerHTML = DEPT_TASKS.map(t => `
+      <div class="ref-dept-task">
+        <span class="ref-dept-task__ico">${t.ico}</span>
+        <div class="ref-dept-task__main">
+          <div class="ref-dept-task__head">
+            <span class="ref-dept-task__name">${t.name}</span>
+            <span class="ref-dept-task__reward">${t.reward}</span>
+          </div>
+          <div class="ref-perf-track sm"><div class="ref-perf-fill high" style="width:${t.pct}%"></div></div>
+        </div>
+      </div>
+    `).join('')
+    this.el.appendChild(tasks)
+
+    // Departmanlar (12)
+    this.el.appendChild(sectionTitle('Departmanlar', '12 birim'))
     const deptGrid = document.createElement('div')
     deptGrid.className = 'ref-dept-grid'
     deptGrid.innerHTML = DEPTS.map(d => `

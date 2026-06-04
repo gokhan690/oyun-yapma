@@ -117,6 +117,8 @@ export class RefApp {
   }
 
   private mountBody(page: RefPage): void {
+    // Sayfa değişiminde açık firma detay overlay'ini kapat
+    this.detail.hide()
     this.content.innerHTML = ''
     this.content.appendChild(page.el)
     this.content.scrollTop = 0

@@ -46,13 +46,13 @@ export class RefHeader {
           </div>
         </div>
         <div class="ref-header__actions">
-          ${data.onClose ? '<button class="ref-hdr-btn ref-hdr-close" title="Test modundan çık">✕</button>' : ''}
           <button class="ref-hdr-btn" title="VIP">👑</button>
           <button class="ref-hdr-btn" title="Mesajlar">
             ✉️
             ${(data.notifCount ?? 0) > 0 ? '<span class="ref-hdr-btn__dot"></span>' : ''}
           </button>
           <button class="ref-hdr-btn" title="Bildirimler">🔔</button>
+          ${data.onClose ? '<button class="ref-hdr-close" title="Test modundan çık" aria-label="Kapat">✕</button>' : ''}
         </div>
       </div>
     `

@@ -4,8 +4,36 @@ import { RefApp } from './RefApp'
  * İZOLE GÖRSEL TEST MODU.
  * Ana oyuna RefApp'i bağlamaz, GameState'e dokunmaz, ekonomi/tutorial/piyasa
  * kilidini değiştirmez. Yalnızca yüzen bir butonla RefApp'i (mock data) tam
- * ekran overlay olarak açıp kapatır. Onay sonrası gerçek entegrasyon ayrı aşama.
+ * ekran, izole overlay olarak açıp kapatır.
+ *
+ * Launcher butonu YALNIZCA oyun gerçekten hazırken ve oyuncu normal oyun
+ * ekranındayken görünür: onboarding, karakter/eğitim seçimi, tutorial veya
+ * herhangi bir büyük modal/sheet açıkken GİZLENİR.
  */
+
+// Oyunu kilitleyen/odak çalan tam ekran katmanlar (görünürlerse launcher gizlenir)
+const BLOCKING_SELECTORS = [
+  '.onboarding-overlay',
+  '.tutorial-overlay',
+  '.modal-scrim',
+  '.sheet-scrim.is-open',
+  '#boot-error',
+  '#ref-test-overlay',
+]
+
+function gameBusy(): boolean {
+  // Uygulama henüz render olmadıysa (boş #app) hazır değil
+  const app = document.getElementById('app')
+  if (!app || app.children.length === 0) return true
+  for (const sel of BLOCKING_SELECTORS) {
+    const el = document.querySelector<HTMLElement>(sel)
+    if (el && el.offsetParent !== null) return true
+    // #boot-error offsetParent null olabilir; display kontrolü
+    if (el && sel === '#boot-error' && getComputedStyle(el).display !== 'none') return true
+  }
+  return false
+}
+
 export function installRefTestLauncher(): void {
   if (document.getElementById('ref-test-launch')) return
 
@@ -14,6 +42,7 @@ export function installRefTestLauncher(): void {
   btn.type = 'button'
   btn.textContent = '✨ Yeni Arayüz'
   btn.title = 'Yeni arayüz tasarımı (görsel test — mock data)'
+  btn.setAttribute('aria-label', 'Yeni arayüz test modunu aç')
   Object.assign(btn.style, {
     position: 'fixed',
     left: '10px',
@@ -26,35 +55,63 @@ export function installRefTestLauncher(): void {
     color: '#fff',
     fontWeight: '800',
     fontSize: '12px',
-    fontFamily: 'system-ui, sans-serif',
+    fontFamily: 'Outfit, system-ui, sans-serif',
     boxShadow: '0 4px 14px rgba(0,60,80,0.28)',
     cursor: 'pointer',
+    display: 'none',
+    transition: 'opacity 0.2s',
   } as CSSStyleDeclaration)
 
   let overlay: HTMLElement | null = null
+  let bodyOverflowPrev = ''
 
   const close = (): void => {
     overlay?.remove()
     overlay = null
-    btn.style.display = ''
+    document.body.style.overflow = bodyOverflowPrev
+    syncVisibility()
   }
 
   const open = (): void => {
     if (overlay) return
     overlay = document.createElement('div')
     overlay.id = 'ref-test-overlay'
+    // Opak sky zemin → geniş ekran kenar boşluklarında bile ana oyun görünmez,
+    // tıklamalar arkadaki eski UI'a geçmez.
     Object.assign(overlay.style, {
       position: 'fixed',
       inset: '0',
-      zIndex: '8999',
+      zIndex: '9500',
+      background: '#3a8fd4',
+      overscrollBehavior: 'contain',
     } as CSSStyleDeclaration)
 
     const app = new RefApp({ initial: 'firms', onExit: close })
     app.mount(overlay)
     document.body.appendChild(overlay)
+
+    // Arka plan (eski oyun) scroll'unu kilitle
+    bodyOverflowPrev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
     btn.style.display = 'none'
   }
 
   btn.addEventListener('click', open)
   document.body.appendChild(btn)
+
+  // Görünürlük senkronu: oyun durumu değiştikçe launcher'ı göster/gizle
+  const syncVisibility = (): void => {
+    if (overlay) {
+      btn.style.display = 'none'
+      return
+    }
+    btn.style.display = gameBusy() ? 'none' : ''
+  }
+
+  syncVisibility()
+  // DOM değişimlerini izle (modal aç/kapa) + güvenlik için periyodik kontrol
+  const mo = new MutationObserver(() => syncVisibility())
+  mo.observe(document.body, { childList: true, subtree: true })
+  window.setInterval(syncVisibility, 600)
 }

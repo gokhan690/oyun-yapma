@@ -2,6 +2,20 @@ import './ref-ui.css'
 import { type FirmData, firmHeroSrc } from './RefCard'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import { assetUrl } from '../../utils/assetUrl'
+import { areaChartSvg, gaugeSvg, donutSvg } from './refShared'
+
+const REVENUE_TREND = [42, 48, 45, 52, 58, 55, 63, 61, 68, 72, 70, 78, 82, 88]
+const EXPENSE_SPLIT = [
+  { label: 'Personel',  value: 42, color: '#2563EB' },
+  { label: 'Tedarik',   value: 31, color: '#F6A609' },
+  { label: 'Kira',      value: 18, color: '#13B8A6' },
+  { label: 'Diğer',     value: 9,  color: '#94B4C2' },
+]
+const BRANCHES = [
+  { city: 'Merkez Şube', perf: 88, income: 240_000 },
+  { city: '2. Şube',     perf: 74, income: 180_000 },
+  { city: '3. Şube',     perf: 61, income: 120_000 },
+]
 
 /*
  * Firma Detay sayfası.
@@ -140,6 +154,37 @@ export class RefFirmDetailPage {
           </div>
         </div>
 
+        <!-- Gelir trendi -->
+        <div class="ref-card-soft ref-detail-chart">
+          <div class="ref-card-soft__title-row">
+            <span class="ref-card-soft__title">Gelir Trendi · 14 gün</span>
+            <span class="ref-chart-up">▲ ${f.growth.toFixed(1)}%</span>
+          </div>
+          ${areaChartSvg(REVENUE_TREND, '#13B8A6', 320, 80)}
+        </div>
+
+        <!-- Memnuniyet gauge + Gider donut -->
+        <div class="ref-detail-2col">
+          <div class="ref-card-soft ref-detail-gauge">
+            <div class="ref-card-soft__title">Müşteri Memnuniyeti</div>
+            ${gaugeSvg(Math.min(96, f.performance + 12), '#28C76F')}
+          </div>
+          <div class="ref-card-soft ref-detail-expense">
+            <div class="ref-card-soft__title">Gider Dağılımı</div>
+            <div class="ref-mini-donut">
+              ${donutSvg(EXPENSE_SPLIT, 72, 13)}
+              <div class="ref-donut-legend sm">
+                ${EXPENSE_SPLIT.map(s => `
+                  <div class="ref-legend-row">
+                    <span class="ref-legend-dot" style="background:${s.color}"></span>
+                    <span class="ref-legend-lbl">${s.label}</span>
+                    <span class="ref-legend-val">%${s.value}</span>
+                  </div>`).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Upgrades -->
         <div class="ref-detail-section-title">Geliştirmeler</div>
         <div class="ref-detail-upgrades">
@@ -147,6 +192,22 @@ export class RefFirmDetailPage {
             <div class="ref-detail-upg">
               <img src="${ua(u.asset)}" alt="" class="ref-detail-upg__img">
               <span class="ref-detail-upg__lbl">${u.label}</span>
+              <span class="ref-detail-upg__price">₺${(120 + Math.round(Math.random() * 80))}K</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Şubeler -->
+        <div class="ref-detail-section-title">Şubeler</div>
+        <div class="ref-branch-list">
+          ${BRANCHES.map(b => `
+            <div class="ref-branch-row">
+              <span class="ref-branch-ico">🏬</span>
+              <div class="ref-branch-main">
+                <div class="ref-branch-name">${b.city}</div>
+                <div class="ref-perf-track sm"><div class="ref-perf-fill ${perfClass(b.perf)}" style="width:${b.perf}%"></div></div>
+              </div>
+              <span class="ref-branch-income">${fmtMoney(b.income)}/g</span>
             </div>
           `).join('')}
         </div>

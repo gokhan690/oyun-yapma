@@ -1,4 +1,4 @@
-import { sectionTitle, ua } from './refShared'
+import { sectionTitle, ua, ringSvg } from './refShared'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import type { RefPage } from './RefApp'
 
@@ -40,6 +40,19 @@ export class RefAchievementsPage implements RefPage {
     `
     top.querySelector('.ref-back-btn')!.addEventListener('click', () => this.onBack?.())
     this.el.appendChild(top)
+
+    // Tamamlanma halkası özeti
+    const summary = document.createElement('div')
+    summary.className = 'ref-ach-summary'
+    summary.innerHTML = `
+      <div class="ref-ach-ring">${ringSvg(26, '%26', '12 / 46', 112, 11, '#F6A609')}</div>
+      <div class="ref-ach-summary__stats">
+        <div class="ref-ach-stat"><span class="ref-ach-stat__n done">12</span><span>Tamamlandı</span></div>
+        <div class="ref-ach-stat"><span class="ref-ach-stat__n active">3</span><span>Devam Eden</span></div>
+        <div class="ref-ach-stat"><span class="ref-ach-stat__n locked">31</span><span>Kilitli</span></div>
+      </div>
+    `
+    this.el.appendChild(summary)
 
     // Başarılar grid
     this.el.appendChild(sectionTitle('Başarımlar'))

@@ -229,6 +229,28 @@
 }
 .ref-hdr-btn:active { background: rgba(255,255,255,0.28); }
 
+/* Test modu kapat (✕): header ikon ailesiyle aynı ama daha küçük ve net */
+.ref-hdr-close {
+  width: 28px;
+  height: 28px;
+  margin-left: 2px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.45);
+  background: rgba(255,255,255,0.22);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: background 0.15s, transform 0.1s;
+}
+.ref-hdr-close:active { background: rgba(255,255,255,0.4); transform: scale(0.92); }
+
 .ref-hdr-btn__dot {
   position: absolute;
   top: 4px;
@@ -1150,3 +1172,100 @@
 .ref-task-head { display: flex; justify-content: space-between; margin-bottom: 5px; }
 .ref-task-name { font-size: 12.5px; font-weight: 800; color: var(--r-text); }
 .ref-task-prog { font-size: 11.5px; font-weight: 800; color: var(--r-teal-dk); }
+
+/* ===== Ortak soft kart + grafikler ===== */
+.ref-card-soft {
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md);
+  padding: 12px 13px;
+  box-shadow: var(--r-shadow-sm);
+}
+.ref-card-soft__title { font-size: 12px; font-weight: 800; color: var(--r-text2); margin-bottom: 8px; }
+.ref-card-soft__title-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+.ref-card-soft__title-row .ref-card-soft__title { margin-bottom: 0; }
+
+.ref-area-svg { width: 100%; height: auto; display: block; }
+.ref-donut-svg { display: block; flex-shrink: 0; }
+.ref-gauge-svg { width: 100%; height: auto; display: block; }
+.ref-ring-svg { display: block; }
+
+.ref-donut-legend { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+.ref-donut-legend.sm { gap: 3px; }
+.ref-legend-row { display: flex; align-items: center; gap: 6px; font-size: 11.5px; }
+.ref-legend-dot { width: 9px; height: 9px; border-radius: 3px; flex-shrink: 0; }
+.ref-legend-lbl { color: var(--r-text2); font-weight: 700; flex: 1; }
+.ref-legend-val { color: var(--r-muted); font-weight: 800; }
+
+.ref-perf-track.sm { height: 5px; }
+
+/* ===== Ana Panel ek bölümler ===== */
+.ref-dash-hero__chart { margin: 10px -4px -2px; }
+.ref-dash-hero__chart .ref-area-svg { height: 64px; }
+
+.ref-dash-row2 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 8px 14px 2px;
+}
+.ref-dash-donut__body { display: flex; align-items: center; gap: 10px; }
+.ref-goal-name { font-size: 13px; font-weight: 800; color: var(--r-text); }
+.ref-goal-sub { font-size: 11px; font-weight: 600; color: var(--r-muted); margin: 1px 0 7px; }
+.ref-goal-meta { font-size: 11px; font-weight: 700; color: var(--r-muted); margin-top: 5px; }
+.ref-goal-meta b { color: var(--r-text); }
+.ref-dash-goal .ref-perf-track { margin-top: 2px; }
+
+.ref-risk-panel {
+  margin: 12px 14px 2px; padding: 12px 14px; border-radius: var(--r-md);
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt); box-shadow: var(--r-shadow-sm);
+}
+.ref-risk-panel__head { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 800; color: var(--r-text); margin-bottom: 10px; }
+.ref-risk-panel__badge { font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: var(--r-pill); }
+.ref-risk-panel__badge.ok { background: var(--r-success-bg); color: var(--r-success); border: 1px solid var(--r-success-brd); }
+.ref-risk-bars { display: flex; flex-direction: column; gap: 9px; }
+.ref-risk-item__lbl { display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: var(--r-muted); margin-bottom: 4px; }
+
+/* ===== Firma Detay ek bölümler ===== */
+.ref-detail-chart { margin-bottom: 12px; }
+.ref-chart-up { font-size: 12px; font-weight: 800; color: var(--r-success); }
+.ref-detail-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.ref-detail-gauge, .ref-detail-expense { display: flex; flex-direction: column; }
+.ref-mini-donut { display: flex; align-items: center; gap: 8px; }
+.ref-detail-upg { position: relative; }
+.ref-detail-upg__price { font-size: 10px; font-weight: 800; color: var(--r-gold-dk); margin-top: 2px; }
+
+.ref-branch-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; }
+.ref-branch-row {
+  display: flex; align-items: center; gap: 11px;
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md); padding: 10px 13px; box-shadow: var(--r-shadow-sm);
+}
+.ref-branch-ico { font-size: 20px; flex-shrink: 0; }
+.ref-branch-main { flex: 1; min-width: 0; }
+.ref-branch-name { font-size: 12.5px; font-weight: 800; color: var(--r-text); margin-bottom: 5px; }
+.ref-branch-income { font-size: 12px; font-weight: 800; color: var(--r-success); flex-shrink: 0; }
+
+/* ===== İmparatorluk ek bölümler ===== */
+.ref-dept-tasks { padding: 0 14px; display: flex; flex-direction: column; gap: 7px; }
+.ref-dept-task {
+  display: flex; align-items: center; gap: 11px;
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md); padding: 10px 13px; box-shadow: var(--r-shadow-sm);
+}
+.ref-dept-task__ico { font-size: 19px; flex-shrink: 0; }
+.ref-dept-task__main { flex: 1; min-width: 0; }
+.ref-dept-task__head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+.ref-dept-task__name { font-size: 12px; font-weight: 800; color: var(--r-text); }
+.ref-dept-task__reward { font-size: 11px; font-weight: 800; color: var(--r-teal-dk); flex-shrink: 0; }
+
+/* ===== Başarılar ek bölümler ===== */
+.ref-ach-summary {
+  margin: 8px 14px 2px; padding: 14px 16px; border-radius: var(--r-lg);
+  background: var(--r-card); border: 1.5px solid var(--r-border-gold);
+  box-shadow: var(--r-shadow); display: flex; align-items: center; gap: 18px;
+}
+.ref-ach-ring { flex-shrink: 0; }
+.ref-ach-summary__stats { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+.ref-ach-stat { display: flex; align-items: center; gap: 9px; font-size: 12.5px; font-weight: 700; color: var(--r-muted); }
+.ref-ach-stat__n { font-size: 17px; font-weight: 900; min-width: 28px; }
+.ref-ach-stat__n.done { color: var(--r-success); }
+.ref-ach-stat__n.active { color: var(--r-orange); }
+.ref-ach-stat__n.locked { color: var(--r-muted-lt); }
