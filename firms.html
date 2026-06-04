@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <title>Firmalar — Ref UI</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0; min-height: 100%;
+        background: #3a8fd4;
+        display: flex; justify-content: center;
+        overflow: hidden;
+      }
+      #ref-root {
+        width: 100%;
+        max-width: 430px;
+        min-height: 100vh;
+        position: relative;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="ref-root"></div>
+    <script type="module" src="/src/ref-firms-main.ts"></script>
+  </body>
+</html>

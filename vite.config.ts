@@ -7,6 +7,10 @@ export default defineConfig({
   preview: { port: 4173, strictPort: true },
   build: {
     rollupOptions: {
+      input: {
+        main: 'index.html',
+        firms: 'firms.html',
+      },
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {

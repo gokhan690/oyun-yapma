@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="340" viewBox="0 0 480 340">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#70e8ff"/>
+      <stop offset="100%" stop-color="#e9fff6"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" x2="1"><stop stop-color="#fff1a8"/><stop offset="1" stop-color="#c98512"/></linearGradient>
+    <filter id="sh"><feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#006080" flood-opacity=".20"/></filter>
+  </defs>
+  <rect x="12" y="12" width="456" height="316" rx="34" fill="url(#sky)" stroke="url(#gold)" stroke-width="7" filter="url(#sh)"/>
+  <circle cx="84" cy="72" r="28" fill="#fff3aa" opacity=".85"/>
+  <path d="M0 252c70-48 135-35 200-62 82-34 158 16 280-42v192H0z" fill="#67cc93" opacity=".72"/>
+  <path d="M64 258h44v-66h42v66h30V148h50v110h42V104h52v154h38v-88h44v88h32v34H64z" fill="#0c8ca0" opacity=".92"/>
+  <text x="240" y="132" text-anchor="middle" font-family="Arial, sans-serif" font-size="78" font-weight="900">🏛️</text>
+
+</svg>
