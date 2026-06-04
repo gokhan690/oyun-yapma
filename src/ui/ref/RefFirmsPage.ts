@@ -3,6 +3,7 @@ import { RefHeader }    from './RefHeader'
 import { RefBottomNav } from './RefBottomNav'
 import { RefKpiStrip }  from './RefKpiStrip'
 import { RefCard, type FirmData } from './RefCard'
+import { RefFirmDetailPage } from './RefFirmDetailPage'
 
 /* ── Mock data ──
  * KURAL: Firma adı (name) yalnızca veriden gelir; görsele gömülü DEĞİL.
@@ -85,6 +86,7 @@ export class RefFirmsPage {
   private header: RefHeader
   private kpi: RefKpiStrip
   private nav: RefBottomNav
+  private detail: RefFirmDetailPage
 
   constructor() {
     // ── Shell ──
@@ -134,12 +136,26 @@ export class RefFirmsPage {
     for (const firm of MOCK_FIRMS) {
       const card = new RefCard(firm)
       this.cardEls.set(firm.id, card)
+      // Kart gövdesine tıklayınca detay aç (aksiyon butonları hariç).
+      card.el.addEventListener('click', (e) => {
+        if ((e.target as HTMLElement).closest('.ref-btn, .ref-firm-menu')) return
+        this.openDetail(firm)
+      })
       this.cardsContainer.appendChild(card.el)
     }
 
     // ── Bottom nav ──
     this.nav = new RefBottomNav('firms')
     this.el.appendChild(this.nav.el)
+
+    // ── Firma detay sayfası (overlay) ──
+    this.detail = new RefFirmDetailPage()
+    this.detail.onBack = () => this.detail.hide()
+    this.el.appendChild(this.detail.el)
+  }
+
+  private openDetail(firm: FirmData): void {
+    this.detail.show(firm)
   }
 
   private buildCatTabs(): HTMLElement {

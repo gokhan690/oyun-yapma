@@ -371,7 +371,9 @@
   border: 1.5px solid var(--r-border-gold);
   box-shadow: var(--r-shadow);
   overflow: hidden;
+  cursor: pointer;
 }
+.ref-firm-card:active { transform: scale(0.992); }
 
 .ref-firm-card__body {
   display: flex;
@@ -696,3 +698,179 @@
   font-weight: 700;
   color: var(--r-gold);
 }
+
+/* ===== Firma Detay Sayfası ===== */
+.ref-detail { background: var(--r-sky-base); }
+
+.ref-detail-hero {
+  position: relative;
+  flex-shrink: 0;
+  height: 208px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--r-teal), var(--r-teal-dk));
+}
+.ref-detail-hero__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ref-detail-hero__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg,
+    rgba(0,30,45,0.28) 0%,
+    rgba(0,30,45,0.05) 38%,
+    rgba(0,30,45,0.55) 100%);
+}
+.ref-detail-back {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.92);
+  color: var(--r-text);
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--r-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 3px;
+}
+.ref-detail-back:active { transform: scale(0.93); }
+.ref-detail-hero__badge {
+  position: absolute;
+  top: 18px;
+  right: 14px;
+  backdrop-filter: blur(4px);
+}
+.ref-detail-hero__title {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 14px;
+}
+.ref-detail-name {
+  font-size: 24px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  line-height: 1.1;
+}
+.ref-detail-slogan {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.92);
+  text-shadow: 0 1px 5px rgba(0,0,0,0.45);
+  margin-top: 3px;
+}
+
+.ref-detail-body { padding: 14px 14px calc(var(--r-nav-h) + 20px); gap: 0; }
+
+.ref-detail-id {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.ref-detail-id__left { display: flex; align-items: center; gap: 10px; }
+.ref-detail-lvl {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--r-gold-dk);
+  background: var(--r-gold-lt);
+  border: 1px solid var(--r-border-gold);
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+}
+.ref-detail-stars { font-size: 15px; }
+.ref-detail-id__city {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--r-muted);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ref-detail-risk { margin-bottom: 12px; }
+
+.ref-detail-net {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--r-teal), var(--r-teal-dk));
+  border-radius: var(--r-md);
+  padding: 13px 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--r-shadow);
+}
+.ref-detail-net__lbl { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.9); }
+.ref-detail-net__val { font-size: 22px; font-weight: 900; color: #fff; margin-left: auto; }
+.ref-detail-net__growth { font-size: 13px; font-weight: 800; color: #c8ffe6; }
+
+.ref-detail-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.ref-detail-stat {
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md);
+  padding: 11px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: var(--r-shadow-sm);
+}
+.ref-detail-stat .ref-stat-val { font-size: 17px; }
+
+.ref-detail-perf {
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  box-shadow: var(--r-shadow-sm);
+}
+
+.ref-detail-section-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--r-text);
+  margin-bottom: 10px;
+}
+.ref-detail-upgrades {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.ref-detail-upg {
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md);
+  padding: 10px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  box-shadow: var(--r-shadow-sm);
+}
+.ref-detail-upg__img { width: 34px; height: 34px; object-fit: contain; display: block; }
+.ref-detail-upg__lbl { font-size: 11px; font-weight: 700; color: var(--r-text2); }
+
+.ref-detail-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.ref-detail-actions .ref-btn { padding: 13px 4px; font-size: 11px; }
