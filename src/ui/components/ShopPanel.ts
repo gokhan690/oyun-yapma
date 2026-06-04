@@ -30,6 +30,7 @@ import { prestigeMultiplier } from '../../game/Prestige'
 import { managerCost, hasManager } from '../../game/Managers'
 import { profitLoss, priceChangePct, portfolioSummary, sparklinePath, STOCK_DEFS, fearLabel, isBankruptTicker } from '../../game/StockMarket'
 import { gauge } from './Charts'
+import { renderKpiStrip } from './PageHeader'
 import { depositRate, bondRate, loanRate, projectInterestTick, interestTickCountdownMs, INTEREST_TICK_MS } from '../../game/FinanceBank'
 import { PRESTIGE_TREE_NODES, canBuyNode, hasNode } from '../../game/PrestigeTree'
 import { dailyGoalProgress, scaledDailyGoalTarget } from '../../game/DailyGoal'
@@ -1230,6 +1231,22 @@ export class ShopPanel {
       if (heroEl) heroEl.replaceWith(hero)
       else panel.prepend(hero)
       heroEl = hero
+
+      // Firmalar KPI şeridi (referans düzen)
+      const legalInc = state.legalIncomePerDay()
+      const illegalInc = state.illegalIncomePerDay()
+      const totalInc = legalInc + illegalInc
+      const verim = totalInc > 0 ? Math.round((legalInc / totalInc) * 100) : 100
+      const kpi = renderKpiStrip([
+        { icon: '🏢', label: 'Aktif Firma', value: `${ownedCount}`, tone: 'nw' },
+        { icon: '📈', label: 'Yasal Gelir', value: formatIncomeRate(legalInc), tone: 'income' },
+        { icon: '💰', label: 'Yasadışı', value: formatIncomeRate(illegalInc), tone: 'risk' },
+        { icon: '🟢', label: 'Verimlilik', value: `%${verim}`, tone: 'cash' },
+      ])
+      kpi.classList.add('biz-kpi-strip')
+      const oldKpi = panel.querySelector('.biz-kpi-strip')
+      if (oldKpi) oldKpi.replaceWith(kpi)
+      else heroEl.after(kpi)
 
       let filterBar = panel.querySelector('.biz-type-filters') as HTMLElement | null
       if (!filterBar) {
