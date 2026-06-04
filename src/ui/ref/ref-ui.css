@@ -132,7 +132,14 @@
   justify-content: center;
   font-size: 26px;
   position: relative;
-  overflow: visible;
+  overflow: hidden;
+}
+
+.ref-avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .ref-avatar__lvl {
@@ -412,13 +419,19 @@
   border: 2px solid rgba(255,255,255,0.7);
   box-shadow: 0 3px 10px rgba(0,0,0,0.18);
 }
-.ref-firm-icon.gida      { background: linear-gradient(135deg,#f59e0b,#d97706); }
-.ref-firm-icon.hizmet    { background: linear-gradient(135deg,#7c3aed,#5b21b6); }
-.ref-firm-icon.teknoloji { background: linear-gradient(135deg,#0ea5e9,#0369a1); }
-.ref-firm-icon.finans    { background: linear-gradient(135deg,#16a34a,#15803d); }
-.ref-firm-icon.turizm    { background: linear-gradient(135deg,#f97316,#ea580c); }
-.ref-firm-icon.medya     { background: linear-gradient(135deg,#ec4899,#be185d); }
-.ref-firm-icon.illegal   { background: linear-gradient(135deg,#dc2626,#991b1b); }
+/* v2 generic asset ikonları kendi yuvarlak premium tasarımını içerir →
+   konteyner cream zemin + img contain. Sektör gradyanları sadece fallback zemin. */
+.ref-firm-icon {
+  overflow: hidden;
+  background: linear-gradient(180deg, #fffdf7, #fff1d8);
+  padding: 0;
+}
+.ref-firm-icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
 
 .ref-firm-head {
   flex: 1;

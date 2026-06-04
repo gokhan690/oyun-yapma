@@ -1,9 +1,13 @@
+import { assetUrl } from '../../utils/assetUrl'
+
 export interface HeaderData {
   name: string
   title: string
   age: number
   city: string
   avatarEmoji: string
+  /** Generic avatar asset yolu; yoksa emoji fallback. */
+  avatarAsset?: string
   notifCount?: number
 }
 
@@ -11,14 +15,17 @@ export class RefHeader {
   readonly el: HTMLElement
 
   constructor(data: HeaderData) {
+    const avatarInner = data.avatarAsset
+      ? `<img src="${assetUrl(data.avatarAsset.startsWith('/') ? data.avatarAsset.slice(1) : data.avatarAsset)}" alt="" class="ref-avatar__img">`
+      : `<span style="font-size:28px">${data.avatarEmoji}</span>`
+
     this.el = document.createElement('div')
     this.el.className = 'ref-header'
     this.el.innerHTML = `
       <div class="ref-header__row">
         <div class="ref-header__left">
           <div class="ref-avatar">
-            <span style="font-size:28px">🧔</span>
-            <span class="ref-avatar__lvl">M</span>
+            ${avatarInner}
           </div>
           <div class="ref-header__info">
             <div class="ref-header__name">
