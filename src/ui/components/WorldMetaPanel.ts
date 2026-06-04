@@ -1,7 +1,8 @@
 import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
 import { t } from '../../i18n'
-import { EXPANSION_CITIES, canUnlockCity } from '../../game/ExpansionMap'
+import { EXPANSION_CITIES, canUnlockCity, cityProducerBonus } from '../../game/ExpansionMap'
+import { renderKpiStrip } from './PageHeader'
 import { TORPIL_CONTACTS, torpilRelationScore } from '../../game/TorpilNetwork'
 import { gameDay } from '../../game/GameClock'
 import {
@@ -252,6 +253,20 @@ export class WorldMetaPanel {
     const block = document.createElement('div')
     block.className = 'meta-block expansion-block'
     block.innerHTML = `<h3>${t('world_expansion')}</h3>`
+
+    // Şehirler KPI şeridi (referans düzen)
+    const unlockedCount = this.state.cities.unlocked.length
+    const totalCities = EXPANSION_CITIES.length
+    const influence = unlockedCount * 20 + this.state.dynasty.generation * 5
+    const cityIncome = this.state.legalIncomePerDay() * (cityProducerBonus(this.state.cities, undefined) || 0.1)
+    const expansionPts = unlockedCount * 100 + this.state.ipoCount * 50
+    block.appendChild(renderKpiStrip([
+      { icon: '🏙️', label: 'Toplam Şehir', value: `${unlockedCount}/${totalCities}`, tone: 'nw' },
+      { icon: '🌍', label: 'Küresel Nüfuz', value: `${influence}`, tone: 'income' },
+      { icon: '💰', label: 'Şehir Geliri', value: formatMoney(Math.round(cityIncome)), tone: 'cash' },
+      { icon: '⭐', label: 'Genişleme', value: `${expansionPts}`, tone: 'neutral' },
+    ]))
+
     const list = document.createElement('div')
     list.className = 'expansion-city-list'
 
