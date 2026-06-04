@@ -10111,3 +10111,60 @@ html.theme-light .ach-cat-btn.active { background: linear-gradient(180deg, #2fd0
 .fd-sum { display: flex; flex-direction: column; gap: 2px; padding: 10px; background: linear-gradient(180deg,#ffffff,#fff6dd); border: 1.5px solid rgba(246,200,76,0.5); border-radius: 14px; }
 .fd-sum span { font-size: 10px; color: var(--text-soft, #5f7f91); font-weight: 700; }
 .fd-sum strong { font-size: 14px; color: var(--text-main, #123a52); }
+
+/* ====================== İŞLETME ℹ️ BUTONU — KESİN SAĞ ÜST ====================== */
+.biz-hero-card { position: relative !important; }
+.biz-hero-card .biz-hero-info {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  z-index: 8 !important;
+  margin: 0 !important;
+}
+/* Buy butonu tam genişlik kalsın, info akıştan çıktı */
+.biz-hero-actions { grid-template-columns: 1fr !important; }
+html.theme-light .biz-hero-card .biz-hero-info {
+  background: #fffdf7 !important;
+  border: 1.5px solid rgba(246,200,76,0.6) !important;
+  color: var(--teal-dark, #078b83) !important;
+  box-shadow: 0 3px 8px rgba(8,90,120,0.12) !important;
+}
+
+/* ====================== ŞEHİR KARTLARI (referans düzen) ====================== */
+.expansion-city-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.city-grid-card {
+  display: flex; flex-direction: column; gap: 8px; padding: 12px;
+  background: linear-gradient(180deg, #fffdf7, #fff7e4);
+  border: 1.5px solid rgba(246,200,76,0.5); border-radius: 18px;
+  box-shadow: 0 6px 14px rgba(8,90,120,0.1);
+}
+.city-grid-card.city-active { border-color: var(--teal, #13b8a6); box-shadow: 0 6px 16px rgba(19,184,166,0.25); }
+.city-grid-card.city-locked { opacity: 0.78; filter: saturate(0.85); }
+.city-card-head { display: flex; align-items: center; gap: 9px; }
+.city-card-visual {
+  width: 46px; height: 46px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 26px; border-radius: 14px;
+  background: radial-gradient(circle at 40% 30%, #d6f7ff, #8fdcf0);
+  border: 2px solid #fff; box-shadow: 0 3px 8px rgba(19,150,200,0.25);
+}
+.city-locked .city-card-visual { background: radial-gradient(circle at 40% 30%, #eef2f5, #cdd8df); }
+.city-card-titles { min-width: 0; }
+.city-card-name { font-size: 13px; font-weight: 800; color: var(--text-main, #123a52); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.city-card-role { font-size: 10px; color: var(--text-soft, #5f7f91); font-weight: 600; }
+.city-card-perks { display: flex; flex-direction: column; gap: 3px; }
+.city-perk-chip { font-size: 10px; color: var(--teal-dark, #078b83); background: rgba(19,184,166,0.1); border-radius: 8px; padding: 3px 7px; }
+.city-card-req { font-size: 10px; color: var(--orange-dark, #e8801c); font-weight: 600; }
+.city-card-actions { margin-top: auto; }
+.city-card-btn { width: 100%; font-size: 12px; padding: 9px !important; }
+.city-card-active-lbl { font-size: 11px; font-weight: 700; color: var(--teal-dark, #078b83); text-align: center; padding: 6px; background: rgba(19,184,166,0.1); border-radius: 10px; }
+@media (max-width: 380px) { .expansion-city-list { grid-template-columns: 1fr; } }

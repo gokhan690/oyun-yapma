@@ -236,7 +236,6 @@ export class WorldMetaPanel {
     return card
   }
 
-  private cityPreview: string | null = null
 
   private getCityPerks(id: string): string[] {
     const perks: Record<string, string[]> = {
@@ -270,71 +269,75 @@ export class WorldMetaPanel {
     const list = document.createElement('div')
     list.className = 'expansion-city-list'
 
+    const roleLabels: Record<string, string> = {
+      politics: 'Siyaset Merkezi', hospitality: 'Turizm & Otel', luxury: 'Lüks Pazar',
+      finance: 'Finans Merkezi', science: 'Teknoloji Üssü',
+    }
+
     for (const c of EXPANSION_CITIES) {
       const unlocked = this.state.cities.unlocked.includes(c.id)
       const active = this.state.cities.activeCity === c.id
-      const previewing = this.cityPreview === c.id
 
       const card = document.createElement('div')
-      card.className = `expansion-city-card${active ? ' city-active' : ''}${unlocked ? ' city-unlocked' : ' city-locked'}`
+      card.className = `expansion-city-card city-grid-card${active ? ' city-active' : ''}${unlocked ? ' city-unlocked' : ' city-locked'}`
 
-      const row = document.createElement('div')
-      row.className = 'expansion-city-row'
-      let statusIcon = unlocked ? (active ? '✅' : '🔓') : '🔒'
-      const costLabel = unlocked ? (active ? t('world_expansion_active') : '') : formatMoney(c.unlockCost)
-      row.innerHTML = `<span class="city-row-name">${c.emoji} <strong>${c.label}</strong></span><span class="city-row-status">${statusIcon} ${costLabel}</span>`
+      // Rol / tema
+      const cats = Object.keys(c.categoryBonuses ?? {})
+      const role = cats.length ? (roleLabels[cats[0]!] ?? 'Dengeli Şehir') : 'Başlangıç Şehri'
+      // Bonus chip'leri
+      const perks = this.getCityPerks(c.id)
+      // Gereksinimler
+      const reqParts: string[] = []
+      if (c.unlockCost > 0) reqParts.push(`💰 ${formatMoney(c.unlockCost)}`)
+      if (c.repReq > 0) reqParts.push(`⭐ ${c.repReq} itibar`)
+      if (c.ipoReq > 0) reqParts.push(`🏦 ${c.ipoReq} IPO`)
 
-      const previewBtn = document.createElement('button')
-      previewBtn.type = 'button'
-      previewBtn.className = 'btn-city-preview'
-      previewBtn.textContent = previewing ? '▲' : 'ℹ️'
-      previewBtn.title = 'Şehir detayları'
-      previewBtn.addEventListener('click', () => {
-        this.cityPreview = previewing ? null : c.id
-        this.render()
-        this.root.closest('.meta-panel')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-      })
-      row.appendChild(previewBtn)
+      const statusBadge = active
+        ? '<span class="status-badge profit">AKTİF</span>'
+        : unlocked ? '<span class="status-badge growing">AÇIK</span>'
+        : '<span class="status-badge neutral">KİLİTLİ</span>'
 
+      card.innerHTML = `
+        <div class="city-card-head">
+          <div class="city-card-visual">${unlocked ? c.emoji : '🔒'}</div>
+          <div class="city-card-titles">
+            <div class="city-card-name">${c.label} ${statusBadge}</div>
+            <div class="city-card-role">${role}</div>
+          </div>
+        </div>
+        ${perks.length ? `<div class="city-card-perks">${perks.slice(0, 3).map((p) => `<span class="city-perk-chip">${p}</span>`).join('')}</div>` : ''}
+        ${!unlocked && reqParts.length ? `<div class="city-card-req">Gerekli: ${reqParts.join(' · ')}</div>` : ''}
+      `
+
+      // Aksiyon butonu
+      const actions = document.createElement('div')
+      actions.className = 'city-card-actions'
       if (unlocked && !active) {
         const btn = document.createElement('button')
         btn.type = 'button'
-        btn.className = 'btn-sm btn-secondary'
+        btn.className = 'btn-secondary city-card-btn'
         btn.dataset.action = 'set-active-city'
         btn.dataset.id = c.id
-        btn.textContent = t('world_go')
-        row.appendChild(btn)
-      } else if (!unlocked) {
+        btn.textContent = `🎯 Yönet`
+        actions.appendChild(btn)
+      } else if (active) {
+        const lbl = document.createElement('div')
+        lbl.className = 'city-card-active-lbl'
+        lbl.textContent = '✅ Şu an buradasın'
+        actions.appendChild(lbl)
+      } else {
         const check = canUnlockCity(c.id, this.state.cities, this.state.money, this.state.reputation, this.state.ipoCount)
         const btn = document.createElement('button')
         btn.type = 'button'
-        btn.className = `btn-sm ${check.ok ? 'btn-primary' : 'btn-secondary city-unlock-locked'}`
+        btn.className = `${check.ok ? 'btn-primary' : 'btn-secondary city-unlock-locked'} city-card-btn`
         btn.dataset.action = 'unlock-city'
         btn.dataset.id = c.id
-        btn.textContent = check.ok ? t('world_open') : `🔒 ${t('world_open')}`
+        btn.textContent = check.ok ? '🔓 Şehir Aç' : `🔒 ${check.reason ?? 'Kilitli'}`
         btn.title = check.reason ?? ''
-        row.appendChild(btn)
+        btn.disabled = !check.ok
+        actions.appendChild(btn)
       }
-
-      card.appendChild(row)
-
-      if (previewing) {
-        const preview = document.createElement('div')
-        preview.className = 'city-preview-panel'
-        const perks = this.getCityPerks(c.id)
-        const reqParts: string[] = []
-        if (c.unlockCost > 0) reqParts.push(`💰 ${formatMoney(c.unlockCost)}`)
-        if (c.repReq > 0) reqParts.push(`⭐ İtibar min ${c.repReq}`)
-        if (c.ipoReq > 0) reqParts.push(`🏦 ${c.ipoReq}+ IPO`)
-        preview.innerHTML = `
-          <div class="city-preview-title">${c.emoji} ${c.label} — ${unlocked ? '✅ Açık' : '🔒 Kilitli'}</div>
-          ${reqParts.length ? `<div class="city-preview-req"><strong>Gereksinimler:</strong> ${reqParts.join(' · ')}</div>` : ''}
-          <div class="city-preview-perks">
-            ${perks.map((p) => `<div class="city-perk-row">${p}</div>`).join('')}
-          </div>
-        `
-        card.appendChild(preview)
-      }
+      card.appendChild(actions)
 
       list.appendChild(card)
     }
