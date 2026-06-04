@@ -12,6 +12,7 @@ import { applyCountry } from './game/Countries'
 import { OnboardingOverlay } from './ui/components/OnboardingOverlay'
 import { i18n } from './i18n'
 import { installGlobalCrashHandlers, reportCrash } from './utils/crashReport'
+import { installRefTestLauncher } from './ui/ref/RefTestLauncher'
 
 installGlobalCrashHandlers()
 
@@ -65,6 +66,9 @@ async function bootstrap(): Promise<void> {
     applyCountry(state.country)
 
     const hud = new HUD(state, ads, sound, saveManager, app)
+
+    // İzole görsel test modu: yeni arayüz (RefApp) — mock data, GameState'e bağlı değil.
+    installRefTestLauncher()
 
     const setupDone = localStorage.getItem('baron_setup_done') === '1'
     if (!saveLoaded && !setupDone) {

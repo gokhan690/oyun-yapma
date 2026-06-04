@@ -32,6 +32,12 @@ const PLAYER: HeaderData = {
   notifCount: 1,
 }
 
+export interface RefAppOptions {
+  initial?: RefNavTab
+  /** Test/overlay modunda header'da kapat butonu gösterir ve bunu çağırır. */
+  onExit?: () => void
+}
+
 export class RefApp {
   readonly el: HTMLElement
   private header: RefHeader
@@ -45,7 +51,9 @@ export class RefApp {
   /** Ana oyuna bağlandığında geri/çıkış için (standalone'da kullanılmaz). */
   onExit?: () => void
 
-  constructor(initial: RefNavTab = 'firms') {
+  constructor(opts: RefAppOptions = {}) {
+    const initial = opts.initial ?? 'firms'
+    this.onExit = opts.onExit
     this.active = initial
 
     // ── Shell ──
@@ -53,7 +61,10 @@ export class RefApp {
     this.el.className = 'ref-shell'
 
     // ── Shared header ──
-    this.header = new RefHeader(PLAYER)
+    this.header = new RefHeader({
+      ...PLAYER,
+      onClose: opts.onExit ? () => this.onExit?.() : undefined,
+    })
     this.el.appendChild(this.header.el)
 
     // ── Content (scroll) ──

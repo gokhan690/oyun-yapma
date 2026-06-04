@@ -9,6 +9,8 @@ export interface HeaderData {
   /** Generic avatar asset yolu; yoksa emoji fallback. */
   avatarAsset?: string
   notifCount?: number
+  /** Test/overlay modunda header'a kapat (✕) butonu ekler. */
+  onClose?: () => void
 }
 
 export class RefHeader {
@@ -44,6 +46,7 @@ export class RefHeader {
           </div>
         </div>
         <div class="ref-header__actions">
+          ${data.onClose ? '<button class="ref-hdr-btn ref-hdr-close" title="Test modundan çık">✕</button>' : ''}
           <button class="ref-hdr-btn" title="VIP">👑</button>
           <button class="ref-hdr-btn" title="Mesajlar">
             ✉️
@@ -53,6 +56,10 @@ export class RefHeader {
         </div>
       </div>
     `
+
+    if (data.onClose) {
+      this.el.querySelector('.ref-hdr-close')!.addEventListener('click', () => data.onClose!())
+    }
   }
 
   setTitle(title: string, deco = '⭐'): void {
