@@ -10082,3 +10082,32 @@ html.theme-light .ach-cat-btn.active { background: linear-gradient(180deg, #2fd0
 .fam-meter-label { font-size: 10px; font-weight: 700; color: var(--text-soft, #5f7f91); grid-column: 1 / -1; }
 .fam-meter .dynasty-age-track { grid-column: 1; }
 .fam-meter-val { font-size: 11px; font-weight: 800; color: var(--text-main, #123a52); grid-column: 2; }
+
+/* ====================== FİRMA DETAYI (referans düzen) ====================== */
+.firm-detail { display: flex; flex-direction: column; gap: 12px; }
+.firm-detail-hero { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 22px;
+  background: linear-gradient(120deg, #eafdff, #fffdf7); border: 1.5px solid rgba(246,200,76,0.5);
+  box-shadow: 0 8px 18px rgba(8,90,120,0.12); }
+.fd-hero-logo { width: 56px; height: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 30px; border-radius: 18px; background: radial-gradient(circle at 35% 30%, #fff6e0, #ffcf7a); border: 2px solid #fff; box-shadow: 0 4px 10px rgba(255,160,40,0.3); }
+.fd-hero-info { min-width: 0; }
+.fd-hero-name { font-size: 16px; font-weight: 800; color: var(--text-main, #123a52); }
+.fd-hero-slogan { font-size: 11px; color: var(--text-soft, #5f7f91); }
+.fd-hero-tags { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; align-items: center; }
+.fd-tag { font-size: 10px; font-weight: 700; color: var(--teal-dark, #078b83); background: rgba(19,184,166,0.12); border-radius: 999px; padding: 3px 8px; }
+.firm-detail-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.firm-detail-2col .game-card { padding: 12px !important; text-align: center; }
+.firm-detail-2col .gauge-chart, .firm-detail-2col .donut-chart { margin: 0 auto; }
+.fd-exp-legend { display: flex; flex-wrap: wrap; gap: 3px 8px; justify-content: center; margin-top: 6px; font-size: 9px; color: var(--text-soft, #5f7f91); }
+.fd-up-row { display: flex; align-items: center; gap: 9px; padding: 8px 0; border-top: 1px solid rgba(246,200,76,0.3); }
+.fd-up-row:first-of-type { border-top: none; }
+.fd-up-icon { font-size: 18px; flex-shrink: 0; }
+.fd-up-body { flex: 1; min-width: 0; }
+.fd-up-body strong { font-size: 12px; color: var(--text-main, #123a52); display: block; }
+.fd-up-body small { font-size: 10px; color: var(--text-soft, #5f7f91); }
+.fd-up-btn { flex-shrink: 0; font-size: 11px; padding: 7px 10px !important; }
+.fd-up-owned { opacity: 0.7; }
+.firm-detail-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fd-sum { display: flex; flex-direction: column; gap: 2px; padding: 10px; background: linear-gradient(180deg,#ffffff,#fff6dd); border: 1.5px solid rgba(246,200,76,0.5); border-radius: 14px; }
+.fd-sum span { font-size: 10px; color: var(--text-soft, #5f7f91); font-weight: 700; }
+.fd-sum strong { font-size: 14px; color: var(--text-main, #123a52); }

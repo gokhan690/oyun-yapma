@@ -56,6 +56,10 @@ import {
   type TimeSkipOption,
 } from '../game/TimeSkip'
 import { playerGameAge, childAgeYearsExact } from '../game/Dynasty'
+import { lineChart, gauge, donutChart } from './components/Charts'
+import { renderKpiStrip } from './components/PageHeader'
+import { firmUpgradesForProducer } from '../game/FirmUpgrades'
+import { firmLevelIncomeMult } from '../game/FirmLevels'
 import { FRANCHISE_CITIES, franchiseOpenFailureReason } from '../game/Franchise'
 import { iapManager } from '../monetization/IAPManager'
 import { hapticLight, hapticHeavy, hapticPurchase, hapticCombo10, hapticDeath, hapticIpo, hapticDisaster } from '../utils/haptics'
@@ -3722,15 +3726,112 @@ export class HUD {
   }
 
   private showBusinessDetail(id: string): void {
-    const detail = this.state.getProducerBreakdown(id)
-    if (!detail) return
-    const rows = [
-      { label: 'Adet', value: String(detail.owned) },
-      { label: 'Birim gelir', value: formatIncomeRate(detail.basePerUnit) },
-      ...detail.lines,
-      { label: 'Toplam', value: formatIncomeRate(detail.totalPerDay) },
-    ]
-    this.modals.showDetail(`${detail.name} — Gelir Dökümü`, rows, 'Kapat butonuna bas.')
+    const s = this.state
+    const p = PRODUCERS.find((x) => x.id === id)
+    if (!p) return
+    const owned = s.producers[id] ?? 0
+    const level = s.producerLevel(id)
+    const dailyIncome = s.producerIncome(p)
+    const monthlyProfit = Math.round(dailyIncome * 30)
+    const city = cityDef(s.activeCityId())
+    const purchased = s.firmUpgradesPurchased(id)
+    const upgrades = firmUpgradesForProducer(p)
+    const branches = s.franchises.filter((f) => f.producerId === id)
+
+    const body = document.createElement('div')
+    body.className = 'firm-detail'
+
+    // ——— Hero kart ———
+    const statusLabel = level >= 4 ? 'Büyüyor' : owned >= 5 ? 'Kârlı' : 'Aktif'
+    const statusTone = level >= 4 ? 'growing' : 'profit'
+    const hero = document.createElement('div')
+    hero.className = 'firm-detail-hero'
+    hero.innerHTML = `
+      <div class="fd-hero-logo">${p.emoji}</div>
+      <div class="fd-hero-info">
+        <div class="fd-hero-name">${producerName(p)}</div>
+        <div class="fd-hero-slogan">${p.description}</div>
+        <div class="fd-hero-tags">
+          <span class="fd-tag">⭐ Lv.${level}</span>
+          <span class="fd-tag">${city.emoji} ${city.label}</span>
+          <span class="status-badge ${statusTone}">${statusLabel}</span>
+        </div>
+      </div>
+    `
+    body.appendChild(hero)
+
+    // ——— KPI ———
+    const kpi = renderKpiStrip([
+      { icon: '📦', label: 'Adet', value: `${owned}`, tone: 'nw' },
+      { icon: '🪙', label: 'Günlük Gelir', value: formatIncomeRate(dailyIncome), tone: 'income' },
+      { icon: '📅', label: 'Aylık Kâr', value: formatMoney(monthlyProfit), tone: 'cash' },
+      { icon: '🏬', label: 'Şube', value: `${branches.length}`, tone: 'neutral' },
+    ])
+    body.appendChild(kpi)
+
+    // ——— Gelir trendi grafiği ———
+    const trendCard = document.createElement('div')
+    trendCard.className = 'game-card'
+    const base = Math.max(1, dailyIncome)
+    const trend = Array.from({ length: 12 }, (_, i) => Math.round(base * (0.6 + 0.4 * (i / 11)) * (0.95 + 0.1 * Math.sin(i))))
+    trendCard.innerHTML = `<div class="dash-card-title">📈 Gelir Trendi</div><div class="dash-chart-wrap">${lineChart(trend, { height: 90 })}</div>`
+    body.appendChild(trendCard)
+
+    // ——— Memnuniyet gauge + gider donut (2 kolon) ———
+    const twoCol = document.createElement('div')
+    twoCol.className = 'firm-detail-2col'
+    const satisfaction = Math.min(100, 45 + level * 9 + Math.min(20, owned))
+    const satCard = document.createElement('div')
+    satCard.className = 'game-card'
+    satCard.innerHTML = `<div class="dash-card-title">😊 Müşteri Memnuniyeti</div>${gauge(satisfaction, { size: 110, thresholds: [{ at: 40, color: 'red' }, { at: 70, color: 'gold' }, { at: 100, color: 'green' }] })}`
+    const expCard = document.createElement('div')
+    expCard.className = 'game-card'
+    expCard.innerHTML = `<div class="dash-card-title">💸 Gider Dağılımı</div>${donutChart([
+      { label: 'Personel', value: 40, color: 'blue' },
+      { label: 'Kira', value: 25, color: 'orange' },
+      { label: 'Tedarik', value: 22, color: 'gold' },
+      { label: 'Vergi', value: 13, color: 'red' },
+    ], { size: 100 })}<div class="fd-exp-legend"><span>👷 Personel %40</span><span>🏠 Kira %25</span><span>📦 Tedarik %22</span><span>🧾 Vergi %13</span></div>`
+    twoCol.append(satCard, expCard)
+    body.appendChild(twoCol)
+
+    // ——— Geliştirmeler listesi ———
+    const upCard = document.createElement('div')
+    upCard.className = 'game-card'
+    upCard.innerHTML = `<div class="dash-card-title">🛠️ Geliştirmeler</div>`
+    for (const up of upgrades) {
+      const isP = purchased.includes(up.id)
+      const cost = s.firmUpgradeCostFor(p, up.id)
+      const row = document.createElement('div')
+      row.className = `fd-up-row${isP ? ' fd-up-owned' : ''}`
+      row.innerHTML = `
+        <span class="fd-up-icon">${up.emoji}</span>
+        <div class="fd-up-body"><strong>${up.name}</strong><small>${up.description}</small></div>
+        <button type="button" class="btn-primary fd-up-btn" data-action="buy-firm-upgrade" data-id="${id}:${up.id}" ${isP || !s.canAfford(cost) ? 'disabled' : ''}>${isP ? `✅ +%${Math.round(up.incomeBonus * 100)}` : `+%${Math.round(up.incomeBonus * 100)} · ${formatMoney(cost)}`}</button>
+      `
+      upCard.appendChild(row)
+    }
+    body.appendChild(upCard)
+
+    // ——— Özet şeridi ———
+    const totalInvest = Math.round(p.baseCost * owned * (1 + (level - 1) * 0.5))
+    const roiDays = dailyIncome > 0 ? Math.round(totalInvest / dailyIncome) : 0
+    const summary = document.createElement('div')
+    summary.className = 'firm-detail-summary'
+    summary.innerHTML = `
+      <div class="fd-sum"><span>Toplam Yatırım</span><strong>${formatMoney(totalInvest)}</strong></div>
+      <div class="fd-sum"><span>Geri Dönüş</span><strong>${roiDays} gün</strong></div>
+      <div class="fd-sum"><span>Seviye Çarpanı</span><strong>x${firmLevelIncomeMult(level).toFixed(2)}</strong></div>
+      <div class="fd-sum"><span>Şube</span><strong>${branches.length}</strong></div>
+    `
+    body.appendChild(summary)
+
+    const closeBtn = document.createElement('button')
+    closeBtn.type = 'button'
+    closeBtn.className = 'btn-secondary'
+    closeBtn.textContent = 'Kapat'
+    closeBtn.addEventListener('click', () => this.closeModalAndPump())
+    this.modals.showContent(`${p.emoji} ${producerName(p)}`, body, [closeBtn])
   }
 
   private closeModalAndPump(): void {
