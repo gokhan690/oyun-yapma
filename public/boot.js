@@ -79,6 +79,18 @@
     function (e) {
       var target = e.target
       if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+        var res = target.href || target.src || ''
+        // Dış font kaynakları (Google Fonts vb.) KRİTİK DEĞİL — yüklenemese de
+        // sistem fontuna düşülür; app boot'unu fail ettirmemeli.
+        var isExternalFont =
+          /fonts\.googleapis\.com|fonts\.gstatic\.com/.test(res) ||
+          (target.tagName === 'LINK' &&
+            (target.rel === 'stylesheet' || target.rel === 'preconnect' || target.rel === 'preload') &&
+            res.indexOf(location.origin) !== 0)
+        if (isExternalFont) {
+          if (console && console.warn) console.warn('Dış font yüklenemedi, sistem fontuna geçiliyor:', res)
+          return
+        }
         showBootError(
           'Oyun dosyaları yüklenemedi. Ctrl+F5 ile sert yenileme yap veya önbelleği temizle.',
           { resetSave: false },
@@ -110,4 +122,22 @@
       { resetSave: true },
     )
   }, BOOT_MS)
+
+  // Outfit fontunu OPSİYONEL/ASENKRON yükle. Hata listener'ı zaten kayıtlı;
+  // yüklenemezse hem onerror temizler hem de yukarıdaki guard boot'u fail
+  // ettirmez → sistem fontuna sorunsuz fallback.
+  try {
+    var fontLink = document.createElement('link')
+    fontLink.rel = 'stylesheet'
+    fontLink.href =
+      'https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap'
+    fontLink.crossOrigin = 'anonymous'
+    fontLink.setAttribute('data-optional-font', '1')
+    fontLink.onerror = function () {
+      try {
+        fontLink.remove()
+      } catch (e) {}
+    }
+    document.head.appendChild(fontLink)
+  } catch (e) {}
 })()

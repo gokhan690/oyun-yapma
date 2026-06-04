@@ -1,5 +1,6 @@
-/* ===== REF UI — Design Tokens & Components ===== */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap');
+/* ===== REF UI — Design Tokens & Components =====
+   Not: Outfit fontu boot.js'te opsiyonel yüklenir; burada @import YOK ki
+   font yüklenemezse boot hatası tetiklenmesin (sistem fontuna fallback). */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -269,19 +270,17 @@
 }
 .ref-body::-webkit-scrollbar { display: none; }
 
-/* ── KPI Strip ── */
+/* ── KPI Strip (mobil: 2×2 grid, kırpılma yok) ── */
 .ref-kpi-strip {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding: 10px 14px 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 .ref-kpi-strip::-webkit-scrollbar { display: none; }
 
 .ref-kpi-card {
-  flex-shrink: 0;
-  min-width: 96px;
+  min-width: 0;
   background: var(--r-surface);
   border-radius: var(--r-md);
   border: 1.5px solid var(--r-border);
@@ -323,18 +322,22 @@
 .ref-kpi-sub.down { color: var(--r-danger); }
 .ref-kpi-sub.muted{ color: var(--r-muted); }
 
-/* ── Category Tabs ── */
+/* ── Category Tabs (bilinçli yatay scroll + sağ kenar fade) ── */
 .ref-cat-tabs {
   display: flex;
   gap: 6px;
-  padding: 6px 14px 8px;
+  padding: 6px 22px 8px 14px;
   overflow-x: auto;
   scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent 100%);
+          mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent 100%);
 }
 .ref-cat-tabs::-webkit-scrollbar { display: none; }
 
 .ref-cat-tab {
   flex-shrink: 0;
+  scroll-snap-align: start;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -378,31 +381,43 @@
 }
 .ref-firm-card:active { transform: scale(0.992); }
 
+/* Mobil varsayılan: dikey istif — bilgi üstte, aksiyonlar altta yatay 3'lü */
 .ref-firm-card__body {
   display: flex;
-  align-items: stretch;
+  flex-direction: column;
 }
 
-/* Left: info */
 .ref-firm-card__info {
   flex: 1;
   min-width: 0;
-  padding: 13px 10px 12px 13px;
+  padding: 14px 14px 11px;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
 }
 
-/* Right: actions */
 .ref-firm-card__btns {
-  width: 118px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 13px 10px 12px 6px;
-  align-items: stretch;
-  border-left: 1px solid var(--r-border-lt);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 11px 14px 14px;
+  border-top: 1px solid var(--r-border-lt);
+}
+
+/* Geniş ekran (≥480px): aksiyonlar sağda dikey kolon */
+@media (min-width: 480px) {
+  .ref-firm-card__body { flex-direction: row; align-items: stretch; }
+  .ref-firm-card__info { padding: 13px 10px 12px 14px; }
+  .ref-firm-card__btns {
+    width: 124px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 13px 12px 12px 8px;
+    border-top: none;
+    border-left: 1px solid var(--r-border-lt);
+  }
 }
 
 /* Top row */
@@ -445,22 +460,27 @@
 
 .ref-firm-namebar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
-  flex-wrap: wrap;
 }
 
 .ref-firm-name {
+  flex: 1;
+  min-width: 0;
   font-size: 15px;
   font-weight: 800;
   color: var(--r-text);
-  white-space: nowrap;
+  line-height: 1.22;
+  /* En fazla 2 satır; yalnızca daha uzunsa kısalt */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 110px;
 }
 
 .ref-firm-badge {
+  flex-shrink: 0;
+  margin-top: 1px;
   font-size: 10px;
   font-weight: 800;
   padding: 2px 8px;
@@ -472,11 +492,18 @@
 .ref-firm-badge.riskli  { background: var(--r-danger-bg);  color: var(--r-danger);  border: 1px solid var(--r-danger-brd); }
 
 .ref-firm-menu {
+  flex-shrink: 0;
   font-size: 18px;
   color: var(--r-muted-lt);
   cursor: pointer;
-  padding: 2px 4px;
-  margin-left: auto;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+/* Firma kartı aksiyon butonları (alttaki yatay satırda daha okunaklı) */
+.ref-firm-card__btns .ref-btn {
+  font-size: 11px;
+  padding: 11px 5px;
 }
 
 .ref-firm-level {
