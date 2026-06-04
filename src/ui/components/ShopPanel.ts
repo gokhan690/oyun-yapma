@@ -2084,15 +2084,16 @@ export class ShopPanel {
       panel.appendChild(ev)
     }
 
-    const portfolioEl = document.createElement('div')
-    portfolioEl.className = 'stock-portfolio-summary stock-portfolio-hero'
-    portfolioEl.innerHTML = `
-      <div class="stock-portfolio-stat"><small>Portföy değeri</small><strong>${formatMoney(summary.totalValue)}</strong></div>
-      <div class="stock-portfolio-stat"><small>Nakit (cüzdan)</small><strong>${formatMoney(state.money)}</strong></div>
-      <div class="stock-portfolio-stat"><small>Açık pozisyon</small><strong>${summary.holdings}/${STOCK_DEFS.length}</strong></div>
-      <div class="stock-portfolio-stat"><small>Toplam K/Z</small><strong class="${portfolioPlClass}">${formatMoney(summary.totalPl)}</strong></div>
-    `
-    panel.appendChild(portfolioEl)
+    // Piyasa KPI şeridi (referans düzen)
+    const fear = Math.round(state.stock.marketFear ?? 0)
+    const riskLabel = fear >= 60 ? 'Yüksek' : fear >= 35 ? 'Orta' : 'Düşük'
+    panel.appendChild(renderKpiStrip([
+      { icon: '📊', label: 'Portföy', value: formatMoney(summary.totalValue), tone: 'nw' },
+      { icon: '💵', label: 'Nakit', value: formatMoney(state.money), tone: 'cash' },
+      { icon: summary.totalPl >= 0 ? '📈' : '📉', label: 'Toplam K/Z', value: formatMoney(summary.totalPl), tone: summary.totalPl >= 0 ? 'income' : 'risk' },
+      { icon: '🛡️', label: 'Risk', value: riskLabel, tone: 'risk' },
+    ]))
+    void portfolioPlClass
 
     if (state.advisorTip) {
       const adv = document.createElement('div')
