@@ -1,9 +1,6 @@
-import './ref-ui.css'
-import { RefHeader }    from './RefHeader'
-import { RefBottomNav } from './RefBottomNav'
 import { RefKpiStrip }  from './RefKpiStrip'
 import { RefCard, type FirmData } from './RefCard'
-import { RefFirmDetailPage } from './RefFirmDetailPage'
+import type { RefPage } from './RefApp'
 
 /* ── Mock data ──
  * KURAL: Firma adı (name) yalnızca veriden gelir; görsele gömülü DEĞİL.
@@ -57,10 +54,9 @@ const MOCK_FIRMS: FirmData[] = [
 
 const KPI_ITEMS = [
   { icon: '🏢', label: 'Aktif Firma',  value: '12', sub: 'Toplam', subDir: 'muted' as const },
-  { icon: '📈', label: 'Yasal Gelir',  value: '₺18,7M', sub: '▲ 6,2%', subDir: 'up' as const },
+  { icon: '📈', label: 'Yasal Gelir',  value: '₺18,7M', sub: '6,2%', subDir: 'up' as const },
   { icon: '💰', label: 'Yasadışı Gelir', value: '₺7,6M', sub: 'Günlük', subDir: 'muted' as const },
-  { icon: '⚙️', label: 'Operasyonel Verimlilik', value: '78%', sub: '▲ 4,6%', subDir: 'up' as const },
-  { icon: '📊', label: 'Verimlilik Puanı', value: '▲ 6,2%', sub: 'Bu ay', subDir: 'up' as const },
+  { icon: '⚙️', label: 'Verimlilik', value: '78%', sub: '4,6%', subDir: 'up' as const },
 ]
 
 type CategoryKey = 'tumu' | 'gida' | 'hizmet' | 'teknoloji' | 'finans' | 'turizm' | 'medya' | 'illegal'
@@ -76,92 +72,57 @@ const CATEGORIES: { id: CategoryKey; label: string; icon: string }[] = [
   { id: 'illegal',   label: 'Illegal',    icon: '🚫' },
 ]
 
-export class RefFirmsPage {
+export class RefFirmsPage implements RefPage {
   readonly el: HTMLElement
+  readonly title = 'FİRMALAR'
+
+  /** RefApp tarafından bağlanır: bir firmaya tıklanınca detay aç. */
+  onOpenFirm?: (firm: FirmData) => void
 
   private activeCategory: CategoryKey = 'tumu'
   private cardEls = new Map<string, RefCard>()
   private cardsContainer!: HTMLElement
   private catBtns = new Map<CategoryKey, HTMLButtonElement>()
-  private header: RefHeader
-  private kpi: RefKpiStrip
-  private nav: RefBottomNav
-  private detail: RefFirmDetailPage
 
   constructor() {
-    // ── Shell ──
     this.el = document.createElement('div')
-    this.el.className = 'ref-shell'
+    this.el.className = 'ref-page ref-firms-page'
 
-    // ── Header ──
-    this.header = new RefHeader({
-      name: 'Mert Karahan',
-      title: 'Holding YK Başkanı',
-      age: 34,
-      city: 'İstanbul',
-      avatarEmoji: '👤',
-      avatarAsset: '/assets/ref-v2/avatars/avatar_main_businessman.png',
-      notifCount: 1,
-    })
-    this.header.setTitle('FİRMALAR', '⭐')
-    this.el.appendChild(this.header.el)
+    // KPI strip
+    const kpi = new RefKpiStrip(KPI_ITEMS)
+    this.el.appendChild(kpi.el)
 
-    // ── Scroll body ──
-    const body = document.createElement('div')
-    body.className = 'ref-body'
-    this.el.appendChild(body)
+    // Category tabs
+    this.el.appendChild(this.buildCatTabs())
 
-    // ── KPI strip ──
-    this.kpi = new RefKpiStrip(KPI_ITEMS)
-    body.appendChild(this.kpi.el)
-
-    // ── Category tabs ──
-    body.appendChild(this.buildCatTabs())
-
-    // ── Summary strip ──
+    // Summary strip
     const summary = document.createElement('div')
     summary.className = 'ref-summary-strip'
     summary.innerHTML = `
-      <span class="ref-summary-count">12 firma gösteriliyor</span>
+      <span class="ref-summary-count">${MOCK_FIRMS.length} firma gösteriliyor</span>
       <span class="ref-summary-total">Toplam: ₺26,3M / Gün</span>
     `
-    body.appendChild(summary)
+    this.el.appendChild(summary)
 
-    // ── Cards list ──
+    // Cards list
     this.cardsContainer = document.createElement('div')
     this.cardsContainer.className = 'ref-cards-list'
-    body.appendChild(this.cardsContainer)
+    this.el.appendChild(this.cardsContainer)
 
-    // Build initial cards
     for (const firm of MOCK_FIRMS) {
       const card = new RefCard(firm)
       this.cardEls.set(firm.id, card)
-      // Kart gövdesine tıklayınca detay aç (aksiyon butonları hariç).
       card.el.addEventListener('click', (e) => {
         if ((e.target as HTMLElement).closest('.ref-btn, .ref-firm-menu')) return
-        this.openDetail(firm)
+        this.onOpenFirm?.(firm)
       })
       this.cardsContainer.appendChild(card.el)
     }
-
-    // ── Bottom nav ──
-    this.nav = new RefBottomNav('firms')
-    this.el.appendChild(this.nav.el)
-
-    // ── Firma detay sayfası (overlay) ──
-    this.detail = new RefFirmDetailPage()
-    this.detail.onBack = () => this.detail.hide()
-    this.el.appendChild(this.detail.el)
-  }
-
-  private openDetail(firm: FirmData): void {
-    this.detail.show(firm)
   }
 
   private buildCatTabs(): HTMLElement {
     const wrap = document.createElement('div')
     wrap.className = 'ref-cat-tabs'
-
     for (const cat of CATEGORIES) {
       const btn = document.createElement('button')
       btn.className = 'ref-cat-tab' + (cat.id === 'tumu' ? ' active' : '')
@@ -172,15 +133,12 @@ export class RefFirmsPage {
       this.catBtns.set(cat.id, btn)
       wrap.appendChild(btn)
     }
-
     return wrap
   }
 
   private setCategory(id: CategoryKey): void {
     this.activeCategory = id
-    this.catBtns.forEach((btn, key) => {
-      btn.classList.toggle('active', key === id)
-    })
+    this.catBtns.forEach((btn, key) => btn.classList.toggle('active', key === id))
     this.filterCards()
   }
 
@@ -190,9 +148,5 @@ export class RefFirmsPage {
                     card.data.sector === this.activeCategory
       card.el.style.display = match ? '' : 'none'
     }
-  }
-
-  mount(target: HTMLElement): void {
-    target.appendChild(this.el)
   }
 }
