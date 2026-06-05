@@ -147,11 +147,11 @@ export class RefCard {
           </div>
         </div>
 
-        <!-- Right: action buttons -->
+        <!-- Right: action buttons (ÖNİZLEME — işlem yapmaz, view-only/disabled) -->
         <div class="ref-firm-card__btns">
-          <button class="ref-btn develop">📈 GELİŞTİR</button>
-          <button class="ref-btn modernize">⚙️ MODERNİZE ET</button>
-          <button class="ref-btn manager">👤 MANAGER ATA</button>
+          <button class="ref-btn develop" type="button" disabled>📈 GELİŞTİR</button>
+          <button class="ref-btn modernize" type="button" disabled>⚙️ MODERNİZE ET</button>
+          <button class="ref-btn manager" type="button" disabled>👤 MANAGER ATA</button>
         </div>
       </div>
     `

@@ -661,6 +661,16 @@
 }
 .ref-btn:active { opacity: 0.82; transform: scale(0.97); }
 
+/* View-only önizleme: aksiyon butonları görünür ama işlem yapmaz (disabled).
+   Renk hafifçe sönükleşir, gölge düşer, "tıklanabilir" hissi kaybolur. */
+.ref-btn:disabled {
+  filter: grayscale(0.42);
+  opacity: 0.62;
+  box-shadow: none;
+  cursor: default;
+}
+.ref-btn:disabled:active { transform: none; opacity: 0.62; }
+
 .ref-btn.develop  {
   background: linear-gradient(180deg, var(--r-orange) 0%, var(--r-orange-dk) 100%);
   color: #fff;
