@@ -397,6 +397,17 @@
   padding: 4px 14px 10px;
 }
 
+/* Gerçek veri var ama firma yok → dürüst boş durum (mock firmalar yerine) */
+.ref-firms-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 6px; margin: 24px 14px; padding: 30px 20px;
+  background: var(--r-card-soft);
+  border: 1.5px dashed var(--r-border); border-radius: var(--r-lg);
+}
+.ref-firms-empty__ico { font-size: 42px; opacity: 0.7; }
+.ref-firms-empty__title { font-size: 16px; font-weight: 800; color: var(--r-text); }
+.ref-firms-empty__desc { font-size: 12.5px; font-weight: 600; color: var(--r-muted); max-width: 240px; line-height: 1.4; }
+
 /* ── Firm Card ── */
 .ref-firm-card {
   background: var(--r-card);

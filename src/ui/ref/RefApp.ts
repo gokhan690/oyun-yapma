@@ -88,7 +88,9 @@ export class RefApp {
     this.el.appendChild(this.detail.el)
 
     // ── Pages (gerçek view-model varsa bağlanır; yoksa mock fallback) ──
-    const firms = new RefFirmsPage(vm?.firms)
+    // hasRealData=!!vm: gerçek (ama boş) GameState'i saf-önizleme mock'undan ayır,
+    // böylece 0 firmalı oyuncuda dashboard ₺0 ile firmalar listesi çelişmez.
+    const firms = new RefFirmsPage(vm?.firms, !!vm)
     firms.onOpenFirm = (f: FirmData) => this.detail.show(f)
 
     const dashboard = new RefDashboardPage(vm?.dashboard)

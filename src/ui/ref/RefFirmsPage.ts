@@ -78,8 +78,12 @@ export class RefFirmsPage implements RefPage {
   private cardsContainer!: HTMLElement
   private catBtns = new Map<CategoryKey, HTMLButtonElement>()
 
-  constructor(firms?: FirmData[]) {
-    const data = (firms && firms.length) ? firms : MOCK_FIRMS
+  constructor(firms?: FirmData[], hasRealData = false) {
+    // Gerçek veri varsa onu kullan. Gerçek veri modunda 0 firma → boş durum
+    // (mock'a DÜŞME; dashboard'daki ₺0 ile tutarlı kalır). Hiç gerçek veri yoksa
+    // (saf önizleme/test) → mock firmalarla doldurulur.
+    const data: FirmData[] = (firms && firms.length) ? firms : (hasRealData ? [] : MOCK_FIRMS)
+    const realEmpty = hasRealData && data.length === 0
     const totalIncome = data.reduce((s, f) => s + f.income, 0)
     const illegalIncome = data.filter((f) => f.sector === 'illegal').reduce((s, f) => s + f.income, 0)
     const legalIncome = totalIncome - illegalIncome
@@ -112,6 +116,18 @@ export class RefFirmsPage implements RefPage {
     this.cardsContainer = document.createElement('div')
     this.cardsContainer.className = 'ref-cards-list'
     this.el.appendChild(this.cardsContainer)
+
+    if (realEmpty) {
+      // Gerçek veri var ama oyuncunun firması yok → dürüst boş durum (mock değil)
+      const empty = document.createElement('div')
+      empty.className = 'ref-firms-empty'
+      empty.innerHTML = `
+        <div class="ref-firms-empty__ico">🏢</div>
+        <div class="ref-firms-empty__title">Henüz firma yok</div>
+        <div class="ref-firms-empty__desc">İlk işletmeni kurduğunda firmaların burada listelenecek.</div>`
+      this.cardsContainer.appendChild(empty)
+      return
+    }
 
     for (const firm of data) {
       const card = new RefCard(firm)
