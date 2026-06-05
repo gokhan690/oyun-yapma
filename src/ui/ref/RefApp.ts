@@ -47,8 +47,10 @@ export class RefApp {
   private content: HTMLElement
   private nav: RefBottomNav
   private detail: RefFirmDetailPage
+  /** Tembel önbellek: sayfa yalnızca ilk ziyarette kurulur, sonra saklanır. */
   private pages = new Map<RefNavTab, RefPage>()
-  private achievements: RefAchievementsPage
+  private achievements?: RefAchievementsPage
+  private vm?: RefViewModel
   private active: RefNavTab
 
   /** Ana oyuna bağlandığında geri/çıkış için (standalone'da kullanılmaz). */
@@ -58,13 +60,14 @@ export class RefApp {
     const initial = opts.initial ?? 'firms'
     this.onExit = opts.onExit
     this.active = initial
+    this.vm = opts.data
 
     // ── Shell ──
     this.el = document.createElement('div')
     this.el.className = 'ref-shell'
 
     // ── Shared header (gerçek veri varsa oyuncudan) ──
-    const vm = opts.data
+    const vm = this.vm
     this.header = new RefHeader({
       ...PLAYER,
       ...(vm ? { name: vm.player.name, title: vm.player.title, age: vm.player.age, city: vm.player.city, avatarAsset: vm.player.avatarAsset } : {}),
@@ -82,50 +85,73 @@ export class RefApp {
     this.nav.onChange((tab) => this.show(tab))
     this.el.appendChild(this.nav.el)
 
-    // ── Firma detay overlay ──
+    // ── Firma detay overlay (boş; yalnızca firma açılınca render eder) ──
     this.detail = new RefFirmDetailPage()
     this.detail.onBack = () => this.detail.hide()
     this.el.appendChild(this.detail.el)
 
-    // ── Pages (gerçek view-model varsa bağlanır; yoksa mock fallback) ──
-    // hasRealData=!!vm: gerçek (ama boş) GameState'i saf-önizleme mock'undan ayır,
-    // böylece 0 firmalı oyuncuda dashboard ₺0 ile firmalar listesi çelişmez.
-    const firms = new RefFirmsPage(vm?.firms, !!vm)
-    firms.onOpenFirm = (f: FirmData) => this.detail.show(f)
-
-    const dashboard = new RefDashboardPage(vm?.dashboard)
-    dashboard.onOpenAchievements = () => this.showAchievements()
-
-    this.pages.set('home',   dashboard)
-    this.pages.set('career', new RefCareerPage(vm?.career))
-    this.pages.set('firms',  firms)
-    this.pages.set('market', new RefMarketPage())
-    this.pages.set('empire', new RefEmpirePage())
-    this.pages.set('family', new RefFamilyPage())
-
-    // Başarılar — nav dışı, dashboard'dan açılır
-    this.achievements = new RefAchievementsPage()
-    this.achievements.onBack = () => this.show(this.active)
-
+    // Yalnızca açılış sekmesi kurulur; diğerleri ilk tıklamada (perf).
     this.show(initial)
+  }
+
+  /**
+   * Sayfayı tembel kur ve önbelleğe al. Açılışta yalnızca aktif sekme
+   * kurulur; ağır SVG/görsel içeren diğer sayfalar DOM/bellekten uzak kalır.
+   */
+  private getPage(tab: RefNavTab): RefPage {
+    let page = this.pages.get(tab)
+    if (!page) {
+      page = this.createPage(tab)
+      this.pages.set(tab, page)
+    }
+    return page
+  }
+
+  private createPage(tab: RefNavTab): RefPage {
+    const vm = this.vm
+    switch (tab) {
+      case 'home': {
+        const dashboard = new RefDashboardPage(vm?.dashboard)
+        dashboard.onOpenAchievements = () => this.showAchievements()
+        return dashboard
+      }
+      case 'firms': {
+        // hasRealData=!!vm: gerçek (ama boş) GameState'i saf-önizleme mock'undan
+        // ayır → 0 firmalı oyuncuda dashboard ₺0 ile firmalar listesi çelişmez.
+        const firms = new RefFirmsPage(vm?.firms, !!vm)
+        firms.onOpenFirm = (f: FirmData) => this.detail.show(f)
+        return firms
+      }
+      case 'career': return new RefCareerPage(vm?.career)
+      case 'market': return new RefMarketPage()
+      case 'empire': return new RefEmpirePage()
+      case 'family': return new RefFamilyPage()
+    }
   }
 
   /** Aktif nav sekmesini değiştir. */
   show(tab: RefNavTab): void {
-    const page = this.pages.get(tab)
-    if (!page) return
     this.active = tab
-    this.mountBody(page)
+    this.mountBody(this.getPage(tab))
     this.nav.setActive(tab)
   }
 
   private showAchievements(): void {
+    if (!this.achievements) {
+      this.achievements = new RefAchievementsPage()
+      this.achievements.onBack = () => this.show(this.active)
+    }
     this.mountBody(this.achievements)
   }
 
   private mountBody(page: RefPage): void {
     // Sayfa değişiminde açık firma detay overlay'ini kapat
     this.detail.hide()
+    // Görseller tembel yüklensin (aynı anda onlarca asset decode etmesin)
+    page.el.querySelectorAll<HTMLImageElement>('img:not([loading])').forEach((img) => {
+      img.loading = 'lazy'
+      img.decoding = 'async'
+    })
     this.content.innerHTML = ''
     this.content.appendChild(page.el)
     this.content.scrollTop = 0

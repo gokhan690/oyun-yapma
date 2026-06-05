@@ -112,6 +112,15 @@ export class RefFirmsPage implements RefPage {
     `
     this.el.appendChild(summary)
 
+    // Kart aksiyonları (Geliştir/Modernize/Manager) önizlemede pasif — tek,
+    // sade sayfa notu (her kartta tekrar etmesin → ekran kalabalıklaşmasın).
+    if (!realEmpty) {
+      const note = document.createElement('div')
+      note.className = 'ref-preview-note ref-firms-note'
+      note.textContent = '🔒 Önizleme modu · kart işlemleri (Geliştir/Modernize/Manager) işlem yapmaz'
+      this.el.appendChild(note)
+    }
+
     // Cards list
     this.cardsContainer = document.createElement('div')
     this.cardsContainer.className = 'ref-cards-list'

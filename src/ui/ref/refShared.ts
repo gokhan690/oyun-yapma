@@ -84,19 +84,21 @@ export function donutSvg(segments: { value: number; color: string }[], size = 96
   </svg>`
 }
 
-/** Yarım daire gauge (0-100). */
-export function gaugeSvg(pct: number, color = '#28C76F', w = 150, h = 86): string {
-  const r = 58
+/** Yarım daire gauge (0-100). Temiz, simetrik semicircle. */
+export function gaugeSvg(pct: number, color = '#28C76F', w = 160, h = 96): string {
+  const p = Math.min(100, Math.max(0, pct))
+  const r = 60
   const cx = w / 2
-  const cy = h - 8
-  const a = Math.PI * (1 - Math.min(100, Math.max(0, pct)) / 100)
+  const cy = h - 14
+  const a = Math.PI * (1 - p / 100)
   const x = cx + r * Math.cos(a)
   const y = cy - r * Math.sin(a)
-  const big = pct > 50 ? 1 : 0
+  // Yarım daire yayı her zaman ≤180° → large-arc-flag SABİT 0.
+  // (Eski kod pct>50'de 1 yapıyordu; yay uzun yoldan dönüp şekli bozuyordu.)
   return `<svg viewBox="0 0 ${w} ${h}" class="ref-gauge-svg">
-    <path d="M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}" fill="none" stroke="rgba(0,0,0,0.08)" stroke-width="11" stroke-linecap="round"/>
-    <path d="M ${cx - r} ${cy} A ${r} ${r} 0 ${big} 1 ${x.toFixed(1)} ${y.toFixed(1)}" fill="none" stroke="${color}" stroke-width="11" stroke-linecap="round"/>
-    <text x="${cx}" y="${cy - 14}" text-anchor="middle" font-size="22" font-weight="900" fill="#123A52">${Math.round(pct)}%</text>
+    <path d="M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}" fill="none" stroke="rgba(18,58,82,0.10)" stroke-width="12" stroke-linecap="round"/>
+    <path d="M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)}" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round"/>
+    <text x="${cx}" y="${cy - 12}" text-anchor="middle" font-size="24" font-weight="900" fill="#123A52">${Math.round(p)}%</text>
   </svg>`
 }
 

@@ -105,7 +105,8 @@
     rgba(0,50,100,0.18) 0%,
     rgba(0,50,100,0.05) 100%
   );
-  backdrop-filter: blur(2px);
+  /* backdrop-filter kaldırıldı: header zaten opak shell gradyanının üstünde,
+     blur görsel fark katmıyordu ama ekstra kompozit katmanı maliyetliydi. */
 }
 
 .ref-header__row {
@@ -221,8 +222,8 @@
   height: 34px;
   border-radius: 50%;
   border: 1.5px solid rgba(255,255,255,0.28);
-  background: rgba(255,255,255,0.15);
-  backdrop-filter: blur(8px);
+  background: rgba(255,255,255,0.18);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -241,8 +242,8 @@
   margin-left: 2px;
   border-radius: 50%;
   border: 1.5px solid rgba(255,255,255,0.45);
-  background: rgba(255,255,255,0.22);
-  backdrop-filter: blur(8px);
+  background: rgba(255,255,255,0.26);
+  backdrop-filter: blur(4px);
   color: #fff;
   font-size: 13px;
   font-weight: 800;
@@ -371,8 +372,9 @@
   padding: 7px 13px;
   border-radius: var(--r-pill);
   border: 1.5px solid rgba(255,255,255,0.55);
-  background: rgba(255,255,255,0.65);
-  backdrop-filter: blur(6px);
+  background: rgba(255,255,255,0.78);
+  /* backdrop-filter kaldırıldı: chip satırı yatay scroll ediyor; blur her
+     karede yeniden rasterize olup jank yapıyordu. %78 beyaz zemin yeterli. */
   color: var(--r-text2);
   font-size: 12px;
   font-weight: 700;
@@ -407,6 +409,9 @@
 .ref-firms-empty__ico { font-size: 42px; opacity: 0.7; }
 .ref-firms-empty__title { font-size: 16px; font-weight: 800; color: var(--r-text); }
 .ref-firms-empty__desc { font-size: 12.5px; font-weight: 600; color: var(--r-muted); max-width: 240px; line-height: 1.4; }
+
+/* Firmalar sayfası kart-aksiyon önizleme notu (summary'nin hemen altında) */
+.ref-firms-note { margin: 2px 14px 0; justify-content: flex-start; text-align: left; }
 
 /* ── Firm Card ── */
 .ref-firm-card {

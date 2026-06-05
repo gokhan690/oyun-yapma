@@ -81,11 +81,30 @@ export function installRefTestLauncher(state?: GameState): void {
 
   let overlay: HTMLElement | null = null
   let bodyOverflowPrev = ''
+  let mo: MutationObserver | null = null
+  let pollId: number | null = null
+
+  // Launcher görünürlük izleyicileri. Overlay AÇIKKEN durdurulur: buton zaten
+  // gizli, ve RefApp her nav geçişinde innerHTML değiştirdiği için observer
+  // sürekli tetiklenir → gereksiz arka plan işi/kasma.
+  const startWatchers = (): void => {
+    if (!mo) {
+      mo = new MutationObserver(() => syncVisibility())
+      mo.observe(document.body, { childList: true, subtree: true })
+    }
+    if (pollId === null) pollId = window.setInterval(syncVisibility, 600)
+  }
+  const stopWatchers = (): void => {
+    mo?.disconnect()
+    mo = null
+    if (pollId !== null) { window.clearInterval(pollId); pollId = null }
+  }
 
   const close = (): void => {
     overlay?.remove()
     overlay = null
     document.body.style.overflow = bodyOverflowPrev
+    startWatchers()   // izleyicileri geri aç
     syncVisibility()
   }
 
@@ -112,6 +131,7 @@ export function installRefTestLauncher(state?: GameState): void {
     document.body.style.overflow = 'hidden'
 
     btn.style.display = 'none'
+    stopWatchers()   // overlay açıkken izleyiciler boşuna çalışmasın
   }
 
   btn.addEventListener('click', open)
@@ -128,7 +148,5 @@ export function installRefTestLauncher(state?: GameState): void {
 
   syncVisibility()
   // DOM değişimlerini izle (modal aç/kapa) + güvenlik için periyodik kontrol
-  const mo = new MutationObserver(() => syncVisibility())
-  mo.observe(document.body, { childList: true, subtree: true })
-  window.setInterval(syncVisibility, 600)
+  startWatchers()
 }
