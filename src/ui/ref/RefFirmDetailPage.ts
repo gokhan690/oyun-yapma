@@ -4,27 +4,31 @@ import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import { assetUrl } from '../../utils/assetUrl'
 import { areaChartSvg, gaugeSvg, donutSvg } from './refShared'
 
-const REVENUE_TREND = [42, 48, 45, 52, 58, 55, 63, 61, 68, 72, 70, 78, 82, 88]
-const EXPENSE_SPLIT = [
-  { label: 'Personel',  value: 42, color: '#2563EB' },
-  { label: 'Tedarik',   value: 31, color: '#F6A609' },
-  { label: 'Kira',      value: 18, color: '#13B8A6' },
-  { label: 'Diğer',     value: 9,  color: '#94B4C2' },
-]
-const BRANCHES = [
-  { city: 'Merkez Şube', perf: 88, income: 240_000 },
-  { city: '2. Şube',     perf: 74, income: 180_000 },
-  { city: '3. Şube',     perf: 61, income: 120_000 },
-]
-
 /*
  * Firma Detay sayfası.
  * KURAL: Tüm metin (name / slogan / city / level) firm verisinden DİNAMİK gelir.
  *        Hero görseli SADECE category (iş türü) üzerinden gelir; firma adına bağlı değil.
+ *
+ * VERİ KAYNAĞI: gelir / gider / büyüme / performans / yıldız / risk → GERÇEK
+ * (adapter'dan firmData). Aşağıdaki türetilenler GameState'te ölçülmüyor:
+ *   - Gelir trendi (14 gün)   → firmaya özgü deterministik tahmini eğri
+ *   - Müşteri memnuniyeti      → performanstan türetilmiş tahmin
+ *   - Gider dağılımı            → tipik sektör dağılımı (tahmini yüzde)
+ *   - Şubeler                   → GERÇEK firma gelirinden tahmini bölüşüm (toplam ≤ gelir)
+ *   - Geliştirme/Şube fiyatları → firma gelirine göre tahmini, deterministik
+ * Hepsi UI'da 'tahmini' etiketiyle işaretlenir; aksiyon butonları işlem YAPMAZ (önizleme).
  */
 
+// Tipik sektör gider dağılımı (gerçek gider kalemleri tutulmuyor → tahmini yüzde)
+const EXPENSE_SPLIT = [
+  { label: 'Personel', value: 42, color: '#2563EB' },
+  { label: 'Tedarik',  value: 31, color: '#F6A609' },
+  { label: 'Kira',     value: 18, color: '#13B8A6' },
+  { label: 'Diğer',    value: 9,  color: '#94B4C2' },
+]
+
 function fmtMoney(n: number): string {
-  if (n >= 1e9) return `₺${(n / 1e9).toFixed(1)}M`
+  if (n >= 1e9) return `₺${(n / 1e9).toFixed(1)}Mr`
   if (n >= 1e6) return `₺${(n / 1e6).toFixed(1)}M`
   if (n >= 1e3) return `₺${(n / 1e3).toFixed(0)}K`
   return `₺${n}`
@@ -46,12 +50,49 @@ function ua(p: string): string {
   return assetUrl(p.startsWith('/') ? p.slice(1) : p)
 }
 
-/** Detay sayfasında gösterilen örnek "geliştirme" kartları (mock). */
-const UPGRADE_TILES: { asset: string; label: string }[] = [
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.quality,        label: 'Kalite' },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.marketing,      label: 'Pazarlama' },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.staffTraining,  label: 'Eğitim' },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.automation,     label: 'Otomasyon' },
+// Deterministik hash (firma id → sayı) — firmaya özgü tahmini değerler için
+function hash(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return h
+}
+
+/** Firmaya özgü, deterministik yükselen gelir trendi (14 nokta).
+ *  Gerçek geçmiş yok → tahmini; eğim büyüme oranıyla artar, her firma farklı. */
+function firmTrend(id: string, growth: number): number[] {
+  let s = hash(id) || 1
+  const rnd = (): number => { s = (s * 1103515245 + 12345) & 0x7fffffff; return (s >>> 8) / (1 << 23) }
+  const slope = 0.6 + Math.min(1.6, growth / 11)
+  const out: number[] = []
+  let base = 38 + (hash(id) % 14)
+  for (let i = 0; i < 14; i++) {
+    base += slope + (rnd() - 0.42) * 5
+    out.push(+Math.max(10, base).toFixed(1))
+  }
+  return out
+}
+
+/** Şube dağılımı — firmanın GERÇEK gelirinden tahmini bölüşüm.
+ *  Şube sayısı seviyeye göre (1-3); şube gelirleri toplamı firma gelirini AŞMAZ. */
+function firmBranches(f: FirmData): { name: string; perf: number; income: number }[] {
+  const n = Math.min(3, Math.max(1, Math.ceil(f.level / 3)))
+  const weights = [0.5, 0.3, 0.2].slice(0, n)
+  const wsum = weights.reduce((a, b) => a + b, 0)
+  const names = ['Merkez Şube', '2. Şube', '3. Şube']
+  return weights.map((w, i) => ({
+    name: names[i],
+    income: Math.round((f.income * w) / wsum),
+    perf: Math.max(40, Math.min(96, f.performance - i * 9)),
+  }))
+}
+
+/** Detay sayfasında gösterilen "geliştirme" kartları (görsel/önizleme — işlem yapmaz).
+ *  Fiyat firmanın GERÇEK gelirine göre tahmini ve deterministiktir (Math.random YOK). */
+const UPGRADE_TILES: { asset: string; label: string; mult: number }[] = [
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.quality,       label: 'Kalite',    mult: 0.6 },
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.marketing,     label: 'Pazarlama', mult: 1.0 },
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.staffTraining, label: 'Eğitim',    mult: 1.6 },
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.automation,    label: 'Otomasyon', mult: 2.4 },
 ]
 
 export class RefFirmDetailPage {
@@ -85,6 +126,10 @@ export class RefFirmDetailPage {
     const badgeCls = f.status === 'Karlı' ? 'karli' : f.status === 'Büyüyor' ? 'buyuyor' : 'riskli'
     const perf = perfClass(f.performance)
     const net = f.income - f.expense
+    const trend = firmTrend(f.id, f.growth)
+    const branches = firmBranches(f)
+    // Müşteri memnuniyeti: gerçek performanstan türetilen tahmin (ölçüm yok)
+    const satisfaction = Math.min(96, f.performance + 12)
 
     this.el.innerHTML = `
       <!-- Hero -->
@@ -116,7 +161,7 @@ export class RefFirmDetailPage {
           <span>⚠️</span> Risk Seviyesi ${f.riskLevel}/100
         </div>` : ''}
 
-        <!-- Net daily strip -->
+        <!-- Net daily strip (GERÇEK gelir - tahmini gider) -->
         <div class="ref-detail-net">
           <span class="ref-detail-net__lbl">Net Günlük</span>
           <span class="ref-detail-net__val">${fmtMoney(net)}</span>
@@ -130,7 +175,7 @@ export class RefFirmDetailPage {
             <span class="ref-stat-val income">${fmtMoney(f.income)}</span>
           </div>
           <div class="ref-detail-stat">
-            <span class="ref-stat-lbl">Günlük Gider</span>
+            <span class="ref-stat-lbl">Günlük Gider <span class="ref-est-tag">tahmini</span></span>
             <span class="ref-stat-val expense">${fmtMoney(f.expense)}</span>
           </div>
           <div class="ref-detail-stat">
@@ -154,23 +199,23 @@ export class RefFirmDetailPage {
           </div>
         </div>
 
-        <!-- Gelir trendi -->
+        <!-- Gelir trendi (firmaya özgü tahmini eğri) -->
         <div class="ref-card-soft ref-detail-chart">
           <div class="ref-card-soft__title-row">
-            <span class="ref-card-soft__title">Gelir Trendi · 14 gün</span>
+            <span class="ref-card-soft__title">Gelir Trendi · 14 gün <span class="ref-est-tag">tahmini</span></span>
             <span class="ref-chart-up">▲ ${f.growth.toFixed(1)}%</span>
           </div>
-          ${areaChartSvg(REVENUE_TREND, '#13B8A6', 320, 80)}
+          ${areaChartSvg(trend, '#13B8A6', 320, 80)}
         </div>
 
         <!-- Memnuniyet gauge + Gider donut -->
         <div class="ref-detail-2col">
           <div class="ref-card-soft ref-detail-gauge">
-            <div class="ref-card-soft__title">Müşteri Memnuniyeti</div>
-            ${gaugeSvg(Math.min(96, f.performance + 12), '#28C76F')}
+            <div class="ref-card-soft__title">Müşteri Memnuniyeti <span class="ref-est-tag">tahmini</span></div>
+            ${gaugeSvg(satisfaction, '#28C76F')}
           </div>
           <div class="ref-card-soft ref-detail-expense">
-            <div class="ref-card-soft__title">Gider Dağılımı</div>
+            <div class="ref-card-soft__title">Gider Dağılımı <span class="ref-est-tag">tahmini</span></div>
             <div class="ref-mini-donut">
               ${donutSvg(EXPENSE_SPLIT, 72, 13)}
               <div class="ref-donut-legend sm">
@@ -185,26 +230,26 @@ export class RefFirmDetailPage {
           </div>
         </div>
 
-        <!-- Upgrades -->
-        <div class="ref-detail-section-title">Geliştirmeler</div>
+        <!-- Upgrades (önizleme) -->
+        <div class="ref-detail-section-title">Geliştirmeler <span class="ref-est-tag">tahmini fiyat</span></div>
         <div class="ref-detail-upgrades">
           ${UPGRADE_TILES.map(u => `
             <div class="ref-detail-upg">
               <img src="${ua(u.asset)}" alt="" class="ref-detail-upg__img">
               <span class="ref-detail-upg__lbl">${u.label}</span>
-              <span class="ref-detail-upg__price">₺${(120 + Math.round(Math.random() * 80))}K</span>
+              <span class="ref-detail-upg__price">${fmtMoney(Math.max(10_000, Math.round(f.income * u.mult)))}</span>
             </div>
           `).join('')}
         </div>
 
-        <!-- Şubeler -->
-        <div class="ref-detail-section-title">Şubeler</div>
+        <!-- Şubeler (gerçek gelirden tahmini bölüşüm) -->
+        <div class="ref-detail-section-title">Şubeler <span class="ref-est-tag">tahmini</span></div>
         <div class="ref-branch-list">
-          ${BRANCHES.map(b => `
+          ${branches.map(b => `
             <div class="ref-branch-row">
               <span class="ref-branch-ico">🏬</span>
               <div class="ref-branch-main">
-                <div class="ref-branch-name">${b.city}</div>
+                <div class="ref-branch-name">${b.name}</div>
                 <div class="ref-perf-track sm"><div class="ref-perf-fill ${perfClass(b.perf)}" style="width:${b.perf}%"></div></div>
               </div>
               <span class="ref-branch-income">${fmtMoney(b.income)}/g</span>
@@ -212,12 +257,13 @@ export class RefFirmDetailPage {
           `).join('')}
         </div>
 
-        <!-- Actions -->
+        <!-- Actions (ÖNİZLEME — işlem yapmaz) -->
         <div class="ref-detail-actions">
-          <button class="ref-btn develop">📈 GELİŞTİR</button>
-          <button class="ref-btn modernize">⚙️ MODERNİZE ET</button>
-          <button class="ref-btn manager">👤 MANAGER ATA</button>
+          <button class="ref-btn develop" type="button" disabled>📈 GELİŞTİR</button>
+          <button class="ref-btn modernize" type="button" disabled>⚙️ MODERNİZE ET</button>
+          <button class="ref-btn manager" type="button" disabled>👤 MANAGER ATA</button>
         </div>
+        <div class="ref-preview-note">🔒 Önizleme modu · butonlar işlem yapmaz</div>
       </div>
     `
 

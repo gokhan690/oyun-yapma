@@ -1,4 +1,4 @@
-import { ua, ringSvg } from './refShared'
+import { ua, ringSvg, demoBanner } from './refShared'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import type { RefPage } from './RefApp'
 
@@ -95,6 +95,8 @@ export class RefAchievementsPage implements RefPage {
     `
     top.querySelector('.ref-back-btn')!.addEventListener('click', () => this.onBack?.())
     this.el.appendChild(top)
+
+    this.el.appendChild(demoBanner('görev/başarı ilerlemesi henüz oyun verisine bağlı değil'))
 
     // Tamamlanma halkası + milestone çizgisi
     const summary = document.createElement('div')

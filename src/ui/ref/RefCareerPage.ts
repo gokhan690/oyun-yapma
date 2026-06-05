@@ -70,21 +70,25 @@ export class RefCareerPage implements RefPage {
     `
     this.el.appendChild(job)
 
-    // Bugünkü aksiyonlar
-    this.el.appendChild(sectionTitle('Bugünkü Aksiyonlar', '3 hak'))
+    // Bugünkü aksiyonlar (önizleme — butonlar işlem yapmaz)
+    this.el.appendChild(sectionTitle('Bugünkü Aksiyonlar <span class="ref-demo-tag">önizleme</span>', '3 hak'))
     const actions = document.createElement('div')
     actions.className = 'ref-action-grid'
     actions.innerHTML = ACTIONS.map(a => `
-      <button class="ref-action-tile">
+      <button class="ref-action-tile" type="button" disabled>
         <span class="ref-action-tile__ico">${a.ico}</span>
         <span class="ref-action-tile__lbl">${a.label}</span>
         <span class="ref-action-tile__eff">${a.effect}</span>
       </button>
     `).join('')
     this.el.appendChild(actions)
+    const actNote = document.createElement('div')
+    actNote.className = 'ref-preview-note'
+    actNote.textContent = '🔒 Önizleme modu · aksiyonlar işlem yapmaz'
+    this.el.appendChild(actNote)
 
-    // İlk hedefler
-    this.el.appendChild(sectionTitle('İlk Hedefler'))
+    // İlk hedefler (örnek — gerçek hedefler Ana Panel'de türetiliyor)
+    this.el.appendChild(sectionTitle('İlk Hedefler <span class="ref-demo-tag">örnek</span>'))
     const goals = document.createElement('div')
     goals.className = 'ref-cgoal-list'
     goals.innerHTML = GOALS.map(g => `
@@ -99,8 +103,8 @@ export class RefCareerPage implements RefPage {
     `).join('')
     this.el.appendChild(goals)
 
-    // Beceriler
-    this.el.appendChild(sectionTitle('Beceriler'))
+    // Beceriler (demo — beceri sistemi henüz adapter'a bağlı değil)
+    this.el.appendChild(sectionTitle('Beceriler <span class="ref-demo-tag">demo</span>'))
     const skills = document.createElement('div')
     skills.className = 'ref-skill-list'
     skills.innerHTML = SKILLS.map(s => `

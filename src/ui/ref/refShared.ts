@@ -30,6 +30,15 @@ export function sectionTitle(text: string, action?: string): HTMLElement {
   return el
 }
 
+/** Tam-örnek (henüz GameState'e bağlı olmayan) ekranlar için demo şeridi.
+ *  Bu ekranlar yalnızca görsel önizlemedir; hiçbir gerçek oyun verisi/işlemi yoktur. */
+export function demoBanner(text: string): HTMLElement {
+  const el = document.createElement('div')
+  el.className = 'ref-demo-banner'
+  el.innerHTML = `<span>🧪</span><span><b>Demo veri</b> — ${text}</span>`
+  return el
+}
+
 /* ───────── Mini SVG grafik yardımcıları (static mock görsel) ───────── */
 
 /** Alan/çizgi grafiği (0-1 normalize değerler). */

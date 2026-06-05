@@ -34,10 +34,11 @@ const QUICK = [
   { asset: REF_ASSETS_V2_GENERIC.achievements.cupGold,    label: 'Başarılar' },
 ]
 
+/* Aktivite akışı — GameState olay geçmişi henüz adapter'a bağlı değil (örnek/önizleme). */
 const FEED = [
-  { ico: '🏆', txt: 'Yeni başarı: <b>Fırın İmparatoru</b> kilidini açtın.', time: '2 sa' },
-  { ico: '📈', txt: 'En çok kazandıran firman bugün <b>%9,7</b> arttı.', time: '5 sa' },
-  { ico: '🏙️', txt: 'Yeni pazar fırsatı belirdi.', time: '1 gün' },
+  { ico: '🏆', txt: 'Başarı kilidi açıldığında burada görünür.', time: '—' },
+  { ico: '📈', txt: 'Firma gelir değişimleri burada listelenir.', time: '—' },
+  { ico: '🏙️', txt: 'Yeni pazar/şehir fırsatları burada belirir.', time: '—' },
 ]
 
 export class RefDashboardPage implements RefPage {
@@ -63,6 +64,7 @@ export class RefDashboardPage implements RefPage {
         <span class="ref-dash-hero__chip">${d.firmCount} firma · ${d.cityCount} şehir</span>
       </div>
       <div class="ref-dash-hero__chart">${areaChartSvg(d.netWorthTrend, '#ffffff', 320, 70)}</div>
+      <div class="ref-dash-hero__chart-cap">Son 10 gün · tahmini eğri</div>
     `
     this.el.appendChild(hero)
 
@@ -126,22 +128,31 @@ export class RefDashboardPage implements RefPage {
     `
     this.el.appendChild(today)
 
-    // Risk paneli (mock/fallback)
+    // Risk paneli — GERÇEK itibar + nakit/servet oranından türetilmiş tahmin.
+    // Yüksek itibar → düşük baskın riski; düşük nakit tamponu → yüksek likidite riski.
+    const raidRisk = Math.max(8, Math.min(58, Math.round(58 - d.reputation * 0.5)))
+    const cashRatio = d.netWorth > 0 ? d.cash / d.netWorth : 1
+    const liquidityRisk = Math.max(5, Math.min(55, Math.round(55 - cashRatio * 100)))
+    const avgRisk = (raidRisk + liquidityRisk) / 2
+    const riskBadge = avgRisk < 25 ? { cls: 'ok', txt: 'Düşük Risk' }
+                    : avgRisk < 42 ? { cls: 'warn', txt: 'Orta Risk' }
+                    : { cls: 'danger', txt: 'Yüksek Risk' }
+    const riskFill = (v: number): string => v < 25 ? 'high' : v < 45 ? 'medium' : 'low'
     const risk = document.createElement('div')
     risk.className = 'ref-risk-panel'
     risk.innerHTML = `
       <div class="ref-risk-panel__head">
-        <span>🛡️ Risk Paneli</span>
-        <span class="ref-risk-panel__badge ok">Düşük Risk</span>
+        <span>🛡️ Risk Paneli <span class="ref-est-tag">tahmini</span></span>
+        <span class="ref-risk-panel__badge ${riskBadge.cls}">${riskBadge.txt}</span>
       </div>
       <div class="ref-risk-bars">
         <div class="ref-risk-item">
-          <div class="ref-risk-item__lbl"><span>Baskın Riski</span><span>22%</span></div>
-          <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:22%"></div></div>
+          <div class="ref-risk-item__lbl"><span>Baskın Riski</span><span>${raidRisk}%</span></div>
+          <div class="ref-perf-track"><div class="ref-perf-fill ${riskFill(raidRisk)}" style="width:${raidRisk}%"></div></div>
         </div>
         <div class="ref-risk-item">
-          <div class="ref-risk-item__lbl"><span>Borç Yükü</span><span>15%</span></div>
-          <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:15%"></div></div>
+          <div class="ref-risk-item__lbl"><span>Likidite Riski</span><span>${liquidityRisk}%</span></div>
+          <div class="ref-perf-track"><div class="ref-perf-fill ${riskFill(liquidityRisk)}" style="width:${liquidityRisk}%"></div></div>
         </div>
       </div>
     `
@@ -160,8 +171,8 @@ export class RefDashboardPage implements RefPage {
     }
     this.el.appendChild(quick)
 
-    // Aktivite akışı (mock)
-    this.el.appendChild(sectionTitle('Son Aktiviteler', 'Tümü'))
+    // Aktivite akışı (örnek — olay geçmişi henüz bağlı değil)
+    this.el.appendChild(sectionTitle('Son Aktiviteler', 'örnek'))
     const feed = document.createElement('div')
     feed.className = 'ref-feed'
     feed.innerHTML = FEED.map(f => `

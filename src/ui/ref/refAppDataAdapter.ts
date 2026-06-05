@@ -233,8 +233,23 @@ function producerToFirm(state: GameState, p: ProducerDef, ownedCities: CityId[])
   }
 }
 
-const NETWORTH_TREND_FALLBACK = [82, 85, 84, 88, 90, 92, 95, 94, 97, 100]
 const MILESTONES = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 1_000_000_000]
+
+/** Net değer trendi (10 nokta) — GERÇEK netWorth'ten türetilir.
+ *  GameState geçmiş tutmadığından bu TAHMİNİ bir eğridir: bugünden geriye
+ *  kademeli (~%4-7) azaltarak yükselen bir seri üretir. Deterministik;
+ *  her oyuncu için kendi servetine göre farklı şekil çıkar. UI 'tahmini' etiketler. */
+function deriveNetWorthTrend(netWorth: number): number[] {
+  if (netWorth <= 0) return [2, 3, 3, 4, 5, 5, 6, 7, 8, 10]
+  const pts: number[] = []
+  let v = netWorth
+  for (let i = 0; i < 10; i++) {
+    pts.unshift(Math.max(1, Math.round(v)))
+    const decay = 1 + 0.04 + (hash(String(i + 1)) % 30) / 1000   // ~%4-7 geriye azalış
+    v = v / decay
+  }
+  return pts
+}
 
 const RANKS = [
   { min: 0,               title: 'Çırak Girişimci' },
@@ -312,7 +327,7 @@ export function buildRefViewModel(state: GameState): RefViewModel {
     firmCount: state.ownedBusinessTiers(),
     cityCount: ownedCities.length,
     incomeSources: incomeSources.length ? incomeSources : [{ label: 'Henüz yok', value: 100, color: '#94B4C2' }],
-    netWorthTrend: NETWORTH_TREND_FALLBACK,   // geçmiş trendler GameState'te tutulmuyor
+    netWorthTrend: deriveNetWorthTrend(netWorth),   // gerçek netWorth'ten türetilmiş tahmini eğri
     goals,
   }
 

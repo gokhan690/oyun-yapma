@@ -1,4 +1,4 @@
-import { sectionTitle, ua, fmtMoney } from './refShared'
+import { sectionTitle, ua, fmtMoney, demoBanner } from './refShared'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import type { RefPage } from './RefApp'
 
@@ -41,6 +41,8 @@ export class RefEmpirePage implements RefPage {
   constructor() {
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-empire-page'
+
+    this.el.appendChild(demoBanner('departman/şehir paneli henüz oyun verisine bağlı değil'))
 
     // Özet şerit
     const summary = document.createElement('div')

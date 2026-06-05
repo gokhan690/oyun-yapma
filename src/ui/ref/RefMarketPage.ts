@@ -1,5 +1,5 @@
 import { RefKpiStrip } from './RefKpiStrip'
-import { sectionTitle, fmtMoney, areaChartSvg, donutSvg, gaugeSvg } from './refShared'
+import { sectionTitle, fmtMoney, areaChartSvg, donutSvg, gaugeSvg, demoBanner } from './refShared'
 import type { RefPage } from './RefApp'
 
 const KPI = [
@@ -42,6 +42,7 @@ export class RefMarketPage implements RefPage {
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-market-page'
 
+    this.el.appendChild(demoBanner('borsa/portföy henüz oyun verisine bağlı değil'))
     this.el.appendChild(new RefKpiStrip(KPI).el)
 
     // Portföy trend grafiği
@@ -106,13 +107,17 @@ export class RefMarketPage implements RefPage {
     }).join('')
     this.el.appendChild(list)
 
-    // İşlem butonları
+    // İşlem butonları (ÖNİZLEME — Al/Sat işlem yapmaz)
     const actions = document.createElement('div')
     actions.className = 'ref-market-actions'
     actions.innerHTML = `
-      <button class="ref-btn develop">📈 AL</button>
-      <button class="ref-btn manager">📉 SAT</button>
+      <button class="ref-btn develop" type="button" disabled>📈 AL</button>
+      <button class="ref-btn manager" type="button" disabled>📉 SAT</button>
     `
     this.el.appendChild(actions)
+    const note = document.createElement('div')
+    note.className = 'ref-preview-note'
+    note.textContent = '🔒 Önizleme modu · Al/Sat işlem yapmaz'
+    this.el.appendChild(note)
   }
 }

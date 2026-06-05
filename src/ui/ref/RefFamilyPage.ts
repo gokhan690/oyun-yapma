@@ -1,4 +1,4 @@
-import { sectionTitle, ua, starsHtml } from './refShared'
+import { sectionTitle, ua, starsHtml, demoBanner } from './refShared'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import type { RefPage } from './RefApp'
 
@@ -26,6 +26,8 @@ export class RefFamilyPage implements RefPage {
   constructor() {
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-family-page'
+
+    this.el.appendChild(demoBanner('hanedan/aile paneli henüz oyun verisine bağlı değil'))
 
     // Hanedan başlığı
     const crest = document.createElement('div')

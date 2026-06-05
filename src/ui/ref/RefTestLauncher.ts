@@ -58,7 +58,7 @@ export function installRefTestLauncher(state?: GameState): void {
   btn.id = 'ref-test-launch'
   btn.type = 'button'
   btn.textContent = '✨ Yeni Arayüz'
-  btn.title = 'Yeni arayüz tasarımı (görsel test — mock data)'
+  btn.title = 'Yeni arayüz önizlemesi (gerçek veriyi SALT OKUR · oyunu değiştirmez)'
   btn.setAttribute('aria-label', 'Yeni arayüz test modunu aç')
   Object.assign(btn.style, {
     position: 'fixed',
