@@ -269,5 +269,15 @@ export class RefFirmDetailPage {
 
     const back = this.el.querySelector<HTMLButtonElement>('.ref-detail-back')
     back?.addEventListener('click', () => this.onBack?.())
+
+    // Fade-in hero image after load; keep gradient fallback on error
+    const heroImg = this.el.querySelector<HTMLImageElement>('.ref-detail-hero__img')
+    if (heroImg) {
+      if (heroImg.complete && heroImg.naturalWidth > 0) {
+        heroImg.classList.add('loaded')
+      } else {
+        heroImg.addEventListener('load', () => heroImg.classList.add('loaded'))
+      }
+    }
   }
 }

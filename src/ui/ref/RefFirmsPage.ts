@@ -90,7 +90,7 @@ export class RefFirmsPage implements RefPage {
     // KPI strip — tamamı firma listesinden türetilir (mock kalıntısı yok)
     const kpi = new RefKpiStrip([
       { icon: '🏢', label: 'Aktif Firma',   value: String(data.length), sub: 'Toplam', subDir: 'muted' },
-      { icon: '📈', label: 'Yasal Gelir',    value: fmtMoney(legalIncome), sub: '/gün', subDir: 'up' },
+      { icon: '📈', label: 'Firmalardan Gelir', value: fmtMoney(legalIncome), sub: 'İşletme gelirleri', subDir: 'up' },
       { icon: '💰', label: 'Yasadışı Gelir', value: illegalIncome > 0 ? fmtMoney(illegalIncome) : 'Yok', sub: 'Günlük', subDir: 'muted' },
       { icon: '⚙️', label: 'Verimlilik',     value: `${avgPerf}%`, sub: 'Ortalama', subDir: 'muted' },
     ])

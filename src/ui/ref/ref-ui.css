@@ -764,21 +764,25 @@
   flex-shrink: 0;
   height: 208px;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--r-teal), var(--r-teal-dk));
+  background: linear-gradient(135deg, var(--r-teal) 0%, var(--r-teal-dk) 60%, #045a54 100%);
 }
 .ref-detail-hero__img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  /* Smooth fade-in; broken images hidden behind gradient fallback */
+  opacity: 0;
+  transition: opacity 0.35s ease;
 }
+.ref-detail-hero__img.loaded { opacity: 1; }
 .ref-detail-hero__scrim {
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg,
-    rgba(0,30,45,0.28) 0%,
-    rgba(0,30,45,0.05) 38%,
-    rgba(0,30,45,0.55) 100%);
+    rgba(0,20,35,0.22) 0%,
+    rgba(0,20,35,0.04) 35%,
+    rgba(0,20,35,0.62) 100%);
 }
 .ref-detail-back {
   position: absolute;
@@ -1196,30 +1200,32 @@
  * 'demo/örnek' = tamamen örnek (henüz veriye bağlı olmayan önizleme).            */
 .ref-est-tag,
 .ref-demo-tag {
-  display: inline-flex; align-items: center; gap: 3px;
-  font-size: 9px; font-weight: 800; letter-spacing: 0.03em;
-  padding: 1px 6px; border-radius: 999px; text-transform: uppercase;
-  vertical-align: middle; white-space: nowrap; line-height: 1.6;
+  display: inline-flex; align-items: center;
+  font-size: 8px; font-weight: 600; letter-spacing: 0.04em;
+  padding: 1px 5px; border-radius: 999px; text-transform: uppercase;
+  vertical-align: middle; white-space: nowrap; line-height: 1.7;
+  opacity: 0.82;
 }
-.ref-est-tag  { color: var(--r-muted);   background: rgba(95,127,145,0.10); border: 1px solid rgba(95,127,145,0.22); }
-.ref-demo-tag { color: var(--r-warning); background: rgba(255,176,46,0.12); border: 1px solid rgba(255,176,46,0.30); }
+.ref-est-tag  { color: var(--r-muted);    background: rgba(95,127,145,0.08); border: 1px solid rgba(95,127,145,0.16); }
+.ref-demo-tag { color: var(--r-muted-lt); background: rgba(255,176,46,0.09); border: 1px solid rgba(255,176,46,0.22); }
 
 /* Aksiyon butonlarının altında "işlem yapmaz" önizleme notu */
 .ref-preview-note {
   display: flex; align-items: center; justify-content: center; gap: 5px;
   margin-top: 9px; padding: 0 6px;
-  font-size: 10.5px; font-weight: 700; color: var(--r-muted); text-align: center;
+  font-size: 10px; font-weight: 600; color: var(--r-muted-lt); text-align: center;
+  opacity: 0.85;
 }
 
 /* Tam-örnek ekranların üstündeki demo şeridi */
 .ref-demo-banner {
   display: flex; align-items: center; gap: 6px;
-  margin: 8px 14px 0; padding: 7px 12px;
-  font-size: 11px; font-weight: 700; color: var(--r-muted);
-  background: rgba(95,127,145,0.07);
-  border: 1px dashed rgba(95,127,145,0.30); border-radius: 10px;
+  margin: 6px 14px 0; padding: 6px 12px;
+  font-size: 10.5px; font-weight: 600; color: var(--r-muted-lt);
+  background: rgba(95,127,145,0.05);
+  border: 1px dashed rgba(95,127,145,0.22); border-radius: 10px;
 }
-.ref-demo-banner b { color: var(--r-text2); font-weight: 800; }
+.ref-demo-banner b { color: var(--r-muted); font-weight: 700; }
 
 .ref-area-svg { width: 100%; height: auto; display: block; }
 .ref-donut-svg { display: block; flex-shrink: 0; }
