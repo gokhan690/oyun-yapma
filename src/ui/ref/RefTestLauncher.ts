@@ -122,7 +122,7 @@ export function installRefTestLauncher(state?: GameState): void {
       overscrollBehavior: 'contain',
     } as CSSStyleDeclaration)
 
-    const app = new RefApp({ initial: 'firms', onExit: close, data: buildData() })
+    const app = new RefApp({ initial: 'firms', onExit: close, data: buildData(), state: state ?? undefined })
     app.mount(overlay)
     document.body.appendChild(overlay)
 

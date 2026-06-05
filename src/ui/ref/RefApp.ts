@@ -11,6 +11,7 @@ import { RefEmpirePage } from './RefEmpirePage'
 import { RefFamilyPage } from './RefFamilyPage'
 import { RefAchievementsPage } from './RefAchievementsPage'
 import type { RefViewModel } from './refAppDataAdapter'
+import type { GameState } from '../../game/GameState'
 
 /** Tüm ref sayfalarının ortak arayüzü: header + nav RefApp tarafından sağlanır. */
 export interface RefPage {
@@ -39,6 +40,8 @@ export interface RefAppOptions {
   onExit?: () => void
   /** Gerçek GameState'ten türetilmiş view-model (salt okunur). Yoksa mock. */
   data?: RefViewModel
+  /** Canlı GameState — zaman kontrolü ve işletme satın alma için gerekli. */
+  state?: GameState
 }
 
 export class RefApp {
@@ -51,6 +54,7 @@ export class RefApp {
   private pages = new Map<RefNavTab, RefPage>()
   private achievements?: RefAchievementsPage
   private vm?: RefViewModel
+  private gameState?: GameState
   private active: RefNavTab
 
   /** Ana oyuna bağlandığında geri/çıkış için (standalone'da kullanılmaz). */
@@ -61,6 +65,7 @@ export class RefApp {
     this.onExit = opts.onExit
     this.active = initial
     this.vm = opts.data
+    this.gameState = opts.state
 
     // ── Shell ──
     this.el = document.createElement('div')
@@ -108,23 +113,24 @@ export class RefApp {
   }
 
   private createPage(tab: RefNavTab): RefPage {
-    const vm = this.vm
+    const vm  = this.vm
+    const st  = this.gameState
     switch (tab) {
       case 'home': {
-        const dashboard = new RefDashboardPage(vm?.dashboard)
+        const dashboard = new RefDashboardPage(vm?.dashboard, st)
         dashboard.onOpenAchievements = () => this.showAchievements()
         return dashboard
       }
       case 'firms': {
         // hasRealData=!!vm: gerçek (ama boş) GameState'i saf-önizleme mock'undan
         // ayır → 0 firmalı oyuncuda dashboard ₺0 ile firmalar listesi çelişmez.
-        const firms = new RefFirmsPage(vm?.firms, !!vm)
+        const firms = new RefFirmsPage(vm?.firms, !!vm, st)
         firms.onOpenFirm = (f: FirmData) => this.detail.show(f)
         return firms
       }
       case 'career': return new RefCareerPage(vm?.career)
       case 'market': return new RefMarketPage()
-      case 'empire': return new RefEmpirePage()
+      case 'empire': return new RefEmpirePage(st)
       case 'family': return new RefFamilyPage()
     }
   }
