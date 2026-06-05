@@ -1,4 +1,6 @@
 import { RefApp } from './RefApp'
+import { buildRefViewModel, type RefViewModel } from './refAppDataAdapter'
+import type { GameState } from '../../game/GameState'
 
 /*
  * İZOLE GÖRSEL TEST MODU.
@@ -34,8 +36,23 @@ function gameBusy(): boolean {
   return false
 }
 
-export function installRefTestLauncher(): void {
+export function installRefTestLauncher(state?: GameState): void {
   if (document.getElementById('ref-test-launch')) return
+
+  // Test/önizleme kolaylığı: adapter'ın okuduğu GameState'i Playwright/konsol
+  // ile seed edebilmek için (yalnızca test modu scaffolding'i; oyun mantığı değil).
+  if (state) (window as unknown as { __II_REF_STATE__?: GameState }).__II_REF_STATE__ = state
+
+  /** GameState → view-model; hata olursa undefined (RefApp mock fallback'e düşer). */
+  const buildData = (): RefViewModel | undefined => {
+    if (!state) return undefined
+    try {
+      return buildRefViewModel(state)
+    } catch (e) {
+      console.warn('RefApp data adapter hatası, mock fallback kullanılıyor:', e)
+      return undefined
+    }
+  }
 
   const btn = document.createElement('button')
   btn.id = 'ref-test-launch'
@@ -86,7 +103,7 @@ export function installRefTestLauncher(): void {
       overscrollBehavior: 'contain',
     } as CSSStyleDeclaration)
 
-    const app = new RefApp({ initial: 'firms', onExit: close })
+    const app = new RefApp({ initial: 'firms', onExit: close, data: buildData() })
     app.mount(overlay)
     document.body.appendChild(overlay)
 

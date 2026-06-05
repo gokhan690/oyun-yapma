@@ -1,6 +1,12 @@
-import { sectionTitle, ua } from './refShared'
+import { sectionTitle, ua, fmtMoney } from './refShared'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
+import type { RefCareerVM } from './refAppDataAdapter'
 import type { RefPage } from './RefApp'
+
+const MOCK_CAREER: RefCareerVM = {
+  jobTitle: 'Holding YK Başkanı', level: 24, salaryDaily: 48_000, stress: 48,
+  xpPct: 64, xpText: '6.400 / 10.000', nextRank: 'Sektör Lideri', seniorityYears: 6,
+}
 
 interface DailyAction { ico: string; label: string; effect: string }
 const ACTIONS: DailyAction[] = [
@@ -29,35 +35,36 @@ export class RefCareerPage implements RefPage {
   readonly el: HTMLElement
   readonly title = 'KARİYER'
 
-  constructor() {
+  constructor(vm?: RefCareerVM) {
+    const c = vm ?? MOCK_CAREER
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-career-page'
 
-    // Aktif iş kartı
+    // Aktif iş kartı (gerçek: maaş/stres/kıdem/unvan; fallback: şirket/level)
     const job = document.createElement('div')
     job.className = 'ref-job-card'
     job.innerHTML = `
       <div class="ref-job-card__top">
         <div class="ref-job-card__icon">💼</div>
         <div class="ref-job-card__id">
-          <div class="ref-job-card__title">Holding YK Başkanı</div>
-          <div class="ref-job-card__company">Karahan Holding · Tam zamanlı</div>
+          <div class="ref-job-card__title">${c.jobTitle}</div>
+          <div class="ref-job-card__company">Tam zamanlı · Aktif</div>
         </div>
-        <div class="ref-job-card__lvl">LVL 24</div>
+        <div class="ref-job-card__lvl">LVL ${c.level}</div>
       </div>
       <div class="ref-job-stats">
-        <div class="ref-job-stat"><span class="ref-job-stat__lbl">Günlük Maaş</span><span class="ref-job-stat__val income">₺48K</span></div>
-        <div class="ref-job-stat"><span class="ref-job-stat__lbl">Kıdem</span><span class="ref-job-stat__val">6 yıl</span></div>
-        <div class="ref-job-stat"><span class="ref-job-stat__lbl">Sıradaki</span><span class="ref-job-stat__val">Sektör Lideri</span></div>
+        <div class="ref-job-stat"><span class="ref-job-stat__lbl">Günlük Gelir</span><span class="ref-job-stat__val income">${fmtMoney(c.salaryDaily)}</span></div>
+        <div class="ref-job-stat"><span class="ref-job-stat__lbl">Kıdem</span><span class="ref-job-stat__val">${c.seniorityYears} yıl</span></div>
+        <div class="ref-job-stat"><span class="ref-job-stat__lbl">Sıradaki</span><span class="ref-job-stat__val">${c.nextRank}</span></div>
       </div>
       <div class="ref-job-bars">
         <div class="ref-job-bar">
-          <div class="ref-job-bar__lbl"><span>Terfi (XP)</span><span>6.400 / 10.000</span></div>
-          <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:64%"></div></div>
+          <div class="ref-job-bar__lbl"><span>Terfi (XP)</span><span>${c.xpText}</span></div>
+          <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:${c.xpPct}%"></div></div>
         </div>
         <div class="ref-job-bar">
-          <div class="ref-job-bar__lbl"><span>Stres</span><span>48%</span></div>
-          <div class="ref-perf-track"><div class="ref-perf-fill medium" style="width:48%"></div></div>
+          <div class="ref-job-bar__lbl"><span>Stres</span><span>${c.stress}%</span></div>
+          <div class="ref-perf-track"><div class="ref-perf-fill ${c.stress >= 70 ? 'low' : c.stress >= 45 ? 'medium' : 'high'}" style="width:${c.stress}%"></div></div>
         </div>
       </div>
     `

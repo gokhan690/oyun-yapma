@@ -1,5 +1,6 @@
 import { RefKpiStrip }  from './RefKpiStrip'
 import { RefCard, type FirmData } from './RefCard'
+import { fmtMoney } from './refShared'
 import type { RefPage } from './RefApp'
 
 /* ── Mock data ──
@@ -52,9 +53,8 @@ const MOCK_FIRMS: FirmData[] = [
   },
 ]
 
-const KPI_ITEMS = [
-  { icon: '🏢', label: 'Aktif Firma',  value: '12', sub: 'Toplam', subDir: 'muted' as const },
-  { icon: '📈', label: 'Yasal Gelir',  value: '₺18,7M', sub: '6,2%', subDir: 'up' as const },
+// Aktif Firma + Günlük Gelir runtime'da listeden türetilir; bunlar sabit ek KPI.
+const KPI_EXTRA = [
   { icon: '💰', label: 'Yasadışı Gelir', value: '₺7,6M', sub: 'Günlük', subDir: 'muted' as const },
   { icon: '⚙️', label: 'Verimlilik', value: '78%', sub: '4,6%', subDir: 'up' as const },
 ]
@@ -84,12 +84,18 @@ export class RefFirmsPage implements RefPage {
   private cardsContainer!: HTMLElement
   private catBtns = new Map<CategoryKey, HTMLButtonElement>()
 
-  constructor() {
+  constructor(firms?: FirmData[]) {
+    const data = (firms && firms.length) ? firms : MOCK_FIRMS
+    const totalIncome = data.reduce((s, f) => s + f.income, 0)
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-firms-page'
 
-    // KPI strip
-    const kpi = new RefKpiStrip(KPI_ITEMS)
+    // KPI strip (firma listesinden türetilmiş)
+    const kpi = new RefKpiStrip([
+      { icon: '🏢', label: 'Aktif Firma',  value: String(data.length), sub: 'Toplam', subDir: 'muted' },
+      { icon: '📈', label: 'Günlük Gelir',  value: fmtMoney(totalIncome), sub: '/gün', subDir: 'up' },
+      ...KPI_EXTRA,
+    ])
     this.el.appendChild(kpi.el)
 
     // Category tabs
@@ -99,8 +105,8 @@ export class RefFirmsPage implements RefPage {
     const summary = document.createElement('div')
     summary.className = 'ref-summary-strip'
     summary.innerHTML = `
-      <span class="ref-summary-count">${MOCK_FIRMS.length} firma gösteriliyor</span>
-      <span class="ref-summary-total">Toplam: ₺26,3M / Gün</span>
+      <span class="ref-summary-count">${data.length} firma gösteriliyor</span>
+      <span class="ref-summary-total">Toplam: ${fmtMoney(totalIncome)} / Gün</span>
     `
     this.el.appendChild(summary)
 
@@ -109,7 +115,7 @@ export class RefFirmsPage implements RefPage {
     this.cardsContainer.className = 'ref-cards-list'
     this.el.appendChild(this.cardsContainer)
 
-    for (const firm of MOCK_FIRMS) {
+    for (const firm of data) {
       const card = new RefCard(firm)
       this.cardEls.set(firm.id, card)
       card.el.addEventListener('click', (e) => {

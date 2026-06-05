@@ -67,8 +67,9 @@ async function bootstrap(): Promise<void> {
 
     const hud = new HUD(state, ads, sound, saveManager, app)
 
-    // İzole görsel test modu: yeni arayüz (RefApp) — mock data, GameState'e bağlı değil.
-    installRefTestLauncher()
+    // İzole görsel test modu: yeni arayüz (RefApp). Adapter GameState'i SALT
+    // OKUR (yazmaz/aksiyon tetiklemez); veri yoksa mock fallback kullanır.
+    installRefTestLauncher(state)
 
     const setupDone = localStorage.getItem('baron_setup_done') === '1'
     if (!saveLoaded && !setupDone) {

@@ -10,6 +10,7 @@ import { RefMarketPage } from './RefMarketPage'
 import { RefEmpirePage } from './RefEmpirePage'
 import { RefFamilyPage } from './RefFamilyPage'
 import { RefAchievementsPage } from './RefAchievementsPage'
+import type { RefViewModel } from './refAppDataAdapter'
 
 /** Tüm ref sayfalarının ortak arayüzü: header + nav RefApp tarafından sağlanır. */
 export interface RefPage {
@@ -36,6 +37,8 @@ export interface RefAppOptions {
   initial?: RefNavTab
   /** Test/overlay modunda header'da kapat butonu gösterir ve bunu çağırır. */
   onExit?: () => void
+  /** Gerçek GameState'ten türetilmiş view-model (salt okunur). Yoksa mock. */
+  data?: RefViewModel
 }
 
 export class RefApp {
@@ -60,9 +63,11 @@ export class RefApp {
     this.el = document.createElement('div')
     this.el.className = 'ref-shell'
 
-    // ── Shared header ──
+    // ── Shared header (gerçek veri varsa oyuncudan) ──
+    const vm = opts.data
     this.header = new RefHeader({
       ...PLAYER,
+      ...(vm ? { name: vm.player.name, title: vm.player.title, age: vm.player.age, city: vm.player.city, avatarAsset: vm.player.avatarAsset } : {}),
       onClose: opts.onExit ? () => this.onExit?.() : undefined,
     })
     this.el.appendChild(this.header.el)
@@ -82,15 +87,15 @@ export class RefApp {
     this.detail.onBack = () => this.detail.hide()
     this.el.appendChild(this.detail.el)
 
-    // ── Pages ──
-    const firms = new RefFirmsPage()
+    // ── Pages (gerçek view-model varsa bağlanır; yoksa mock fallback) ──
+    const firms = new RefFirmsPage(vm?.firms)
     firms.onOpenFirm = (f: FirmData) => this.detail.show(f)
 
-    const dashboard = new RefDashboardPage()
+    const dashboard = new RefDashboardPage(vm?.dashboard)
     dashboard.onOpenAchievements = () => this.showAchievements()
 
     this.pages.set('home',   dashboard)
-    this.pages.set('career', new RefCareerPage())
+    this.pages.set('career', new RefCareerPage(vm?.career))
     this.pages.set('firms',  firms)
     this.pages.set('market', new RefMarketPage())
     this.pages.set('empire', new RefEmpirePage())
