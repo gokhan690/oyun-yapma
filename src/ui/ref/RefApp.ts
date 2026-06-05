@@ -1,5 +1,6 @@
 import './ref-ui.css'
 import { RefHeader, type HeaderData } from './RefHeader'
+import { RefTimeCard } from './RefTimeCard'
 import { RefBottomNav, type RefNavTab } from './RefBottomNav'
 import { RefFirmDetailPage } from './RefFirmDetailPage'
 import { type FirmData } from './RefCard'
@@ -47,6 +48,7 @@ export interface RefAppOptions {
 export class RefApp {
   readonly el: HTMLElement
   private header: RefHeader
+  private timeBar: RefTimeCard
   private content: HTMLElement
   private nav: RefBottomNav
   private detail: RefFirmDetailPage
@@ -79,6 +81,10 @@ export class RefApp {
       onClose: opts.onExit ? () => this.onExit?.() : undefined,
     })
     this.el.appendChild(this.header.el)
+
+    // ── Sabit zaman çubuğu (her sayfada görünür; tek kaynak gameTimeMs) ──
+    this.timeBar = new RefTimeCard(this.gameState)
+    this.el.appendChild(this.timeBar.el)
 
     // ── Content (scroll) ──
     this.content = document.createElement('div')
@@ -117,7 +123,7 @@ export class RefApp {
     const st  = this.gameState
     switch (tab) {
       case 'home': {
-        const dashboard = new RefDashboardPage(vm?.dashboard, st)
+        const dashboard = new RefDashboardPage(vm?.dashboard)
         dashboard.onOpenAchievements = () => this.showAchievements()
         return dashboard
       }
@@ -129,7 +135,7 @@ export class RefApp {
         return firms
       }
       case 'career': return new RefCareerPage(vm?.career)
-      case 'market': return new RefMarketPage()
+      case 'market': return new RefMarketPage(st)
       case 'empire': return new RefEmpirePage(st)
       case 'family': return new RefFamilyPage()
     }
@@ -167,5 +173,14 @@ export class RefApp {
 
   mount(target: HTMLElement): void {
     target.appendChild(this.el)
+  }
+
+  /** Overlay kapanınca çağrılır: tüm GameState aboneliklerini bırak (sızıntı önleme). */
+  destroy(): void {
+    this.timeBar.destroy()
+    for (const page of this.pages.values()) {
+      ;(page as { destroy?: () => void }).destroy?.()
+    }
+    this.el.remove()
   }
 }

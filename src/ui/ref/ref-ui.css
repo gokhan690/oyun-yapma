@@ -1514,48 +1514,58 @@
 .ref-badge-tile.off .ref-badge-img { filter: grayscale(0.85); }
 .ref-badge-lbl { font-size: 11px; font-weight: 800; color: var(--r-text2); }
 
-/* ===== Zaman Kontrolü Kartı ===== */
-.ref-time-card {
+/* ===== Sabit Zaman Çubuğu (header altı, her sayfada) ===== */
+.ref-timebar {
+  flex-shrink: 0; z-index: 5;
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  margin: 6px 14px 0; padding: 11px 14px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.82) 0%, rgba(240,248,255,0.9) 100%);
-  border: 1.5px solid var(--r-border-gold);
-  border-radius: var(--r-lg); box-shadow: var(--r-shadow);
-  transition: border-color 0.25s;
+  padding: 7px 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(240,248,255,0.9) 100%);
+  border-bottom: 1px solid rgba(18,58,82,0.08);
+  box-shadow: 0 2px 8px rgba(0,60,80,0.06);
+  transition: background 0.25s;
 }
-.ref-time-card.is-paused {
-  border-color: rgba(234,84,85,0.45);
-  background: linear-gradient(135deg, rgba(255,245,245,0.88) 0%, rgba(255,235,235,0.9) 100%);
+.ref-timebar.is-paused {
+  background: linear-gradient(180deg, rgba(255,243,243,0.96) 0%, rgba(255,233,233,0.92) 100%);
+  border-bottom-color: rgba(234,84,85,0.25);
 }
-.ref-time-card__body { flex: 1; min-width: 0; }
-.ref-time-card__clock-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-.ref-time-card__ico { font-size: 14px; flex-shrink: 0; }
-.ref-time-card__clock {
-  font-size: 13.5px; font-weight: 900; color: var(--r-text);
+.ref-timebar__main { flex: 1; min-width: 0; }
+.ref-timebar__clock-row { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.ref-timebar__clock {
+  font-size: 13px; font-weight: 900; color: var(--r-text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.ref-time-card__meta {
-  display: flex; gap: 10px; font-size: 11px; font-weight: 700; color: var(--r-muted);
+.ref-timebar__status {
+  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em;
+  color: var(--r-success);
 }
-.ref-time-card__ctrl { flex-shrink: 0; }
-.ref-time-btn {
+.ref-timebar__status.paused { color: var(--r-danger); }
+.ref-timebar__dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--r-success);
+  box-shadow: 0 0 0 0 rgba(40,199,111,0.5); animation: refPulse 1.6s ease-out infinite;
+}
+.ref-timebar__status.paused .ref-timebar__dot { background: var(--r-danger); animation: none; }
+@keyframes refPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(40,199,111,0.5); }
+  70%  { box-shadow: 0 0 0 5px rgba(40,199,111,0); }
+  100% { box-shadow: 0 0 0 0 rgba(40,199,111,0); }
+}
+.ref-timebar__meta {
+  display: flex; gap: 12px; font-size: 10.5px; font-weight: 700; color: var(--r-muted);
+}
+.ref-timebar__btn {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
+  font-size: 14px; font-weight: 900; border: none; cursor: pointer; transition: all 0.15s;
+  background: linear-gradient(135deg, #EA5455, #c73a3a); color: #fff;
+  box-shadow: 0 3px 9px rgba(234,84,85,0.32);
   display: flex; align-items: center; justify-content: center;
-  padding: 8px 14px; border-radius: var(--r-pill);
-  font-size: 11.5px; font-weight: 900; letter-spacing: 0.02em;
-  border: none; cursor: pointer; transition: all 0.15s;
-  min-width: 96px;
 }
-.ref-time-btn.pause {
-  background: linear-gradient(135deg, #EA5455, #c73a3a);
-  color: #fff; box-shadow: 0 3px 10px rgba(234,84,85,0.35);
-}
-.ref-time-btn.pause:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(234,84,85,0.42); }
-.ref-time-btn.resume {
+.ref-timebar__btn:active { transform: scale(0.92); }
+.ref-timebar__btn.resume {
   background: linear-gradient(135deg, var(--r-success), #1fa557);
-  color: #fff; box-shadow: 0 3px 10px rgba(40,199,111,0.35);
+  box-shadow: 0 3px 9px rgba(40,199,111,0.32);
 }
-.ref-time-btn.resume:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(40,199,111,0.42); }
-.ref-time-btn:disabled {
+.ref-timebar__btn:disabled {
   background: rgba(0,0,0,0.07); color: var(--r-muted-lt); box-shadow: none; cursor: default;
 }
 
@@ -1567,17 +1577,17 @@
   box-shadow: var(--r-shadow-sm);
 }
 .ref-main-tab {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
-  padding: 10px 6px; font-size: 12px; font-weight: 800; cursor: pointer; border: none;
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 10px 4px; font-size: 11.5px; font-weight: 800; cursor: pointer; border: none;
   background: rgba(255,255,255,0.55); color: var(--r-text2);
-  transition: all 0.15s;
+  transition: all 0.15s; border-right: 1px solid rgba(255,255,255,0.6);
 }
-.ref-main-tab:first-child { border-right: 1px solid rgba(255,255,255,0.6); }
+.ref-main-tab:last-child { border-right: none; }
 .ref-main-tab.active {
   background: var(--r-teal); color: #fff;
   box-shadow: inset 0 -2px 0 var(--r-teal-dk);
 }
-.ref-main-tab span:first-child { font-size: 15px; }
+.ref-main-tab span:first-child { font-size: 14px; }
 
 /* ===== Normal İşletmeler (canlı) ===== */
 .ref-live-biz { padding-bottom: 8px; }
@@ -1593,27 +1603,37 @@
   border-radius: var(--r-md); padding: 10px 13px;
   box-shadow: var(--r-shadow-sm); transition: border-color 0.15s;
 }
-.ref-prod-card.owned,
-.ref-prod-card.owned-can-buy { border-color: rgba(19,184,166,0.3); background: rgba(240,252,250,0.9); }
-.ref-prod-card.available { border-color: rgba(40,199,111,0.35); }
-.ref-prod-card.locked,
-.ref-prod-card.locked-ipo { opacity: 0.65; }
+.ref-prod-card.owned { border-color: rgba(19,184,166,0.32); background: rgba(240,252,250,0.92); }
+.ref-prod-card.available { border-color: rgba(40,199,111,0.38); }
+.ref-prod-card.no-cash { opacity: 0.92; }
+.ref-prod-card.locked { opacity: 0.6; }
 
-.ref-prod-card__head {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 7px; position: relative;
-}
-.ref-prod-emoji { font-size: 22px; flex-shrink: 0; }
+.ref-prod-card__head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.ref-prod-emoji { font-size: 24px; flex-shrink: 0; line-height: 1.1; }
 .ref-prod-info { flex: 1; min-width: 0; }
-.ref-prod-name { font-size: 13px; font-weight: 800; color: var(--r-text); }
-.ref-prod-meta { font-size: 11px; font-weight: 600; color: var(--r-muted); margin-top: 1px; }
-.ref-prod-meta b { color: var(--r-teal-dk); }
-.ref-prod-owned-badge {
-  position: absolute; top: -6px; right: -4px;
-  background: var(--r-teal); color: #fff; border-radius: var(--r-pill);
-  font-size: 10px; font-weight: 900; padding: 1px 7px; line-height: 1.7;
+.ref-prod-name {
+  font-size: 13px; font-weight: 800; color: var(--r-text);
+  display: flex; align-items: center; gap: 6px;
 }
+.ref-prod-owned-badge {
+  background: var(--r-teal); color: #fff; border-radius: var(--r-pill);
+  font-size: 10px; font-weight: 900; padding: 1px 7px; line-height: 1.6; flex-shrink: 0;
+}
+.ref-prod-desc {
+  font-size: 10.5px; font-weight: 600; color: var(--r-muted); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ref-prod-stats {
+  display: flex; gap: 6px; margin-bottom: 8px;
+}
+.ref-prod-stat {
+  flex: 1; display: flex; flex-direction: column; gap: 1px;
+  background: rgba(0,0,0,0.03); border-radius: var(--r-xs); padding: 5px 8px;
+}
+.ref-prod-stat small { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--r-muted-lt); }
+.ref-prod-stat b { font-size: 12px; font-weight: 800; color: var(--r-text); }
+.ref-prod-stat b.inc { color: var(--r-success); }
 .ref-prod-card__foot { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
-.ref-prod-state-lbl { font-size: 10.5px; font-weight: 700; color: var(--r-muted); flex: 1; }
 
 .ref-prod-btn {
   padding: 7px 14px; border-radius: var(--r-pill);
@@ -1716,3 +1736,76 @@
 .ref-empire-empty-state__ico { font-size: 36px; margin-bottom: 8px; }
 .ref-empire-empty-state__title { font-size: 15px; font-weight: 900; color: var(--r-text); margin-bottom: 6px; }
 .ref-empire-empty-state__desc { font-size: 12px; font-weight: 600; color: var(--r-muted); line-height: 1.55; }
+
+/* ===== Toast (satın alma geri bildirimi) ===== */
+.ref-toast {
+  position: fixed; left: 50%; bottom: calc(var(--r-nav-h) + 18px);
+  transform: translate(-50%, 14px); z-index: 10000;
+  max-width: 80vw; padding: 9px 18px; border-radius: var(--r-pill);
+  font-family: 'Outfit', system-ui, sans-serif; font-size: 12.5px; font-weight: 800;
+  color: #fff; background: #123A52; box-shadow: 0 6px 20px rgba(0,30,60,0.3);
+  opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+  white-space: nowrap;
+}
+.ref-toast.show { opacity: 1; transform: translate(-50%, 0); }
+.ref-toast.ok  { background: linear-gradient(135deg, var(--r-success), #1fa557); }
+.ref-toast.err { background: linear-gradient(135deg, var(--r-danger), #c73a3a); }
+
+/* ===== Ar-Ge / Yükseltmeler ===== */
+.ref-rnd { padding-bottom: 10px; }
+.ref-rnd-list { padding: 2px 14px 4px; display: flex; flex-direction: column; gap: 7px; }
+.ref-rnd-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md); padding: 10px 13px; box-shadow: var(--r-shadow-sm);
+}
+.ref-rnd-row.active { border-color: rgba(19,184,166,0.3); }
+.ref-rnd-row.maxed { border-color: rgba(40,199,111,0.35); background: rgba(240,252,245,0.85); }
+.ref-rnd-row.locked { opacity: 0.6; }
+.ref-rnd-row__main { flex: 1; min-width: 0; }
+.ref-rnd-row__head { display: flex; align-items: center; gap: 7px; }
+.ref-rnd-row__name { font-size: 12.5px; font-weight: 800; color: var(--r-text); }
+.ref-rnd-branch {
+  font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px;
+  color: var(--r-blue); background: var(--r-blue-bg); border-radius: var(--r-pill); padding: 1px 7px;
+}
+.ref-rnd-row__desc { font-size: 10.5px; font-weight: 600; color: var(--r-muted); margin: 2px 0 5px; }
+.ref-rnd-levels { display: flex; align-items: center; gap: 4px; }
+.ref-rnd-pip { width: 16px; height: 5px; border-radius: 999px; background: rgba(0,0,0,0.1); }
+.ref-rnd-pip.on { background: var(--r-teal); }
+.ref-rnd-lvl-txt { font-size: 9.5px; font-weight: 800; color: var(--r-muted); margin-left: 4px; }
+.ref-rnd-row__right { flex-shrink: 0; text-align: right; }
+.ref-rnd-cost { font-size: 12px; font-weight: 900; color: var(--r-gold-dk); }
+.ref-rnd-cost.dim { color: var(--r-muted-lt); }
+.ref-rnd-status { font-size: 9.5px; font-weight: 900; padding: 3px 9px; border-radius: var(--r-pill); white-space: nowrap; }
+.ref-rnd-status.max { background: var(--r-success-bg); color: var(--r-success); }
+.ref-rnd-status.lock { background: rgba(0,0,0,0.06); color: var(--r-muted); }
+
+/* ===== Piyasa: finans grid + IPO ===== */
+.ref-market-rate { font-size: 10.5px; font-weight: 700; color: var(--r-muted); text-align: center; margin-top: 4px; }
+.ref-market-rate b { color: var(--r-text); }
+.ref-stock-owned { color: var(--r-teal-dk); font-weight: 800; }
+
+.ref-fin-grid { padding: 0 14px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.ref-fin-grid.ins { grid-template-columns: repeat(3, 1fr); }
+.ref-fin-cell {
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt); border-radius: var(--r-md);
+  padding: 10px 11px; display: flex; flex-direction: column; gap: 2px; box-shadow: var(--r-shadow-sm);
+}
+.ref-fin-cell__ico { font-size: 16px; }
+.ref-fin-cell__lbl { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--r-muted-lt); }
+.ref-fin-cell__val { font-size: 13px; font-weight: 800; color: var(--r-text); }
+.ref-fin-cell.ins.on { border-color: var(--r-success-brd); }
+.ref-fin-cell.ins.on .ref-fin-cell__val { color: var(--r-success); }
+.ref-fin-cell.ins.off { opacity: 0.72; }
+.ref-fin-cell.ins.off .ref-fin-cell__val { color: var(--r-muted-lt); }
+
+.ref-ipo-card {
+  margin: 0 14px; padding: 12px 14px; border-radius: var(--r-md);
+  background: var(--r-card); border: 1.5px solid var(--r-border-gold); box-shadow: var(--r-shadow-sm);
+}
+.ref-ipo-card__row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; color: var(--r-text2); margin-bottom: 7px; }
+.ref-ipo-card__row b { font-size: 14px; font-weight: 900; color: var(--r-text); }
+.ref-ipo-card__row b.ready { color: var(--r-success); }
+.ref-ipo-card .ref-perf-track { margin: 2px 0 5px; }
+.ref-ipo-card__meta { font-size: 10.5px; font-weight: 700; color: var(--r-muted); text-align: right; }

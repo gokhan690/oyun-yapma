@@ -3,6 +3,7 @@ import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS } from '../../game/Economy'
+import { politicsLevelLabel } from '../../game/Empire'
 
 interface CityDef { key: keyof typeof REF_ASSETS_V2_GENERIC.cities; name: string; id: string }
 const CITY_DEFS: CityDef[] = [
@@ -96,7 +97,7 @@ export class RefEmpirePage implements RefPage {
       polCard.innerHTML = `
         <div class="ref-politics-card__level">
           <span>🏛️</span>
-          <b>${polLevelLabel(polLevel)}</b>
+          <b>${politicsLevelLabel(polLevel)}</b>
         </div>
         <div class="ref-politics-card__offices">
           ${politicsOwned.map(p => `
@@ -206,15 +207,4 @@ export class RefEmpirePage implements RefPage {
     }).join('')
     this.el.appendChild(cityGrid)
   }
-}
-
-function polLevelLabel(level: string): string {
-  const MAP: Record<string, string> = {
-    none: 'Siyasi güç yok',
-    belediye: 'Belediye Meclisi',
-    milletvekili: 'Milletvekili',
-    bakan: 'Bakanlık',
-    cumhurbaskanligi: 'Cumhurbaşkanlığı',
-  }
-  return MAP[level] ?? level
 }

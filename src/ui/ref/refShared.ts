@@ -22,6 +22,25 @@ export function starsHtml(count: number, max = 5): string {
   ).join('')
 }
 
+/** Kısa süreli bildirim (satın alma başarı/başarısızlık geri bildirimi). */
+let refToastEl: HTMLElement | null = null
+let refToastTimer: number | null = null
+export function refToast(message: string, kind: 'ok' | 'err' = 'ok'): void {
+  if (!refToastEl) {
+    refToastEl = document.createElement('div')
+    refToastEl.className = 'ref-toast'
+    document.body.appendChild(refToastEl)
+  }
+  refToastEl.textContent = message
+  refToastEl.classList.remove('ok', 'err', 'show')
+  void refToastEl.offsetWidth   // reflow → animasyon yeniden tetiklensin
+  refToastEl.classList.add(kind, 'show')
+  if (refToastTimer !== null) window.clearTimeout(refToastTimer)
+  refToastTimer = window.setTimeout(() => {
+    refToastEl?.classList.remove('show')
+  }, 1800)
+}
+
 /** Bölüm başlığı satırı oluşturur (opsiyonel "tümü" linki). */
 export function sectionTitle(text: string, action?: string): HTMLElement {
   const el = document.createElement('div')

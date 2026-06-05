@@ -80,6 +80,7 @@ export function installRefTestLauncher(state?: GameState): void {
   } as CSSStyleDeclaration)
 
   let overlay: HTMLElement | null = null
+  let app: RefApp | null = null
   let bodyOverflowPrev = ''
   let mo: MutationObserver | null = null
   let pollId: number | null = null
@@ -101,6 +102,8 @@ export function installRefTestLauncher(state?: GameState): void {
   }
 
   const close = (): void => {
+    app?.destroy()   // GameState aboneliklerini bırak (timebar + sayfalar)
+    app = null
     overlay?.remove()
     overlay = null
     document.body.style.overflow = bodyOverflowPrev
@@ -122,7 +125,7 @@ export function installRefTestLauncher(state?: GameState): void {
       overscrollBehavior: 'contain',
     } as CSSStyleDeclaration)
 
-    const app = new RefApp({ initial: 'firms', onExit: close, data: buildData(), state: state ?? undefined })
+    app = new RefApp({ initial: 'firms', onExit: close, data: buildData(), state: state ?? undefined })
     app.mount(overlay)
     document.body.appendChild(overlay)
 

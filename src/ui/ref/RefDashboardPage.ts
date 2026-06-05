@@ -1,10 +1,8 @@
 import { RefKpiStrip } from './RefKpiStrip'
-import { RefTimeCard } from './RefTimeCard'
 import { sectionTitle, ua, areaChartSvg, donutSvg, fmtMoney } from './refShared'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import type { RefDashboardVM } from './refAppDataAdapter'
 import type { RefPage } from './RefApp'
-import type { GameState } from '../../game/GameState'
 
 /** Gerçek veri yoksa kullanılan fallback (mock) dashboard. */
 const MOCK_DASHBOARD: RefDashboardVM = {
@@ -48,16 +46,11 @@ export class RefDashboardPage implements RefPage {
   readonly title = 'ANA PANEL'
 
   onOpenAchievements?: () => void
-  private timeCard?: RefTimeCard
 
-  constructor(vm?: RefDashboardVM, state?: GameState) {
+  constructor(vm?: RefDashboardVM) {
     const d = vm ?? MOCK_DASHBOARD
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-dash-page'
-
-    // Zaman kontrolü kartı (en üstte)
-    this.timeCard = new RefTimeCard(state)
-    this.el.appendChild(this.timeCard.el)
 
     // Hero servet kartı + net değer grafiği
     const repInfo = `${d.reputationLabel} · ${d.reputation}/100`
