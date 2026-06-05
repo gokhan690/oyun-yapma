@@ -53,12 +53,6 @@ const MOCK_FIRMS: FirmData[] = [
   },
 ]
 
-// Aktif Firma + Günlük Gelir runtime'da listeden türetilir; bunlar sabit ek KPI.
-const KPI_EXTRA = [
-  { icon: '💰', label: 'Yasadışı Gelir', value: '₺7,6M', sub: 'Günlük', subDir: 'muted' as const },
-  { icon: '⚙️', label: 'Verimlilik', value: '78%', sub: '4,6%', subDir: 'up' as const },
-]
-
 type CategoryKey = 'tumu' | 'gida' | 'hizmet' | 'teknoloji' | 'finans' | 'turizm' | 'medya' | 'illegal'
 
 const CATEGORIES: { id: CategoryKey; label: string; icon: string }[] = [
@@ -87,14 +81,18 @@ export class RefFirmsPage implements RefPage {
   constructor(firms?: FirmData[]) {
     const data = (firms && firms.length) ? firms : MOCK_FIRMS
     const totalIncome = data.reduce((s, f) => s + f.income, 0)
+    const illegalIncome = data.filter((f) => f.sector === 'illegal').reduce((s, f) => s + f.income, 0)
+    const legalIncome = totalIncome - illegalIncome
+    const avgPerf = data.length ? Math.round(data.reduce((s, f) => s + f.performance, 0) / data.length) : 0
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-firms-page'
 
-    // KPI strip (firma listesinden türetilmiş)
+    // KPI strip — tamamı firma listesinden türetilir (mock kalıntısı yok)
     const kpi = new RefKpiStrip([
-      { icon: '🏢', label: 'Aktif Firma',  value: String(data.length), sub: 'Toplam', subDir: 'muted' },
-      { icon: '📈', label: 'Günlük Gelir',  value: fmtMoney(totalIncome), sub: '/gün', subDir: 'up' },
-      ...KPI_EXTRA,
+      { icon: '🏢', label: 'Aktif Firma',   value: String(data.length), sub: 'Toplam', subDir: 'muted' },
+      { icon: '📈', label: 'Yasal Gelir',    value: fmtMoney(legalIncome), sub: '/gün', subDir: 'up' },
+      { icon: '💰', label: 'Yasadışı Gelir', value: illegalIncome > 0 ? fmtMoney(illegalIncome) : 'Yok', sub: 'Günlük', subDir: 'muted' },
+      { icon: '⚙️', label: 'Verimlilik',     value: `${avgPerf}%`, sub: 'Ortalama', subDir: 'muted' },
     ])
     this.el.appendChild(kpi.el)
 

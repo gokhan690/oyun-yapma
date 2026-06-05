@@ -30,18 +30,11 @@ export class RefHeader {
             ${avatarInner}
           </div>
           <div class="ref-header__info">
-            <div class="ref-header__name">
-              ${data.name}
-              <span class="ref-header__name-star">⭐</span>
-            </div>
+            <div class="ref-header__name">${data.name}</div>
             <div class="ref-header__title">${data.title}</div>
             <div class="ref-header__meta">
-              <span class="ref-header__meta-item">
-                <span>👤</span> Yaş: ${data.age}
-              </span>
-              <span class="ref-header__meta-item">
-                <span>📍</span> ${data.city}
-              </span>
+              <span class="ref-header__meta-item">👤 ${data.age}</span>
+              <span class="ref-header__meta-item">📍 ${data.city}</span>
             </div>
           </div>
         </div>

@@ -71,10 +71,23 @@ function hash(s: string): number {
   return h
 }
 
-const GENERAL_POOL = ['bakery', 'coffee', 'barber', 'ecommerce', 'logistics', 'restaurant', 'retail', 'factory']
+// Genel producer'lar için (kategorisi olmayanlar) hero'su olan kategoriler.
+const GENERAL_POOL = ['bakery', 'coffee', 'barber', 'ecommerce', 'logistics']
+
+// Bilinen producer id → asset kategori (ad/görsel tutarlılığı için açık eşleme).
+const ID_CATEGORY: Record<string, string> = {
+  stajyer: 'barber', robot: 'software', kafe: 'coffee', ofis: 'ecommerce',
+  fabrika: 'factory', mobil_app: 'software', holding: 'finance', uzay: 'software',
+  enerji: 'energy', ai: 'software', tuzaq: 'illegal', uydu: 'software',
+  merkezbankasi: 'finance', galaksiyum: 'software', kripto: 'finance', nano: 'software',
+  bahis: 'illegal', piramit: 'illegal', offshore: 'illegal', data_center: 'software',
+  drone: 'software', otel: 'hotel', medya: 'media', streaming: 'media',
+  ilac: 'health', sigorta: 'finance', ev_araba: 'factory',
+}
 
 /** Producer → asset kategori (iş türü). Görsel sadece buradan seçilir. */
 function producerCategory(p: ProducerDef): string {
+  if (ID_CATEGORY[p.id]) return ID_CATEGORY[p.id]
   if (p.illegal || p.category === 'dark') return 'illegal'
   if (p.category === 'finance') return 'finance'
   if (p.category === 'science') return 'software'

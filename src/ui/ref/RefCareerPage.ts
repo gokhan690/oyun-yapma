@@ -5,7 +5,7 @@ import type { RefPage } from './RefApp'
 
 const MOCK_CAREER: RefCareerVM = {
   jobTitle: 'Holding YK Başkanı', level: 24, salaryDaily: 48_000, stress: 48,
-  xpPct: 64, xpText: '6.400 / 10.000', nextRank: 'Sektör Lideri', seniorityYears: 6,
+  xpPct: 64, xpText: '₺248M / ₺1Mr', nextRank: 'Sektör Lideri', seniorityYears: 6,
 }
 
 interface DailyAction { ico: string; label: string; effect: string }
@@ -59,7 +59,7 @@ export class RefCareerPage implements RefPage {
       </div>
       <div class="ref-job-bars">
         <div class="ref-job-bar">
-          <div class="ref-job-bar__lbl"><span>Terfi (XP)</span><span>${c.xpText}</span></div>
+          <div class="ref-job-bar__lbl"><span>Servet Hedefi</span><span>${c.xpText}</span></div>
           <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:${c.xpPct}%"></div></div>
         </div>
         <div class="ref-job-bar">

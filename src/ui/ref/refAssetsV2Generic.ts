@@ -190,12 +190,35 @@ export function getBusinessIcon(category: string): string {
 }
 
 export function getBusinessHero(category: string): string {
-  const icon = getBusinessIcon(category);
-  if (icon.includes('bakery')) return REF_ASSETS_V2_GENERIC.businessHeroes.bakery;
-  if (icon.includes('barber')) return REF_ASSETS_V2_GENERIC.businessHeroes.barber;
-  if (icon.includes('coffee')) return REF_ASSETS_V2_GENERIC.businessHeroes.coffee;
-  if (icon.includes('ecommerce')) return REF_ASSETS_V2_GENERIC.businessHeroes.ecommerce;
-  if (icon.includes('software')) return REF_ASSETS_V2_GENERIC.businessHeroes.software;
-  if (icon.includes('logistics')) return REF_ASSETS_V2_GENERIC.businessHeroes.logistics;
-  return REF_ASSETS_V2_GENERIC.businessHeroes.bakery;
+  const normalized = category
+    .toLowerCase()
+    .replace('ı', 'i')
+    .replace('ğ', 'g')
+    .replace('ü', 'u')
+    .replace('ş', 's')
+    .replace('ö', 'o')
+    .replace('ç', 'c')
+    .replace(/[-\s]+/g, '_');
+
+  const H = REF_ASSETS_V2_GENERIC.businessHeroes;
+  // Her kategori tematik bir hero alır; dedike hero olmayanlar yakın temaya
+  // eşlenir (asla yanlış bakery fallback'i değil).
+  const map: Record<string, string> = {
+    barber: H.barber, berber: H.barber,
+    bakery: H.bakery, firin: H.bakery,
+    coffee: H.coffee, kahve: H.coffee, cafe: H.coffee,
+    restaurant: H.coffee, restoran: H.coffee,
+    ecommerce: H.ecommerce, eticaret: H.ecommerce, e_ticaret: H.ecommerce,
+    retail: H.ecommerce, perakende: H.ecommerce,
+    software: H.software, yazilim: H.software, teknoloji: H.software,
+    energy: H.software, enerji: H.software, health: H.software, saglik: H.software,
+    science: H.software,
+    logistics: H.logistics, lojistik: H.logistics, factory: H.logistics, fabrika: H.logistics,
+    hotel: H.hotel, otel: H.hotel, real_estate: H.hotel, gayrimenkul: H.hotel, luxury: H.hotel,
+    media: H.media, medya: H.media, sport: H.media, politics: H.media,
+    finance: H.finance, finans: H.finance,
+    illegal: H.illegal, dark: H.illegal,
+  };
+
+  return map[normalized] ?? H.ecommerce;
 }
