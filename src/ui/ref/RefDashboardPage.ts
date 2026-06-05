@@ -59,36 +59,58 @@ export class RefDashboardPage implements RefPage {
     // KPI strip
     this.el.appendChild(new RefKpiStrip(KPI).el)
 
-    // Gelir kaynakları (donut) + Sıradaki hedef
-    const row = document.createElement('div')
-    row.className = 'ref-dash-row2'
-    row.innerHTML = `
-      <div class="ref-card-soft ref-dash-donut">
-        <div class="ref-card-soft__title">Gelir Kaynakları</div>
-        <div class="ref-dash-donut__body">
-          ${donutSvg(INCOME_SOURCES, 84, 15)}
-          <div class="ref-donut-legend">
-            ${INCOME_SOURCES.map(s => `
-              <div class="ref-legend-row">
-                <span class="ref-legend-dot" style="background:${s.color}"></span>
-                <span class="ref-legend-lbl">${s.label}</span>
-                <span class="ref-legend-val">%${s.value}</span>
-              </div>`).join('')}
-          </div>
+    // Gelir kaynakları (donut tam genişlik, dengeli legend + toplam)
+    const donutCard = document.createElement('div')
+    donutCard.className = 'ref-card-soft ref-dash-donut'
+    donutCard.style.margin = '8px 14px 0'
+    donutCard.innerHTML = `
+      <div class="ref-card-soft__title-row">
+        <span class="ref-card-soft__title">Gelir Kaynakları</span>
+        <span class="ref-dash-donut__total">₺26,3M / gün</span>
+      </div>
+      <div class="ref-dash-donut__body">
+        ${donutSvg(INCOME_SOURCES, 96, 17)}
+        <div class="ref-donut-legend">
+          ${INCOME_SOURCES.map(s => `
+            <div class="ref-legend-row">
+              <span class="ref-legend-dot" style="background:${s.color}"></span>
+              <span class="ref-legend-lbl">${s.label}</span>
+              <span class="ref-legend-bar"><span style="width:${s.value * 2}%;background:${s.color}"></span></span>
+              <span class="ref-legend-val">%${s.value}</span>
+            </div>`).join('')}
         </div>
       </div>
-      <div class="ref-card-soft ref-dash-goal">
-        <div class="ref-card-soft__title">Sıradaki Hedef</div>
-        <div class="ref-goal-name">🏙️ Dubai Pazarı</div>
-        <div class="ref-goal-sub">₺300M servet gerekiyor</div>
+    `
+    this.el.appendChild(donutCard)
+
+    // Sıradaki hedef (tam genişlik, ferah)
+    const goal = document.createElement('div')
+    goal.className = 'ref-card-soft ref-dash-goal'
+    goal.style.margin = '10px 14px 0'
+    goal.innerHTML = `
+      <div class="ref-card-soft__title">Sıradaki Hedefler</div>
+      <div class="ref-goal-item">
+        <div class="ref-goal-head"><span class="ref-goal-name">🏙️ Dubai Pazarı</span><span class="ref-goal-pct">%83</span></div>
         <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:83%"></div></div>
-        <div class="ref-goal-meta"><b>₺248M</b> / ₺300M · %83</div>
-        <div class="ref-goal-name" style="margin-top:10px">🏆 Borsa Kurdu</div>
+        <div class="ref-goal-meta"><b>₺248M</b> / ₺300M servet</div>
+      </div>
+      <div class="ref-goal-item">
+        <div class="ref-goal-head"><span class="ref-goal-name">🏆 Borsa Kurdu</span><span class="ref-goal-pct">%64</span></div>
         <div class="ref-perf-track"><div class="ref-perf-fill medium" style="width:64%"></div></div>
-        <div class="ref-goal-meta">₺50M portföy · %64</div>
+        <div class="ref-goal-meta"><b>₺32M</b> / ₺50M portföy</div>
       </div>
     `
-    this.el.appendChild(row)
+    this.el.appendChild(goal)
+
+    // Bugünkü özet
+    const today = document.createElement('div')
+    today.className = 'ref-today-strip'
+    today.innerHTML = `
+      <div class="ref-today-item"><span>💰</span><b>+₺26,3M</b><small>Bugünkü gelir</small></div>
+      <div class="ref-today-item"><span>🎯</span><b>3/5</b><small>Günlük görev</small></div>
+      <div class="ref-today-item"><span>📅</span><b>34</b><small>Yaş · 2026</small></div>
+    `
+    this.el.appendChild(today)
 
     // Risk paneli
     const risk = document.createElement('div')

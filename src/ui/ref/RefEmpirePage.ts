@@ -48,13 +48,44 @@ export class RefEmpirePage implements RefPage {
     summary.innerHTML = `
       <div class="ref-empire-summary__item"><span>🏙️</span><b>3</b><small>Şehir</small></div>
       <div class="ref-empire-summary__item"><span>🏢</span><b>12</b><small>Firma</small></div>
-      <div class="ref-empire-summary__item"><span>🏛️</span><b>8</b><small>Departman</small></div>
+      <div class="ref-empire-summary__item"><span>🏛️</span><b>12</b><small>Departman</small></div>
       <div class="ref-empire-summary__item"><span>💎</span><b>₺248M</b><small>Değer</small></div>
     `
     this.el.appendChild(summary)
 
+    // Departmanlar (komuta merkezi — 12 birim, üstte ve belirgin)
+    this.el.appendChild(sectionTitle('Departmanlar', '12 birim'))
+    const deptGrid = document.createElement('div')
+    deptGrid.className = 'ref-dept-grid'
+    deptGrid.innerHTML = DEPTS.map(d => `
+      <div class="ref-dept-tile">
+        <img src="${ua(d.asset)}" alt="" class="ref-dept-tile__img">
+        <span class="ref-dept-tile__name">${d.name}</span>
+        <span class="ref-dept-tile__lvl">Sv ${d.lvl}</span>
+      </div>
+    `).join('')
+    this.el.appendChild(deptGrid)
+
+    // Öncelikli departman görevleri
+    this.el.appendChild(sectionTitle('Öncelikli Görevler'))
+    const tasks = document.createElement('div')
+    tasks.className = 'ref-dept-tasks'
+    tasks.innerHTML = DEPT_TASKS.map(t => `
+      <div class="ref-dept-task">
+        <span class="ref-dept-task__ico">${t.ico}</span>
+        <div class="ref-dept-task__main">
+          <div class="ref-dept-task__head">
+            <span class="ref-dept-task__name">${t.name}</span>
+            <span class="ref-dept-task__reward">${t.reward}</span>
+          </div>
+          <div class="ref-perf-track sm"><div class="ref-perf-fill high" style="width:${t.pct}%"></div></div>
+        </div>
+      </div>
+    `).join('')
+    this.el.appendChild(tasks)
+
     // Şehirler
-    this.el.appendChild(sectionTitle('Şehirler'))
+    this.el.appendChild(sectionTitle('Şehirler', '5 bölge'))
     const cityGrid = document.createElement('div')
     cityGrid.className = 'ref-city-grid'
     cityGrid.innerHTML = CITIES.map(c => {
@@ -75,36 +106,5 @@ export class RefEmpirePage implements RefPage {
       `
     }).join('')
     this.el.appendChild(cityGrid)
-
-    // Öncelikli departman görevleri
-    this.el.appendChild(sectionTitle('Öncelikli Görevler'))
-    const tasks = document.createElement('div')
-    tasks.className = 'ref-dept-tasks'
-    tasks.innerHTML = DEPT_TASKS.map(t => `
-      <div class="ref-dept-task">
-        <span class="ref-dept-task__ico">${t.ico}</span>
-        <div class="ref-dept-task__main">
-          <div class="ref-dept-task__head">
-            <span class="ref-dept-task__name">${t.name}</span>
-            <span class="ref-dept-task__reward">${t.reward}</span>
-          </div>
-          <div class="ref-perf-track sm"><div class="ref-perf-fill high" style="width:${t.pct}%"></div></div>
-        </div>
-      </div>
-    `).join('')
-    this.el.appendChild(tasks)
-
-    // Departmanlar (12)
-    this.el.appendChild(sectionTitle('Departmanlar', '12 birim'))
-    const deptGrid = document.createElement('div')
-    deptGrid.className = 'ref-dept-grid'
-    deptGrid.innerHTML = DEPTS.map(d => `
-      <div class="ref-dept-tile">
-        <img src="${ua(d.asset)}" alt="" class="ref-dept-tile__img">
-        <span class="ref-dept-tile__name">${d.name}</span>
-        <span class="ref-dept-tile__lvl">Sv ${d.lvl}</span>
-      </div>
-    `).join('')
-    this.el.appendChild(deptGrid)
   }
 }

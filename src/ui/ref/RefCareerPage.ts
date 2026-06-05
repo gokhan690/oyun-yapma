@@ -2,23 +2,27 @@ import { sectionTitle, ua } from './refShared'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import type { RefPage } from './RefApp'
 
-interface Rank { title: string; reached: boolean; current?: boolean; req: string }
+interface DailyAction { ico: string; label: string; effect: string }
+const ACTIONS: DailyAction[] = [
+  { ico: '🕐', label: 'Mesai Yap',    effect: '+₺2.4K · +6 XP' },
+  { ico: '🌙', label: 'Ek Mesai',     effect: '+₺3.8K · +stres' },
+  { ico: '🤝', label: 'Müşteri Bul',  effect: '+1 fırsat' },
+  { ico: '💼', label: 'Satış Kapat',  effect: '+₺5K · +12 XP' },
+  { ico: '🎓', label: 'Eğitim Al',    effect: '+beceri' },
+  { ico: '🌐', label: 'Networking',   effect: '+1 bağlantı' },
+]
 
-const RANKS: Rank[] = [
-  { title: 'Çırak Girişimci', reached: true, req: '₺10K servet' },
-  { title: 'Esnaf', reached: true, req: '5 firma' },
-  { title: 'İşletme Sahibi', reached: true, req: '₺1M servet' },
-  { title: 'Holding Başkanı', reached: true, current: true, req: '₺100M servet' },
-  { title: 'Sektör Lideri', reached: false, req: '₺1Mr servet' },
-  { title: 'Efsane Baron', reached: false, req: '3 IPO + ₺5Mr' },
+interface Goal { ico: string; name: string; desc: string; pct: number; reward: string }
+const GOALS: Goal[] = [
+  { ico: '🪙', name: '₺500 Kazan', desc: 'İlk küçük işletmeni aç', pct: 70, reward: 'İlk firma' },
+  { ico: '🚀', name: '₺10.000 Net Değer', desc: 'Girişimci unvanı kazan', pct: 32, reward: 'Girişimci' },
 ]
 
 interface Skill { asset: string; name: string; level: number; max: number; pct: number }
 const SKILLS: Skill[] = [
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.marketing,    name: 'Pazarlama',  level: 7, max: 10, pct: 70 },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.research,     name: 'Ar-Ge',      level: 5, max: 10, pct: 50 },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.legal,        name: 'Hukuk',      level: 6, max: 10, pct: 60 },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.marketAnalysis, name: 'Finans',   level: 8, max: 10, pct: 82 },
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.marketing,      name: 'Pazarlama', level: 7, max: 10, pct: 70 },
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.research,       name: 'Ar-Ge',     level: 5, max: 10, pct: 50 },
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.marketAnalysis, name: 'Finans',    level: 8, max: 10, pct: 82 },
 ]
 
 export class RefCareerPage implements RefPage {
@@ -29,36 +33,64 @@ export class RefCareerPage implements RefPage {
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-career-page'
 
-    // Seviye kartı
-    const lvl = document.createElement('div')
-    lvl.className = 'ref-level-card'
-    lvl.innerHTML = `
-      <div class="ref-level-card__top">
-        <div>
-          <div class="ref-level-card__rank">Holding YK Başkanı</div>
-          <div class="ref-level-card__sub">Kariyer Seviyesi 24</div>
+    // Aktif iş kartı
+    const job = document.createElement('div')
+    job.className = 'ref-job-card'
+    job.innerHTML = `
+      <div class="ref-job-card__top">
+        <div class="ref-job-card__icon">💼</div>
+        <div class="ref-job-card__id">
+          <div class="ref-job-card__title">Holding YK Başkanı</div>
+          <div class="ref-job-card__company">Karahan Holding · Tam zamanlı</div>
         </div>
-        <div class="ref-level-card__badge">LVL 24</div>
+        <div class="ref-job-card__lvl">LVL 24</div>
       </div>
-      <div class="ref-perf-track ref-level-card__bar">
-        <div class="ref-perf-fill high" style="width:64%"></div>
+      <div class="ref-job-stats">
+        <div class="ref-job-stat"><span class="ref-job-stat__lbl">Günlük Maaş</span><span class="ref-job-stat__val income">₺48K</span></div>
+        <div class="ref-job-stat"><span class="ref-job-stat__lbl">Kıdem</span><span class="ref-job-stat__val">6 yıl</span></div>
+        <div class="ref-job-stat"><span class="ref-job-stat__lbl">Sıradaki</span><span class="ref-job-stat__val">Sektör Lideri</span></div>
       </div>
-      <div class="ref-level-card__xp">6.400 / 10.000 XP — sonraki: Sektör Lideri</div>
+      <div class="ref-job-bars">
+        <div class="ref-job-bar">
+          <div class="ref-job-bar__lbl"><span>Terfi (XP)</span><span>6.400 / 10.000</span></div>
+          <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:64%"></div></div>
+        </div>
+        <div class="ref-job-bar">
+          <div class="ref-job-bar__lbl"><span>Stres</span><span>48%</span></div>
+          <div class="ref-perf-track"><div class="ref-perf-fill medium" style="width:48%"></div></div>
+        </div>
+      </div>
     `
-    this.el.appendChild(lvl)
+    this.el.appendChild(job)
 
-    // Unvan yolu
-    this.el.appendChild(sectionTitle('Kariyer Yolu'))
-    const path = document.createElement('div')
-    path.className = 'ref-rank-path'
-    path.innerHTML = RANKS.map(r => `
-      <div class="ref-rank-row ${r.reached ? 'done' : 'locked'} ${r.current ? 'current' : ''}">
-        <span class="ref-rank-dot">${r.reached ? '✓' : '🔒'}</span>
-        <span class="ref-rank-title">${r.title}</span>
-        <span class="ref-rank-req">${r.req}</span>
+    // Bugünkü aksiyonlar
+    this.el.appendChild(sectionTitle('Bugünkü Aksiyonlar', '3 hak'))
+    const actions = document.createElement('div')
+    actions.className = 'ref-action-grid'
+    actions.innerHTML = ACTIONS.map(a => `
+      <button class="ref-action-tile">
+        <span class="ref-action-tile__ico">${a.ico}</span>
+        <span class="ref-action-tile__lbl">${a.label}</span>
+        <span class="ref-action-tile__eff">${a.effect}</span>
+      </button>
+    `).join('')
+    this.el.appendChild(actions)
+
+    // İlk hedefler
+    this.el.appendChild(sectionTitle('İlk Hedefler'))
+    const goals = document.createElement('div')
+    goals.className = 'ref-cgoal-list'
+    goals.innerHTML = GOALS.map(g => `
+      <div class="ref-cgoal-row">
+        <span class="ref-cgoal-ico">${g.ico}</span>
+        <div class="ref-cgoal-main">
+          <div class="ref-cgoal-head"><span class="ref-cgoal-name">${g.name}</span><span class="ref-cgoal-reward">🎁 ${g.reward}</span></div>
+          <div class="ref-cgoal-desc">${g.desc}</div>
+          <div class="ref-perf-track sm"><div class="ref-perf-fill high" style="width:${g.pct}%"></div></div>
+        </div>
       </div>
     `).join('')
-    this.el.appendChild(path)
+    this.el.appendChild(goals)
 
     // Beceriler
     this.el.appendChild(sectionTitle('Beceriler'))
