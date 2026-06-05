@@ -70,7 +70,7 @@ export class RefDashboardPage implements RefPage {
     const kpi = new RefKpiStrip([
       { icon: '💎', label: 'Net Servet',   value: fmtMoney(d.netWorth), sub: 'Toplam', subDir: 'muted' },
       { icon: '💵', label: 'Nakit',        value: fmtMoney(d.cash),     sub: 'Likit',  subDir: 'muted' },
-      { icon: '📈', label: 'Günlük Gelir', value: fmtMoney(d.dailyIncome), sub: '/gün', subDir: 'up' },
+      { icon: '📈', label: 'Günlük Gelir', value: fmtMoney(d.dailyIncome), sub: 'Bugün', subDir: 'up' },
       { icon: '⭐', label: 'İtibar',        value: String(d.reputation), sub: d.reputationLabel, subDir: 'muted' },
     ])
     this.el.appendChild(kpi.el)

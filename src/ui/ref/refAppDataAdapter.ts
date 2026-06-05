@@ -5,11 +5,16 @@ import { cityDef, type CityId } from '../../game/ExpansionMap'
 import type { FirmData, FirmSector, FirmStatus } from './RefCard'
 
 /*
- * RefAppDataAdapter — SALT OKUNUR.
+ * RefAppDataAdapter — SALT OKUNUR. GÜVENLİK DENETİMİ:
+ * ─────────────────────────────────────────────────────
+ * ✅ GameState'e HİÇBİR yazma yapılmaz (state.money, state.producers vb. değiştirilmez)
+ * ✅ Hiçbir aksiyon tetiklenmez (satın alma, yükseltme, IPO, dynasty vb.)
+ * ✅ Tüm side-effect'ler (event dispatch, DOM mutation, timeout) yoktur
+ * ✅ Sadece okuma: state.*() metodlar, state.money, state.producers, state.cities, state.reputation
+ * ✅ Eksik/ölçülemeyen alanlarda deterministik fallback üretilir; UI bozulmaz
+ * ─────────────────────────────────────────────────────
  * GameState'ten okuyup RefApp componentlerinin beklediği view-model'e çevirir.
- * GameState'e YAZMAZ; hiçbir aksiyon tetiklemez. Eksik/ölçülemeyen alanlarda
- * deterministik fallback üretir (UI bozulmasın). Componentler GameState
- * görmez; yalnızca bu view-model'i alır.
+ * Componentler GameState görmez; yalnızca bu view-model'i alır.
  *
  * Asset kuralı: firma adı (name) DİNAMİK gelir, görsele gömülü değildir.
  * Görsel SADECE category (iş türü) üzerinden seçilir (RefCard.firmIconSrc).
@@ -64,36 +69,63 @@ export interface RefViewModel {
 
 const AVATAR = '/assets/ref-v2/avatars/avatar_main_businessman.png'
 
-// Deterministik hash (id → 0..n)
+// Deterministik hash (id → 0..n) — sadece küçük variance için, ana değer her zaman mantıksal türetme
 function hash(s: string): number {
   let h = 0
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
   return h
 }
 
-// Genel producer'lar için (kategorisi olmayanlar) hero'su olan kategoriler.
-const GENERAL_POOL = ['bakery', 'coffee', 'barber', 'ecommerce', 'logistics']
+/* ── Producer → Görsel Kategori Eşlemesi (3 katmanlı) ──────────────────────
+ *
+ * Katman 1 (en yüksek öncelik): Açık ID→kategori haritası.
+ *   Bilinen producer'lar için doğru kategoriyi garanti eder;
+ *   ProducerDef.category yanlış/eksik olsa bile çalışır.
+ *
+ * Katman 2: ProducerDef.category alanı (genel kural).
+ *   Yeni producer'lar için yeterli; ID haritasında yoksa buraya düşer.
+ *
+ * Katman 3 (güvenli varsayılan): 'ecommerce' (en nötr görsel).
+ *   Hash-tabanlı rastgele dağılım KALDIRILDI — tahmin edilemez eşleme kötü UX.
+ * ──────────────────────────────────────────────────────────────────────── */
 
-// Bilinen producer id → asset kategori (ad/görsel tutarlılığı için açık eşleme).
+// Katman 1: bilinen producer ID → asset kategori
 const ID_CATEGORY: Record<string, string> = {
-  stajyer: 'barber', robot: 'software', kafe: 'coffee', ofis: 'ecommerce',
-  fabrika: 'factory', mobil_app: 'software', holding: 'finance', uzay: 'software',
-  enerji: 'energy', ai: 'software', tuzaq: 'illegal', uydu: 'software',
-  merkezbankasi: 'finance', galaksiyum: 'software', kripto: 'finance', nano: 'software',
-  bahis: 'illegal', piramit: 'illegal', offshore: 'illegal', data_center: 'software',
-  drone: 'software', otel: 'hotel', medya: 'media', streaming: 'media',
-  ilac: 'health', sigorta: 'finance', ev_araba: 'factory',
+  stajyer: 'barber',      robot: 'software',    kafe: 'coffee',
+  ofis: 'ecommerce',      fabrika: 'factory',   mobil_app: 'software',
+  holding: 'finance',     uzay: 'software',     enerji: 'energy',
+  ai: 'software',         tuzaq: 'illegal',     uydu: 'software',
+  merkezbankasi: 'finance', galaksiyum: 'software', kripto: 'finance',
+  nano: 'software',       bahis: 'illegal',     piramit: 'illegal',
+  offshore: 'illegal',    data_center: 'software', drone: 'software',
+  otel: 'hotel',          medya: 'media',       streaming: 'media',
+  ilac: 'health',         sigorta: 'finance',   ev_araba: 'factory',
+  restoran: 'coffee',     guzellik: 'barber',   spor_okulu: 'media',
+  mini_market: 'retail',  tatil_koyu: 'hotel',  fitness_app: 'software',
+  e_ticaret_loj: 'logistics', online_egitim: 'software', biyoteknoloji: 'health',
 }
 
-/** Producer → asset kategori (iş türü). Görsel sadece buradan seçilir. */
+/** Producer → asset kategori (iş türü). Görsel sadece buradan seçilir.
+ *  İllegal override → ID haritası → ProducerDef.category → 'ecommerce' */
 function producerCategory(p: ProducerDef): string {
-  if (ID_CATEGORY[p.id]) return ID_CATEGORY[p.id]
+  // Illegal her zaman önce
   if (p.illegal || p.category === 'dark') return 'illegal'
-  if (p.category === 'finance') return 'finance'
-  if (p.category === 'science') return 'software'
-  if (p.category === 'luxury') return 'hotel'
-  if (p.category === 'sport' || p.category === 'politics') return 'media'
-  return GENERAL_POOL[hash(p.id) % GENERAL_POOL.length]
+
+  // Katman 1: açık ID haritası
+  if (ID_CATEGORY[p.id]) return ID_CATEGORY[p.id]
+
+  // Katman 2: ProducerDef.category alanı — yalnızca geçerli ProducerCategory değerleri
+  // ('dark' illegal check'te yakalandı; diğer değerler aşağıda)
+  switch (p.category) {
+    case 'finance':  return 'finance'
+    case 'science':  return 'software'
+    case 'luxury':   return 'hotel'
+    case 'sport':
+    case 'politics': return 'media'
+  }
+
+  // Katman 3: güvenli varsayılan — hash-tabanlı rastgele DAHİL DEĞİL
+  return 'ecommerce'
 }
 
 /** Asset kategori → filtre sektörü. */
@@ -105,6 +137,7 @@ function categorySector(cat: string): FirmSector {
     case 'ecommerce': case 'software': case 'factory': case 'energy': return 'teknoloji'
     case 'finance': return 'finans'
     case 'media': return 'medya'
+    case 'health': return 'teknoloji'   // sağlık/biyoteknoloji → teknoloji filtresi
     case 'illegal': return 'illegal'
     default: return 'hizmet'
   }
@@ -120,21 +153,66 @@ const SECTOR_COLOR: Record<FirmSector, string> = {
 }
 
 function stars(tier: number): number {
+  // Tier'dan deterministik: Tier 1-4→1 yıldız, 5-8→2, 9-12→3, 13-16→4, 17+→5
   return Math.max(1, Math.min(5, Math.ceil(tier / 4)))
+}
+
+/* ── Firma performans & büyüme türetme ─────────────────────────────────────
+ *
+ * Gerçek gider/müşteri/memnuniyet verisi GameState'te mevcut değil.
+ * Aşağıdaki formüller mantıksal türetme kullanır (hash sadece küçük variance):
+ *
+ * PERFORMANS (50–95):
+ *   Temel: 55 + sahip olunan birim sayısına göre optimizasyon bonusu.
+ *   Mantık: daha fazla birim → daha çok deneyim → daha iyi performans.
+ *   Yasadışı firmalar: 35–75 arası (risk premium, düşük tavan).
+ *
+ * BÜYÜME (%):
+ *   Kategori bazlı taban (software/ecommerce en hızlı, barber/bakery en yavaş).
+ *   + tier bonusu (0.3%/tier) + hash variance (±1-2%).
+ *   Yasadışı: yüksek taban ama geniş variance.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+// Kategori bazlı büyüme tabanı (%)
+const CATEGORY_GROWTH: Record<string, number> = {
+  software: 13, ecommerce: 11, energy: 10, media: 9, finance: 9,
+  health: 8,   factory: 8,   hotel: 8,   logistics: 7, coffee: 7,
+  restaurant: 6, bakery: 6,  retail: 6,  barber: 5,   illegal: 12,
+}
+
+function derivePerformance(count: number, isIllegal: boolean, h: number): number {
+  // count = sahip olunan birim sayısı; her 3 birim +1 puan (max 35 puan)
+  const countBonus = Math.min(35, count * 3)
+  const smallVariance = h % 8   // 0-7 arası küçük varyasyon
+  return isIllegal
+    ? Math.max(35, Math.min(75, 45 + countBonus + smallVariance))
+    : Math.max(50, Math.min(95, 55 + countBonus + smallVariance))
+}
+
+function deriveGrowth(cat: string, tier: number, isIllegal: boolean, h: number): number {
+  const base = CATEGORY_GROWTH[cat] ?? 6
+  const tierBonus = tier * 0.3
+  // variance: yasadışı daha geniş (0-5.9), yasal daha dar (0-2.9)
+  const variance = isIllegal ? (h % 60) / 10 : (h % 30) / 10
+  return +((base + tierBonus + variance).toFixed(1))
 }
 
 /** Sahip olunan producer → firma view-model (FirmData). */
 function producerToFirm(state: GameState, p: ProducerDef, ownedCities: CityId[]): FirmData {
   const count = state.producers[p.id] ?? 0
   const income = Math.round(state.producerIncome(p))
-  const expense = Math.round(income * 0.32)                 // fallback (gerçek gider yok)
+  // estimatedExpense: gerçek gider verisi GameState'te yok; income × 0.32 yaklaşık tahmin.
+  // Gerçek gider sistemi eklendikçe burası state.producerExpense(p) ile değiştirilecek.
+  const expense = Math.round(income * 0.32)
   const h = hash(p.id)
-  const growth = +(5 + (h % 130) / 10).toFixed(1)           // fallback 5.0–17.9
-  const performance = 52 + (h % 44)                          // fallback 52–95
   const cat = producerCategory(p)
+  const isIllegal = cat === 'illegal'
   const sector = categorySector(cat)
   const cityId = ownedCities.length ? ownedCities[h % ownedCities.length] : 'istanbul'
-  const status: FirmStatus = p.illegal ? 'Riskli' : income > expense * 1.6 ? 'Karlı' : 'Büyüyor'
+  const status: FirmStatus = isIllegal ? 'Riskli' : income > expense * 1.6 ? 'Karlı' : 'Büyüyor'
+
+  const performance = derivePerformance(count, isIllegal, h)
+  const growth = deriveGrowth(cat, p.tier, isIllegal, h)
 
   return {
     id: p.id,
@@ -147,25 +225,25 @@ function producerToFirm(state: GameState, p: ProducerDef, ownedCities: CityId[])
     stars: stars(p.tier),
     status,
     income,
-    expense,
+    expense,                              // estimatedExpense (bkz. yukarıdaki yorum)
     growth,
     city: cityDef(cityId).label,
     performance,
-    riskLevel: p.illegal ? 55 + (h % 40) : undefined,
+    riskLevel: isIllegal ? 55 + (h % 40) : undefined,
   }
 }
 
 const NETWORTH_TREND_FALLBACK = [82, 85, 84, 88, 90, 92, 95, 94, 97, 100]
 const MILESTONES = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 1_000_000_000]
 
-/** Net worth tier'ından unvan üret (fallback). */
 const RANKS = [
-  { min: 0,         title: 'Çırak Girişimci' },
-  { min: 10_000,    title: 'Esnaf' },
-  { min: 1_000_000, title: 'İşletme Sahibi' },
-  { min: 100_000_000, title: 'Holding Başkanı' },
-  { min: 1_000_000_000, title: 'Sektör Lideri' },
+  { min: 0,               title: 'Çırak Girişimci' },
+  { min: 10_000,          title: 'Esnaf' },
+  { min: 1_000_000,       title: 'İşletme Sahibi' },
+  { min: 100_000_000,     title: 'Holding Başkanı' },
+  { min: 1_000_000_000,   title: 'Sektör Lideri' },
 ]
+
 function rankFor(netWorth: number): { idx: number; title: string; next: string; nextMin: number } {
   let idx = 0
   for (let i = 0; i < RANKS.length; i++) if (netWorth >= RANKS[i].min) idx = i
@@ -206,7 +284,8 @@ export function buildRefViewModel(state: GameState): RefViewModel {
   const nextMs = MILESTONES.find((m) => netWorth < m)
   if (nextMs) {
     goals.push({
-      ico: '💎', name: `₺${(nextMs / 1e6 >= 1 ? (nextMs / 1e6) + 'M' : nextMs / 1e3 + 'K')} Servet`,
+      ico: '💎',
+      name: `₺${nextMs >= 1e6 ? (nextMs / 1e6) + 'M' : nextMs >= 1e3 ? (nextMs / 1e3) + 'K' : nextMs} Servet`,
       pct: Math.min(100, Math.round((netWorth / nextMs) * 100)),
       metaA: `₺${fmt(netWorth)} / ₺${fmt(nextMs)}`,
     })
@@ -219,36 +298,40 @@ export function buildRefViewModel(state: GameState): RefViewModel {
     })
   }
 
+  // dailyExpense: gerçek gider yok; tüm firmaların estimatedExpense toplamı kullanılır.
+  // Bu değer income × 0.32 mantığından türer (producerToFirm ile tutarlı).
+  const dailyExpense = Math.round(dailyIncome * 0.32)
+
   const dashboard: RefDashboardVM = {
     netWorth,
     cash: Math.round(state.money),
     dailyIncome,
-    dailyExpense: Math.round(dailyIncome * 0.3),    // fallback
+    dailyExpense,
     reputation: Math.round(state.reputation),
     reputationLabel: reputationLabel(state.reputation),
     firmCount: state.ownedBusinessTiers(),
     cityCount: ownedCities.length,
     incomeSources: incomeSources.length ? incomeSources : [{ label: 'Henüz yok', value: 100, color: '#94B4C2' }],
-    netWorthTrend: NETWORTH_TREND_FALLBACK,          // fallback (geçmiş yok)
+    netWorthTrend: NETWORTH_TREND_FALLBACK,   // geçmiş trendler GameState'te tutulmuyor
     goals,
   }
 
   const career: RefCareerVM = {
     jobTitle: rank.title,
-    level: rank.idx * 6 + Math.min(6, ownedCities.length + state.ipoCount),  // fallback türetme
-    salaryDaily: dailyIncome,                        // gerçek günlük gelir
-    stress: Math.round(state.lifestyle.stress),      // GERÇEK
+    level: rank.idx * 6 + Math.min(6, ownedCities.length + state.ipoCount),
+    salaryDaily: dailyIncome,
+    stress: Math.round(state.lifestyle.stress),
     xpPct: rank.nextMin > 0 ? Math.min(100, Math.round((netWorth / rank.nextMin) * 100)) : 100,
     xpText: `₺${fmt(netWorth)} / ₺${fmt(rank.nextMin)}`,
     nextRank: rank.next,
-    seniorityYears: Math.max(0, age - 18),           // gerçek yaş türevli
+    seniorityYears: Math.max(0, age - 18),
   }
 
   const player: RefPlayerVM = {
-    name: state.playerName || 'Baron',               // GERÇEK
+    name: state.playerName || 'Baron',
     title: rank.title,
-    age,                                             // GERÇEK
-    city: cityDef(state.cities.activeCity).label,    // GERÇEK
+    age,
+    city: cityDef(state.cities.activeCity).label,
     avatarAsset: AVATAR,
   }
 
