@@ -78,6 +78,7 @@ export class RefFirmsPage implements RefPage {
 
   private firms?: FirmData[]
   private state?: GameState
+  private refreshThrottleTimer: number | null = null
 
   constructor(firms?: FirmData[], _hasRealData = false, state?: GameState) {
     this.firms = firms
@@ -89,7 +90,8 @@ export class RefFirmsPage implements RefPage {
 
     if (state) {
       this.unsub = state.subscribe((ev) => {
-        if (ev.type === 'purchase' || ev.type === 'money_changed') this.refreshProducerCards()
+        if (ev.type === 'purchase') this.refreshProducerCards()
+        else if (ev.type === 'money_changed') this.throttledRefresh()
       })
     }
   }
@@ -524,8 +526,20 @@ export class RefFirmsPage implements RefPage {
     return row
   }
 
+  private throttledRefresh(): void {
+    if (this.refreshThrottleTimer !== null) return
+    this.refreshThrottleTimer = window.setTimeout(() => {
+      this.refreshThrottleTimer = null
+      this.refreshProducerCards()
+    }, 700)
+  }
+
   destroy(): void {
     this.unsub?.()
     this.unsub = undefined
+    if (this.refreshThrottleTimer !== null) {
+      window.clearTimeout(this.refreshThrottleTimer)
+      this.refreshThrottleTimer = null
+    }
   }
 }
