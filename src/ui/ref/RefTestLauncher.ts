@@ -113,8 +113,16 @@ export function installRefTestLauncher(state?: GameState): void {
 
   const open = (): void => {
     if (overlay) return
-    // Oyun hazırsa tick'in çalıştığından emin ol (idempotent — yeni loop kurmaz).
-    if (state?.isIntroFlowReady()) state.startTick()
+    // GÜVENLİK KİLİDİ: oyun intro akışı bitmeden RefApp AÇILMAZ. Aksi halde
+    // GameState tick'i hiç başlamadığı (gameDt=0) için RefApp donmuş bir oyun
+    // üzerine açılır → zaman çubuğu "Day 1"de kalır. Buton zaten gizli olsa da
+    // programatik/yarış durumlarına karşı burada da kesin engelle.
+    if (state && !state.isIntroFlowReady()) {
+      syncVisibility()
+      return
+    }
+    // Oyun hazır: mevcut tick'in çalıştığından emin ol (idempotent — yeni loop kurmaz).
+    state?.startTick()
     overlay = document.createElement('div')
     overlay.id = 'ref-test-overlay'
     // Opak sky zemin → geniş ekran kenar boşluklarında bile ana oyun görünmez,
