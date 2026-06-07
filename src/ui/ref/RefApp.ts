@@ -23,6 +23,13 @@ export interface RefPage {
   readonly titleDeco?: string
   /** Sayfa görünür olunca çağrılır. */
   onShow?(): void
+  /**
+   * Canlı para/gelir/KPI değerlerini DOM'u yeniden kurmadan tazeler.
+   * RefApp tek aboneliğinden (yalnız aktif sayfa için) çağrılır.
+   */
+  refresh?(state: GameState): void
+  /** Overlay kapanınca abonelik/timer temizliği. */
+  destroy?(): void
 }
 
 const PLAYER: HeaderData = {
@@ -58,6 +65,9 @@ export class RefApp {
   private vm?: RefViewModel
   private gameState?: GameState
   private active: RefNavTab
+  /** Tek GameState aboneliği (canlı para/KPI refresh) + throttle timer. */
+  private unsub?: () => void
+  private refreshTimer: number | null = null
 
   /** Ana oyuna bağlandığında geri/çıkış için (standalone'da kullanılmaz). */
   onExit?: () => void
@@ -103,6 +113,31 @@ export class RefApp {
 
     // Yalnızca açılış sekmesi kurulur; diğerleri ilk tıklamada (perf).
     this.show(initial)
+
+    // ── Tek GameState aboneliği: yalnız AKTİF sayfanın para/KPI metnini tazeler ──
+    // game_time → timeBar kendi aboneliğiyle güncellenir (tüm sayfa rerender ETME).
+    // money_changed/passive_income → throttle; purchase → anında.
+    const st = this.gameState
+    if (st) {
+      this.unsub = st.subscribe((ev) => {
+        if (ev.type === 'purchase') this.refreshActive(st)
+        else if (ev.type === 'money_changed' || ev.type === 'passive_income') this.scheduleRefresh(st)
+      })
+    }
+  }
+
+  /** Aktif (görünür) sayfanın canlı değerlerini tazele. */
+  private refreshActive(st: GameState): void {
+    this.pages.get(this.active)?.refresh?.(st)
+  }
+
+  /** money_changed/passive_income için ~600ms throttle (her tikte rebuild olmasın). */
+  private scheduleRefresh(st: GameState): void {
+    if (this.refreshTimer !== null) return
+    this.refreshTimer = window.setTimeout(() => {
+      this.refreshTimer = null
+      this.refreshActive(st)
+    }, 600)
   }
 
   /**
@@ -169,6 +204,8 @@ export class RefApp {
     this.content.scrollTop = 0
     this.header.setTitle(page.title, page.titleDeco ?? '⭐')
     page.onShow?.()
+    // Sekme değişiminde önbellekli sayfa bayat para/KPI gösterebilir → anında tazele.
+    if (this.gameState) page.refresh?.(this.gameState)
   }
 
   mount(target: HTMLElement): void {
@@ -177,6 +214,12 @@ export class RefApp {
 
   /** Overlay kapanınca çağrılır: tüm GameState aboneliklerini bırak (sızıntı önleme). */
   destroy(): void {
+    this.unsub?.()
+    this.unsub = undefined
+    if (this.refreshTimer !== null) {
+      window.clearTimeout(this.refreshTimer)
+      this.refreshTimer = null
+    }
     this.timeBar.destroy()
     for (const page of this.pages.values()) {
       ;(page as { destroy?: () => void }).destroy?.()

@@ -1,8 +1,10 @@
-import { RefKpiStrip } from './RefKpiStrip'
+import { RefKpiStrip, type KpiItem } from './RefKpiStrip'
 import { sectionTitle, ua, areaChartSvg, donutSvg, fmtMoney } from './refShared'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
+import { reputationLabel } from '../../game/Reputation'
 import type { RefDashboardVM } from './refAppDataAdapter'
 import type { RefPage } from './RefApp'
+import type { GameState } from '../../game/GameState'
 
 /** Gerçek veri yoksa kullanılan fallback (mock) dashboard. */
 const MOCK_DASHBOARD: RefDashboardVM = {
@@ -47,6 +49,14 @@ export class RefDashboardPage implements RefPage {
 
   onOpenAchievements?: () => void
 
+  private kpi!: RefKpiStrip
+  private heroValEl?: HTMLElement
+  private heroMetaEl?: HTMLElement
+  private donutTotalEl?: HTMLElement
+  private todayIncomeEl?: HTMLElement
+  private todayFirmEl?: HTMLElement
+  private todayCityEl?: HTMLElement
+
   constructor(vm?: RefDashboardVM) {
     const d = vm ?? MOCK_DASHBOARD
     this.el = document.createElement('div')
@@ -67,15 +77,12 @@ export class RefDashboardPage implements RefPage {
       <div class="ref-dash-hero__chart-cap">Son 10 gün · tahmini eğri</div>
     `
     this.el.appendChild(hero)
+    this.heroValEl = hero.querySelector<HTMLElement>('.ref-dash-hero__val') ?? undefined
+    this.heroMetaEl = hero.querySelector<HTMLElement>('.ref-dash-hero__chip:not(.up)') ?? undefined
 
-    // KPI strip (gerçek değerler)
-    const kpi = new RefKpiStrip([
-      { icon: '💎', label: 'Net Servet',   value: fmtMoney(d.netWorth), sub: 'Toplam', subDir: 'muted' },
-      { icon: '💵', label: 'Nakit',        value: fmtMoney(d.cash),     sub: 'Likit',  subDir: 'muted' },
-      { icon: '📈', label: 'Toplam Günlük Gelir', value: fmtMoney(d.dailyIncome), sub: 'Tüm kaynaklardan', subDir: 'up' },
-      { icon: '⭐', label: 'İtibar',        value: String(d.reputation), sub: d.reputationLabel, subDir: 'muted' },
-    ])
-    this.el.appendChild(kpi.el)
+    // KPI strip (gerçek değerler — canlı tazelenir)
+    this.kpi = new RefKpiStrip(this.kpiItems(d))
+    this.el.appendChild(this.kpi.el)
 
     // Gelir kaynakları (donut tam genişlik, dengeli legend + toplam)
     const donutCard = document.createElement('div')
@@ -100,6 +107,7 @@ export class RefDashboardPage implements RefPage {
       </div>
     `
     this.el.appendChild(donutCard)
+    this.donutTotalEl = donutCard.querySelector<HTMLElement>('.ref-dash-donut__total') ?? undefined
 
     // Sıradaki hedefler (gerçek ilerleme)
     if (d.goals.length) {
@@ -127,6 +135,10 @@ export class RefDashboardPage implements RefPage {
       <div class="ref-today-item"><span>🏙️</span><b>${d.cityCount}</b><small>Şehir</small></div>
     `
     this.el.appendChild(today)
+    const todayBs = today.querySelectorAll<HTMLElement>('.ref-today-item b')
+    this.todayIncomeEl = todayBs[0]
+    this.todayFirmEl = todayBs[1]
+    this.todayCityEl = todayBs[2]
 
     // Risk paneli — GERÇEK itibar + nakit/servet oranından türetilmiş tahmin.
     // Yüksek itibar → düşük baskın riski; düşük nakit tamponu → yüksek likidite riski.
@@ -183,5 +195,37 @@ export class RefDashboardPage implements RefPage {
       </div>
     `).join('')
     this.el.appendChild(feed)
+  }
+
+  private kpiItems(d: RefDashboardVM): KpiItem[] {
+    return [
+      { icon: '💎', label: 'Net Servet',   value: fmtMoney(d.netWorth), sub: 'Toplam', subDir: 'muted' },
+      { icon: '💵', label: 'Nakit',        value: fmtMoney(d.cash),     sub: 'Likit',  subDir: 'muted' },
+      { icon: '📈', label: 'Toplam Günlük Gelir', value: fmtMoney(d.dailyIncome), sub: 'Tüm kaynaklardan', subDir: 'up' },
+      { icon: '⭐', label: 'İtibar',        value: String(d.reputation), sub: d.reputationLabel, subDir: 'muted' },
+    ]
+  }
+
+  /** Canlı GameState'ten para/servet/gelir/itibar değerlerini DOM kurmadan tazeler. */
+  refresh(state: GameState): void {
+    const netWorth   = Math.round(state.financeNetWorth())
+    const cash       = Math.round(state.money)
+    const income     = Math.round(state.incomePerDay())
+    const reputation = Math.round(state.reputation)
+    const firmCount  = Object.values(state.producers).filter((c) => c > 0).length
+    const cityCount  = state.cities?.unlocked.length ?? 0
+
+    this.kpi.update([
+      { icon: '💎', label: 'Net Servet',   value: fmtMoney(netWorth), sub: 'Toplam', subDir: 'muted' },
+      { icon: '💵', label: 'Nakit',        value: fmtMoney(cash),     sub: 'Likit',  subDir: 'muted' },
+      { icon: '📈', label: 'Toplam Günlük Gelir', value: fmtMoney(income), sub: 'Tüm kaynaklardan', subDir: 'up' },
+      { icon: '⭐', label: 'İtibar',        value: String(reputation), sub: reputationLabel(reputation), subDir: 'muted' },
+    ])
+    if (this.heroValEl)    this.heroValEl.textContent = fmtMoney(netWorth)
+    if (this.heroMetaEl)   this.heroMetaEl.textContent = `${firmCount} firma · ${cityCount} şehir`
+    if (this.donutTotalEl) this.donutTotalEl.textContent = `${fmtMoney(income)} / gün`
+    if (this.todayIncomeEl) this.todayIncomeEl.textContent = fmtMoney(income)
+    if (this.todayFirmEl)   this.todayFirmEl.textContent = String(firmCount)
+    if (this.todayCityEl)   this.todayCityEl.textContent = String(cityCount)
   }
 }

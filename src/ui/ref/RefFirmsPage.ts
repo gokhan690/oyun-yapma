@@ -1,4 +1,4 @@
-import { RefKpiStrip }  from './RefKpiStrip'
+import { RefKpiStrip, type KpiItem }  from './RefKpiStrip'
 import { RefCard, type FirmData } from './RefCard'
 import { fmtMoney, refToast } from './refShared'
 import type { RefPage } from './RefApp'
@@ -74,11 +74,10 @@ export class RefFirmsPage implements RefPage {
   private producerCardsContainer!: HTMLElement
   private producerCards = new Map<string, HTMLElement>()
   private summaryEl?: HTMLElement
-  private unsub?: () => void
+  private kpiStrip?: RefKpiStrip
 
   private firms?: FirmData[]
   private state?: GameState
-  private refreshThrottleTimer: number | null = null
 
   constructor(firms?: FirmData[], _hasRealData = false, state?: GameState) {
     this.firms = firms
@@ -87,13 +86,7 @@ export class RefFirmsPage implements RefPage {
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-firms-page'
     this.buildPage()
-
-    if (state) {
-      this.unsub = state.subscribe((ev) => {
-        if (ev.type === 'purchase') this.refreshProducerCards()
-        else if (ev.type === 'money_changed') this.throttledRefresh()
-      })
-    }
+    // Canlı para/KPI refresh'i RefApp'in tek aboneliğinden gelir → refresh().
   }
 
   private buildPage(): void {
@@ -135,16 +128,8 @@ export class RefFirmsPage implements RefPage {
   private buildKpi(): HTMLElement {
     const s = this.state
     if (s) {
-      const legalIncome   = Math.round(s.legalIncomePerDay())
-      const illegalIncome = Math.round(s.illegalIncomePerDay())
-      const ownedNormal   = NORMAL_PRODUCERS.filter(p => (s.producers[p.id] ?? 0) > 0).length
-      const totalUnits    = NORMAL_PRODUCERS.reduce((sum, p) => sum + (s.producers[p.id] ?? 0), 0)
-      return new RefKpiStrip([
-        { icon: '🏪', label: 'İşletme Türü',   value: String(ownedNormal), sub: `${totalUnits} birim`, subDir: 'muted' },
-        { icon: '📈', label: 'Yasal Gelir',    value: fmtMoney(legalIncome), sub: 'Günlük', subDir: 'up' },
-        { icon: '💰', label: 'Yasadışı Gelir', value: illegalIncome > 0 ? fmtMoney(illegalIncome) : 'Yok', sub: 'Günlük', subDir: 'muted' },
-        { icon: '💵', label: 'Nakit',          value: fmtMoney(Math.round(s.money)), sub: 'Likit', subDir: 'muted' },
-      ]).el
+      this.kpiStrip = new RefKpiStrip(this.liveKpiItems(s))
+      return this.kpiStrip.el
     }
     // Mock
     const data = (this.firms && this.firms.length) ? this.firms : MOCK_FIRMS
@@ -526,20 +511,27 @@ export class RefFirmsPage implements RefPage {
     return row
   }
 
-  private throttledRefresh(): void {
-    if (this.refreshThrottleTimer !== null) return
-    this.refreshThrottleTimer = window.setTimeout(() => {
-      this.refreshThrottleTimer = null
-      this.refreshProducerCards()
-    }, 700)
+  private liveKpiItems(s: GameState): KpiItem[] {
+    const legalIncome   = Math.round(s.legalIncomePerDay())
+    const illegalIncome = Math.round(s.illegalIncomePerDay())
+    const ownedNormal   = NORMAL_PRODUCERS.filter(p => (s.producers[p.id] ?? 0) > 0).length
+    const totalUnits    = NORMAL_PRODUCERS.reduce((sum, p) => sum + (s.producers[p.id] ?? 0), 0)
+    return [
+      { icon: '🏪', label: 'İşletme Türü',   value: String(ownedNormal), sub: `${totalUnits} birim`, subDir: 'muted' },
+      { icon: '📈', label: 'Yasal Gelir',    value: fmtMoney(legalIncome), sub: 'Günlük', subDir: 'up' },
+      { icon: '💰', label: 'Yasadışı Gelir', value: illegalIncome > 0 ? fmtMoney(illegalIncome) : 'Yok', sub: 'Günlük', subDir: 'muted' },
+      { icon: '💵', label: 'Nakit',          value: fmtMoney(Math.round(s.money)), sub: 'Likit', subDir: 'muted' },
+    ]
   }
 
-  destroy(): void {
-    this.unsub?.()
-    this.unsub = undefined
-    if (this.refreshThrottleTimer !== null) {
-      window.clearTimeout(this.refreshThrottleTimer)
-      this.refreshThrottleTimer = null
-    }
+  private updateKpi(): void {
+    if (this.kpiStrip && this.state) this.kpiStrip.update(this.liveKpiItems(this.state))
+  }
+
+  /** RefApp tek aboneliğinden çağrılır: KPI + kart durumlarını canlı tazeler (DOM yeniden kurmadan). */
+  refresh(state: GameState): void {
+    this.state = state
+    this.updateKpi()
+    this.refreshProducerCards()
   }
 }
