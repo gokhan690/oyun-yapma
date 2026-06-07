@@ -80,7 +80,6 @@ export function installRefTestLauncher(state?: GameState): void {
   } as CSSStyleDeclaration)
 
   let overlay: HTMLElement | null = null
-  let app: RefApp | null = null
   let bodyOverflowPrev = ''
   let mo: MutationObserver | null = null
   let pollId: number | null = null
@@ -102,8 +101,9 @@ export function installRefTestLauncher(state?: GameState): void {
   }
 
   const close = (): void => {
-    app?.destroy()   // GameState aboneliklerini bırak (timebar + sayfalar)
-    app = null
+    if (overlay) {
+      ;(overlay as HTMLElement & { __refDestroy?: () => void }).__refDestroy?.()
+    }
     overlay?.remove()
     overlay = null
     document.body.style.overflow = bodyOverflowPrev
@@ -113,6 +113,8 @@ export function installRefTestLauncher(state?: GameState): void {
 
   const open = (): void => {
     if (overlay) return
+    // Oyun hazırsa tick'in çalıştığından emin ol (idempotent — yeni loop kurmaz).
+    if (state?.isIntroFlowReady()) state.startTick()
     overlay = document.createElement('div')
     overlay.id = 'ref-test-overlay'
     // Opak sky zemin → geniş ekran kenar boşluklarında bile ana oyun görünmez,
@@ -125,9 +127,11 @@ export function installRefTestLauncher(state?: GameState): void {
       overscrollBehavior: 'contain',
     } as CSSStyleDeclaration)
 
-    app = new RefApp({ initial: 'firms', onExit: close, data: buildData(), state: state ?? undefined })
+    const app = new RefApp({ initial: 'firms', onExit: close, data: buildData(), state: state ?? undefined })
     app.mount(overlay)
     document.body.appendChild(overlay)
+    // Kapandığında abonelikleri temizle (bellek sızıntısı önleme)
+    ;(overlay as HTMLElement & { __refDestroy?: () => void }).__refDestroy = () => app.destroy()
 
     // Arka plan (eski oyun) scroll'unu kilitle
     bodyOverflowPrev = document.body.style.overflow
@@ -146,7 +150,10 @@ export function installRefTestLauncher(state?: GameState): void {
       btn.style.display = 'none'
       return
     }
-    btn.style.display = gameBusy() ? 'none' : ''
+    // Launcher YALNIZCA intro akışı tamamlandığında görünür; aksi hâlde RefApp
+    // tick'i başlamamış bir oyun üzerine açılır → oyun saati donar.
+    const notReady = !!state && !state.isIntroFlowReady()
+    btn.style.display = (notReady || gameBusy()) ? 'none' : ''
   }
 
   syncVisibility()
