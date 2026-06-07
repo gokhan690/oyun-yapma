@@ -1,4 +1,4 @@
-import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, PER_DAY_INCOME_SCALE, type ProducerDef, type UpgradeDef } from './Economy'
+import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, type ProducerDef, type UpgradeDef } from './Economy'
 import { PRESTIGE_SHOP_ITEMS } from './PrestigeShop'
 import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, ipoThreshold, prestigeMultiplier } from './Prestige'
 import { getActiveSynergies, globalSynergyBonus, producerSynergyBonus } from './Synergies'
@@ -2097,8 +2097,7 @@ export class GameState {
   }
 
   incomePerDay(): number {
-    // dynastyPassiveIncome de gün-bazlı → gün hızı telafisiyle aynı ölçekte tutulur.
-    return PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0) + this.dynastyPassiveIncome * PER_DAY_INCOME_SCALE
+    return PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0) + this.dynastyPassiveIncome
   }
 
   /** Oyun günü bazlı pasif gelir; gerçek saniyeye çevrim GameClock üzerinden yapılır. */

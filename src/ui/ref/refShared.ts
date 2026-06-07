@@ -1,18 +1,20 @@
 import { assetUrl } from '../../utils/assetUrl'
+import { formatMoney } from '../../game/Economy'
 
 /** Base-path uyumlu asset yolu (baştaki / opsiyonel). */
 export function ua(p: string): string {
   return assetUrl(p.startsWith('/') ? p.slice(1) : p)
 }
 
-/** ₺ kısaltmalı para formatı. */
+/**
+ * ₺ kısaltmalı para formatı.
+ * TEK KAYNAK: eski oyunun formatMoney'sini birebir kullanır; RefApp'te görünen
+ * tüm para değerleri eski UI/ShopPanel ile aynı sayıyı (aynı ondalık/kısaltma)
+ * gösterir. Sadece başına ₺ önekini ekler.
+ */
 export function fmtMoney(n: number): string {
   const neg = n < 0 ? '-' : ''
-  const a = Math.abs(n)
-  if (a >= 1e9) return `${neg}₺${(a / 1e9).toFixed(1)}Mr`
-  if (a >= 1e6) return `${neg}₺${(a / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `${neg}₺${(a / 1e3).toFixed(0)}K`
-  return `${neg}₺${a}`
+  return `${neg}₺${formatMoney(Math.abs(n))}`
 }
 
 /** Yıldız satırı HTML'i. */
