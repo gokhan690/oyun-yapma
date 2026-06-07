@@ -36,7 +36,7 @@ export interface UpgradeDef {
 }
 
 export const PRODUCERS: ProducerDef[] = [
-  // BitLife maaş eğrisi: baseIncome ≈ günlük $ (12 sn = 1 oyun günü)
+  // BitLife maaş eğrisi: baseIncome ≈ günlük $ (6 sn = 1 oyun günü; PER_DAY_INCOME_SCALE telafisi uygulanır)
   { id: 'stajyer', name: 'Limonata Tezgahı', emoji: '🍋', description: 'Küçük ama cesur bir girişim.', tier: 1, unlockAt: 0, baseCost: 3, baseIncome: 3, costMultiplier: 1.18 },
   { id: 'robot', name: 'E-ticaret Sitesi', emoji: '🛒', description: 'Online satışlar başladı.', tier: 2, unlockAt: 5_000, baseCost: 580, baseIncome: 580, costMultiplier: 1.22 },
   { id: 'kafe', name: 'Kahve Zinciri', emoji: '☕', description: 'Her köşede bir şube.', tier: 2, unlockAt: 25_000, baseCost: 580, baseIncome: 580, costMultiplier: 1.22 },
@@ -299,6 +299,12 @@ export const ECONOMY_INCOME_SCALE = ECONOMY_COST_SCALE
 export const ECONOMY_BASE_INCOME_MULT = ECONOMY_BASE_COST_MULT * 1.35
 /** Gelir/maliyet oranı — 0.06: erken tier basan değer sorununu çözer, geri ödeme 0.13'ten hâlâ 2x uzun */
 export const ECONOMY_INCOME_RATIO = 0.01
+/**
+ * Gün hızı telafisi: 1 oyun günü 12 → 6 gerçek saniyeye indirildi (GameClock).
+ * Gün 2x hızlandığı için gelir/gün yarıya iner → saniye başına gerçek kazanç sabit kalır.
+ * Tek chokepoint: tüm producer geliri (display + pasif kredi) buradan ölçeklenir.
+ */
+export const PER_DAY_INCOME_SCALE = 0.5
 export const ECONOMY_UPGRADE_COST_SCALE = 1.45
 export const EARLY_UNLOCK_COST_SCALE = 1.65
 
@@ -339,7 +345,7 @@ export function scaledBaseIncome(baseIncome: number, def?: ProducerDef): number 
   const mult = def
     ? producerEconomyMult(def) * ECONOMY_INCOME_RATIO
     : ECONOMY_INCOME_SCALE * ECONOMY_BASE_INCOME_MULT * ECONOMY_INCOME_RATIO
-  return Math.max(1, Math.floor(baseIncome * mult))
+  return Math.max(1, Math.floor(baseIncome * mult * PER_DAY_INCOME_SCALE))
 }
 
 export function producerCostExtraMult(def: ProducerDef): number {
