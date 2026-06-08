@@ -125,6 +125,9 @@ export class RefApp {
           ev.type === 'money_changed'
           || ev.type === 'passive_income'
           || ev.type === 'game_time'
+          || ev.type === 'career_action'
+          || ev.type === 'career_wage'
+          || ev.type === 'career_phase_changed'
         ) this.scheduleRefresh(st)
       })
     }

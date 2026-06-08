@@ -240,10 +240,10 @@ export class RefCareerPage implements RefPage {
     const actions = document.createElement('div')
     actions.className = 'ref-action-grid'
     actions.innerHTML = c.actions.map((a) => `
-      <button class="ref-action-tile ref-action-tile--locked" type="button" disabled aria-disabled="true">
+      <button class="ref-action-tile ref-action-tile--locked${a.usedToday ? ' ref-action-tile--used' : ''}" type="button" disabled aria-disabled="true">
         <span class="ref-action-tile__ico">${a.ico}</span>
         <span class="ref-action-tile__lbl">${a.label}</span>
-        <span class="ref-action-tile__eff">${a.effect}</span>
+        <span class="ref-action-tile__eff">${a.usedToday ? 'Bugün yapıldı' : a.effect}</span>
       </button>
     `).join('')
     this.contentEl.appendChild(actions)
@@ -377,6 +377,17 @@ export class RefCareerPage implements RefPage {
 
     const actionsRem = q('[data-ref="actions-remaining"]')
     if (actionsRem) actionsRem.textContent = String(c.actionsRemaining)
+
+    const actionsGrid = this.contentEl.querySelector('.ref-action-grid')
+    if (actionsGrid) {
+      actionsGrid.innerHTML = c.actions.map((a) => `
+        <button class="ref-action-tile ref-action-tile--locked${a.usedToday ? ' ref-action-tile--used' : ''}" type="button" disabled aria-disabled="true">
+          <span class="ref-action-tile__ico">${a.ico}</span>
+          <span class="ref-action-tile__lbl">${a.label}</span>
+          <span class="ref-action-tile__eff">${a.usedToday ? 'Bugün yapıldı' : a.effect}</span>
+        </button>
+      `).join('')
+    }
 
     q('[data-ref="goal-cost"]')!.textContent = fmtMoney(c.firstBusinessGoal.costRequired)
     q('[data-ref="goal-money"]')!.textContent = fmtMoney(c.firstBusinessGoal.moneyCurrent)

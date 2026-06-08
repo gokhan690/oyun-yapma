@@ -141,6 +141,16 @@ import {
   migrateChildRecord,
 } from './Dynasty'
 import {
+  createCareerState,
+  applyCareerAction,
+  applyDailyWage,
+  FIRST_GOAL_TARGET,
+  type CareerState,
+  type CareerActionId,
+  type CareerJobId,
+  type CharacterBackgroundId,
+} from './Career'
+import {
   rollDailyMortality,
   totalDailyMortalityRisk,
   estimatedYearsRemaining,
@@ -616,6 +626,8 @@ export interface SerializableState {
   hobby?: HobbyState
   ageMilestonesShown?: number[]
   travel?: TravelState
+  career?: CareerState
+  characterBackground?: CharacterBackgroundId | null
 }
 
 export interface ProducerBreakdown {
@@ -712,6 +724,9 @@ export type GameEvent =
   | { type: 'friend_unlocked'; friendName: string; typeLabel: string }
   | { type: 'legacy_selected'; items: DynastyLegacyItemId[] }
   | { type: 'baron_legacy_card'; peakNetWorth: number; generation: number; ipoCount: number; reputation: number; legacyScore: number; publicTitle: string; publicEmoji: string }
+  | { type: 'career_action'; actionId: CareerActionId; money: number; levelUp: boolean }
+  | { type: 'career_wage'; amount: number }
+  | { type: 'career_phase_changed'; isEntrepreneur: boolean }
   | { type: 'age_milestone'; age: number; question: string }
   | { type: 'social_status_changed'; score: number; title: string }
 
@@ -809,6 +824,8 @@ export class GameState {
   playerSkills = createPlayerSkillsState()
   dailyRoutineDay = 0
   dailyRoutineUsed: string[] = []
+  career = createCareerState()
+  characterBackground: CharacterBackgroundId | null = null
   difficulty: 'easy' | 'normal' | 'hard' = 'normal'
   difficultyChosen = false
   isNight = isGameNight(0)
@@ -1882,6 +1899,7 @@ export class GameState {
     const day = gameDay(this.gameTimeMs)
     if (day === this.lastDynastyGameDay) return
     this.lastDynastyGameDay = day
+    this.tickCareerDailyWage(day)
     const metaReady = this.isMetaSystemsReady()
     syncEmpireFromProducers(this.empire, this.producers)
     const { matchBonus, election, matches } = tickEmpireDaily(this.empire, this.producers, this.gameTimeMs, gameYear(this.gameTimeMs))
@@ -4620,6 +4638,54 @@ export class GameState {
 
   dailyReadBonusUntilDay = 0
 
+  // ---- Kariyer (master port — C1+C3) ----
+
+  setCareerJob(jobId: CareerJobId): void {
+    this.career.jobId = jobId
+    this.career.isEntrepreneur = false
+    this.emit({ type: 'money_changed' })
+  }
+
+  hasCareerJob(): boolean {
+    return this.career.isEntrepreneur || this.career.jobId !== null
+  }
+
+  doCareerAction(actionId: CareerActionId): { money: number; levelUp: boolean } {
+    const day = gameDay(this.gameTimeMs)
+    const result = applyCareerAction(this.career, actionId, day)
+    if (result.money > 0) {
+      this.addMoney(result.money, false)
+    }
+    if (!this.career.firstGoalComplete && this.money >= FIRST_GOAL_TARGET) {
+      this.career.firstGoalComplete = true
+    }
+    this.emit({ type: 'career_action', actionId, money: result.money, levelUp: result.levelUp })
+    this.emit({ type: 'money_changed' })
+    return { money: result.money, levelUp: result.levelUp }
+  }
+
+  becomeEntrepreneur(): void {
+    if (this.financeNetWorth() < FIRST_GOAL_TARGET) return
+    const wasEntrepreneur = this.career.isEntrepreneur
+    this.career.isEntrepreneur = true
+    this.career.firstGoalComplete = true
+    if (!wasEntrepreneur) {
+      this.emit({ type: 'career_phase_changed', isEntrepreneur: true })
+    }
+    this.emit({ type: 'money_changed' })
+  }
+
+  private tickCareerDailyWage(day: number): void {
+    const wage = applyDailyWage(this.career, day)
+    if (wage > 0) {
+      this.addMoney(wage, true)
+      this.emit({ type: 'career_wage', amount: wage })
+      if (!this.career.firstGoalComplete && this.money >= FIRST_GOAL_TARGET) {
+        this.career.firstGoalComplete = true
+      }
+    }
+  }
+
   // ---- Eş Etkileşimi ----
   giveSpouseGift(): boolean {
     if (!this.dynasty.spouseId) return false
@@ -5467,6 +5533,8 @@ export class GameState {
       hobby: { ...this.hobby },
       ageMilestonesShown: [...this.ageMilestonesShown],
       travel: { ...this.travel },
+      career: { ...this.career, actionsUsedToday: [...this.career.actionsUsedToday] },
+      characterBackground: this.characterBackground,
       difficulty: this.difficulty,
       difficultyChosen: this.difficultyChosen,
       playerName: this.playerName,
@@ -5725,6 +5793,18 @@ export class GameState {
     this.ageMilestonesShown = data.ageMilestonesShown ?? []
     if (data.travel) {
       this.travel = { ...createTravelState(), ...data.travel }
+    }
+    if (data.career) {
+      this.career = {
+        ...createCareerState(),
+        ...data.career,
+        actionsUsedToday: [...(data.career.actionsUsedToday ?? [])],
+      }
+    } else {
+      this.career = createCareerState()
+    }
+    if (data.characterBackground !== undefined) {
+      this.characterBackground = data.characterBackground ?? null
     }
     this.difficulty = (['easy', 'normal', 'hard'] as const).includes(data.difficulty as 'easy' | 'normal' | 'hard')
       ? (data.difficulty as 'easy' | 'normal' | 'hard')

@@ -1610,6 +1610,7 @@
   min-height: 72px;
 }
 .ref-action-tile--locked:disabled { pointer-events: none; }
+.ref-action-tile--used { opacity: 0.55; }
 
 .ref-career-cta {
   display: flex; align-items: center; justify-content: center; gap: 8px;
