@@ -7,9 +7,11 @@ import {
   PRODUCER_CHIP_TABS,
   REF_NORMAL_PRODUCERS,
   REF_EMPIRE_PRODUCERS,
+  REF_BUY_MODES,
   producerCardSnap,
   producerChipCategory,
   producerChipLabel,
+  type RefBuyMode,
   producerDetailTrend,
   producerDetailSatisfaction,
   starsHtml,
@@ -105,6 +107,8 @@ export class RefFirmsPage implements RefPage {
   private kpiStrip?: RefKpiStrip
   private detailOverlay?: HTMLElement
   private openDetailId: string | null = null
+  private buyMode: RefBuyMode = 1
+  private buyModeBtns = new Map<RefBuyMode, HTMLButtonElement>()
 
   private firms?: FirmData[]
   private state?: GameState
@@ -199,6 +203,7 @@ export class RefFirmsPage implements RefPage {
     wrap.className = 'ref-live-biz'
 
     wrap.appendChild(this.buildLiveCatTabs())
+    wrap.appendChild(this.buildBuyModeSelector())
 
     this.summaryEl = document.createElement('div')
     this.summaryEl.className = 'ref-summary-strip'
@@ -240,6 +245,51 @@ export class RefFirmsPage implements RefPage {
     this.applyLiveCategoryFilter()
   }
 
+  private buildBuyModeSelector(): HTMLElement {
+    const wrap = document.createElement('div')
+    wrap.className = 'ref-buy-modes-wrap'
+    const label = document.createElement('span')
+    label.className = 'ref-buy-modes-lbl'
+    label.textContent = 'Satın alma'
+    const row = document.createElement('div')
+    row.className = 'ref-buy-modes'
+    for (const { mode, label: lbl } of REF_BUY_MODES) {
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'ref-buy-mode-btn' + (mode === this.buyMode ? ' active' : '')
+      btn.dataset.mode = String(mode)
+      btn.textContent = lbl
+      btn.addEventListener('click', () => this.setBuyMode(mode))
+      this.buyModeBtns.set(mode, btn)
+      row.appendChild(btn)
+    }
+    wrap.append(label, row)
+    return wrap
+  }
+
+  private setBuyMode(mode: RefBuyMode): void {
+    if (this.buyMode === mode) return
+    this.buyMode = mode
+    this.buyModeBtns.forEach((btn, key) => btn.classList.toggle('active', key === mode))
+    this.refreshProducerCards()
+    if (this.openDetailId && this.state) {
+      const def = NORMAL_PRODUCERS.find((p) => p.id === this.openDetailId)
+      if (def) this.paintProducerDetail(def, this.state)
+    }
+  }
+
+  private executeProducerBuy(def: ProducerDef): boolean {
+    if (!this.state || def.category) return false
+    const snap = producerCardSnap(def, this.state, this.buyMode)
+    if (!snap.canBuy || snap.purchaseCount <= 0) return false
+    if (this.buyMode === 'max') return this.state.buyMaxProducer(def.id) > 0
+    return this.state.buyProducer(def.id, snap.purchaseCount)
+  }
+
+  private buyModeLabel(): string {
+    return REF_BUY_MODES.find((m) => m.mode === this.buyMode)?.label ?? '1x'
+  }
+
   private applyLiveCategoryFilter(): void {
     for (const [, card] of this.producerCards) {
       const chip = card.dataset.chip ?? ''
@@ -266,10 +316,10 @@ export class RefFirmsPage implements RefPage {
   }
 
   private paintProducerCard(card: HTMLElement, def: ProducerDef, s: GameState): void {
-    const snap = producerCardSnap(def, s)
+    const snap = producerCardSnap(def, s, this.buyMode)
     const visual = producerVisual(def)
     const chipLabel = producerChipLabel(snap.chip)
-    const buyLabel = snap.owned > 0 ? '+1 AL' : 'SATIN AL'
+    const buyLabel = snap.buyCount > 1 ? `×${snap.buyCount} AL` : snap.owned > 0 ? '+1 AL' : 'SATIN AL'
 
     card.className = `ref-live-firm-card ref-firm-card ref-firm-card--premium state-${snap.stateClass}`
     card.dataset.chip = snap.chip
@@ -312,11 +362,11 @@ export class RefFirmsPage implements RefPage {
           ${riskHtml}
           <div class="ref-live-econ-row">
             <div class="ref-live-econ ref-live-econ--income">
-              <span class="ref-live-econ-lbl">Günlük +1</span>
+              <span class="ref-live-econ-lbl">Günlük +${snap.buyCount}</span>
               <span class="ref-live-econ-val">${snap.marginalIncomeText}</span>
             </div>
             <div class="ref-live-econ ref-live-econ--cost">
-              <span class="ref-live-econ-lbl">Sonraki maliyet</span>
+              <span class="ref-live-econ-lbl">${snap.buyCount > 1 ? 'Toplu maliyet' : 'Sonraki maliyet'}</span>
               <span class="ref-live-econ-val">${snap.costText}</span>
             </div>
           </div>
@@ -343,9 +393,11 @@ export class RefFirmsPage implements RefPage {
       if (!id) return
       const def = NORMAL_PRODUCERS.find((p) => p.id === id)
       if (!def) return
-      const ok = this.state.buyProducer(id, 1)
+      const snap = producerCardSnap(def, this.state, this.buyMode)
+      const ok = this.executeProducerBuy(def)
       if (ok) {
-        refToast(`${def.emoji} ${def.name} alındı`, 'ok')
+        const qty = snap.purchaseCount > 1 ? ` ×${snap.purchaseCount}` : ''
+        refToast(`${def.emoji} ${def.name}${qty} alındı`, 'ok')
         this.refreshProducerCards()
         if (this.openDetailId === id) this.paintProducerDetail(def, this.state)
       } else {
@@ -376,9 +428,10 @@ export class RefFirmsPage implements RefPage {
 
   private paintProducerDetail(def: ProducerDef, s: GameState): void {
     if (!this.detailOverlay) return
-    const snap = producerCardSnap(def, s)
+    const snap = producerCardSnap(def, s, this.buyMode)
     const visual = producerVisual(def)
     const chipLabel = producerChipLabel(snap.chip)
+    const modeLbl = this.buyModeLabel()
     const heroSrc = ua(getBusinessHero(visual.assetKey))
     const trend = producerDetailTrend(def, snap.perfPct)
     const satisfaction = producerDetailSatisfaction(snap.perfPct)
@@ -409,8 +462,9 @@ export class RefFirmsPage implements RefPage {
           </div>
           ${def.illegal ? `<div class="ref-risk-bar ref-detail-risk"><span>⚠️</span> Riskli işletme</div>` : ''}
           ${!snap.unlocked ? `<div class="ref-live-lock-foot ref-detail-lock"><span class="ref-live-lock-ico">🔒</span><span>${snap.lockReason ?? 'Kilitli'}</span></div>` : ''}
+          <div class="ref-buy-mode-pill ref-detail-buy-mode">${modeLbl} modu</div>
           <div class="ref-detail-net ref-producer-detail-net">
-            <span class="ref-detail-net__lbl">Günlük +1 Gelir</span>
+            <span class="ref-detail-net__lbl">Günlük +${snap.buyCount} Gelir</span>
             <span class="ref-detail-net__val income">${snap.marginalIncomeText}</span>
           </div>
           <div class="ref-detail-stats ref-producer-detail-stats">
@@ -419,7 +473,7 @@ export class RefFirmsPage implements RefPage {
               <span class="ref-stat-val income">${snap.totalIncomeText ?? '—'}</span>
             </div>
             <div class="ref-detail-stat">
-              <span class="ref-stat-lbl">Sonraki Maliyet</span>
+              <span class="ref-stat-lbl">${snap.buyCount > 1 ? 'Toplu Maliyet' : 'Sonraki Maliyet'}</span>
               <span class="ref-stat-val expense">${snap.costText}</span>
             </div>
             <div class="ref-detail-stat">
@@ -477,8 +531,8 @@ export class RefFirmsPage implements RefPage {
             ${isEmpire
               ? `<button class="ref-btn develop disabled" type="button" disabled>👑 İmparatorluk · önizleme</button>`
               : snap.canBuy
-                ? `<button class="ref-btn develop" type="button" data-action="detail-buy">SATIN AL · ${snap.costText}</button>`
-                : `<button class="ref-btn develop disabled" type="button" disabled>${snap.unlocked ? 'Para Yetersiz' : 'Kilitli'}</button>`}
+                ? `<button class="ref-btn develop" type="button" data-action="detail-buy">${snap.buyCount > 1 ? `×${snap.buyCount} AL` : 'SATIN AL'} · ${snap.costText}</button>`
+                : `<button class="ref-btn develop disabled" type="button" disabled>${snap.unlocked ? (this.buyMode === 'max' && snap.purchaseCount <= 0 ? 'Max 0' : 'Para Yetersiz') : 'Kilitli'}</button>`}
             <button class="ref-btn modernize disabled" type="button" disabled>⚙️ MODERNİZE</button>
             <button class="ref-btn manager disabled" type="button" disabled>👤 MANAGER</button>
           </div>
@@ -495,9 +549,11 @@ export class RefFirmsPage implements RefPage {
 
     this.detailOverlay.querySelector<HTMLButtonElement>('[data-action="detail-buy"]')?.addEventListener('click', () => {
       if (!this.state || def.category) return
-      const ok = this.state.buyProducer(def.id, 1)
+      const snapNow = producerCardSnap(def, this.state, this.buyMode)
+      const ok = this.executeProducerBuy(def)
       if (ok) {
-        refToast(`${visual.emoji} ${def.name} alındı`, 'ok')
+        const qty = snapNow.purchaseCount > 1 ? ` ×${snapNow.purchaseCount}` : ''
+        refToast(`${visual.emoji} ${def.name}${qty} alındı`, 'ok')
         this.refreshProducerCards()
         this.paintProducerDetail(def, this.state)
         this.updateKpi()

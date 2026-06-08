@@ -2298,3 +2298,67 @@
   .ref-kpi-strip { padding-left: 12px; padding-right: 12px; }
   .ref-cards-list { padding-left: 12px; padding-right: 12px; }
 }
+
+/* ===== B3 — Toplu satın alma modu (ShopPanel buy-modes uyumlu) ===== */
+.ref-buy-modes-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px 6px;
+  max-width: 100%;
+  min-width: 0;
+}
+.ref-buy-modes-lbl {
+  flex-shrink: 0;
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--r-muted);
+}
+.ref-buy-modes {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+.ref-buy-mode-btn {
+  min-height: 34px;
+  padding: 6px 4px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--r-text2);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s, border-color 0.14s, box-shadow 0.14s;
+  touch-action: manipulation;
+}
+.ref-buy-mode-btn.active {
+  background: linear-gradient(180deg, #2fd0c0 0%, var(--r-teal-dk) 100%);
+  color: #fff;
+  border-color: var(--r-teal-dk);
+  box-shadow: 0 3px 10px rgba(19, 184, 166, 0.32);
+}
+.ref-buy-mode-btn:active { transform: scale(0.97); }
+.ref-buy-mode-pill {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--r-teal-dk);
+  background: var(--r-teal-lt);
+  border: 1px solid rgba(19, 184, 166, 0.28);
+  border-radius: var(--r-pill);
+  padding: 3px 10px;
+}
+.ref-detail-buy-mode { margin-left: 0; }
+
+@media (max-width: 429px) {
+  .ref-buy-modes-wrap { padding-left: 12px; padding-right: 12px; gap: 6px; }
+  .ref-buy-modes-lbl { display: none; }
+  .ref-buy-mode-btn { font-size: 10px; min-height: 32px; }
+}

@@ -116,6 +116,16 @@ export function producerChipLabel(chip: Exclude<ProducerChipKey, 'tumu'>): strin
   return PRODUCER_CHIP_TABS.find((t) => t.id === chip)?.label ?? chip
 }
 
+/** ShopPanel BuyMode ile aynı: 1 / 10 / 100 / max */
+export type RefBuyMode = 1 | 10 | 100 | 'max'
+
+export const REF_BUY_MODES: { mode: RefBuyMode; label: string }[] = [
+  { mode: 1, label: '1x' },
+  { mode: 10, label: '10x' },
+  { mode: 100, label: '100x' },
+  { mode: 'max', label: 'Max' },
+]
+
 export type ProducerCardState = 'owned' | 'available' | 'no-cash' | 'locked'
 
 export interface ProducerCardSnap {
@@ -129,7 +139,11 @@ export interface ProducerCardSnap {
   cost: number
   costText: string
   canBuy: boolean
-  /** ShopPanel updateBusinessCard ile aynı: marginalProducerIncome(def, 1) */
+  /** Seçili moddaki toplu alım adedi (gösterim) */
+  buyCount: number
+  /** Satın alma tıklanınca kullanılacak adet (max → countMaxAffordable) */
+  purchaseCount: number
+  /** ShopPanel updateBusinessCard ile aynı: marginalProducerIncome(def, buyCount) */
   marginalIncome: number
   marginalIncomeText: string
   /** Sahip olunca toplam pasif gelir (producerIncome) */
@@ -152,13 +166,38 @@ export function shopPanelProducerCost(s: GameState, def: ProducerDef, count = 1)
   return s.producerCostFor(def, owned, count)
 }
 
-export function producerCardSnap(def: ProducerDef, s: GameState): ProducerCardSnap {
+/** ShopPanel updateBusinessCard buyCount mantığı — max için countMaxAffordable. */
+export function resolveRefBuyCount(
+  s: GameState,
+  def: ProducerDef,
+  mode: RefBuyMode,
+): { affordableCount: number; buyCount: number; purchaseCount: number } {
+  if (mode === 'max') {
+    const affordableCount = s.countMaxAffordable(def.id)
+    const buyCount = Math.max(1, affordableCount)
+    return {
+      affordableCount,
+      buyCount,
+      purchaseCount: affordableCount >= 1 ? affordableCount : 0,
+    }
+  }
+  const buyCount = mode
+  return { affordableCount: buyCount, buyCount, purchaseCount: buyCount }
+}
+
+export function producerCardSnap(def: ProducerDef, s: GameState, buyMode: RefBuyMode = 1): ProducerCardSnap {
   const owned = s.producers[def.id] ?? 0
   const unlocked = isProducerUnlocked(def, s.totalEarned, s.forcedUnlocks, s.ipoCount)
-  const cost = shopPanelProducerCost(s, def, 1)
-  const canBuy = unlocked && s.money >= cost
-  const marginalIncome = shopPanelMarginalIncome(s, def, 1)
-  const marginalIncomeText = `+${formatIncomeRate(marginalIncome)}`
+  const { affordableCount, buyCount, purchaseCount } = resolveRefBuyCount(s, def, buyMode)
+  const cost = shopPanelProducerCost(s, def, buyCount)
+  const canBuy = unlocked && affordableCount >= 1 && s.canAfford(cost)
+  const marginalIncome = shopPanelMarginalIncome(s, def, buyCount)
+  const marginalIncomeText = buyCount > 1
+    ? `+${formatIncomeRate(marginalIncome)} (${buyCount} ad.)`
+    : `+${formatIncomeRate(marginalIncome)}`
+  const costText = buyMode === 'max' && affordableCount > 1
+    ? `${formatMoney(cost)} (${affordableCount} ad.)`
+    : formatMoney(cost)
   const totalIncome = owned > 0 ? s.producerIncome(def) : 0
   const totalIncomeText = owned > 0 ? formatIncomeRate(totalIncome) : null
 
@@ -213,8 +252,10 @@ export function producerCardSnap(def: ProducerDef, s: GameState): ProducerCardSn
     owned,
     unlocked,
     cost,
-    costText: formatMoney(cost),
+    costText,
     canBuy,
+    buyCount,
+    purchaseCount: canBuy ? purchaseCount : 0,
     marginalIncome,
     marginalIncomeText,
     totalIncome,
