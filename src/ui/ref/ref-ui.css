@@ -303,7 +303,9 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  padding: 10px 14px 6px;
+  padding: 10px 12px 6px;
+  max-width: 100%;
+  overflow: hidden;
 }
 .ref-kpi-strip::-webkit-scrollbar { display: none; }
 
@@ -331,11 +333,15 @@
 }
 
 .ref-kpi-value {
-  font-size: 17px;
+  font-size: clamp(14px, 4.1vw, 17px);
   font-weight: 900;
   color: var(--r-text);
-  line-height: 1;
+  line-height: 1.1;
   margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .ref-kpi-sub {
@@ -350,16 +356,38 @@
 .ref-kpi-sub.down { color: var(--r-danger); }
 .ref-kpi-sub.muted{ color: var(--r-muted); }
 
-/* ── Category Tabs (bilinçli yatay scroll + sağ kenar fade) ── */
+/* ── Category Tabs (bilinçli yatay scroll + kenar fade) ── */
+.ref-cat-tabs-wrap {
+  position: relative;
+  max-width: 100%;
+  overflow: hidden;
+}
+.ref-cat-tabs-wrap::before,
+.ref-cat-tabs-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 18px;
+  z-index: 2;
+  pointer-events: none;
+}
+.ref-cat-tabs-wrap::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--r-sky-low) 0%, transparent 100%);
+}
+.ref-cat-tabs-wrap::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--r-sky-low) 0%, transparent 100%);
+}
 .ref-cat-tabs {
   display: flex;
   gap: 6px;
-  padding: 6px 34px 8px 14px;
+  padding: 6px 16px 8px;
   overflow-x: auto;
   scrollbar-width: none;
   scroll-snap-type: x proximity;
-  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 34px), transparent 100%);
-          mask-image: linear-gradient(90deg, #000 calc(100% - 34px), transparent 100%);
+  -webkit-overflow-scrolling: touch;
 }
 .ref-cat-tabs::-webkit-scrollbar { display: none; }
 
@@ -2046,3 +2074,227 @@
 .ref-ipo-card__row b.ready { color: var(--r-success); }
 .ref-ipo-card .ref-perf-track { margin: 2px 0 5px; }
 .ref-ipo-card__meta { font-size: 10.5px; font-weight: 700; color: var(--r-muted); text-align: right; }
+
+/* ===== B2 — Firmalar & Firma Detay polish ===== */
+.ref-firms-page {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.ref-firm-card--premium {
+  position: relative;
+  background: linear-gradient(135deg, #fffdf8 0%, #fff7e6 100%);
+  border: 1.5px solid var(--r-border-gold);
+  box-shadow: 0 4px 18px rgba(0, 60, 80, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+.ref-firm-card--premium:active { transform: scale(0.992); }
+.ref-firm-card--premium.state-available {
+  border-color: rgba(19, 184, 166, 0.55);
+  box-shadow: 0 4px 16px rgba(19, 184, 166, 0.14);
+}
+.ref-firm-card--premium.state-owned {
+  border-color: rgba(246, 200, 76, 0.65);
+  background: linear-gradient(135deg, #fffef6 0%, #fff4d8 100%);
+}
+.ref-firm-card--premium.state-locked {
+  opacity: 0.78;
+  filter: saturate(0.88);
+}
+.ref-firm-card--premium.state-no-cash {
+  border-color: rgba(255, 155, 54, 0.45);
+}
+
+.ref-firm-card__tone-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: var(--r-lg) 0 0 var(--r-lg);
+  opacity: 0.85;
+}
+.ref-tone-accent-gida { background: linear-gradient(180deg, #ffd080, #e8a030); }
+.ref-tone-accent-hizmet { background: linear-gradient(180deg, #a8cff5, #5096dc); }
+.ref-tone-accent-teknoloji { background: linear-gradient(180deg, #b8a0f0, #785adc); }
+.ref-tone-accent-finans { background: linear-gradient(180deg, #e8c860, #c98512); }
+.ref-tone-accent-turizm { background: linear-gradient(180deg, #7ec8e8, #3a9cc8); }
+.ref-tone-accent-medya { background: linear-gradient(180deg, #f0a0c8, #d06098); }
+.ref-tone-accent-sanayi { background: linear-gradient(180deg, #b0b8c8, #687888); }
+.ref-tone-accent-lojistik { background: linear-gradient(180deg, #80d8a8, #38a868); }
+.ref-tone-accent-luks { background: linear-gradient(180deg, #d8a0e8, #a060c8); }
+.ref-tone-accent-riskli { background: linear-gradient(180deg, #e87878, #c04040); }
+.ref-tone-accent-sport { background: linear-gradient(180deg, #5cc87a, #289850); }
+.ref-tone-accent-politics { background: linear-gradient(180deg, #a890d8, #6850a8); }
+.ref-tone-accent-science { background: linear-gradient(180deg, #70c0e8, #3090c0); }
+
+.ref-firm-top--premium { align-items: center; gap: 11px; }
+.ref-firm-icon-slot .ref-firm-icon {
+  width: 58px;
+  height: 58px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16), inset 0 0 0 2px rgba(255, 255, 255, 0.65);
+}
+.ref-firm-icon-slot .ref-firm-emoji { font-size: 30px; }
+.ref-firm-icon-slot .ref-firm-badge-img { width: 22px; height: 22px; }
+
+.ref-firm-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+.ref-firm-chevron {
+  flex-shrink: 0;
+  font-size: 22px;
+  font-weight: 300;
+  color: var(--r-muted-lt);
+  line-height: 1;
+  margin-left: auto;
+  padding-left: 4px;
+}
+.ref-live-owned-empty {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--r-muted-lt);
+}
+
+.ref-live-econ-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+.ref-live-econ {
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.ref-live-econ--income {
+  background: rgba(40, 199, 111, 0.1);
+  border: 1px solid rgba(40, 199, 111, 0.22);
+}
+.ref-live-econ--cost {
+  background: rgba(255, 155, 54, 0.1);
+  border: 1px solid rgba(255, 155, 54, 0.22);
+}
+.ref-live-econ-lbl {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--r-muted);
+}
+.ref-live-econ-val {
+  font-size: 13.5px;
+  font-weight: 900;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ref-live-econ--income .ref-live-econ-val { color: var(--r-success); }
+.ref-live-econ--cost .ref-live-econ-val { color: var(--r-orange-dk); }
+
+.ref-perf--slim { margin-top: 8px; }
+.ref-perf--slim .ref-perf-track { height: 5px; }
+.ref-risk-bar--sm { margin-top: 6px; font-size: 10px; padding: 5px 8px; }
+
+.ref-empire-card.ref-firm-card--premium {
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+}
+.ref-empire-card .ref-empire-card__head {
+  padding: 11px 12px 6px;
+  margin-bottom: 0;
+  align-items: center;
+}
+.ref-empire-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+.ref-empire-econ { padding: 0 12px 8px; }
+.ref-empire-total { margin: 0 12px 8px; }
+.ref-empire-card__foot {
+  padding: 6px 12px 10px;
+  justify-content: flex-start;
+}
+.ref-empire-preview-tag {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: var(--r-muted);
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: var(--r-pill);
+  padding: 4px 10px;
+}
+
+/* Producer detail overlay (canlı veri) */
+.ref-producer-detail {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  max-width: 430px;
+  margin: 0 auto;
+  background: var(--r-sky-base);
+  overflow: hidden;
+}
+.ref-producer-detail[hidden] { display: none !important; }
+.ref-producer-detail__scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.ref-producer-detail__scroll::-webkit-scrollbar { display: none; }
+
+.ref-producer-detail-hero {
+  min-height: 200px;
+}
+.ref-producer-detail-hero__icon {
+  position: absolute;
+  left: 50%;
+  bottom: 52px;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+.ref-producer-detail-hero__icon .ref-firm-icon {
+  width: 76px;
+  height: 76px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+}
+.ref-producer-detail-hero__icon .ref-firm-emoji { font-size: 38px; }
+.ref-producer-detail-body { padding-bottom: calc(var(--r-nav-h) + env(safe-area-inset-bottom, 0px) + 28px) !important; }
+.ref-producer-detail-net .ref-detail-net__val.income { color: #c8ffe6; }
+.ref-producer-detail-stats .ref-stat-val.income { color: var(--r-success); }
+.ref-producer-detail-stats .ref-stat-val.expense { color: var(--r-orange-dk); }
+.ref-detail-lock { margin-bottom: 10px; }
+
+.ref-tone-hero-gida .ref-detail-hero__scrim { background: linear-gradient(180deg, rgba(40, 30, 10, 0.15) 0%, rgba(20, 10, 0, 0.72) 100%); }
+.ref-tone-hero-teknoloji .ref-detail-hero__scrim { background: linear-gradient(180deg, rgba(30, 20, 60, 0.2) 0%, rgba(10, 10, 40, 0.75) 100%); }
+.ref-tone-hero-finans .ref-detail-hero__scrim { background: linear-gradient(180deg, rgba(60, 40, 0, 0.15) 0%, rgba(30, 20, 0, 0.72) 100%); }
+.ref-tone-hero-riskli .ref-detail-hero__scrim { background: linear-gradient(180deg, rgba(60, 10, 10, 0.2) 0%, rgba(40, 0, 0, 0.75) 100%); }
+
+@media (max-width: 429px) {
+  .ref-kpi-label { font-size: 8px; letter-spacing: 0.4px; }
+  .ref-cat-tab { padding: 6px 11px; font-size: 11px; }
+  .ref-firm-icon-slot .ref-firm-icon { width: 54px; height: 54px; }
+  .ref-firm-icon-slot .ref-firm-emoji { font-size: 28px; }
+  .ref-live-econ-val { font-size: 12.5px; }
+  .ref-live-buy-btn { min-height: 44px; font-size: 12px; }
+  .ref-firm-chevron { font-size: 20px; }
+}
+
+@media (min-width: 390px) and (max-width: 430px) {
+  .ref-kpi-strip { padding-left: 12px; padding-right: 12px; }
+  .ref-cards-list { padding-left: 12px; padding-right: 12px; }
+}

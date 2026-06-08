@@ -239,6 +239,31 @@ export function starsHtml(count: number, max = 5): string {
   ).join('')
 }
 
+function producerHash(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return h
+}
+
+/** Firma detay gelir trendi — gerçek geçmiş yok, firmaya özgü deterministik tahmin. */
+export function producerDetailTrend(def: ProducerDef, growthHint = 8): number[] {
+  let s = producerHash(def.id) || 1
+  const rnd = (): number => { s = (s * 1103515245 + 12345) & 0x7fffffff; return (s >>> 8) / (1 << 23) }
+  const slope = 0.55 + Math.min(1.4, growthHint / 12)
+  const out: number[] = []
+  let base = 34 + (producerHash(def.id) % 16)
+  for (let i = 0; i < 14; i++) {
+    base += slope + (rnd() - 0.4) * 4.5
+    out.push(+Math.max(10, base).toFixed(1))
+  }
+  return out
+}
+
+/** Performanstan türetilmiş memnuniyet tahmini (ölçüm yok). */
+export function producerDetailSatisfaction(perfPct: number): number {
+  return Math.min(96, Math.max(28, perfPct + 14))
+}
+
 /** Kısa süreli bildirim (satın alma başarı/başarısızlık geri bildirimi). */
 let refToastEl: HTMLElement | null = null
 let refToastTimer: number | null = null

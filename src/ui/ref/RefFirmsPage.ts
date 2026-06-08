@@ -3,14 +3,22 @@ import { RefCard, type FirmData } from './RefCard'
 import {
   fmtMoney,
   refToast,
+  ua,
   PRODUCER_CHIP_TABS,
   REF_NORMAL_PRODUCERS,
   REF_EMPIRE_PRODUCERS,
   producerCardSnap,
+  producerChipCategory,
   producerChipLabel,
+  producerDetailTrend,
+  producerDetailSatisfaction,
   starsHtml,
+  areaChartSvg,
+  gaugeSvg,
+  donutSvg,
   type ProducerChipKey,
 } from './refShared'
+import { REF_ASSETS_V2_GENERIC, getBusinessHero } from './refAssetsV2Generic'
 import { producerVisual, renderProducerIconHtml } from './producerVisual'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
@@ -60,6 +68,20 @@ const EMPIRE_PRODUCER_FILTER: Record<EmpireTab, (p: ProducerDef) => boolean> = {
 
 type MainTab = 'normal' | 'empire'
 
+const DETAIL_EXPENSE_SPLIT = [
+  { label: 'Personel', value: 42, color: '#2563EB' },
+  { label: 'Tedarik', value: 31, color: '#F6A609' },
+  { label: 'Kira', value: 18, color: '#13B8A6' },
+  { label: 'Diğer', value: 9, color: '#94B4C2' },
+]
+
+const DETAIL_UPGRADE_TILES = [
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.quality, label: 'Kalite', mult: 0.6 },
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.marketing, label: 'Pazarlama', mult: 1.0 },
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.staffTraining, label: 'Eğitim', mult: 1.6 },
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.automation, label: 'Otomasyon', mult: 2.4 },
+]
+
 export class RefFirmsPage implements RefPage {
   readonly el: HTMLElement
   readonly title = 'FİRMALAR'
@@ -81,6 +103,8 @@ export class RefFirmsPage implements RefPage {
   private producerCards = new Map<string, HTMLElement>()
   private summaryEl?: HTMLElement
   private kpiStrip?: RefKpiStrip
+  private detailOverlay?: HTMLElement
+  private openDetailId: string | null = null
 
   private firms?: FirmData[]
   private state?: GameState
@@ -113,6 +137,16 @@ export class RefFirmsPage implements RefPage {
     empire.style.display = 'none'
     empire.appendChild(this.buildEmpireSection())
     this.el.appendChild(empire)
+
+    if (this.state) {
+      this.detailOverlay = document.createElement('div')
+      this.detailOverlay.className = 'ref-producer-detail'
+      this.detailOverlay.hidden = true
+      this.detailOverlay.addEventListener('click', (e) => {
+        if ((e.target as HTMLElement).closest('.ref-detail-back')) this.closeProducerDetail()
+      })
+      this.el.appendChild(this.detailOverlay)
+    }
   }
 
   private buildKpi(): HTMLElement {
@@ -182,6 +216,8 @@ export class RefFirmsPage implements RefPage {
   }
 
   private buildLiveCatTabs(): HTMLElement {
+    const outer = document.createElement('div')
+    outer.className = 'ref-cat-tabs-wrap'
     const wrap = document.createElement('div')
     wrap.className = 'ref-cat-tabs'
     for (const cat of PRODUCER_CHIP_TABS) {
@@ -194,7 +230,8 @@ export class RefFirmsPage implements RefPage {
       this.liveCatBtns.set(cat.id, btn)
       wrap.appendChild(btn)
     }
-    return wrap
+    outer.appendChild(wrap)
+    return outer
   }
 
   private setLiveCategory(id: ProducerChipKey): void {
@@ -221,6 +258,7 @@ export class RefFirmsPage implements RefPage {
       const card = document.createElement('div')
       card.className = 'ref-live-firm-card ref-firm-card'
       card.dataset.id = def.id
+      card.dataset.producerId = def.id
       this.producerCardsContainer.appendChild(card)
       this.producerCards.set(def.id, card)
       this.paintProducerCard(card, def, s)
@@ -232,11 +270,11 @@ export class RefFirmsPage implements RefPage {
     const visual = producerVisual(def)
     const chipLabel = producerChipLabel(snap.chip)
     const buyLabel = snap.owned > 0 ? '+1 AL' : 'SATIN AL'
-    const perfLabel = snap.state === 'locked' ? 'Kilidi Açma' : 'Performans'
 
-    card.className = `ref-live-firm-card ref-firm-card state-${snap.stateClass}`
+    card.className = `ref-live-firm-card ref-firm-card ref-firm-card--premium state-${snap.stateClass}`
     card.dataset.chip = snap.chip
     card.dataset.state = snap.state
+    card.dataset.tone = visual.tone
 
     const buyHtml = !snap.unlocked
       ? `<div class="ref-live-lock-foot"><span class="ref-live-lock-ico">🔒</span><span>${snap.lockReason ?? 'Kilitli'}</span></div>`
@@ -245,59 +283,49 @@ export class RefFirmsPage implements RefPage {
         : `<button type="button" class="ref-live-buy-btn disabled" disabled>Para Yetersiz<small>${snap.costText}</small></button>`
 
     const riskHtml = def.illegal
-      ? `<div class="ref-risk-bar"><span>⚠️</span> Riskli işletme${snap.owned > 0 ? ' · Isı takibi gerekli' : ''}</div>`
+      ? `<div class="ref-risk-bar ref-risk-bar--sm"><span>⚠️</span> Riskli${snap.owned > 0 ? ' · Isı takibi' : ''}</div>`
       : ''
 
-    const totalIncomeRow = snap.totalIncomeText
-      ? `<div class="ref-live-total-income"><span>Toplam pasif</span><strong>${snap.totalIncomeText}</strong></div>`
-      : ''
+    const ownedHtml = snap.owned > 0
+      ? `<span class="ref-live-owned-pill">×${snap.owned}</span>`
+      : `<span class="ref-live-owned-empty">Sahip değil</span>`
 
     card.innerHTML = `
+      <div class="ref-firm-card__tone-accent ref-tone-accent-${visual.tone}"></div>
       <div class="ref-firm-card__body ref-live-firm-body">
         <div class="ref-firm-card__info">
-          <div class="ref-firm-top">
-            ${renderProducerIconHtml(visual)}
+          <div class="ref-firm-top ref-firm-top--premium">
+            <div class="ref-firm-icon-slot">${renderProducerIconHtml(visual)}</div>
             <div class="ref-firm-head">
               <div class="ref-firm-namebar">
                 <span class="ref-firm-name">${def.name}</span>
                 <span class="ref-firm-badge ${snap.badgeCls}">${snap.badge}</span>
               </div>
-              <div class="ref-firm-level">
-                <span class="ref-level-txt">Kademe T${def.tier}</span>
-                ${snap.owned > 0 ? `<span class="ref-live-owned-pill">×${snap.owned}</span>` : ''}
-                <div class="ref-stars">${starsHtml(snap.stars)}</div>
+              <div class="ref-firm-meta">
+                <span class="ref-live-cat-chip">${chipLabel}</span>
+                <span class="ref-level-txt">T${def.tier}</span>
+                ${ownedHtml}
               </div>
-              <span class="ref-live-cat-chip">${chipLabel}</span>
             </div>
+            <span class="ref-firm-chevron" aria-hidden="true">›</span>
           </div>
           ${riskHtml}
-          <div class="ref-firm-stats">
-            <div class="ref-stat">
-              <span class="ref-stat-lbl">Pasif Gelir (+1)</span>
-              <span class="ref-stat-val income">${snap.marginalIncomeText}</span>
+          <div class="ref-live-econ-row">
+            <div class="ref-live-econ ref-live-econ--income">
+              <span class="ref-live-econ-lbl">Günlük +1</span>
+              <span class="ref-live-econ-val">${snap.marginalIncomeText}</span>
             </div>
-            <div class="ref-stat">
-              <span class="ref-stat-lbl">Maliyet</span>
-              <span class="ref-stat-val expense">${snap.costText}</span>
-            </div>
-            <div class="ref-stat">
-              <span class="ref-stat-lbl">Adet</span>
-              <span class="ref-stat-val">${snap.owned > 0 ? snap.owned : '—'}</span>
-            </div>
-            <div class="ref-stat">
-              <span class="ref-stat-lbl">Durum</span>
-              <span class="ref-stat-val growth">${snap.unlocked ? (snap.canBuy ? '✓ Uygun' : '⏳ Bekle') : '🔒 Kilit'}</span>
+            <div class="ref-live-econ ref-live-econ--cost">
+              <span class="ref-live-econ-lbl">Sonraki maliyet</span>
+              <span class="ref-live-econ-val">${snap.costText}</span>
             </div>
           </div>
-          ${totalIncomeRow}
-          <div class="ref-perf">
-            <div class="ref-perf-row">
-              <span class="ref-perf-lbl">${perfLabel}</span>
-              <span class="ref-perf-pct">${snap.perfPct}%</span>
-            </div>
-            <div class="ref-perf-track">
-              <div class="ref-perf-fill ${snap.perfCls}" style="width:${snap.perfPct}%"></div>
-            </div>
+          ${snap.totalIncomeText ? `
+          <div class="ref-live-total-income">
+            <span>Toplam pasif</span><strong>${snap.totalIncomeText}</strong>
+          </div>` : ''}
+          <div class="ref-perf ref-perf--slim">
+            <div class="ref-perf-track"><div class="ref-perf-fill ${snap.perfCls}" style="width:${snap.perfPct}%"></div></div>
           </div>
         </div>
         <div class="ref-live-buy-col">${buyHtml}</div>
@@ -306,21 +334,175 @@ export class RefFirmsPage implements RefPage {
   }
 
   private onLiveCardClick(e: Event): void {
+    if (!this.state) return
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-action="buy-producer"]')
-    if (!btn || !this.state) return
-    e.stopPropagation()
-    const card = btn.closest<HTMLElement>('.ref-live-firm-card')
-    const id = card?.dataset.id
-    if (!id) return
-    const def = NORMAL_PRODUCERS.find((p) => p.id === id)
-    if (!def) return
-    const ok = this.state.buyProducer(id, 1)
-    if (ok) {
-      refToast(`${def.emoji} ${def.name} alındı`, 'ok')
-      this.refreshProducerCards()
-    } else {
-      refToast('Satın alınamadı', 'err')
+    if (btn) {
+      e.stopPropagation()
+      const card = btn.closest<HTMLElement>('.ref-live-firm-card')
+      const id = card?.dataset.id
+      if (!id) return
+      const def = NORMAL_PRODUCERS.find((p) => p.id === id)
+      if (!def) return
+      const ok = this.state.buyProducer(id, 1)
+      if (ok) {
+        refToast(`${def.emoji} ${def.name} alındı`, 'ok')
+        this.refreshProducerCards()
+        if (this.openDetailId === id) this.paintProducerDetail(def, this.state)
+      } else {
+        refToast('Satın alınamadı', 'err')
+      }
+      return
     }
+    const card = (e.target as HTMLElement).closest<HTMLElement>('.ref-live-firm-card, .ref-empire-card')
+    if (!card) return
+    const id = card.dataset.id
+    if (!id) return
+    const def = NORMAL_PRODUCERS.find((p) => p.id === id) ?? EMPIRE_PRODUCERS.find((p) => p.id === id)
+    if (def) this.openProducerDetail(def)
+  }
+
+  private openProducerDetail(def: ProducerDef): void {
+    if (!this.state || !this.detailOverlay) return
+    this.openDetailId = def.id
+    this.paintProducerDetail(def, this.state)
+    this.detailOverlay.hidden = false
+    this.detailOverlay.scrollTop = 0
+  }
+
+  private closeProducerDetail(): void {
+    this.openDetailId = null
+    if (this.detailOverlay) this.detailOverlay.hidden = true
+  }
+
+  private paintProducerDetail(def: ProducerDef, s: GameState): void {
+    if (!this.detailOverlay) return
+    const snap = producerCardSnap(def, s)
+    const visual = producerVisual(def)
+    const chipLabel = producerChipLabel(snap.chip)
+    const heroSrc = ua(getBusinessHero(visual.assetKey))
+    const trend = producerDetailTrend(def, snap.perfPct)
+    const satisfaction = producerDetailSatisfaction(snap.perfPct)
+    const isEmpire = !!def.category
+    const incomeBase = snap.totalIncome > 0 ? snap.totalIncome : snap.marginalIncome
+
+    this.detailOverlay.innerHTML = `
+      <div class="ref-producer-detail__scroll">
+        <div class="ref-detail-hero ref-producer-detail-hero ref-tone-hero-${visual.tone}">
+          <img src="${heroSrc}" alt="" class="ref-detail-hero__img" loading="lazy" decoding="async"
+            onerror="this.style.opacity='0'">
+          <div class="ref-detail-hero__scrim"></div>
+          <button type="button" class="ref-detail-back" aria-label="Geri">‹</button>
+          <span class="ref-firm-badge ${snap.badgeCls} ref-detail-hero__badge">${snap.badge}</span>
+          <div class="ref-producer-detail-hero__icon">${renderProducerIconHtml(visual)}</div>
+          <div class="ref-detail-hero__title">
+            <div class="ref-detail-name">${def.name}</div>
+            <div class="ref-detail-slogan">${chipLabel} · Kademe T${def.tier}${def.description ? ` · ${def.description}` : ''}</div>
+          </div>
+        </div>
+        <div class="ref-body ref-detail-body ref-producer-detail-body">
+          <div class="ref-detail-id">
+            <div class="ref-detail-id__left">
+              <span class="ref-detail-lvl">${snap.owned > 0 ? `${snap.owned} adet` : 'Sahip değil'}</span>
+              <div class="ref-stars ref-detail-stars">${starsHtml(snap.stars)}</div>
+            </div>
+            <div class="ref-detail-id__city"><span>📊</span> ${chipLabel}</div>
+          </div>
+          ${def.illegal ? `<div class="ref-risk-bar ref-detail-risk"><span>⚠️</span> Riskli işletme</div>` : ''}
+          ${!snap.unlocked ? `<div class="ref-live-lock-foot ref-detail-lock"><span class="ref-live-lock-ico">🔒</span><span>${snap.lockReason ?? 'Kilitli'}</span></div>` : ''}
+          <div class="ref-detail-net ref-producer-detail-net">
+            <span class="ref-detail-net__lbl">Günlük +1 Gelir</span>
+            <span class="ref-detail-net__val income">${snap.marginalIncomeText}</span>
+          </div>
+          <div class="ref-detail-stats ref-producer-detail-stats">
+            <div class="ref-detail-stat">
+              <span class="ref-stat-lbl">Toplam Pasif</span>
+              <span class="ref-stat-val income">${snap.totalIncomeText ?? '—'}</span>
+            </div>
+            <div class="ref-detail-stat">
+              <span class="ref-stat-lbl">Sonraki Maliyet</span>
+              <span class="ref-stat-val expense">${snap.costText}</span>
+            </div>
+            <div class="ref-detail-stat">
+              <span class="ref-stat-lbl">Sahip Olunan</span>
+              <span class="ref-stat-val">${snap.owned > 0 ? snap.owned : '—'}</span>
+            </div>
+            <div class="ref-detail-stat">
+              <span class="ref-stat-lbl">Durum</span>
+              <span class="ref-stat-val">${snap.badge}</span>
+            </div>
+          </div>
+          <div class="ref-perf ref-detail-perf">
+            <div class="ref-perf-row">
+              <span class="ref-perf-lbl">${snap.state === 'locked' ? 'Kilidi Açma' : 'Operasyonel Performans'}</span>
+              <span class="ref-perf-pct">${snap.perfPct}%</span>
+            </div>
+            <div class="ref-perf-track"><div class="ref-perf-fill ${snap.perfCls}" style="width:${snap.perfPct}%"></div></div>
+          </div>
+          <div class="ref-card-soft ref-detail-chart">
+            <div class="ref-card-soft__title-row">
+              <span class="ref-card-soft__title">Gelir Trendi · 14 gün <span class="ref-est-tag">tahmini</span></span>
+            </div>
+            ${areaChartSvg(trend, '#13B8A6', 320, 80)}
+          </div>
+          <div class="ref-detail-2col">
+            <div class="ref-card-soft ref-detail-gauge">
+              <div class="ref-card-soft__title">Memnuniyet <span class="ref-est-tag">tahmini</span></div>
+              ${gaugeSvg(satisfaction, '#28C76F')}
+            </div>
+            <div class="ref-card-soft ref-detail-expense">
+              <div class="ref-card-soft__title">Gider Dağılımı <span class="ref-est-tag">tahmini</span></div>
+              <div class="ref-mini-donut">
+                ${donutSvg(DETAIL_EXPENSE_SPLIT, 72, 13)}
+                <div class="ref-donut-legend sm">
+                  ${DETAIL_EXPENSE_SPLIT.map((seg) => `
+                    <div class="ref-legend-row">
+                      <span class="ref-legend-dot" style="background:${seg.color}"></span>
+                      <span class="ref-legend-lbl">${seg.label}</span>
+                      <span class="ref-legend-val">%${seg.value}</span>
+                    </div>`).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="ref-detail-section-title">Geliştirmeler <span class="ref-est-tag">tahmini · önizleme</span></div>
+          <div class="ref-detail-upgrades">
+            ${DETAIL_UPGRADE_TILES.map((u) => `
+              <div class="ref-detail-upg">
+                <img src="${ua(u.asset)}" alt="" class="ref-detail-upg__img" loading="lazy" onerror="this.remove()">
+                <span class="ref-detail-upg__lbl">${u.label}</span>
+                <span class="ref-detail-upg__price">${fmtMoney(Math.max(10_000, Math.round(incomeBase * u.mult)))}</span>
+              </div>`).join('')}
+          </div>
+          <div class="ref-detail-actions">
+            ${isEmpire
+              ? `<button class="ref-btn develop disabled" type="button" disabled>👑 İmparatorluk · önizleme</button>`
+              : snap.canBuy
+                ? `<button class="ref-btn develop" type="button" data-action="detail-buy">SATIN AL · ${snap.costText}</button>`
+                : `<button class="ref-btn develop disabled" type="button" disabled>${snap.unlocked ? 'Para Yetersiz' : 'Kilitli'}</button>`}
+            <button class="ref-btn modernize disabled" type="button" disabled>⚙️ MODERNİZE</button>
+            <button class="ref-btn manager disabled" type="button" disabled>👤 MANAGER</button>
+          </div>
+          <div class="ref-preview-note">Tahmini alanlar etiketlidir · gelir/maliyet eski oyun sisteminden</div>
+        </div>
+      </div>
+    `
+
+    const heroImg = this.detailOverlay.querySelector<HTMLImageElement>('.ref-detail-hero__img')
+    if (heroImg) {
+      if (heroImg.complete && heroImg.naturalWidth > 0) heroImg.classList.add('loaded')
+      else heroImg.addEventListener('load', () => heroImg.classList.add('loaded'), { once: true })
+    }
+
+    this.detailOverlay.querySelector<HTMLButtonElement>('[data-action="detail-buy"]')?.addEventListener('click', () => {
+      if (!this.state || def.category) return
+      const ok = this.state.buyProducer(def.id, 1)
+      if (ok) {
+        refToast(`${visual.emoji} ${def.name} alındı`, 'ok')
+        this.refreshProducerCards()
+        this.paintProducerDetail(def, this.state)
+        this.updateKpi()
+      } else refToast('Satın alınamadı', 'err')
+    })
   }
 
   private refreshProducerCards(): void {
@@ -417,6 +599,7 @@ export class RefFirmsPage implements RefPage {
     const content = document.createElement('div')
     content.className = 'ref-empire-inv-content'
     this.empireContentEl = content
+    content.addEventListener('click', (e) => this.onLiveCardClick(e))
     for (const tab of EMPIRE_TABS) {
       const btn = document.createElement('button')
       btn.className = 'ref-empire-tab' + (tab.id === this.activeEmpireTab ? ' active' : '')
@@ -447,7 +630,7 @@ export class RefFirmsPage implements RefPage {
       return
     }
     const grid = document.createElement('div')
-    grid.className = 'ref-empire-cards'
+    grid.className = 'ref-empire-cards ref-live-cards'
     for (const def of list) {
       grid.appendChild(s ? this.buildEmpireCard(def, s) : this.buildEmpireCardPreview(def))
     }
@@ -458,48 +641,63 @@ export class RefFirmsPage implements RefPage {
   private buildEmpireCard(def: ProducerDef, s: GameState): HTMLElement {
     const snap = producerCardSnap(def, s)
     const visual = producerVisual(def)
+    const chipLabel = producerChipLabel(snap.chip)
     const iconHtml = renderProducerIconHtml(visual).replace(
       'class="ref-firm-icon',
       'class="ref-firm-icon ref-empire-icon',
     )
     const card = document.createElement('div')
-    card.className = `ref-empire-card ref-live-firm-card state-${snap.stateClass}` + (snap.owned > 0 ? ' owned' : '')
+    card.className = `ref-empire-card ref-live-firm-card ref-firm-card--premium state-${snap.stateClass}` + (snap.owned > 0 ? ' owned' : '')
+    card.dataset.id = def.id
+    card.dataset.tone = visual.tone
     card.innerHTML = `
+      <div class="ref-firm-card__tone-accent ref-tone-accent-${visual.tone}"></div>
       <div class="ref-empire-card__head">
         ${iconHtml}
         <div class="ref-empire-card__info">
           <div class="ref-empire-card__name">${def.name}</div>
-          <div class="ref-empire-card__tier">T${def.tier} · ${snap.owned > 0 ? `<b>×${snap.owned}</b>` : 'Sahip değil'} · <span class="ref-firm-badge ${snap.badgeCls}">${snap.badge}</span></div>
+          <div class="ref-empire-card__meta">
+            <span class="ref-live-cat-chip">${chipLabel}</span>
+            <span class="ref-level-txt">T${def.tier}</span>
+            ${snap.owned > 0 ? `<span class="ref-live-owned-pill">×${snap.owned}</span>` : ''}
+          </div>
+          <div class="ref-empire-card__tier"><span class="ref-firm-badge ${snap.badgeCls}">${snap.badge}</span></div>
         </div>
-        ${snap.owned > 0 ? '<span class="ref-empire-card__badge">✓</span>' : ''}
+        <span class="ref-firm-chevron" aria-hidden="true">›</span>
       </div>
-      <div class="ref-empire-card__stats">
-        <span class="ref-empire-stat income">${snap.marginalIncomeText}</span>
-        <span class="ref-empire-stat cost">${snap.costText}</span>
-        ${snap.totalIncomeText ? `<span class="ref-empire-stat total">Toplam ${snap.totalIncomeText}</span>` : ''}
+      <div class="ref-live-econ-row ref-empire-econ">
+        <div class="ref-live-econ ref-live-econ--income">
+          <span class="ref-live-econ-lbl">Günlük +1</span>
+          <span class="ref-live-econ-val">${snap.marginalIncomeText}</span>
+        </div>
+        <div class="ref-live-econ ref-live-econ--cost">
+          <span class="ref-live-econ-lbl">Maliyet</span>
+          <span class="ref-live-econ-val">${snap.costText}</span>
+        </div>
       </div>
+      ${snap.totalIncomeText ? `<div class="ref-live-total-income ref-empire-total"><span>Toplam pasif</span><strong>${snap.totalIncomeText}</strong></div>` : ''}
       <div class="ref-empire-card__foot">
-        ${snap.unlocked
-          ? `<button class="ref-prod-btn disabled" type="button" disabled>${snap.costText} · önizleme</button>`
-          : `<span class="ref-prod-locked-lbl">🔒 ${snap.lockReason ?? 'Kilitli'}</span>`}
+        <span class="ref-empire-preview-tag">Önizleme · satın alma kapalı</span>
       </div>`
     return card
   }
 
   private buildEmpireCardPreview(def: ProducerDef): HTMLElement {
     const visual = producerVisual(def)
+    const chipLabel = producerChipLabel(producerChipCategory(def))
     const iconHtml = renderProducerIconHtml(visual).replace(
       'class="ref-firm-icon',
       'class="ref-firm-icon ref-empire-icon',
     )
     const card = document.createElement('div')
-    card.className = 'ref-empire-card'
+    card.className = 'ref-empire-card ref-firm-card--premium'
+    card.dataset.id = def.id
     card.innerHTML = `
       <div class="ref-empire-card__head">
         ${iconHtml}
         <div class="ref-empire-card__info">
           <div class="ref-empire-card__name">${def.name}</div>
-          <div class="ref-empire-card__tier">T${def.tier}</div>
+          <div class="ref-empire-card__meta"><span class="ref-live-cat-chip">${chipLabel}</span><span class="ref-level-txt">T${def.tier}</span></div>
         </div>
       </div>
       <div class="ref-empire-card__foot">
@@ -533,5 +731,14 @@ export class RefFirmsPage implements RefPage {
     this.updateKpi()
     this.refreshProducerCards()
     if (this.empireContentEl) this.renderEmpireTab(this.activeEmpireTab, this.empireContentEl)
+    if (this.openDetailId) {
+      const def = NORMAL_PRODUCERS.find((p) => p.id === this.openDetailId)
+        ?? EMPIRE_PRODUCERS.find((p) => p.id === this.openDetailId)
+      if (def) this.paintProducerDetail(def, state)
+    }
+  }
+
+  onShow(): void {
+    this.closeProducerDetail()
   }
 }
