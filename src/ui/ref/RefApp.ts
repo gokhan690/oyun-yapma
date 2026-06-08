@@ -121,7 +121,11 @@ export class RefApp {
     if (st) {
       this.unsub = st.subscribe((ev) => {
         if (ev.type === 'purchase') this.refreshActive(st)
-        else if (ev.type === 'money_changed' || ev.type === 'passive_income') this.scheduleRefresh(st)
+        else if (
+          ev.type === 'money_changed'
+          || ev.type === 'passive_income'
+          || ev.type === 'game_time'
+        ) this.scheduleRefresh(st)
       })
     }
   }
@@ -169,7 +173,11 @@ export class RefApp {
         firms.onOpenFirm = (f: FirmData) => this.detail.show(f)
         return firms
       }
-      case 'career': return new RefCareerPage(vm?.career)
+      case 'career': {
+        const career = new RefCareerPage(vm?.career, !!vm)
+        career.onGoToFirms = () => this.show('firms')
+        return career
+      }
       case 'market': return new RefMarketPage(st)
       case 'empire': return new RefEmpirePage(st)
       case 'family': return new RefFamilyPage()

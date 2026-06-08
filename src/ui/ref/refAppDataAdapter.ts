@@ -2,6 +2,9 @@ import type { GameState } from '../../game/GameState'
 import { PRODUCERS, producerName, type ProducerDef } from '../../game/Economy'
 import { reputationLabel } from '../../game/Reputation'
 import { cityDef, type CityId } from '../../game/ExpansionMap'
+import { ownedBusinessCount } from '../../game/ProgressiveUnlock'
+import { currentRank, rankProgress, type PlayerRankDef } from '../../game/PlayerRank'
+import { hasSkill, type PlayerSkillId } from '../../game/PlayerSkills'
 import type { FirmData, FirmSector, FirmStatus } from './RefCard'
 
 /*
@@ -46,15 +49,72 @@ export interface RefDashboardVM {
   goals: RefGoalVM[]
 }
 
-export interface RefCareerVM {
-  jobTitle: string
+export type RefCareerPhase = 'employee' | 'entrepreneur' | 'tycoon'
+export type RefTimelineStatus = 'done' | 'active' | 'locked'
+
+export interface RefCareerActionVM {
+  id: string
+  ico: string
+  label: string
+  effect: string
+}
+
+export interface RefCareerTimelineVM {
+  id: string
+  label: string
+  status: RefTimelineStatus
+  pct?: number
+}
+
+export interface RefCareerSkillVM {
+  id: string
+  name: string
+  emoji: string
   level: number
-  salaryDaily: number
+  max: number
+  pct: number
+  source: 'real' | 'preview'
+  unlocked: boolean
+}
+
+export interface RefFirstBusinessGoalVM {
+  producerId: string
+  producerName: string
+  producerEmoji: string
+  costRequired: number
+  moneyCurrent: number
+  pct: number
+  complete: boolean
+}
+
+export interface RefCareerVM {
+  phase: RefCareerPhase
+  phaseLabel: string
+  jobTitle: string
+  jobCompany: string
+  level: number
+  /** View-only çalışan maaşı — pasif gelir değil */
+  wageDaily: number
+  /** Gerçek işletme pasif geliri (incomePerDay) */
+  businessIncomeDaily: number
+  showWage: boolean
+  showBusinessIncome: boolean
   stress: number
-  xpPct: number
-  xpText: string
-  nextRank: string
   seniorityYears: number
+  /** PlayerRank terfi ilerlemesi */
+  promoPct: number
+  promoText: string
+  nextRank: string
+  /** View-only kariyer XP (ekonomiye bağlı değil) */
+  careerXpPct: number
+  careerXpText: string
+  transitionBanner: string
+  actionsRemaining: number
+  actionsMax: number
+  actions: RefCareerActionVM[]
+  firstBusinessGoal: RefFirstBusinessGoalVM
+  timeline: RefCareerTimelineVM[]
+  skills: RefCareerSkillVM[]
 }
 
 export interface RefViewModel {
@@ -266,6 +326,449 @@ function rankFor(netWorth: number): { idx: number; title: string; next: string; 
   return { idx, title: RANKS[idx].title, next: next.title, nextMin: next.min }
 }
 
+/* ── Kariyer faz & view-only türetme (C2+C3) ── */
+
+const TYCOON_NET_WORTH = 1_000_000
+const HOLDING_NET_WORTH = 100_000_000
+
+const EMPLOYEE_JOBS: { minEarned: number; title: string; company: string; wage: number }[] = [
+  { minEarned: 0,      title: 'Stajyer',        company: 'Metro Market',      wage: 85 },
+  { minEarned: 100,    title: 'Kasiyer',        company: 'Şok Express',       wage: 140 },
+  { minEarned: 1_000,  title: 'Ofis Çalışanı',  company: 'TeknoOfis A.Ş.',    wage: 240 },
+  { minEarned: 10_000, title: 'Kurye',          company: 'Hızlı Kargo Ltd.',  wage: 320 },
+  { minEarned: 50_000, title: 'Barista',        company: 'Kahve Durağı',      wage: 360 },
+]
+
+const CAREER_ACTIONS: RefCareerActionVM[] = [
+  { id: 'shift',       ico: '🕐', label: 'Mesai Yap',           effect: '+maaş · +XP' },
+  { id: 'overtime',    ico: '🌙', label: 'Ek Mesai',            effect: '+maaş · +stres' },
+  { id: 'training',    ico: '🎓', label: 'Eğitim Al',           effect: '+beceri' },
+  { id: 'networking',  ico: '🌐', label: 'Networking',          effect: '+bağlantı' },
+  { id: 'freelance',   ico: '💻', label: 'Freelance İş Al',     effect: '+ek gelir' },
+  { id: 'interview',   ico: '🤝', label: 'İş Görüşmesine Git',  effect: '+terfi şansı' },
+]
+
+/** Kariyer beceri kartları — PlayerSkills ile eşleşme (view-only ilerleme). */
+const CAREER_SKILL_MAP: {
+  id: string
+  name: string
+  emoji: string
+  playerSkillId?: PlayerSkillId
+  metric: 'totalClicks' | 'businessesOwned' | 'totalEarned' | 'ipoCount' | 'lifeEventsResolved'
+  thresholds: number[]
+}[] = [
+  { id: 'sales',       name: 'Satış',     emoji: '📈', playerSkillId: 'entrepreneur_spirit', metric: 'totalClicks',         thresholds: [100, 300, 500, 2000, 5000] },
+  { id: 'management',  name: 'Yönetim',   emoji: '🏢', playerSkillId: 'businessman',         metric: 'businessesOwned',     thresholds: [1, 5, 15, 30, 50] },
+  { id: 'finance',     name: 'Finans',    emoji: '💰', playerSkillId: 'wealth_magnet',       metric: 'totalEarned',         thresholds: [10_000, 100_000, 1_000_000, 100_000_000, 1_000_000_000] },
+  { id: 'network',     name: 'Network',   emoji: '🌐', playerSkillId: 'life_experience',     metric: 'lifeEventsResolved',  thresholds: [2, 4, 6, 8, 10] },
+  { id: 'operations',  name: 'Operasyon', emoji: '⚙️', playerSkillId: 'veteran_baron',       metric: 'ipoCount',            thresholds: [1, 2, 3, 4, 5] },
+]
+
+function deriveCareerPhase(ownedCount: number, netWorth: number): RefCareerPhase {
+  if (ownedCount === 0) return 'employee'
+  if (netWorth < TYCOON_NET_WORTH) return 'entrepreneur'
+  return 'tycoon'
+}
+
+function phaseLabel(phase: RefCareerPhase): string {
+  switch (phase) {
+    case 'employee': return 'Çalışan'
+    case 'entrepreneur': return 'Girişimci'
+    case 'tycoon': return 'Patron'
+  }
+}
+
+function employeeJob(totalEarned: number, playerName: string): (typeof EMPLOYEE_JOBS)[number] {
+  let job = EMPLOYEE_JOBS[0]!
+  for (const j of EMPLOYEE_JOBS) if (totalEarned >= j.minEarned) job = j
+  // Kurye/Barista varyasyonu — oyuncuya göre deterministik
+  if (job.title === 'Kurye' && hash(playerName + 'job') % 2 === 1) {
+    return { ...job, title: 'Barista', company: 'Kahve Durağı', wage: 360 }
+  }
+  return job
+}
+
+function entrepreneurTitle(state: GameState, ownedCount: number): { title: string; company: string } {
+  const first = PRODUCERS.find((p) => (state.producers[p.id] ?? 0) > 0)
+  if (first) {
+    return {
+      title: 'Girişimci',
+      company: `${producerName(first)} · Kurucu`,
+    }
+  }
+  return { title: 'Girişimci', company: `${ownedCount} işletme` }
+}
+
+function tycoonTitle(netWorth: number, rank: PlayerRankDef): { title: string; company: string } {
+  const nwRank = rankFor(netWorth)
+  return {
+    title: nwRank.title,
+    company: rank.name === 'Holding Sahibi' || rank.name === 'İmparator'
+      ? 'Holding Grubu'
+      : 'Çoklu İşletme Portföyü',
+  }
+}
+
+function careerLevel(totalEarned: number, ownedCount: number, ipoCount: number): number {
+  const base = Math.floor(Math.log10(Math.max(10, totalEarned + 1)) * 3)
+  return Math.max(1, Math.min(99, base + ownedCount + ipoCount * 2))
+}
+
+function skillLevelFromMetric(value: number, thresholds: number[]): { level: number; pct: number } {
+  let level = 0
+  for (let i = 0; i < thresholds.length; i++) {
+    if (value >= thresholds[i]!) level = i + 1
+  }
+  const max = thresholds.length
+  if (level >= max) return { level: max, pct: 100 }
+  const prev = level > 0 ? thresholds[level - 1]! : 0
+  const next = thresholds[level] ?? thresholds[max - 1]!
+  const span = next - prev
+  const pct = span > 0 ? Math.min(100, Math.round(((value - prev) / span) * 100)) : 0
+  return { level, pct }
+}
+
+function deriveCareerSkills(state: GameState): RefCareerSkillVM[] {
+  const bizCount = Object.values(state.producers).filter((n) => n > 0).length
+  const metrics = {
+    totalClicks: state.totalClicks,
+    businessesOwned: bizCount,
+    totalEarned: state.totalEarned,
+    ipoCount: state.ipoCount,
+    lifeEventsResolved: state.playerSkills?.lifeEventsResolved ?? 0,
+  }
+  return CAREER_SKILL_MAP.map((def) => {
+    const value = metrics[def.metric]
+    const { level, pct } = skillLevelFromMetric(value, def.thresholds)
+    const unlocked = def.playerSkillId
+      ? hasSkill(state.playerSkills, def.playerSkillId)
+      : false
+    return {
+      id: def.id,
+      name: def.name,
+      emoji: def.emoji,
+      level: unlocked ? def.thresholds.length : level,
+      max: def.thresholds.length,
+      pct: unlocked ? 100 : pct,
+      source: unlocked ? 'real' as const : 'preview' as const,
+      unlocked,
+    }
+  })
+}
+
+function deriveTimeline(
+  phase: RefCareerPhase,
+  ownedCount: number,
+  netWorth: number,
+  firstBizPct: number,
+): RefCareerTimelineVM[] {
+  const stages: { id: string; label: string; unlock: () => RefTimelineStatus }[] = [
+    {
+      id: 'employee',
+      label: 'Çalışan',
+      unlock: () => (ownedCount > 0 ? 'done' : 'active'),
+    },
+    {
+      id: 'entrepreneur',
+      label: 'Girişimci',
+      unlock: () => {
+        if (ownedCount === 0) return 'locked'
+        if (netWorth >= TYCOON_NET_WORTH) return 'done'
+        return phase === 'entrepreneur' ? 'active' : 'done'
+      },
+    },
+    {
+      id: 'patron',
+      label: 'Patron',
+      unlock: () => {
+        if (netWorth < TYCOON_NET_WORTH) return ownedCount > 0 ? 'locked' : 'locked'
+        if (netWorth >= HOLDING_NET_WORTH) return 'done'
+        return phase === 'tycoon' ? 'active' : 'locked'
+      },
+    },
+    {
+      id: 'holding',
+      label: 'Holding Sahibi',
+      unlock: () => {
+        if (netWorth < HOLDING_NET_WORTH) return 'locked'
+        return 'active'
+      },
+    },
+  ]
+  return stages.map((s) => {
+    const status = s.unlock()
+    let pct: number | undefined
+    if (status === 'active') {
+      if (s.id === 'employee') pct = firstBizPct
+      else if (s.id === 'entrepreneur') pct = Math.min(100, Math.round((netWorth / TYCOON_NET_WORTH) * 100))
+      else if (s.id === 'patron') pct = Math.min(100, Math.round((netWorth / HOLDING_NET_WORTH) * 100))
+      else pct = Math.min(100, Math.round((netWorth / HOLDING_NET_WORTH) * 100))
+    }
+    return { id: s.id, label: s.label, status, pct }
+  })
+}
+
+function transitionBanner(phase: RefCareerPhase): string {
+  switch (phase) {
+    case 'employee':
+      return 'Biriktir, ilk işletmeni kur ve girişimci yoluna geç.'
+    case 'entrepreneur':
+      return 'İlk işletmeni büyüt, patron yoluna ilerle.'
+    case 'tycoon':
+      return 'Holding seviyesine geçiş başladı.'
+  }
+}
+
+/** GameState → kariyer view-model (salt okunur). Refresh ve ilk render için. */
+export function buildRefCareerVM(state: GameState): RefCareerVM {
+  const netWorth = Math.round(state.financeNetWorth())
+  const businessIncomeDaily = Math.round(state.incomePerDay())
+  const ownedCount = ownedBusinessCount(state.producers)
+  const phase = deriveCareerPhase(ownedCount, netWorth)
+  const age = state.playerAge()
+  const promo = rankProgress(state.totalEarned)
+  const rank = currentRank(state.totalEarned)
+  const routine = state.getDailyRoutineActions()
+
+  let jobTitle: string
+  let jobCompany: string
+  let wageDaily = 0
+
+  if (phase === 'employee') {
+    const job = employeeJob(state.totalEarned, state.playerName)
+    jobTitle = job.title
+    jobCompany = `${job.company} · Tam zamanlı`
+    wageDaily = job.wage
+  } else if (phase === 'entrepreneur') {
+    const ent = entrepreneurTitle(state, ownedCount)
+    jobTitle = ent.title
+    jobCompany = ent.company
+    wageDaily = 0
+  } else {
+    const ty = tycoonTitle(netWorth, rank)
+    jobTitle = ty.title
+    jobCompany = ty.company
+    wageDaily = 0
+  }
+
+  const stajyerDef = PRODUCERS.find((p) => p.id === 'stajyer')
+  const stajyerOwned = state.producers['stajyer'] ?? 0
+  const firstBizCost = stajyerDef
+    ? state.producerCostFor(stajyerDef, stajyerOwned, 1)
+    : 3
+  const moneyCurrent = Math.round(state.money)
+  const firstBizComplete = ownedCount > 0
+
+  const careerXpRaw = Math.min(
+    100,
+    Math.round(state.totalClicks * 0.15 + Math.sqrt(Math.max(0, state.totalEarned)) * 0.8),
+  )
+
+  return {
+    phase,
+    phaseLabel: phaseLabel(phase),
+    jobTitle,
+    jobCompany,
+    level: careerLevel(state.totalEarned, ownedCount, state.ipoCount),
+    wageDaily,
+    businessIncomeDaily,
+    showWage: phase === 'employee',
+    showBusinessIncome: ownedCount > 0,
+    stress: Math.round(state.lifestyle.stress),
+    seniorityYears: Math.max(0, age - 18),
+    promoPct: promo.pct,
+    promoText: promo.next
+      ? `${fmt(state.totalEarned)} / ${fmt(promo.next.minEarned)}`
+      : 'Maksimum',
+    nextRank: promo.next ? `${promo.next.emoji} ${promo.next.name}` : '—',
+    careerXpPct: careerXpRaw,
+    careerXpText: `Kariyer XP · ${careerXpRaw}%`,
+    transitionBanner: transitionBanner(phase),
+    actionsRemaining: routine.remaining,
+    actionsMax: routine.max,
+    actions: CAREER_ACTIONS,
+    firstBusinessGoal: {
+      producerId: 'stajyer',
+      producerName: stajyerDef ? producerName(stajyerDef) : 'Limonata Tezgahı',
+      producerEmoji: stajyerDef?.emoji ?? '🍋',
+      costRequired: firstBizCost,
+      moneyCurrent,
+      pct: firstBizComplete ? 100 : Math.min(100, Math.round((moneyCurrent / Math.max(1, firstBizCost)) * 100)),
+      complete: firstBizComplete,
+    },
+    timeline: deriveTimeline(
+      phase,
+      ownedCount,
+      netWorth,
+      firstBizComplete ? 100 : Math.min(100, Math.round((moneyCurrent / Math.max(1, firstBizCost)) * 100)),
+    ),
+    skills: deriveCareerSkills(state),
+  }
+}
+
+/** DEV-only kariyer faz önizleme modları (GameState'e yazılmaz). */
+export type RefCareerDevPreviewMode = 'real' | 'employee' | 'entrepreneur' | 'tycoon'
+
+const PREVIEW_SKILLS_LOW: RefCareerSkillVM[] = [
+  { id: 'sales', name: 'Satış', emoji: '📈', level: 1, max: 5, pct: 25, source: 'preview', unlocked: false },
+  { id: 'management', name: 'Yönetim', emoji: '🏢', level: 0, max: 5, pct: 8, source: 'preview', unlocked: false },
+  { id: 'finance', name: 'Finans', emoji: '💰', level: 0, max: 5, pct: 5, source: 'preview', unlocked: false },
+  { id: 'network', name: 'Network', emoji: '🌐', level: 1, max: 5, pct: 30, source: 'preview', unlocked: false },
+  { id: 'operations', name: 'Operasyon', emoji: '⚙️', level: 0, max: 5, pct: 0, source: 'preview', unlocked: false },
+]
+
+const PREVIEW_SKILLS_MID: RefCareerSkillVM[] = [
+  { id: 'sales', name: 'Satış', emoji: '📈', level: 3, max: 5, pct: 55, source: 'preview', unlocked: false },
+  { id: 'management', name: 'Yönetim', emoji: '🏢', level: 2, max: 5, pct: 40, source: 'preview', unlocked: false },
+  { id: 'finance', name: 'Finans', emoji: '💰', level: 1, max: 5, pct: 22, source: 'preview', unlocked: false },
+  { id: 'network', name: 'Network', emoji: '🌐', level: 2, max: 5, pct: 48, source: 'preview', unlocked: false },
+  { id: 'operations', name: 'Operasyon', emoji: '⚙️', level: 1, max: 5, pct: 18, source: 'preview', unlocked: false },
+]
+
+const PREVIEW_SKILLS_HIGH: RefCareerSkillVM[] = [
+  { id: 'sales', name: 'Satış', emoji: '📈', level: 5, max: 5, pct: 100, source: 'preview', unlocked: false },
+  { id: 'management', name: 'Yönetim', emoji: '🏢', level: 4, max: 5, pct: 78, source: 'preview', unlocked: false },
+  { id: 'finance', name: 'Finans', emoji: '💰', level: 4, max: 5, pct: 82, source: 'preview', unlocked: false },
+  { id: 'network', name: 'Network', emoji: '🌐', level: 3, max: 5, pct: 60, source: 'preview', unlocked: false },
+  { id: 'operations', name: 'Operasyon', emoji: '⚙️', level: 3, max: 5, pct: 55, source: 'preview', unlocked: false },
+]
+
+/**
+ * Kariyer ekranı DEV faz önizlemesi — yalnızca UI görünümü.
+ * GameState / localStorage'a yazılmaz; gerçek VM'den stres/kıdem okunabilir.
+ */
+export function buildRefCareerPhasePreview(
+  mode: Exclude<RefCareerDevPreviewMode, 'real'>,
+  base?: RefCareerVM,
+): RefCareerVM {
+  const stress = base?.stress ?? 22
+  const seniorityYears = base?.seniorityYears ?? 2
+  const actions = base?.actions ?? CAREER_ACTIONS
+  const actionsRemaining = base?.actionsRemaining ?? 2
+  const actionsMax = base?.actionsMax ?? 3
+  const firstBizBase = base?.firstBusinessGoal
+
+  const firstBizOpen = {
+    producerId: 'stajyer',
+    producerName: firstBizBase?.producerName ?? 'Limonata Tezgahı',
+    producerEmoji: firstBizBase?.producerEmoji ?? '🍋',
+    costRequired: firstBizBase?.costRequired ?? 3,
+    moneyCurrent: 2,
+    pct: 67,
+    complete: false,
+  }
+
+  const firstBizDone = {
+    producerId: 'stajyer',
+    producerName: firstBizBase?.producerName ?? 'Limonata Tezgahı',
+    producerEmoji: firstBizBase?.producerEmoji ?? '🍋',
+    costRequired: firstBizBase?.costRequired ?? 3,
+    moneyCurrent: firstBizBase?.costRequired ?? 3,
+    pct: 100,
+    complete: true,
+  }
+
+  const bizIncome = base?.businessIncomeDaily && base.businessIncomeDaily > 0
+    ? base.businessIncomeDaily
+    : 42
+
+  switch (mode) {
+    case 'employee':
+      return {
+        phase: 'employee',
+        phaseLabel: 'Çalışan',
+        jobTitle: 'Stajyer',
+        jobCompany: 'Metro Market · Tam zamanlı',
+        level: 2,
+        wageDaily: 85,
+        businessIncomeDaily: 0,
+        showWage: true,
+        showBusinessIncome: false,
+        stress,
+        seniorityYears,
+        promoPct: 35,
+        promoText: '45 / 100',
+        nextRank: '📚 Stajyer',
+        careerXpPct: 28,
+        careerXpText: 'Kariyer XP · 28%',
+        transitionBanner: transitionBanner('employee'),
+        actionsRemaining,
+        actionsMax,
+        actions,
+        firstBusinessGoal: firstBizOpen,
+        timeline: [
+          { id: 'employee', label: 'Çalışan', status: 'active', pct: 67 },
+          { id: 'entrepreneur', label: 'Girişimci', status: 'locked' },
+          { id: 'patron', label: 'Patron', status: 'locked' },
+          { id: 'holding', label: 'Holding Sahibi', status: 'locked' },
+        ],
+        skills: PREVIEW_SKILLS_LOW,
+      }
+    case 'entrepreneur':
+      return {
+        phase: 'entrepreneur',
+        phaseLabel: 'Girişimci',
+        jobTitle: 'Girişimci',
+        jobCompany: 'Limonata Tezgahı · Kurucu',
+        level: 8,
+        wageDaily: 0,
+        businessIncomeDaily: bizIncome,
+        showWage: false,
+        showBusinessIncome: true,
+        stress,
+        seniorityYears,
+        promoPct: 52,
+        promoText: '2.4K / 10K',
+        nextRank: '🏪 İşletmeci',
+        careerXpPct: 48,
+        careerXpText: 'Kariyer XP · 48%',
+        transitionBanner: transitionBanner('entrepreneur'),
+        actionsRemaining,
+        actionsMax,
+        actions,
+        firstBusinessGoal: firstBizDone,
+        timeline: [
+          { id: 'employee', label: 'Çalışan', status: 'done' },
+          { id: 'entrepreneur', label: 'Girişimci', status: 'active', pct: 35 },
+          { id: 'patron', label: 'Patron', status: 'locked' },
+          { id: 'holding', label: 'Holding Sahibi', status: 'locked' },
+        ],
+        skills: PREVIEW_SKILLS_MID,
+      }
+    case 'tycoon':
+      return {
+        phase: 'tycoon',
+        phaseLabel: 'Patron',
+        jobTitle: 'Holding Başkanı',
+        jobCompany: 'Çoklu İşletme Portföyü',
+        level: 24,
+        wageDaily: 0,
+        businessIncomeDaily: bizIncome > 42 ? bizIncome : 12_500,
+        showWage: false,
+        showBusinessIncome: true,
+        stress,
+        seniorityYears,
+        promoPct: 68,
+        promoText: '4.2M / 10M',
+        nextRank: '🏢 Holding Sahibi',
+        careerXpPct: 72,
+        careerXpText: 'Kariyer XP · 72%',
+        transitionBanner: transitionBanner('tycoon'),
+        actionsRemaining,
+        actionsMax,
+        actions,
+        firstBusinessGoal: firstBizDone,
+        timeline: [
+          { id: 'employee', label: 'Çalışan', status: 'done' },
+          { id: 'entrepreneur', label: 'Girişimci', status: 'done' },
+          { id: 'patron', label: 'Patron', status: 'active', pct: 45 },
+          { id: 'holding', label: 'Holding Sahibi', status: 'locked' },
+        ],
+        skills: PREVIEW_SKILLS_HIGH,
+      }
+  }
+}
+
 /* ── Ana giriş ── */
 export function buildRefViewModel(state: GameState): RefViewModel {
   const netWorth = Math.round(state.financeNetWorth())
@@ -331,16 +834,7 @@ export function buildRefViewModel(state: GameState): RefViewModel {
     goals,
   }
 
-  const career: RefCareerVM = {
-    jobTitle: rank.title,
-    level: rank.idx * 6 + Math.min(6, ownedCities.length + state.ipoCount),
-    salaryDaily: dailyIncome,
-    stress: Math.round(state.lifestyle.stress),
-    xpPct: rank.nextMin > 0 ? Math.min(100, Math.round((netWorth / rank.nextMin) * 100)) : 100,
-    xpText: `₺${fmt(netWorth)} / ₺${fmt(rank.nextMin)}`,
-    nextRank: rank.next,
-    seniorityYears: Math.max(0, age - 18),
-  }
+  const career = buildRefCareerVM(state)
 
   const player: RefPlayerVM = {
     name: state.playerName || 'Baron',
