@@ -1,5 +1,20 @@
 import { assetUrl } from '../../utils/assetUrl'
-import { formatMoney } from '../../game/Economy'
+import {
+  PRODUCERS,
+  formatMoney,
+  formatIncomeRate,
+  isProducerUnlocked,
+  producerCategory,
+  scaledUnlockAt,
+  type ProducerDef,
+} from '../../game/Economy'
+import type { GameState } from '../../game/GameState'
+
+/** ShopPanel büyüme sekmesi: category alanı olmayan üreticiler. */
+export const REF_NORMAL_PRODUCERS = PRODUCERS.filter((p) => !p.category)
+
+/** ShopPanel imparatorluk hub: category alanı olan üreticiler. */
+export const REF_EMPIRE_PRODUCERS = PRODUCERS.filter((p) => !!p.category)
 
 /** Base-path uyumlu asset yolu (baştaki / opsiyonel). */
 export function ua(p: string): string {
@@ -15,6 +30,206 @@ export function ua(p: string): string {
 export function fmtMoney(n: number): string {
   const neg = n < 0 ? '-' : ''
   return `${neg}₺${formatMoney(Math.abs(n))}`
+}
+
+/** Firma listesi kategori chip anahtarları (Normal İşletmeler filtresi). */
+export type ProducerChipKey =
+  | 'tumu' | 'gida' | 'hizmet' | 'teknoloji' | 'finans' | 'turizm' | 'medya'
+  | 'sanayi' | 'lojistik' | 'luks' | 'illegal' | 'sport' | 'politics' | 'science'
+
+/** Kart gradient tonu — illegal chip → riskli CSS sınıfı. */
+export type ProducerVisualTone =
+  | 'gida' | 'hizmet' | 'teknoloji' | 'finans' | 'turizm' | 'medya'
+  | 'sanayi' | 'lojistik' | 'luks' | 'riskli' | 'sport' | 'politics' | 'science'
+
+export const PRODUCER_CHIP_TABS: { id: ProducerChipKey; label: string; icon: string }[] = [
+  { id: 'tumu', label: 'Tümü', icon: '' },
+  { id: 'gida', label: 'Gıda', icon: '🍔' },
+  { id: 'hizmet', label: 'Hizmet', icon: '🤝' },
+  { id: 'teknoloji', label: 'Teknoloji', icon: '🚀' },
+  { id: 'finans', label: 'Finans', icon: '💰' },
+  { id: 'turizm', label: 'Turizm', icon: '✈️' },
+  { id: 'medya', label: 'Medya', icon: '🎬' },
+  { id: 'sanayi', label: 'Sanayi', icon: '🏭' },
+  { id: 'lojistik', label: 'Lojistik', icon: '🚚' },
+  { id: 'luks', label: 'Lüks', icon: '💎' },
+  { id: 'sport', label: 'Spor', icon: '⚽' },
+  { id: 'politics', label: 'Siyaset', icon: '🏛️' },
+  { id: 'science', label: 'Bilim', icon: '🧪' },
+  { id: 'illegal', label: 'Riskli', icon: '🚫' },
+]
+
+const GIDA_IDS = new Set(['stajyer', 'firin', 'kafe', 'ofis', 'cikolata', 'market_zincir', 'pet_shop'])
+const HIZMET_IDS = new Set(['berber', 'cicekci', 'giyim', 'gym', 'temizlik', 'hukuk'])
+const TEKNOLOJI_IDS = new Set([
+  'robot', 'holding', 'mobil_app', 'oyun_studio', 'ai', 'nano', 'data_center',
+  'biyotek', 'uzay_istasyonu', 'uydu_fab', 'havacilik', 'gen_terapi', 'superbilgisayar',
+  'uzay', 'uydu', 'galaksiyum', 'kuantum', 'fuzyon', 'mars', 'asteroid', 'multiverse',
+])
+const FINANS_IDS = new Set([
+  'kripto', 'sigorta', 'hukuk', 'merkezbankasi', 'tuzaq', 'emlak_ofis',
+  'banka_ozel', 'hedge_fund', 'private_equity', 'venture_capital', 'family_office',
+  'reasurans', 'borsa_araci', 'sovereign_fund',
+])
+const TURIZM_IDS = new Set(['otel', 'havayolu', 'adalar', 'casino_legal', 'yacht_filo', 'uzay_turizmi'])
+const MEDYA_IDS = new Set(['medya', 'streaming', 'reklam_ajansi'])
+const LOJISTIK_IDS = new Set(['kargo', 'liman', 'drone'])
+const SANAYI_IDS = new Set([
+  'fabrika', 'insaat', 'maden', 'nukleer', 'ev_araba', 'ilac', 'tarim_tek', 'enerji', 'ruzgar',
+  'hastane', 'universite', 'siyah_fabrika',
+])
+
+export function chipToVisualTone(chip: Exclude<ProducerChipKey, 'tumu'>): ProducerVisualTone {
+  return chip === 'illegal' ? 'riskli' : chip
+}
+
+/** ProducerDef → üst kategori chip (görsel filtre + etiket; ekonomi etkilemez). */
+export function producerChipCategory(def: ProducerDef): Exclude<ProducerChipKey, 'tumu'> {
+  if (def.illegal || def.category === 'dark' || producerCategory(def) === 'illegal') return 'illegal'
+  if (def.category === 'sport') return 'sport'
+  if (def.category === 'politics') return 'politics'
+  if (def.category === 'science') return 'science'
+  if (def.category === 'luxury') return 'luks'
+  if (def.category === 'finance') return 'finans'
+  const id = def.id
+  if (FINANS_IDS.has(id)) return 'finans'
+  if (GIDA_IDS.has(id)) return 'gida'
+  if (HIZMET_IDS.has(id)) return 'hizmet'
+  if (TEKNOLOJI_IDS.has(id)) return 'teknoloji'
+  if (TURIZM_IDS.has(id)) return 'turizm'
+  if (MEDYA_IDS.has(id)) return 'medya'
+  if (LOJISTIK_IDS.has(id)) return 'lojistik'
+  if (SANAYI_IDS.has(id)) return 'sanayi'
+  if (def.name.includes('Lojistik') || def.name.includes('Kargo') || def.name.includes('Liman')) return 'lojistik'
+  if (def.name.includes('Fabrika') || def.name.includes('Santral') || def.name.includes('Maden') || def.name.includes('İmalat')) return 'sanayi'
+  if (def.name.includes('Yazılım') || def.name.includes('Uygulama') || def.name.includes('Teknoloji') || def.name.includes('Robot')) return 'teknoloji'
+  if (def.name.includes('Kripto') || def.name.includes('Borsa') || def.name.includes('Banka') || def.name.includes('Finans')) return 'finans'
+  if (def.name.includes('Futbol') || def.name.includes('Spor') || def.name.includes('Basket')) return 'sport'
+  if (def.name.includes('Siyaset') || def.name.includes('Belediye') || def.name.includes('Bakan')) return 'politics'
+  if (def.name.includes('Restoran') || def.name.includes('Fırın') || def.name.includes('Kahve') || def.name.includes('Market')) return 'gida'
+  if (def.name.includes('Limonata') || def.name.includes('Limon') || def.name.includes('Tezgah')) return 'gida'
+  if (def.name.includes('Ofis') || def.name.includes('Berber')) return 'hizmet'
+  return 'hizmet'
+}
+
+export function producerChipLabel(chip: Exclude<ProducerChipKey, 'tumu'>): string {
+  return PRODUCER_CHIP_TABS.find((t) => t.id === chip)?.label ?? chip
+}
+
+export type ProducerCardState = 'owned' | 'available' | 'no-cash' | 'locked'
+
+export interface ProducerCardSnap {
+  state: ProducerCardState
+  stateClass: string
+  badge: string
+  badgeCls: string
+  chip: Exclude<ProducerChipKey, 'tumu'>
+  owned: number
+  unlocked: boolean
+  cost: number
+  costText: string
+  canBuy: boolean
+  /** ShopPanel updateBusinessCard ile aynı: marginalProducerIncome(def, 1) */
+  marginalIncome: number
+  marginalIncomeText: string
+  /** Sahip olunca toplam pasif gelir (producerIncome) */
+  totalIncome: number
+  totalIncomeText: string | null
+  lockReason: string | null
+  perfPct: number
+  perfCls: 'high' | 'medium' | 'low'
+  stars: number
+}
+
+/** ShopPanel kart geliri — state.marginalProducerIncome(def, count) */
+export function shopPanelMarginalIncome(s: GameState, def: ProducerDef, count = 1): number {
+  return s.marginalProducerIncome(def, count)
+}
+
+/** ShopPanel kart maliyeti — state.producerCostFor(def, owned, count) */
+export function shopPanelProducerCost(s: GameState, def: ProducerDef, count = 1): number {
+  const owned = s.producers[def.id] ?? 0
+  return s.producerCostFor(def, owned, count)
+}
+
+export function producerCardSnap(def: ProducerDef, s: GameState): ProducerCardSnap {
+  const owned = s.producers[def.id] ?? 0
+  const unlocked = isProducerUnlocked(def, s.totalEarned, s.forcedUnlocks, s.ipoCount)
+  const cost = shopPanelProducerCost(s, def, 1)
+  const canBuy = unlocked && s.money >= cost
+  const marginalIncome = shopPanelMarginalIncome(s, def, 1)
+  const marginalIncomeText = `+${formatIncomeRate(marginalIncome)}`
+  const totalIncome = owned > 0 ? s.producerIncome(def) : 0
+  const totalIncomeText = owned > 0 ? formatIncomeRate(totalIncome) : null
+
+  let state: ProducerCardState
+  let badge: string
+  let badgeCls: string
+  if (!unlocked) {
+    state = 'locked'
+    badge = 'Kilitli'
+    badgeCls = 'locked'
+  } else if (owned > 0) {
+    state = canBuy ? 'owned' : 'no-cash'
+    badge = def.illegal ? 'Riskli' : canBuy ? 'Karlı' : 'Aktif'
+    badgeCls = def.illegal ? 'riskli' : canBuy ? 'karli' : 'buyuyor'
+  } else if (canBuy) {
+    state = 'available'
+    badge = 'Alınabilir'
+    badgeCls = 'buyuyor'
+  } else {
+    state = 'no-cash'
+    badge = 'Para Yetersiz'
+    badgeCls = 'riskli'
+  }
+
+  let lockReason: string | null = null
+  if (!unlocked) {
+    if ((def.ipoRequirement ?? 0) > s.ipoCount) {
+      lockReason = `${def.ipoRequirement} IPO gerekli`
+    } else {
+      const need = scaledUnlockAt(def)
+      lockReason = need > 0 ? `${formatMoney(need)} toplam kazanç` : 'Henüz açılmadı'
+    }
+  }
+
+  let perfPct: number
+  if (!unlocked) {
+    const need = scaledUnlockAt(def)
+    perfPct = need > 0 ? Math.min(100, Math.round((s.totalEarned / need) * 100)) : 0
+  } else if (owned > 0 && totalIncome > 0) {
+    perfPct = Math.min(100, Math.round((marginalIncome / totalIncome) * 100 * owned))
+  } else {
+    perfPct = Math.min(55, 18 + def.tier * 4)
+  }
+  const perfCls: 'high' | 'medium' | 'low' = perfPct >= 70 ? 'high' : perfPct >= 45 ? 'medium' : 'low'
+
+  return {
+    state,
+    stateClass: state,
+    badge,
+    badgeCls,
+    chip: producerChipCategory(def),
+    owned,
+    unlocked,
+    cost,
+    costText: formatMoney(cost),
+    canBuy,
+    marginalIncome,
+    marginalIncomeText,
+    totalIncome,
+    totalIncomeText,
+    lockReason,
+    perfPct,
+    perfCls,
+    stars: Math.min(5, Math.max(1, Math.ceil(def.tier / 2))),
+  }
+}
+
+export function perfBarClass(pct: number): 'high' | 'medium' | 'low' {
+  if (pct >= 70) return 'high'
+  if (pct >= 45) return 'medium'
+  return 'low'
 }
 
 /** Yıldız satırı HTML'i. */

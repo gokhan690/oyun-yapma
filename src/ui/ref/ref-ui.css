@@ -485,15 +485,110 @@
 /* v2 generic asset ikonları kendi yuvarlak premium tasarımını içerir →
    konteyner cream zemin + img contain. Sektör gradyanları sadece fallback zemin. */
 .ref-firm-icon {
-  overflow: hidden;
+  overflow: visible;
   background: linear-gradient(180deg, #fffdf7, #fff1d8);
   padding: 0;
+  position: relative;
+}
+.ref-firm-icon.ref-tone-gida {
+  background: linear-gradient(135deg, #fff8e8 0%, #ffd080 100%);
+  border-color: rgba(255, 180, 60, 0.45);
+}
+.ref-firm-icon.ref-tone-hizmet {
+  background: linear-gradient(135deg, #e8f4ff 0%, #a8cff5 100%);
+  border-color: rgba(80, 150, 220, 0.4);
+}
+.ref-firm-icon.ref-tone-teknoloji {
+  background: linear-gradient(135deg, #ede8ff 0%, #b8a0f0 100%);
+  border-color: rgba(120, 90, 220, 0.4);
+}
+.ref-firm-icon.ref-tone-finans {
+  background: linear-gradient(135deg, #fff8e0 0%, #e8c860 100%);
+  border-color: rgba(200, 160, 40, 0.45);
+}
+.ref-firm-icon.ref-tone-turizm {
+  background: linear-gradient(135deg, #e0f8ff 0%, #7ec8e8 100%);
+  border-color: rgba(60, 170, 210, 0.4);
+}
+.ref-firm-icon.ref-tone-medya {
+  background: linear-gradient(135deg, #ffe8f4 0%, #f0a0c8 100%);
+  border-color: rgba(220, 100, 160, 0.4);
+}
+.ref-firm-icon.ref-tone-sanayi {
+  background: linear-gradient(135deg, #f0f0f0 0%, #b0b8c8 100%);
+  border-color: rgba(100, 110, 130, 0.4);
+}
+.ref-firm-icon.ref-tone-lojistik {
+  background: linear-gradient(135deg, #e8fff0 0%, #80d8a8 100%);
+  border-color: rgba(60, 180, 120, 0.4);
+}
+.ref-firm-icon.ref-tone-luks {
+  background: linear-gradient(135deg, #fff0f8 0%, #d8a0e8 100%);
+  border-color: rgba(180, 100, 200, 0.45);
+}
+.ref-firm-icon.ref-tone-riskli,
+.ref-firm-icon.ref-tone-illegal {
+  background: linear-gradient(135deg, #ffe8e8 0%, #e87878 100%);
+  border-color: rgba(200, 60, 60, 0.45);
+}
+.ref-firm-icon.ref-tone-sport {
+  background: linear-gradient(135deg, #e8fff0 0%, #5cc87a 100%);
+  border-color: rgba(40, 160, 90, 0.45);
+}
+.ref-firm-icon.ref-tone-politics {
+  background: linear-gradient(135deg, #f0e8ff 0%, #a890d8 100%);
+  border-color: rgba(110, 80, 180, 0.45);
+}
+.ref-firm-icon.ref-tone-science {
+  background: linear-gradient(135deg, #e0f8ff 0%, #70c0e8 100%);
+  border-color: rgba(50, 150, 200, 0.45);
 }
 .ref-firm-icon-img {
   width: 100%;
   height: 100%;
   object-fit: contain;
   display: block;
+}
+.ref-firm-emoji {
+  font-size: 26px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 1;
+}
+.ref-firm-icon .ref-firm-icon-img {
+  position: absolute;
+  inset: 2px;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  object-fit: contain;
+  background: linear-gradient(180deg, #fffdf7, #fff1d8);
+  border-radius: 50%;
+}
+.ref-firm-badge-img {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.18);
+  z-index: 2;
+  pointer-events: none;
+}
+.ref-firm-icon.ref-empire-icon {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+.ref-firm-icon.ref-empire-icon .ref-firm-emoji {
+  font-size: 22px;
 }
 
 .ref-firm-head {
@@ -533,6 +628,7 @@
 .ref-firm-badge.karli   { background: var(--r-success-bg); color: var(--r-success); border: 1px solid var(--r-success-brd); }
 .ref-firm-badge.buyuyor { background: var(--r-blue-bg);    color: var(--r-blue);    border: 1px solid var(--r-blue-brd); }
 .ref-firm-badge.riskli  { background: var(--r-danger-bg);  color: var(--r-danger);  border: 1px solid var(--r-danger-brd); }
+.ref-firm-badge.locked  { background: rgba(95,127,145,0.12); color: var(--r-muted); border: 1px solid rgba(95,127,145,0.28); }
 
 .ref-firm-menu {
   flex-shrink: 0;
@@ -1650,6 +1746,147 @@
   cursor: default; box-shadow: none;
 }
 .ref-prod-locked-lbl { font-size: 10.5px; font-weight: 700; color: var(--r-muted); }
+
+/* ===== Canlı Firmalar (B1 — premium kart + satın al) ===== */
+.ref-live-cards { padding-top: 2px; }
+.ref-live-firm-card { cursor: default; }
+.ref-live-firm-card.state-locked { opacity: 0.72; }
+.ref-live-firm-card.state-no-cash { opacity: 0.94; }
+.ref-live-firm-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.ref-live-cat-chip {
+  display: inline-flex;
+  margin-top: 5px;
+  font-size: 9.5px;
+  font-weight: 800;
+  color: var(--r-teal-dk);
+  background: var(--r-teal-lt);
+  border: 1px solid rgba(19,184,166,0.28);
+  border-radius: var(--r-pill);
+  padding: 2px 8px;
+  width: fit-content;
+}
+.ref-live-owned-pill {
+  font-size: 10px;
+  font-weight: 900;
+  color: #fff;
+  background: var(--r-teal);
+  border-radius: var(--r-pill);
+  padding: 1px 7px;
+  line-height: 1.5;
+}
+.ref-live-buy-col {
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--r-border-lt);
+}
+.ref-live-buy-btn {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--r-md);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(180deg, #2fd0c0 0%, var(--r-teal-dk) 100%);
+  box-shadow: 0 4px 0 #066b64, 0 6px 14px rgba(19,184,166,0.32);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.ref-live-buy-btn small {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.92;
+}
+.ref-live-buy-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #066b64, 0 2px 8px rgba(19,184,166,0.22);
+}
+.ref-live-buy-btn.disabled {
+  background: rgba(0,0,0,0.07);
+  color: var(--r-muted);
+  box-shadow: none;
+  cursor: default;
+}
+.ref-live-lock-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 11px 12px;
+  border-radius: var(--r-md);
+  background: rgba(95,127,145,0.08);
+  border: 1px dashed rgba(95,127,145,0.28);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--r-muted);
+  text-align: center;
+  line-height: 1.35;
+}
+.ref-live-lock-ico { font-size: 14px; flex-shrink: 0; }
+
+.ref-live-total-income {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: var(--r-xs);
+  background: rgba(40,199,111,0.08);
+  border: 1px solid rgba(40,199,111,0.2);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--r-muted);
+}
+.ref-live-total-income strong { color: var(--r-success); font-size: 11.5px; }
+
+.ref-empire-card__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 0 13px 8px;
+  font-size: 11px;
+  font-weight: 800;
+}
+.ref-empire-stat.income { color: var(--r-success); }
+.ref-empire-stat.cost { color: var(--r-orange-dk); }
+.ref-empire-stat.total { color: var(--r-teal-dk); font-size: 10px; font-weight: 700; }
+
+.ref-main-tabs--two .ref-main-tab { font-size: 11px; padding: 11px 6px; }
+
+@media (min-width: 480px) {
+  .ref-live-firm-body { flex-direction: row; align-items: stretch; }
+  .ref-firm-card__info { padding-bottom: 12px; }
+  .ref-live-buy-col {
+    width: 132px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: stretch;
+    padding: 12px 12px 12px 8px;
+    border-top: none;
+    border-left: 1px solid var(--r-border-lt);
+  }
+  .ref-live-buy-btn { margin-top: 0; height: 100%; min-height: 88px; }
+  .ref-live-lock-foot { margin-top: 0; height: 100%; flex-direction: column; }
+}
+
+@media (max-width: 429px) {
+  .ref-firm-name { font-size: 14px; }
+  .ref-firm-stats { gap: 4px 8px; }
+  .ref-stat-val { font-size: 12px; }
+  .ref-main-tabs--two .ref-main-tab span:last-child { font-size: 10px; }
+}
 
 /* ===== İmparatorluk Yatırımları ===== */
 .ref-empire-inv { padding-bottom: 8px; }

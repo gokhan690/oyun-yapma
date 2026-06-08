@@ -139,54 +139,83 @@ export type RefBusinessCategory =
   | 'energy'
   | 'health';
 
-export function getBusinessIcon(category: string): string {
-  const normalized = category
+function normalizeBusinessIconKey(category: string): string {
+  return category
     .toLowerCase()
-    .replace('ı', 'i')
-    .replace('ğ', 'g')
-    .replace('ü', 'u')
-    .replace('ş', 's')
-    .replace('ö', 'o')
-    .replace('ç', 'c')
-    .replace(/[-\s]+/g, '_');
+    .replace(/ı/g, 'i')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ş/g, 's')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c')
+    .replace(/[-\s]+/g, '_')
+}
 
-  const map: Record<string, string> = {
-    berber: REF_ASSETS_V2_GENERIC.businessIcons.barber,
-    barber: REF_ASSETS_V2_GENERIC.businessIcons.barber,
-    firin: REF_ASSETS_V2_GENERIC.businessIcons.bakery,
-    bakery: REF_ASSETS_V2_GENERIC.businessIcons.bakery,
-    kahve: REF_ASSETS_V2_GENERIC.businessIcons.coffee,
-    coffee: REF_ASSETS_V2_GENERIC.businessIcons.coffee,
-    cafe: REF_ASSETS_V2_GENERIC.businessIcons.coffee,
-    e_ticaret: REF_ASSETS_V2_GENERIC.businessIcons.ecommerce,
-    ecommerce: REF_ASSETS_V2_GENERIC.businessIcons.ecommerce,
-    eticaret: REF_ASSETS_V2_GENERIC.businessIcons.ecommerce,
-    yazilim: REF_ASSETS_V2_GENERIC.businessIcons.software,
-    software: REF_ASSETS_V2_GENERIC.businessIcons.software,
-    teknoloji: REF_ASSETS_V2_GENERIC.businessIcons.software,
-    lojistik: REF_ASSETS_V2_GENERIC.businessIcons.logistics,
-    logistics: REF_ASSETS_V2_GENERIC.businessIcons.logistics,
-    hotel: REF_ASSETS_V2_GENERIC.businessIcons.hotel,
-    otel: REF_ASSETS_V2_GENERIC.businessIcons.hotel,
-    media: REF_ASSETS_V2_GENERIC.businessIcons.media,
-    medya: REF_ASSETS_V2_GENERIC.businessIcons.media,
-    finance: REF_ASSETS_V2_GENERIC.businessIcons.finance,
-    finans: REF_ASSETS_V2_GENERIC.businessIcons.finance,
-    illegal: REF_ASSETS_V2_GENERIC.businessIcons.illegal,
-    restaurant: REF_ASSETS_V2_GENERIC.businessIcons.restaurant,
-    restoran: REF_ASSETS_V2_GENERIC.businessIcons.restaurant,
-    retail: REF_ASSETS_V2_GENERIC.businessIcons.retail,
-    gayrimenkul: REF_ASSETS_V2_GENERIC.businessIcons.realEstate,
-    real_estate: REF_ASSETS_V2_GENERIC.businessIcons.realEstate,
-    factory: REF_ASSETS_V2_GENERIC.businessIcons.factory,
-    fabrika: REF_ASSETS_V2_GENERIC.businessIcons.factory,
-    energy: REF_ASSETS_V2_GENERIC.businessIcons.energy,
-    enerji: REF_ASSETS_V2_GENERIC.businessIcons.energy,
-    health: REF_ASSETS_V2_GENERIC.businessIcons.health,
-    saglik: REF_ASSETS_V2_GENERIC.businessIcons.health,
-  };
+const BUSINESS_ICON_MAP: Record<string, string> = {
+  berber: REF_ASSETS_V2_GENERIC.businessIcons.barber,
+  barber: REF_ASSETS_V2_GENERIC.businessIcons.barber,
+  firin: REF_ASSETS_V2_GENERIC.businessIcons.bakery,
+  bakery: REF_ASSETS_V2_GENERIC.businessIcons.bakery,
+  kahve: REF_ASSETS_V2_GENERIC.businessIcons.coffee,
+  coffee: REF_ASSETS_V2_GENERIC.businessIcons.coffee,
+  cafe: REF_ASSETS_V2_GENERIC.businessIcons.coffee,
+  kafe: REF_ASSETS_V2_GENERIC.businessIcons.coffee,
+  e_ticaret: REF_ASSETS_V2_GENERIC.businessIcons.ecommerce,
+  ecommerce: REF_ASSETS_V2_GENERIC.businessIcons.ecommerce,
+  eticaret: REF_ASSETS_V2_GENERIC.businessIcons.ecommerce,
+  yazilim: REF_ASSETS_V2_GENERIC.businessIcons.software,
+  software: REF_ASSETS_V2_GENERIC.businessIcons.software,
+  teknoloji: REF_ASSETS_V2_GENERIC.businessIcons.software,
+  lojistik: REF_ASSETS_V2_GENERIC.businessIcons.logistics,
+  logistics: REF_ASSETS_V2_GENERIC.businessIcons.logistics,
+  hotel: REF_ASSETS_V2_GENERIC.businessIcons.hotel,
+  otel: REF_ASSETS_V2_GENERIC.businessIcons.hotel,
+  tourism: REF_ASSETS_V2_GENERIC.businessIcons.hotel,
+  media: REF_ASSETS_V2_GENERIC.businessIcons.media,
+  medya: REF_ASSETS_V2_GENERIC.businessIcons.media,
+  finance: REF_ASSETS_V2_GENERIC.businessIcons.finance,
+  finans: REF_ASSETS_V2_GENERIC.businessIcons.finance,
+  illegal: REF_ASSETS_V2_GENERIC.businessIcons.illegal,
+  dark: REF_ASSETS_V2_GENERIC.businessIcons.illegal,
+  restaurant: REF_ASSETS_V2_GENERIC.businessIcons.restaurant,
+  restoran: REF_ASSETS_V2_GENERIC.businessIcons.restaurant,
+  retail: REF_ASSETS_V2_GENERIC.businessIcons.retail,
+  gayrimenkul: REF_ASSETS_V2_GENERIC.businessIcons.realEstate,
+  real_estate: REF_ASSETS_V2_GENERIC.businessIcons.realEstate,
+  factory: REF_ASSETS_V2_GENERIC.businessIcons.factory,
+  fabrika: REF_ASSETS_V2_GENERIC.businessIcons.factory,
+  industry: REF_ASSETS_V2_GENERIC.businessIcons.factory,
+  energy: REF_ASSETS_V2_GENERIC.businessIcons.energy,
+  enerji: REF_ASSETS_V2_GENERIC.businessIcons.energy,
+  health: REF_ASSETS_V2_GENERIC.businessIcons.health,
+  saglik: REF_ASSETS_V2_GENERIC.businessIcons.health,
+  sport: REF_ASSETS_V2_GENERIC.businessIcons.media,
+  politics: REF_ASSETS_V2_GENERIC.businessIcons.finance,
+  science: REF_ASSETS_V2_GENERIC.businessIcons.energy,
+  luxury: REF_ASSETS_V2_GENERIC.businessIcons.finance,
+  risky: REF_ASSETS_V2_GENERIC.businessIcons.illegal,
+  stajyer: REF_ASSETS_V2_GENERIC.businessIcons.restaurant,
+  ofis: REF_ASSETS_V2_GENERIC.businessIcons.restaurant,
+  robot: REF_ASSETS_V2_GENERIC.businessIcons.software,
+  office: REF_ASSETS_V2_GENERIC.businessIcons.restaurant,
+  service: REF_ASSETS_V2_GENERIC.businessIcons.restaurant,
+}
 
-  return map[normalized] ?? REF_ASSETS_V2_GENERIC.businessIcons.retail;
+/** Chip anahtarları yalnızca gradient için — dedike asset sayılmaz. */
+const CHIP_FILTER_KEYS = new Set([
+  'gida', 'hizmet', 'teknoloji', 'finans', 'turizm', 'medya', 'sanayi', 'lojistik', 'luks', 'illegal', 'tumu',
+  'sport', 'politics', 'science',
+])
+
+export function hasDedicatedBusinessIcon(category: string): boolean {
+  const normalized = normalizeBusinessIconKey(category)
+  if (CHIP_FILTER_KEYS.has(normalized)) return false
+  return normalized in BUSINESS_ICON_MAP
+}
+
+export function getBusinessIcon(category: string): string {
+  const normalized = normalizeBusinessIconKey(category)
+  return BUSINESS_ICON_MAP[normalized] ?? REF_ASSETS_V2_GENERIC.businessIcons.retail
 }
 
 export function getBusinessHero(category: string): string {
