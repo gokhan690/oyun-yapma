@@ -14,6 +14,7 @@ import { RefAchievementsPage } from './RefAchievementsPage'
 import type { RefViewModel } from './refAppDataAdapter'
 import type { GameState } from '../../game/GameState'
 import { performRefCareerReset } from './refDevReset'
+import { REFAPP_DEFAULT_FLAG } from './RefTestLauncher'
 
 /** DEV-only: production build'de false (vite dead-code elimination). */
 const IS_DEV = import.meta.env.DEV
@@ -54,6 +55,11 @@ export interface RefAppOptions {
   data?: RefViewModel
   /** Canlı GameState — zaman kontrolü ve işletme satın alma için gerekli. */
   state?: GameState
+  /**
+   * Kalıcı mod aktifken true: "Klasik Görünüm" butonu gösterilir.
+   * Bu buton flag'i siler ve onExit'i çağırır (eski HUD'a döner).
+   */
+  isPermanent?: boolean
 }
 
 export class RefApp {
@@ -82,6 +88,7 @@ export class RefApp {
     this.active = initial
     this.vm = opts.data
     this.gameState = opts.state
+    const isPermanent = opts.isPermanent ?? (localStorage.getItem(REFAPP_DEFAULT_FLAG) === '1')
 
     // ── Shell ──
     this.el = document.createElement('div')
@@ -102,6 +109,11 @@ export class RefApp {
 
     if (IS_DEV && this.gameState) {
       this.el.appendChild(this.buildDevToolsBar())
+    }
+
+    // Kalıcı modda eski arayüze dönüş çubuğu (her ortamda; dev guard yok)
+    if (isPermanent && opts.onExit) {
+      this.el.appendChild(this.buildClassicBar(opts.onExit))
     }
 
     // ── Content (scroll) ──
@@ -228,6 +240,28 @@ export class RefApp {
     hint.textContent = 'İşletmesiz çalışan başlangıcı · tutorial bypass · sıfırlama öncesi otomatik yedek'
     bar.appendChild(hint)
 
+    return bar
+  }
+
+  /**
+   * Kalıcı modda gösterilen ince çubuk: flag'i siler ve eski HUD'a döner.
+   * Üretim ortamında da görünür — feature flag toggle için erişilebilir olmalı.
+   */
+  private buildClassicBar(onExit: () => void): HTMLElement {
+    const bar = document.createElement('div')
+    bar.className = 'ref-classic-bar'
+
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'ref-classic-bar__btn'
+    btn.textContent = '← Klasik Görünüm'
+    btn.title = 'Yeni arayüzü kapat, eski oyun ekranına dön'
+    btn.addEventListener('click', () => {
+      localStorage.removeItem(REFAPP_DEFAULT_FLAG)
+      onExit()
+    })
+
+    bar.appendChild(btn)
     return bar
   }
 

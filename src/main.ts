@@ -67,9 +67,9 @@ async function bootstrap(): Promise<void> {
 
     const hud = new HUD(state, ads, sound, saveManager, app)
 
-    // İzole görsel test modu: yeni arayüz (RefApp). Adapter GameState'i SALT
-    // OKUR (yazmaz/aksiyon tetiklemez); veri yoksa mock fallback kullanır.
-    installRefTestLauncher(state)
+    // Yeni arayüz (RefApp). Adapter GameState'i okur ve aksiyonlar gerçek API'a bağlıdır.
+    // Kalıcı modda (ii_use_refapp='1') intro bitince otomatik açılır, HUD gizlenir.
+    installRefTestLauncher(state, app)
 
     const setupDone = localStorage.getItem('baron_setup_done') === '1'
     if (!saveLoaded && !setupDone) {

@@ -3,15 +3,25 @@ import { buildRefViewModel, type RefViewModel } from './refAppDataAdapter'
 import type { GameState } from '../../game/GameState'
 
 /*
- * İZOLE GÖRSEL TEST MODU.
- * Ana oyuna RefApp'i bağlamaz, GameState'e dokunmaz, ekonomi/tutorial/piyasa
- * kilidini değiştirmez. Yalnızca yüzen bir butonla RefApp'i (mock data) tam
- * ekran, izole overlay olarak açıp kapatır.
+ * RefApp Launcher.
+ *
+ * İki mod desteklenir:
+ *
+ * 1. BUTON MODU (varsayılan): yüzen "✨ Yeni Arayüz" butonu; oyun hazır
+ *    olduğunda görünür, tıklanınca RefApp overlay açar.
+ *
+ * 2. KALICI MOD (ii_use_refapp = '1'): intro bitince RefApp otomatik açılır,
+ *    eski HUD gizlenir; çıkışta HUD geri görünür (fallback olarak korunur).
+ *    Feature flag localStorage'da kalıcıdır; RefApp içindeki "Klasik Görünüm"
+ *    butonu ile kapatılabilir.
  *
  * Launcher butonu YALNIZCA oyun gerçekten hazırken ve oyuncu normal oyun
  * ekranındayken görünür: onboarding, karakter/eğitim seçimi, tutorial veya
  * herhangi bir büyük modal/sheet açıkken GİZLENİR.
  */
+
+/** localStorage'da tutulan kalıcı mod feature flag anahtarı. */
+export const REFAPP_DEFAULT_FLAG = 'ii_use_refapp'
 
 // Oyunu kilitleyen/odak çalan tam ekran katmanlar (görünürlerse launcher gizlenir)
 const BLOCKING_SELECTORS = [
@@ -36,8 +46,11 @@ function gameBusy(): boolean {
   return false
 }
 
-export function installRefTestLauncher(state?: GameState): void {
+export function installRefTestLauncher(state?: GameState, hudEl?: HTMLElement): void {
   if (document.getElementById('ref-test-launch')) return
+
+  /** Kalıcı mod: localStorage flag ayarlıysa RefApp varsayılan arayüzdür. */
+  const permanent = localStorage.getItem(REFAPP_DEFAULT_FLAG) === '1'
 
   // Test/önizleme kolaylığı: adapter'ın okuduğu GameState'i Playwright/konsol
   // ile seed edebilmek için (yalnızca test modu scaffolding'i; oyun mantığı değil).
@@ -54,6 +67,7 @@ export function installRefTestLauncher(state?: GameState): void {
     }
   }
 
+  // Kalıcı modda yüzen buton gizlenir; kullanıcı doğrudan RefApp'te başlar.
   const btn = document.createElement('button')
   btn.id = 'ref-test-launch'
   btn.type = 'button'
@@ -107,6 +121,8 @@ export function installRefTestLauncher(state?: GameState): void {
     overlay?.remove()
     overlay = null
     document.body.style.overflow = bodyOverflowPrev
+    // Kalıcı modda HUD'u geri göster (eski arayüz fallback olarak korunur)
+    if (permanent && hudEl) hudEl.style.display = ''
     startWatchers()   // izleyicileri geri aç
     syncVisibility()
   }
@@ -143,9 +159,12 @@ export function installRefTestLauncher(state?: GameState): void {
       overscrollBehavior: 'contain',
     } as CSSStyleDeclaration)
 
+    // Kalıcı modda eski HUD gizlenir; GameState instance'ı canlı kalır.
+    if (permanent && hudEl) hudEl.style.display = 'none'
+
     const initialTab = forcedTab ?? consumePendingTab ?? 'firms'
     consumePendingTab = null
-    const app = new RefApp({ initial: initialTab, onExit: close, data: buildData(), state: state ?? undefined })
+    const app = new RefApp({ initial: initialTab, onExit: close, data: buildData(), state: state ?? undefined, isPermanent: permanent })
     app.mount(overlay)
     document.body.appendChild(overlay)
     // Kapandığında abonelikleri temizle (bellek sızıntısı önleme)
@@ -160,7 +179,8 @@ export function installRefTestLauncher(state?: GameState): void {
   }
 
   btn.addEventListener('click', () => open())
-  document.body.appendChild(btn)
+  // Kalıcı modda yüzen buton DOM'a eklenmez — RefApp doğrudan açılır.
+  if (!permanent) document.body.appendChild(btn)
 
   // Görünürlük senkronu: oyun durumu değiştikçe launcher'ı göster/gizle
   const syncVisibility = (): void => {
@@ -172,17 +192,36 @@ export function installRefTestLauncher(state?: GameState): void {
     // tick'i başlamamış bir oyun üzerine açılır → oyun saati donar.
     const notReady = !!state && !state.isIntroFlowReady()
     btn.style.display = (notReady || gameBusy()) ? 'none' : ''
+
+    // Kalıcı mod: overlay kapandıysa ve intro hazırsa yeniden aç (HUD fallback'ten dönen kullanıcı)
+    if (permanent && !overlay && state && state.isIntroFlowReady() && !gameBusy()) {
+      open('career')
+    }
   }
 
   syncVisibility()
   // DOM değişimlerini izle (modal aç/kapa) + güvenlik için periyodik kontrol
   startWatchers()
 
+  // Session bazlı auto-open (mevcut mekanizma; kalıcı modun yanı sıra çalışır)
   if (pendingAutoOpen && state) {
     window.setTimeout(() => {
       if (!overlay && state.isIntroFlowReady() && !gameBusy()) {
         open()
       }
     }, 700)
+  }
+
+  // Kalıcı mod: intro tamamlanınca otomatik aç (sayfa yeniden yükleme dahil)
+  if (permanent && state) {
+    const tryPermanentOpen = (): void => {
+      if (overlay) return
+      if (state.isIntroFlowReady() && !gameBusy()) {
+        open('career')
+        return
+      }
+      // Intro henüz hazır değil — DOM izleyicisi syncVisibility üzerinden tekrar dener
+    }
+    window.setTimeout(tryPermanentOpen, 500)
   }
 }
