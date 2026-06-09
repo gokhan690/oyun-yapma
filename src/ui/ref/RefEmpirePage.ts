@@ -1,9 +1,28 @@
-import { sectionTitle, ua, fmtMoney, demoBanner } from './refShared'
+import { sectionTitle, ua, fmtMoney, demoBanner, refToast } from './refShared'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS } from '../../game/Economy'
 import { politicsLevelLabel } from '../../game/Empire'
+import {
+  RESEARCH_NODES,
+  researchCost,
+  researchIsUnlocked,
+  researchPrereqName,
+  researchNodeName,
+  researchNodeDesc,
+  researchNodesByBranch,
+  type ResearchBranch,
+  type ResearchNode,
+} from '../../game/Research'
+import { SaveManager } from '../../security/SaveManager'
+
+interface BranchMeta { id: ResearchBranch; label: string; ico: string }
+const RESEARCH_BRANCHES: BranchMeta[] = [
+  { id: 'operasyon',    label: 'Operasyon Ar-Ge',    ico: '⚙️' },
+  { id: 'finans',       label: 'Finans Ar-Ge',       ico: '💰' },
+  { id: 'imparatorluk', label: 'İmparatorluk Ar-Ge', ico: '👑' },
+]
 
 interface CityDef { key: keyof typeof REF_ASSETS_V2_GENERIC.cities; name: string; id: string }
 const CITY_DEFS: CityDef[] = [
@@ -34,12 +53,93 @@ export class RefEmpirePage implements RefPage {
   readonly el: HTMLElement
   readonly title = 'İMPARATORLUK'
   private state?: GameState
+  /** Ar-Ge bölümü için bağımsız re-render hedefi (görselsiz → ucuz tazeleme). */
+  private readonly researchHost: HTMLElement
 
   constructor(state?: GameState) {
     this.state = state
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-empire-page'
+    this.researchHost = document.createElement('div')
+    this.researchHost.className = 'ref-research-host'
+    this.el.addEventListener('click', (e) => this.handleClick(e))
     this.build()
+  }
+
+  /** Canlı para → yalnız Ar-Ge satın alma durumlarını tazele (görselleri yeniden decode etme). */
+  refresh(state: GameState): void {
+    if (!this.state) return
+    this.state = state
+    this.renderResearch()
+  }
+
+  // ── Ar-Ge / Araştırma (gerçek Research sistemi) ─────────────────────
+  private renderResearch(): void {
+    const s = this.state
+    if (!s) return
+    this.researchHost.innerHTML = ''
+    for (const br of RESEARCH_BRANCHES) {
+      const nodes = researchNodesByBranch(br.id)
+      if (nodes.length === 0) continue
+      this.researchHost.appendChild(sectionTitle(`${br.ico} ${br.label}`, `${nodes.length} dal`))
+      const list = document.createElement('div')
+      list.className = 'ref-research-list'
+      list.innerHTML = nodes.map((n) => this.researchCardHtml(n)).join('')
+      this.researchHost.appendChild(list)
+    }
+  }
+
+  private researchCardHtml(n: ResearchNode): string {
+    const s = this.state!
+    const level = s.research[n.id] ?? 0
+    const maxed = level >= n.maxLevel
+    const unlocked = researchIsUnlocked(n.id, s.research)
+    const cost = s.researchCostWithWeekly(researchCost(n, level))
+    const isPrestige = n.currency === 'prestige'
+    const affordable = isPrestige ? s.prestigePoints >= cost : s.canAfford(cost)
+    const costText = isPrestige ? `${cost} ⭐` : fmtMoney(cost)
+    const pips = Array.from({ length: n.maxLevel }, (_, i) =>
+      `<span class="${i < level ? 'on' : ''}"></span>`).join('')
+
+    let foot: string
+    if (maxed) {
+      foot = `<span class="ref-research-badge maxed">MAKS</span>`
+    } else if (!unlocked) {
+      const pre = researchPrereqName(n.id) ?? 'Önkoşul'
+      foot = `<span class="ref-research-badge locked">🔒 ${pre} gerekli</span>`
+    } else {
+      foot = `<button type="button" class="ref-research-buy" data-research-id="${n.id}"${affordable ? '' : ' disabled aria-disabled="true"'}>${affordable ? `Yükselt · ${costText}` : costText}</button>`
+    }
+
+    const cls = maxed ? 'is-maxed' : !unlocked ? 'is-locked' : ''
+    return `
+      <div class="ref-research-card ${cls}">
+        <div class="ref-research-card__head">
+          <span class="ref-research-card__name">${researchNodeName(n)}</span>
+          <span class="ref-research-card__lvl">Sv ${level}/${n.maxLevel}</span>
+        </div>
+        <p class="ref-research-card__desc">${researchNodeDesc(n)}</p>
+        <div class="ref-research-pips">${pips}</div>
+        <div class="ref-research-card__foot">${foot}</div>
+      </div>`
+  }
+
+  private handleClick(e: Event): void {
+    const s = this.state
+    if (!s) return
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-research-id]')
+    if (!btn || btn.disabled) return
+    const id = btn.dataset.researchId
+    if (!id) return
+    const ok = s.buyResearch(id)
+    if (ok) {
+      new SaveManager().save(s)
+      const node = RESEARCH_NODES.find((x) => x.id === id)
+      refToast(`Ar-Ge yükseltildi${node ? ': ' + researchNodeName(node) : ''}`, 'ok')
+      this.renderResearch()
+    } else {
+      refToast('Yetersiz bakiye veya kilitli', 'err')
+    }
   }
 
   private build(): void {
@@ -158,6 +258,13 @@ export class RefEmpirePage implements RefPage {
         <div class="ref-empire-empty-state__desc">Spor, siyaset, lüks ve yeraltı varlıklarını İşletmeler → İmparatorluk Yatırımları sekmesinden alabilirsin.</div>
       `
       this.el.appendChild(emptyCard)
+    }
+
+    // ── Ar-Ge Laboratuvarı (gerçek Research sistemi — satın alınabilir) ──
+    if (s) {
+      this.el.appendChild(sectionTitle('Ar-Ge Laboratuvarı', 'Araştırma'))
+      this.el.appendChild(this.researchHost)
+      this.renderResearch()
     }
 
     // ── Departmanlar (MOCK — salt görüntü) ──────────────────────────────
