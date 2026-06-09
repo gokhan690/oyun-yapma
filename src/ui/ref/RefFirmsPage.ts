@@ -20,11 +20,14 @@ import {
   donutSvg,
   type ProducerChipKey,
 } from './refShared'
-import { REF_ASSETS_V2_GENERIC, getBusinessHero } from './refAssetsV2Generic'
+import { getBusinessHero } from './refAssetsV2Generic'
 import { producerVisual, renderProducerIconHtml } from './producerVisual'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
 import { type ProducerDef } from '../../game/Economy'
+import { FIRM_MAX_LEVEL, firmLevelBonusLabel, isFirmMaxLevel } from '../../game/FirmLevels'
+import { firmUpgradesForProducer } from '../../game/FirmUpgrades'
+import { SaveManager } from '../../security/SaveManager'
 
 /* ── Mock data (state yoksa saf önizleme) ─────────────────────────────── */
 const MOCK_FIRMS: FirmData[] = [
@@ -75,13 +78,6 @@ const DETAIL_EXPENSE_SPLIT = [
   { label: 'Tedarik', value: 31, color: '#F6A609' },
   { label: 'Kira', value: 18, color: '#13B8A6' },
   { label: 'Diğer', value: 9, color: '#94B4C2' },
-]
-
-const DETAIL_UPGRADE_TILES = [
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.quality, label: 'Kalite', mult: 0.6 },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.marketing, label: 'Pazarlama', mult: 1.0 },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.staffTraining, label: 'Eğitim', mult: 1.6 },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.automation, label: 'Otomasyon', mult: 2.4 },
 ]
 
 export class RefFirmsPage implements RefPage {
@@ -146,9 +142,7 @@ export class RefFirmsPage implements RefPage {
       this.detailOverlay = document.createElement('div')
       this.detailOverlay.className = 'ref-producer-detail'
       this.detailOverlay.hidden = true
-      this.detailOverlay.addEventListener('click', (e) => {
-        if ((e.target as HTMLElement).closest('.ref-detail-back')) this.closeProducerDetail()
-      })
+      this.detailOverlay.addEventListener('click', (e) => this.onDetailClick(e))
       this.el.appendChild(this.detailOverlay)
     }
   }
@@ -320,6 +314,9 @@ export class RefFirmsPage implements RefPage {
     const visual = producerVisual(def)
     const chipLabel = producerChipLabel(snap.chip)
     const buyLabel = snap.buyCount > 1 ? `×${snap.buyCount} AL` : snap.owned > 0 ? '+1 AL' : 'SATIN AL'
+    const firmLv = s.producerLevel(def.id)
+    const lvCost = s.firmLevelUpCostFor(def)
+    const canLevelUp = snap.owned > 0 && !isFirmMaxLevel(firmLv) && s.canAfford(lvCost)
 
     card.className = `ref-live-firm-card ref-firm-card ref-firm-card--premium state-${snap.stateClass}`
     card.dataset.chip = snap.chip
@@ -354,6 +351,7 @@ export class RefFirmsPage implements RefPage {
               <div class="ref-firm-meta">
                 <span class="ref-live-cat-chip">${chipLabel}</span>
                 <span class="ref-level-txt">T${def.tier}</span>
+                ${snap.owned > 0 ? `<span class="ref-firm-lvl-badge">Lv.${firmLv}</span>` : ''}
                 ${ownedHtml}
               </div>
             </div>
@@ -378,13 +376,38 @@ export class RefFirmsPage implements RefPage {
             <div class="ref-perf-track"><div class="ref-perf-fill ${snap.perfCls}" style="width:${snap.perfPct}%"></div></div>
           </div>
         </div>
-        <div class="ref-live-buy-col">${buyHtml}</div>
+        <div class="ref-live-buy-col">
+          ${buyHtml}
+          ${snap.owned > 0 && !isFirmMaxLevel(firmLv)
+            ? `<button type="button" class="ref-live-levelup-btn${canLevelUp ? '' : ' disabled'}" data-action="levelup-firm"${canLevelUp ? '' : ' disabled'}>⬆️ Lv.${firmLv + 1}<small>${fmtMoney(lvCost)} · ${firmLevelBonusLabel(firmLv + 1)}</small></button>`
+            : snap.owned > 0
+              ? `<span class="ref-firm-lvl-maxed">Lv.${FIRM_MAX_LEVEL} Maks</span>`
+              : ''}
+        </div>
       </div>
     `
   }
 
   private onLiveCardClick(e: Event): void {
     if (!this.state) return
+    const lvBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-action="levelup-firm"]')
+    if (lvBtn) {
+      e.stopPropagation()
+      const card = lvBtn.closest<HTMLElement>('.ref-live-firm-card')
+      const id = card?.dataset.id
+      if (!id) return
+      const def = NORMAL_PRODUCERS.find((p) => p.id === id)
+      if (!def) return
+      const ok = this.state.levelUpFirm(id)
+      if (ok) {
+        new SaveManager().save(this.state)
+        refToast(`⬆️ ${def.name} Lv.${this.state.producerLevel(id)}`, 'ok')
+        this.refreshProducerCards()
+        this.updateKpi()
+        if (this.openDetailId === id) this.paintProducerDetail(def, this.state)
+      } else refToast('Seviye atlatılamadı', 'err')
+      return
+    }
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-action="buy-producer"]')
     if (btn) {
       e.stopPropagation()
@@ -396,9 +419,11 @@ export class RefFirmsPage implements RefPage {
       const snap = producerCardSnap(def, this.state, this.buyMode)
       const ok = this.executeProducerBuy(def)
       if (ok) {
+        new SaveManager().save(this.state)
         const qty = snap.purchaseCount > 1 ? ` ×${snap.purchaseCount}` : ''
         refToast(`${def.emoji} ${def.name}${qty} alındı`, 'ok')
         this.refreshProducerCards()
+        this.updateKpi()
         if (this.openDetailId === id) this.paintProducerDetail(def, this.state)
       } else {
         refToast('Satın alınamadı', 'err')
@@ -436,7 +461,11 @@ export class RefFirmsPage implements RefPage {
     const trend = producerDetailTrend(def, snap.perfPct)
     const satisfaction = producerDetailSatisfaction(snap.perfPct)
     const isEmpire = !!def.category
-    const incomeBase = snap.totalIncome > 0 ? snap.totalIncome : snap.marginalIncome
+    const firmLv = s.producerLevel(def.id)
+    const purchased = s.firmUpgradesPurchased(def.id)
+    const upgrades = firmUpgradesForProducer(def)
+    const lvCost = s.firmLevelUpCostFor(def)
+    const canLevelUp = snap.owned > 0 && !isFirmMaxLevel(firmLv) && s.canAfford(lvCost)
 
     this.detailOverlay.innerHTML = `
       <div class="ref-producer-detail__scroll">
@@ -449,13 +478,13 @@ export class RefFirmsPage implements RefPage {
           <div class="ref-producer-detail-hero__icon">${renderProducerIconHtml(visual)}</div>
           <div class="ref-detail-hero__title">
             <div class="ref-detail-name">${def.name}</div>
-            <div class="ref-detail-slogan">${chipLabel} · Kademe T${def.tier}${def.description ? ` · ${def.description}` : ''}</div>
+            <div class="ref-detail-slogan">${chipLabel} · Kademe T${def.tier}${snap.owned > 0 ? ` · Lv.${firmLv}` : ''}${def.description ? ` · ${def.description}` : ''}</div>
           </div>
         </div>
         <div class="ref-body ref-detail-body ref-producer-detail-body">
           <div class="ref-detail-id">
             <div class="ref-detail-id__left">
-              <span class="ref-detail-lvl">${snap.owned > 0 ? `${snap.owned} adet` : 'Sahip değil'}</span>
+              <span class="ref-detail-lvl">${snap.owned > 0 ? `Lv.${firmLv} · ${snap.owned} adet` : 'Sahip değil'}</span>
               <div class="ref-stars ref-detail-stars">${starsHtml(snap.stars)}</div>
             </div>
             <div class="ref-detail-id__city"><span>📊</span> ${chipLabel}</div>
@@ -518,14 +547,24 @@ export class RefFirmsPage implements RefPage {
               </div>
             </div>
           </div>
-          <div class="ref-detail-section-title">Geliştirmeler <span class="ref-est-tag">tahmini · önizleme</span></div>
+          <div class="ref-detail-section-title">Geliştirmeler <span class="ref-est-tag">sektöre özel</span></div>
           <div class="ref-detail-upgrades">
-            ${DETAIL_UPGRADE_TILES.map((u) => `
-              <div class="ref-detail-upg">
-                <img src="${ua(u.asset)}" alt="" class="ref-detail-upg__img" loading="lazy" onerror="this.remove()">
-                <span class="ref-detail-upg__lbl">${u.label}</span>
-                <span class="ref-detail-upg__price">${fmtMoney(Math.max(10_000, Math.round(incomeBase * u.mult)))}</span>
-              </div>`).join('')}
+            ${upgrades.length === 0
+              ? '<div class="ref-detail-upg ref-detail-upg--empty">Bu işletme için geliştirme yok</div>'
+              : upgrades.map((up) => {
+                const isPurchased = purchased.includes(up.id)
+                const cost = s.firmUpgradeCostFor(def, up.id)
+                const canBuy = !isPurchased && snap.owned > 0 && s.canAfford(cost)
+                return `
+              <button type="button" class="ref-detail-upg${isPurchased ? ' ref-detail-upg--owned' : ''}"
+                data-action="buy-firm-upgrade" data-upgrade-id="${up.id}"
+                ${isPurchased || !canBuy ? 'disabled' : ''}>
+                <span class="ref-detail-upg__emoji">${up.emoji}</span>
+                <span class="ref-detail-upg__lbl">${up.name}</span>
+                <span class="ref-detail-upg__desc">${up.description}</span>
+                <span class="ref-detail-upg__price">${isPurchased ? '✓ Alındı' : fmtMoney(cost)}</span>
+              </button>`
+              }).join('')}
           </div>
           <div class="ref-detail-actions">
             ${isEmpire
@@ -533,10 +572,14 @@ export class RefFirmsPage implements RefPage {
               : snap.canBuy
                 ? `<button class="ref-btn develop" type="button" data-action="detail-buy">${snap.buyCount > 1 ? `×${snap.buyCount} AL` : 'SATIN AL'} · ${snap.costText}</button>`
                 : `<button class="ref-btn develop disabled" type="button" disabled>${snap.unlocked ? (this.buyMode === 'max' && snap.purchaseCount <= 0 ? 'Max 0' : 'Para Yetersiz') : 'Kilitli'}</button>`}
-            <button class="ref-btn modernize disabled" type="button" disabled>⚙️ MODERNİZE</button>
+            ${snap.owned > 0 && !isFirmMaxLevel(firmLv)
+              ? `<button class="ref-btn modernize${canLevelUp ? '' : ' disabled'}" type="button" data-action="detail-levelup"${canLevelUp ? '' : ' disabled'}>⬆️ Lv.${firmLv + 1} · ${fmtMoney(lvCost)}</button>`
+              : snap.owned > 0
+                ? `<button class="ref-btn modernize disabled" type="button" disabled>Lv.${FIRM_MAX_LEVEL} Maks</button>`
+                : `<button class="ref-btn modernize disabled" type="button" disabled>⚙️ Seviye için sahip ol</button>`}
             <button class="ref-btn manager disabled" type="button" disabled>👤 MANAGER</button>
           </div>
-          <div class="ref-preview-note">Tahmini alanlar etiketlidir · gelir/maliyet eski oyun sisteminden</div>
+          <div class="ref-preview-note">Gelir/maliyet eski oyun sisteminden · seviye ve geliştirmeler kalıcı</div>
         </div>
       </div>
     `
@@ -547,18 +590,63 @@ export class RefFirmsPage implements RefPage {
       else heroImg.addEventListener('load', () => heroImg.classList.add('loaded'), { once: true })
     }
 
-    this.detailOverlay.querySelector<HTMLButtonElement>('[data-action="detail-buy"]')?.addEventListener('click', () => {
-      if (!this.state || def.category) return
+  }
+
+  private onDetailClick(e: Event): void {
+    if (!this.state || !this.openDetailId) return
+    const target = e.target as HTMLElement
+    if (target.closest('.ref-detail-back')) {
+      this.closeProducerDetail()
+      return
+    }
+    const def = NORMAL_PRODUCERS.find((p) => p.id === this.openDetailId)
+      ?? EMPIRE_PRODUCERS.find((p) => p.id === this.openDetailId)
+    if (!def) return
+
+    const buyBtn = target.closest<HTMLButtonElement>('[data-action="detail-buy"]')
+    if (buyBtn) {
+      e.stopPropagation()
       const snapNow = producerCardSnap(def, this.state, this.buyMode)
       const ok = this.executeProducerBuy(def)
       if (ok) {
+        new SaveManager().save(this.state)
         const qty = snapNow.purchaseCount > 1 ? ` ×${snapNow.purchaseCount}` : ''
-        refToast(`${visual.emoji} ${def.name}${qty} alındı`, 'ok')
+        refToast(`${def.emoji} ${def.name}${qty} alındı`, 'ok')
         this.refreshProducerCards()
         this.paintProducerDetail(def, this.state)
         this.updateKpi()
       } else refToast('Satın alınamadı', 'err')
-    })
+      return
+    }
+
+    const lvBtn = target.closest<HTMLButtonElement>('[data-action="detail-levelup"]')
+    if (lvBtn) {
+      e.stopPropagation()
+      const ok = this.state.levelUpFirm(def.id)
+      if (ok) {
+        new SaveManager().save(this.state)
+        refToast(`⬆️ ${def.name} Lv.${this.state.producerLevel(def.id)}`, 'ok')
+        this.refreshProducerCards()
+        this.paintProducerDetail(def, this.state)
+        this.updateKpi()
+      } else refToast('Seviye atlatılamadı', 'err')
+      return
+    }
+
+    const upBtn = target.closest<HTMLButtonElement>('[data-action="buy-firm-upgrade"]')
+    if (upBtn) {
+      e.stopPropagation()
+      const upgradeId = upBtn.dataset.upgradeId
+      if (!upgradeId) return
+      const ok = this.state.buyFirmUpgrade(def.id, upgradeId)
+      if (ok) {
+        new SaveManager().save(this.state)
+        refToast(`${def.emoji} geliştirme alındı`, 'ok')
+        this.refreshProducerCards()
+        this.paintProducerDetail(def, this.state)
+        this.updateKpi()
+      } else refToast('Geliştirme alınamadı', 'err')
+    }
   }
 
   private refreshProducerCards(): void {

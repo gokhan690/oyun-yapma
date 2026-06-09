@@ -1,4 +1,11 @@
-import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, type ProducerDef, type UpgradeDef } from './Economy'
+import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, producerName, type ProducerDef, type UpgradeDef } from './Economy'
+import { firmLevelIncomeMult, firmLevelUpCost, FIRM_MAX_LEVEL } from './FirmLevels'
+import {
+  firmUpgradeDef,
+  firmUpgradeIncomeBonus,
+  firmUpgradeHeatBonus,
+  firmUpgradeCost,
+} from './FirmUpgrades'
 import { PRESTIGE_SHOP_ITEMS } from './PrestigeShop'
 import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, ipoThreshold, prestigeMultiplier } from './Prestige'
 import { getActiveSynergies, globalSynergyBonus, producerSynergyBonus } from './Synergies'
@@ -629,6 +636,8 @@ export interface SerializableState {
   travel?: TravelState
   career?: CareerState
   characterBackground?: CharacterBackgroundId | null
+  producerLevels?: Record<string, number>
+  producerUpgrades?: Record<string, string[]>
 }
 
 export interface ProducerBreakdown {
@@ -909,6 +918,10 @@ export class GameState {
   cities = createCityState()
   torpil = createTorpilState()
   producerModernized: Record<string, boolean> = {}
+  /** Firma seviyeleri (Karar 9) — varsayılan 1 */
+  producerLevels: Record<string, number> = {}
+  /** Kategoriye özel firma geliştirmeleri (Karar 8-10) */
+  producerUpgrades: Record<string, string[]> = {}
   pendingUndo: PendingUndo | null = null
   lastDisasterGameDay = 0
   dynastyPassiveIncome = 0
@@ -1510,6 +1523,10 @@ export class GameState {
     heat *= heatGainReduction(this.undergroundTree)
     heat *= 1 - empirePoliticsHeatReduction(this.empire.politics)
     heat += this.empire.darkIndustry.heatBonus
+    for (const p of PRODUCERS) {
+      if (!p.illegal) continue
+      heat += firmUpgradeHeatBonus(p, this.producerUpgrades[p.id] ?? [])
+    }
     return Math.max(0, heat)
   }
 
@@ -1767,6 +1784,62 @@ export class GameState {
     return mult
   }
 
+  /** Firma seviyesi (Karar 9) — varsayılan 1 */
+  producerLevel(id: string): number {
+    return this.producerLevels[id] ?? 1
+  }
+
+  firmLevelUpCostFor(def: ProducerDef): number {
+    const owned = this.producers[def.id] ?? 0
+    return firmLevelUpCost(def, this.producerLevel(def.id), owned)
+  }
+
+  levelUpFirm(producerId: string): boolean {
+    const def = PRODUCERS.find((p) => p.id === producerId)
+    if (!def) return false
+    const owned = this.producers[producerId] ?? 0
+    if (owned <= 0) return false
+    const level = this.producerLevel(producerId)
+    if (level >= FIRM_MAX_LEVEL) return false
+    const cost = this.firmLevelUpCostFor(def)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.producerLevels[producerId] = level + 1
+    this.addGazette(`⬆️ ${producerName(def)} Lv.${level + 1}'e yükseltildi`, 'player')
+    this.emit({ type: 'money_changed' })
+    this.emit({ type: 'purchase' })
+    return true
+  }
+
+  firmUpgradesPurchased(producerId: string): string[] {
+    return this.producerUpgrades[producerId] ?? []
+  }
+
+  buyFirmUpgrade(producerId: string, upgradeId: string): boolean {
+    const def = PRODUCERS.find((p) => p.id === producerId)
+    if (!def) return false
+    const owned = this.producers[producerId] ?? 0
+    if (owned <= 0) return false
+    const purchased = this.producerUpgrades[producerId] ?? []
+    if (purchased.includes(upgradeId)) return false
+    const up = firmUpgradeDef(def, upgradeId)
+    if (!up) return false
+    const cost = firmUpgradeCost(def, up, owned)
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.producerUpgrades[producerId] = [...purchased, upgradeId]
+    this.addGazette(`${up.emoji} ${producerName(def)}: ${up.name} geliştirmesi yapıldı`, 'player')
+    this.emit({ type: 'money_changed' })
+    this.emit({ type: 'purchase' })
+    return true
+  }
+
+  firmUpgradeCostFor(def: ProducerDef, upgradeId: string): number {
+    const up = firmUpgradeDef(def, upgradeId)
+    if (!up) return Infinity
+    return firmUpgradeCost(def, up, this.producers[def.id] ?? 0)
+  }
+
   producerIncome(def: ProducerDef): number {
     const owned = this.producers[def.id] ?? 0
     if (owned === 0) return 0
@@ -1775,6 +1848,8 @@ export class GameState {
       const u = UPGRADES.find((x) => x.id === id)
       if (u?.effect === 'producer_mult' && u.producerId === def.id) mult *= u.value
     }
+    mult *= firmLevelIncomeMult(this.producerLevel(def.id))
+    mult *= 1 + firmUpgradeIncomeBonus(def, this.producerUpgrades[def.id] ?? [])
     mult *= 1 + producerSynergyBonus(def.id, this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
     mult *= managerMultiplier(this.managers, def.id)
     mult *= this.weeklyProducerBonus(def.id)
@@ -3767,6 +3842,8 @@ export class GameState {
     this.presidentSinceSeasonKey = null
     this.lastWorldStageId = 'local'
     this.childCrises = []
+    this.producerLevels = {}
+    this.producerUpgrades = {}
     this.emit({ type: 'money_changed' })
   }
 
@@ -5780,6 +5857,8 @@ export class GameState {
       },
       torpil: this.torpil.map((t) => ({ ...t })),
       producerModernized: { ...this.producerModernized },
+      producerLevels: { ...this.producerLevels },
+      producerUpgrades: Object.fromEntries(Object.entries(this.producerUpgrades).map(([k, v]) => [k, [...v]])),
       pendingUndo: this.pendingUndo ? { ...this.pendingUndo } : null,
       lastDisasterGameDay: this.lastDisasterGameDay,
       dynastyPassiveIncome: this.dynastyPassiveIncome,
@@ -6121,6 +6200,14 @@ export class GameState {
     const defaultTorpil = createTorpilState()
     this.torpil = defaultTorpil.map((def) => loadedTorpil.find((lt) => lt.id === def.id) ?? def)
     this.producerModernized = data.producerModernized ?? {}
+    if (data.producerLevels) {
+      this.producerLevels = { ...data.producerLevels }
+    }
+    if (data.producerUpgrades) {
+      this.producerUpgrades = Object.fromEntries(
+        Object.entries(data.producerUpgrades).map(([k, v]) => [k, [...(v as string[])]]),
+      )
+    }
     this.pendingUndo = data.pendingUndo ?? null
     this.lastDisasterGameDay = data.lastDisasterGameDay ?? 0
     this.dynastyPassiveIncome = data.dynastyPassiveIncome ?? 0
