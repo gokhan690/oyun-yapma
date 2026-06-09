@@ -1547,6 +1547,89 @@
 .ref-career-content { min-width: 0; }
 
 /* DEV-only: kariyer faz önizleme çubuğu (import.meta.env.DEV) */
+.ref-devtools {
+  margin: 6px 14px 0; padding: 10px 12px; border-radius: var(--r-md);
+  background: linear-gradient(135deg, #450a0a, #1c1917);
+  border: 1.5px dashed rgba(248, 113, 113, 0.45);
+}
+.ref-devtools__label {
+  font-size: 11px; font-weight: 800; color: #fecaca; margin-bottom: 8px;
+}
+.ref-devtools__row { display: flex; flex-wrap: wrap; gap: 6px; }
+.ref-devtools__btn {
+  flex: 1 1 auto; min-width: 140px;
+  padding: 8px 12px; border-radius: var(--r-sm);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  background: rgba(127, 29, 29, 0.35); color: #fecaca;
+  font-size: 10px; font-weight: 800; cursor: pointer;
+}
+.ref-devtools__btn--danger {
+  border-color: rgba(239, 68, 68, 0.55);
+  background: rgba(185, 28, 28, 0.28);
+}
+.ref-devtools__btn:active { transform: scale(0.98); }
+.ref-devtools__hint {
+  margin-top: 7px; font-size: 9px; font-weight: 700; color: #a8a29e;
+}
+
+.ref-wage-panel {
+  margin: 0 0 10px; padding: 12px 14px; border-radius: var(--r-md);
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  border: 1.5px solid rgba(19, 184, 166, 0.45);
+  box-shadow: var(--r-shadow-sm);
+}
+.ref-wage-panel__row {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 5px 0; font-size: 11px; font-weight: 700;
+}
+.ref-wage-panel__row--highlight {
+  padding: 8px 10px; margin: 4px 0; border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(19, 184, 166, 0.35);
+}
+.ref-wage-panel__lbl { color: var(--r-text2); }
+.ref-wage-panel__val { color: var(--r-text); font-weight: 800; }
+.ref-wage-panel__val.income { color: var(--r-teal-dk); }
+
+.ref-wage-collect-btn {
+  width: 100%; margin-top: 8px; padding: 11px 14px;
+  border: none; border-radius: var(--r-sm); cursor: pointer;
+  font-size: 12px; font-weight: 800; color: #fff;
+  background: linear-gradient(90deg, #059669, #10b981);
+  box-shadow: var(--r-shadow-sm);
+  transition: filter 0.15s, transform 0.1s;
+}
+.ref-wage-collect-btn:hover:not(:disabled) { filter: brightness(1.06); }
+.ref-wage-collect-btn:active:not(:disabled) { transform: translateY(1px); }
+.ref-wage-collect-btn:disabled {
+  cursor: default; color: var(--r-text2);
+  background: rgba(148, 163, 184, 0.25);
+  box-shadow: none;
+}
+
+.ref-wage-auto-pill {
+  width: 100%; margin-top: 8px; padding: 10px 14px;
+  border-radius: var(--r-sm); box-sizing: border-box;
+  font-size: 11.5px; font-weight: 800; text-align: center;
+  color: var(--r-teal-dk);
+  background: rgba(19, 184, 166, 0.12);
+  border: 1px dashed rgba(19, 184, 166, 0.45);
+}
+.ref-wage-auto-pill--paid {
+  color: #fff;
+  background: linear-gradient(90deg, #059669, #10b981);
+  border: none; box-shadow: var(--r-shadow-sm);
+}
+
+.ref-career-wage-toast {
+  margin: 0 0 8px; padding: 10px 12px; border-radius: var(--r-sm);
+  background: linear-gradient(90deg, #059669, #10b981);
+  color: #fff; font-size: 11px; font-weight: 800; text-align: center;
+  opacity: 0; transform: translateY(-4px); transition: opacity 0.25s, transform 0.25s;
+  pointer-events: none;
+}
+.ref-career-wage-toast.is-visible { opacity: 1; transform: translateY(0); }
+
 .ref-career-devbar {
   margin: 6px 14px 0; padding: 10px 12px; border-radius: var(--r-md);
   background: linear-gradient(135deg, #1e293b, #0f172a);
@@ -1611,6 +1694,35 @@
 }
 .ref-action-tile--locked:disabled { pointer-events: none; }
 .ref-action-tile--used { opacity: 0.55; }
+.ref-action-tile--active {
+  border-color: rgba(19, 184, 166, 0.55);
+  background: rgba(19, 184, 166, 0.12);
+  cursor: pointer;
+}
+.ref-action-tile--active:active { transform: scale(0.98); }
+
+.ref-job-pick-grid {
+  display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 10px;
+}
+.ref-job-pick-card {
+  text-align: left; width: 100%; padding: 12px 14px; border-radius: var(--r-md);
+  border: 1.5px solid var(--r-border-gold); background: var(--r-card-soft);
+  cursor: pointer; transition: transform 0.12s, box-shadow 0.12s;
+}
+.ref-job-pick-card:hover { box-shadow: var(--r-shadow-sm); }
+.ref-job-pick-card:active { transform: scale(0.99); }
+.ref-job-pick-card__head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.ref-job-pick-card__emoji { font-size: 22px; }
+.ref-job-pick-card__name { font-size: 14px; font-weight: 800; color: var(--r-text); }
+.ref-job-pick-card__desc { font-size: 11px; font-weight: 600; color: var(--r-muted); line-height: 1.4; margin-bottom: 8px; }
+.ref-job-pick-card__meta {
+  display: flex; flex-wrap: wrap; gap: 8px 12px; font-size: 10px; font-weight: 700; color: var(--r-text2);
+}
+.ref-job-pick-card__meta strong { color: var(--r-teal-dk); }
+.ref-job-pick-card__path {
+  display: inline-block; margin-top: 6px; font-size: 9px; font-weight: 800;
+  color: var(--r-muted); text-transform: uppercase; letter-spacing: 0.04em;
+}
 
 .ref-career-cta {
   display: flex; align-items: center; justify-content: center; gap: 8px;

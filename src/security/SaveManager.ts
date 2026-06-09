@@ -28,6 +28,29 @@ const SAVE_KEY_V4 = 'is_imparatorlugu_save_v4'
 const SAVE_KEY_V3 = 'is_imparatorlugu_save_v3'
 const SAVE_KEY_V2 = 'is_imparatorlugu_save_v2'
 const SAVE_KEY_V1 = 'para_tuzagi_save_v1'
+
+/** DEV reset/yedek araçları — save logic değişmez. */
+export const GAME_SAVE_STORAGE_KEYS = [
+  SAVE_KEY_V10,
+  SAVE_KEY_V10_BACKUP,
+  SAVE_KEY_V9,
+  SAVE_KEY_V9_BACKUP,
+  SAVE_KEY_V8,
+  SAVE_KEY_V7,
+  SAVE_KEY_V6,
+  SAVE_KEY_V5,
+  SAVE_KEY_V4,
+  SAVE_KEY_V3,
+  SAVE_KEY_V2,
+  SAVE_KEY_V1,
+] as const
+
+export const GAME_SETUP_STORAGE_KEYS = ['baron_setup_done'] as const
+
+export function allGamePersistKeys(): readonly string[] {
+  return [...GAME_SAVE_STORAGE_KEYS, ...GAME_SETUP_STORAGE_KEYS]
+}
+
 const OBFUSCATION_KEY = 'PT2026x'
 const CURRENT_VERSION = 10
 const MAX_SAVE_BYTES = 4_000_000

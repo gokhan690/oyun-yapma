@@ -111,7 +111,15 @@ export function installRefTestLauncher(state?: GameState): void {
     syncVisibility()
   }
 
-  const open = (): void => {
+  const pendingAutoOpen = sessionStorage.getItem('ii_ref_auto_open') === '1'
+  const pendingTab = (sessionStorage.getItem('ii_ref_open_tab') as import('./RefBottomNav').RefNavTab | null) ?? 'career'
+  let consumePendingTab: import('./RefBottomNav').RefNavTab | null = pendingAutoOpen ? pendingTab : null
+  if (pendingAutoOpen) {
+    sessionStorage.removeItem('ii_ref_auto_open')
+    sessionStorage.removeItem('ii_ref_open_tab')
+  }
+
+  const open = (forcedTab?: import('./RefBottomNav').RefNavTab): void => {
     if (overlay) return
     // GÜVENLİK KİLİDİ: oyun intro akışı bitmeden RefApp AÇILMAZ. Aksi halde
     // GameState tick'i hiç başlamadığı (gameDt=0) için RefApp donmuş bir oyun
@@ -135,7 +143,9 @@ export function installRefTestLauncher(state?: GameState): void {
       overscrollBehavior: 'contain',
     } as CSSStyleDeclaration)
 
-    const app = new RefApp({ initial: 'firms', onExit: close, data: buildData(), state: state ?? undefined })
+    const initialTab = forcedTab ?? consumePendingTab ?? 'firms'
+    consumePendingTab = null
+    const app = new RefApp({ initial: initialTab, onExit: close, data: buildData(), state: state ?? undefined })
     app.mount(overlay)
     document.body.appendChild(overlay)
     // Kapandığında abonelikleri temizle (bellek sızıntısı önleme)
@@ -149,7 +159,7 @@ export function installRefTestLauncher(state?: GameState): void {
     stopWatchers()   // overlay açıkken izleyiciler boşuna çalışmasın
   }
 
-  btn.addEventListener('click', open)
+  btn.addEventListener('click', () => open())
   document.body.appendChild(btn)
 
   // Görünürlük senkronu: oyun durumu değiştikçe launcher'ı göster/gizle
@@ -167,4 +177,12 @@ export function installRefTestLauncher(state?: GameState): void {
   syncVisibility()
   // DOM değişimlerini izle (modal aç/kapa) + güvenlik için periyodik kontrol
   startWatchers()
+
+  if (pendingAutoOpen && state) {
+    window.setTimeout(() => {
+      if (!overlay && state.isIntroFlowReady() && !gameBusy()) {
+        open()
+      }
+    }, 700)
+  }
 }

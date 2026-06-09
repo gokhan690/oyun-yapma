@@ -1,15 +1,9 @@
 import { sectionTitle, fmtMoney } from './refShared'
-import {
-  buildRefCareerVM,
-  buildRefCareerPhasePreview,
-  type RefCareerDevPreviewMode,
-  type RefCareerVM,
-} from './refAppDataAdapter'
+import { buildRefCareerVM, type RefCareerVM } from './refAppDataAdapter'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
-
-/** DEV-only: production build'de false (vite dead-code elimination). */
-const IS_DEV = import.meta.env.DEV
+import type { CareerActionId, CareerJobId } from '../../game/Career'
+import { SaveManager } from '../../security/SaveManager'
 
 const FALLBACK_CAREER: RefCareerVM = {
   phase: 'employee',
@@ -61,6 +55,13 @@ const FALLBACK_CAREER: RefCareerVM = {
     { id: 'network', name: 'Network', emoji: '🌐', level: 0, max: 5, pct: 0, source: 'preview', unlocked: false },
     { id: 'operations', name: 'Operasyon', emoji: '⚙️', level: 0, max: 5, pct: 0, source: 'preview', unlocked: false },
   ],
+  needsJobSelection: false,
+  availableJobs: [],
+  shiftIncomeToday: 0,
+  dailyWageReceivedToday: 0,
+  canCollectWage: false,
+  wageCollectedToday: false,
+  actionsEnabled: false,
 }
 
 function phaseBadgeClass(phase: RefCareerVM['phase']): string {
@@ -84,96 +85,215 @@ export class RefCareerPage implements RefPage {
   /** Firmalar sekmesine yönlendirme (satın alma burada yapılmaz). */
   onGoToFirms?: () => void
 
-  private realVm: RefCareerVM
   private vm: RefCareerVM
   private hasLiveState: boolean
-  /** DEV-only: sayfa içi önizleme modu (GameState/localStorage'a yazılmaz). */
-  private devPreviewMode: RefCareerDevPreviewMode = 'real'
   private contentEl: HTMLElement
+  private gameState?: GameState
+  private lastNeedsJobSelection = false
+  private lastSeenDailyWagePaid = 0
 
-  constructor(vm?: RefCareerVM, hasLiveState = false) {
-    this.realVm = vm ?? FALLBACK_CAREER
-    this.vm = this.resolveDisplayVm()
+  constructor(vm?: RefCareerVM, hasLiveState = false, gameState?: GameState) {
+    this.vm = vm ?? FALLBACK_CAREER
     this.hasLiveState = hasLiveState
+    this.gameState = gameState
+    this.lastNeedsJobSelection = this.vm.needsJobSelection
+    this.lastSeenDailyWagePaid = this.vm.dailyWageReceivedToday
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-career-page'
 
-    if (IS_DEV) {
-      this.el.appendChild(this.buildDevPreviewBar())
-    }
-
     this.contentEl = document.createElement('div')
     this.contentEl.className = 'ref-career-content'
+    this.contentEl.addEventListener('click', (e) => this.handleContentClick(e))
     this.el.appendChild(this.contentEl)
     this.renderShell(this.vm)
   }
 
   refresh(state: GameState): void {
     if (!this.hasLiveState) return
-    this.realVm = buildRefCareerVM(state)
-    this.vm = this.resolveDisplayVm()
-    this.applyLive(this.vm)
-  }
-
-  /** Gerçek VM + DEV önizleme override (salt UI). */
-  private resolveDisplayVm(): RefCareerVM {
-    if (!IS_DEV || this.devPreviewMode === 'real') return this.realVm
-    return buildRefCareerPhasePreview(this.devPreviewMode, this.realVm)
-  }
-
-  private buildDevPreviewBar(): HTMLElement {
-    const bar = document.createElement('div')
-    bar.className = 'ref-career-devbar'
-    bar.setAttribute('aria-label', 'Kariyer faz önizleme (yalnızca geliştirme)')
-
-    const label = document.createElement('div')
-    label.className = 'ref-career-devbar__label'
-    label.innerHTML = '🧪 Önizleme modu <span class="ref-est-tag">DEV</span>'
-    bar.appendChild(label)
-
-    const opts: { id: RefCareerDevPreviewMode; text: string }[] = [
-      { id: 'real', text: 'Gerçek veri' },
-      { id: 'employee', text: 'Çalışan' },
-      { id: 'entrepreneur', text: 'Girişimci' },
-      { id: 'tycoon', text: 'Patron' },
-    ]
-
-    const seg = document.createElement('div')
-    seg.className = 'ref-career-devbar__seg'
-    seg.setAttribute('role', 'group')
-
-    for (const o of opts) {
-      const btn = document.createElement('button')
-      btn.type = 'button'
-      btn.className = 'ref-career-devbar__btn'
-      btn.dataset.mode = o.id
-      btn.textContent = o.text
-      if (o.id === this.devPreviewMode) btn.classList.add('is-active')
-      btn.addEventListener('click', () => this.setDevPreviewMode(o.id))
-      seg.appendChild(btn)
+    this.gameState = state
+    const prevNeeds = this.lastNeedsJobSelection
+    this.vm = buildRefCareerVM(state)
+    this.lastNeedsJobSelection = this.vm.needsJobSelection
+    if (prevNeeds !== this.vm.needsJobSelection || this.vm.needsJobSelection) {
+      this.renderShell(this.vm)
+    } else {
+      this.applyLive(this.vm)
     }
-    bar.appendChild(seg)
-
-    const hint = document.createElement('div')
-    hint.className = 'ref-career-devbar__hint'
-    hint.textContent = 'Yalnızca Kariyer UI · GameState değişmez'
-    bar.appendChild(hint)
-
-    return bar
+    this.checkWageToast(this.vm)
   }
 
-  private setDevPreviewMode(mode: RefCareerDevPreviewMode): void {
-    if (!IS_DEV) return
-    this.devPreviewMode = mode
-    this.el.querySelectorAll<HTMLButtonElement>('.ref-career-devbar__btn').forEach((b) => {
-      b.classList.toggle('is-active', b.dataset.mode === mode)
-    })
-    this.vm = this.resolveDisplayVm()
-    this.renderShell(this.vm)
+  private persistState(): void {
+    if (!this.gameState) return
+    new SaveManager().save(this.gameState)
+  }
+
+  private selectJob(jobId: CareerJobId): void {
+    const st = this.gameState
+    if (!st || !this.hasLiveState) return
+    st.setCareerJob(jobId)
+    this.persistState()
+    this.refresh(st)
+  }
+
+  private onCareerAction(actionId: CareerActionId): void {
+    const st = this.gameState
+    if (!st || !this.hasLiveState || !st.career.jobId) return
+    st.doCareerAction(actionId)
+    this.persistState()
+    this.refresh(st)
+  }
+
+  private handleContentClick(e: Event): void {
+    if (!this.hasLiveState || !this.gameState) return
+    const target = e.target as HTMLElement
+    const jobBtn = target.closest<HTMLElement>('[data-job-id]')
+    if (jobBtn?.dataset.jobId) {
+      this.selectJob(jobBtn.dataset.jobId as CareerJobId)
+      return
+    }
+    const wageBtn = target.closest<HTMLButtonElement>('[data-collect-wage]')
+    if (wageBtn && !wageBtn.disabled) {
+      this.onCollectWage()
+      return
+    }
+    const actBtn = target.closest<HTMLButtonElement>('[data-career-action]')
+    if (actBtn && !actBtn.disabled && actBtn.dataset.careerAction) {
+      this.onCareerAction(actBtn.dataset.careerAction as CareerActionId)
+    }
+  }
+
+  private onCollectWage(): void {
+    const st = this.gameState
+    if (!st || !this.hasLiveState) return
+    const res = st.collectDailyWage()
+    if (res.ok) {
+      this.persistState()
+      this.showWageToast(res.wage)
+      this.lastSeenDailyWagePaid = res.wage
+      this.refresh(st)
+    }
+  }
+
+  private renderJobSelection(c: RefCareerVM): void {
+    const banner = document.createElement('div')
+    banner.className = 'ref-career-banner ref-career-banner--employee'
+    banner.innerHTML = '<span class="ref-career-banner__ico">👷</span><span class="ref-career-banner__txt">İş hayatına başlamak için bir iş seç. Maaşını gör, mesai yaparak para biriktir.</span>'
+    this.contentEl.appendChild(banner)
+
+    this.contentEl.appendChild(sectionTitle('İlk İşini Seç', `${c.availableJobs.length} seçenek`))
+
+    const grid = document.createElement('div')
+    grid.className = 'ref-job-pick-grid'
+    grid.innerHTML = c.availableJobs.map((j) => `
+      <button type="button" class="ref-job-pick-card" data-job-id="${j.id}">
+        <div class="ref-job-pick-card__head">
+          <span class="ref-job-pick-card__emoji">${j.emoji}</span>
+          <span class="ref-job-pick-card__name">${j.name}</span>
+        </div>
+        <p class="ref-job-pick-card__desc">${j.description}</p>
+        <div class="ref-job-pick-card__meta">
+          <span>Günlük maaş <strong>${fmtMoney(j.dailyWage)}</strong></span>
+          <span>Stres <strong>+${j.stressDelta}/gün</strong></span>
+          <span>LVL <strong>1</strong></span>
+        </div>
+        ${j.careerPath ? `<span class="ref-job-pick-card__path">${j.careerPath}</span>` : ''}
+      </button>
+    `).join('')
+    this.contentEl.appendChild(grid)
+
+    const note = document.createElement('div')
+    note.className = 'ref-preview-note'
+    note.textContent = 'İş seçtikten sonra mesai yaparak para kazanabilirsin. İlk işletmeyi sonra Firmalar sekmesinden alırsın.'
+    this.contentEl.appendChild(note)
+  }
+
+  private renderActionTileHtml(a: RefCareerVM['actions'][number]): string {
+    const used = !!a.usedToday
+    const canUse = !!a.bindable && !used
+    const locked = !a.bindable
+    const cls = [
+      'ref-action-tile',
+      locked ? 'ref-action-tile--locked' : '',
+      used ? 'ref-action-tile--used' : '',
+      canUse ? 'ref-action-tile--active' : '',
+    ].filter(Boolean).join(' ')
+    const disabled = locked || used ? ' disabled aria-disabled="true"' : ''
+    const actionAttr = a.careerActionId && a.bindable ? ` data-career-action="${a.careerActionId}"` : ''
+    return `
+      <button class="${cls}" type="button"${disabled}${actionAttr}>
+        <span class="ref-action-tile__ico">${a.ico}</span>
+        <span class="ref-action-tile__lbl">${a.label}</span>
+        <span class="ref-action-tile__eff">${used ? 'Bugün yapıldı' : a.effect}</span>
+      </button>
+    `
+  }
+
+  private wagePanelHtml(c: RefCareerVM): string {
+    if (!c.showWage && !c.actionsEnabled) return ''
+    return `
+      <div class="ref-wage-panel" data-ref="wage-panel">
+        <div class="ref-wage-panel__row">
+          <span class="ref-wage-panel__lbl">Günlük maaş</span>
+          <span class="ref-wage-panel__val" data-ref="wage-daily-lbl">${fmtMoney(c.wageDaily)}/gün</span>
+        </div>
+        <div class="ref-wage-panel__row ref-wage-panel__row--highlight">
+          <span class="ref-wage-panel__lbl">Bugün alınan maaş</span>
+          <span class="ref-wage-panel__val income" data-ref="daily-paid-val">+${fmtMoney(c.dailyWageReceivedToday)}</span>
+        </div>
+        <div class="ref-wage-panel__row">
+          <span class="ref-wage-panel__lbl">Mesai geliri (bugün)</span>
+          <span class="ref-wage-panel__val income" data-ref="shift-val">+${fmtMoney(c.shiftIncomeToday)}</span>
+        </div>
+        ${this.wageButtonHtml(c)}
+      </div>
+    `
+  }
+
+  private wageButtonHtml(c: RefCareerVM): string {
+    if (!this.hasLiveState || !c.actionsEnabled) return ''
+    if (c.wageCollectedToday) {
+      return `
+        <div class="ref-wage-auto-pill ref-wage-auto-pill--paid" data-ref="wage-collect">
+          ✅ Bugün maaş yattı · +${fmtMoney(c.dailyWageReceivedToday)}
+        </div>
+      `
+    }
+    return `
+      <div class="ref-wage-auto-pill" data-ref="wage-collect">
+        💵 Maaş otomatik yatıyor · ${fmtMoney(c.wageDaily)}/gün
+      </div>
+    `
+  }
+
+  private checkWageToast(c: RefCareerVM): void {
+    if (!this.hasLiveState) return
+    if (c.dailyWageReceivedToday > this.lastSeenDailyWagePaid && c.dailyWageReceivedToday > 0) {
+      this.showWageToast(c.dailyWageReceivedToday)
+    }
+    this.lastSeenDailyWagePaid = c.dailyWageReceivedToday
+  }
+
+  private showWageToast(amount: number): void {
+    let toast = this.contentEl.querySelector<HTMLElement>('[data-ref="wage-toast"]')
+    if (!toast) {
+      toast = document.createElement('div')
+      toast.className = 'ref-career-wage-toast'
+      toast.dataset.ref = 'wage-toast'
+      this.contentEl.prepend(toast)
+    }
+    toast.textContent = `💵 Günlük maaş yattı: +${fmtMoney(amount)}`
+    toast.classList.add('is-visible')
+    window.setTimeout(() => toast?.classList.remove('is-visible'), 4500)
   }
 
   private renderShell(c: RefCareerVM): void {
     this.contentEl.replaceChildren()
+    this.lastSeenDailyWagePaid = c.dailyWageReceivedToday
+
+    if (c.needsJobSelection && this.hasLiveState) {
+      this.renderJobSelection(c)
+      return
+    }
 
     // Geçiş banner'ı
     const banner = document.createElement('div')
@@ -182,9 +302,16 @@ export class RefCareerPage implements RefPage {
     banner.innerHTML = `<span class="ref-career-banner__ico">${c.phase === 'employee' ? '👷' : c.phase === 'entrepreneur' ? '🚀' : '👔'}</span><span class="ref-career-banner__txt" data-ref="banner-txt">${c.transitionBanner}</span>`
     this.contentEl.appendChild(banner)
 
+    if (c.showWage || c.actionsEnabled) {
+      const wageWrap = document.createElement('div')
+      wageWrap.innerHTML = this.wagePanelHtml(c)
+      this.contentEl.appendChild(wageWrap.firstElementChild!)
+    }
+
     // Aktif iş kartı
     const job = document.createElement('div')
     job.className = 'ref-job-card'
+    const estTag = this.hasLiveState ? '' : ' <span class="ref-est-tag">önizleme</span>'
     job.innerHTML = `
       <div class="ref-job-card__top">
         <div class="ref-job-card__icon" data-ref="job-icon">${c.phase === 'employee' ? '💼' : c.phase === 'entrepreneur' ? '🚀' : '👔'}</div>
@@ -198,10 +325,6 @@ export class RefCareerPage implements RefPage {
         <div class="ref-job-card__lvl" data-ref="job-level">LVL ${c.level}</div>
       </div>
       <div class="ref-job-stats">
-        <div class="ref-job-stat" data-ref="stat-wage" ${c.showWage ? '' : 'hidden'}>
-          <span class="ref-job-stat__lbl">Günlük Maaş <span class="ref-est-tag">önizleme</span></span>
-          <span class="ref-job-stat__val income" data-ref="wage-val">${fmtMoney(c.wageDaily)}</span>
-        </div>
         <div class="ref-job-stat" data-ref="stat-biz" ${c.showBusinessIncome ? '' : 'hidden'}>
           <span class="ref-job-stat__lbl">İşletme Geliri</span>
           <span class="ref-job-stat__val income" data-ref="biz-income-val">${fmtMoney(c.businessIncomeDaily)}</span>
@@ -217,11 +340,11 @@ export class RefCareerPage implements RefPage {
       </div>
       <div class="ref-job-bars">
         <div class="ref-job-bar">
-          <div class="ref-job-bar__lbl"><span>Terfi <span class="ref-est-tag">önizleme</span></span><span data-ref="promo-text">${c.promoText}</span></div>
+          <div class="ref-job-bar__lbl"><span>Terfi${estTag}</span><span data-ref="promo-text">${c.promoText}</span></div>
           <div class="ref-perf-track"><div class="ref-perf-fill high" data-ref="promo-fill" style="width:${c.promoPct}%"></div></div>
         </div>
         <div class="ref-job-bar">
-          <div class="ref-job-bar__lbl"><span>Kariyer XP <span class="ref-est-tag">önizleme</span></span><span data-ref="career-xp-text">${c.careerXpText}</span></div>
+          <div class="ref-job-bar__lbl"><span>Kariyer XP${estTag}</span><span data-ref="career-xp-text">${c.careerXpText}</span></div>
           <div class="ref-perf-track"><div class="ref-perf-fill high" data-ref="career-xp-fill" style="width:${c.careerXpPct}%"></div></div>
         </div>
         <div class="ref-job-bar">
@@ -232,25 +355,23 @@ export class RefCareerPage implements RefPage {
     `
     this.contentEl.appendChild(job)
 
-    // Günlük aksiyonlar
+    const actionsTitle = c.actionsEnabled
+      ? 'Günlük Aksiyonlar'
+      : 'Günlük Aksiyonlar <span class="ref-demo-tag">C4\'te aktif</span>'
     this.contentEl.appendChild(sectionTitle(
-      'Günlük Aksiyonlar <span class="ref-demo-tag">C4\'te aktif</span>',
+      actionsTitle,
       `<span data-ref="actions-remaining">${c.actionsRemaining}</span>/${c.actionsMax} hak`,
     ))
     const actions = document.createElement('div')
     actions.className = 'ref-action-grid'
-    actions.innerHTML = c.actions.map((a) => `
-      <button class="ref-action-tile ref-action-tile--locked${a.usedToday ? ' ref-action-tile--used' : ''}" type="button" disabled aria-disabled="true">
-        <span class="ref-action-tile__ico">${a.ico}</span>
-        <span class="ref-action-tile__lbl">${a.label}</span>
-        <span class="ref-action-tile__eff">${a.usedToday ? 'Bugün yapıldı' : a.effect}</span>
-      </button>
-    `).join('')
+    actions.innerHTML = c.actions.map((a) => this.renderActionTileHtml(a)).join('')
     this.contentEl.appendChild(actions)
-    const actNote = document.createElement('div')
-    actNote.className = 'ref-preview-note'
-    actNote.textContent = '🔒 View-only · aksiyonlar C4\'te bağlanacak, şu an para/XP vermez'
-    this.contentEl.appendChild(actNote)
+    if (!c.actionsEnabled) {
+      const actNote = document.createElement('div')
+      actNote.className = 'ref-preview-note'
+      actNote.textContent = '🔒 İş seçtikten sonra mesai ve diğer aksiyonlar aktif olur'
+      this.contentEl.appendChild(actNote)
+    }
 
     // İlk işletme hedefi
     this.contentEl.appendChild(sectionTitle('İlk İşletme Hedefi'))
@@ -357,12 +478,38 @@ export class RefCareerPage implements RefPage {
     q('[data-ref="phase-badge"]')!.textContent = c.phaseLabel
     q('[data-ref="phase-badge"]')!.className = `ref-phase-badge ${phaseBadgeClass(c.phase)}`
 
-    const statWage = q('[data-ref="stat-wage"]')!
-    const statBiz = q('[data-ref="stat-biz"]')!
-    statWage.hidden = !c.showWage
-    statBiz.hidden = !c.showBusinessIncome
-    if (c.showWage) q('[data-ref="wage-val"]')!.textContent = fmtMoney(c.wageDaily)
-    if (c.showBusinessIncome) q('[data-ref="biz-income-val"]')!.textContent = fmtMoney(c.businessIncomeDaily)
+    const wagePanel = q('[data-ref="wage-panel"]')
+    if (wagePanel && (c.showWage || c.actionsEnabled)) {
+      q('[data-ref="wage-daily-lbl"]')!.textContent = `${fmtMoney(c.wageDaily)}/gün`
+      q('[data-ref="daily-paid-val"]')!.textContent = `+${fmtMoney(c.dailyWageReceivedToday)}`
+      q('[data-ref="shift-val"]')!.textContent = `+${fmtMoney(c.shiftIncomeToday)}`
+      const collectBtn = q('[data-ref="wage-collect"]')
+      const newBtnHtml = this.wageButtonHtml(c)
+      if (newBtnHtml) {
+        if (collectBtn) {
+          const tmp = document.createElement('div')
+          tmp.innerHTML = newBtnHtml
+          collectBtn.replaceWith(tmp.firstElementChild!)
+        } else {
+          const tmp = document.createElement('div')
+          tmp.innerHTML = newBtnHtml
+          wagePanel.appendChild(tmp.firstElementChild!)
+        }
+      } else if (collectBtn) {
+        collectBtn.remove()
+      }
+    } else if ((c.showWage || c.actionsEnabled) && !wagePanel) {
+      const wageWrap = document.createElement('div')
+      wageWrap.innerHTML = this.wagePanelHtml(c)
+      const bannerEl = q('[data-ref="banner"]')
+      bannerEl?.insertAdjacentElement('afterend', wageWrap.firstElementChild!)
+    }
+
+    const statBiz = q('[data-ref="stat-biz"]')
+    if (statBiz) {
+      statBiz.hidden = !c.showBusinessIncome
+      if (c.showBusinessIncome) q('[data-ref="biz-income-val"]')!.textContent = fmtMoney(c.businessIncomeDaily)
+    }
 
     q('[data-ref="seniority-val"]')!.textContent = `${c.seniorityYears} yıl`
     q('[data-ref="next-rank-val"]')!.textContent = c.nextRank
@@ -380,13 +527,7 @@ export class RefCareerPage implements RefPage {
 
     const actionsGrid = this.contentEl.querySelector('.ref-action-grid')
     if (actionsGrid) {
-      actionsGrid.innerHTML = c.actions.map((a) => `
-        <button class="ref-action-tile ref-action-tile--locked${a.usedToday ? ' ref-action-tile--used' : ''}" type="button" disabled aria-disabled="true">
-          <span class="ref-action-tile__ico">${a.ico}</span>
-          <span class="ref-action-tile__lbl">${a.label}</span>
-          <span class="ref-action-tile__eff">${a.usedToday ? 'Bugün yapıldı' : a.effect}</span>
-        </button>
-      `).join('')
+      actionsGrid.innerHTML = c.actions.map((a) => this.renderActionTileHtml(a)).join('')
     }
 
     q('[data-ref="goal-cost"]')!.textContent = fmtMoney(c.firstBusinessGoal.costRequired)

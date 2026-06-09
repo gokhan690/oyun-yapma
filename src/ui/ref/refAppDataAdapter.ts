@@ -7,10 +7,15 @@ import { currentRank, rankProgress, type PlayerRankDef } from '../../game/Player
 import { hasSkill, type PlayerSkillId } from '../../game/PlayerSkills'
 import { gameDay } from '../../game/GameClock'
 import {
+  BINDABLE_CAREER_ACTION_IDS,
+  CAREER_JOBS,
   careerJobDef,
+  careerWageMultiplier,
   dailyCareerWage,
+  estimatedCareerActionPay,
   FIRST_GOAL_TARGET,
   type CareerActionId,
+  type CareerJobId,
   type CareerState,
 } from '../../game/Career'
 import type { FirmData, FirmSector, FirmStatus } from './RefCard'
@@ -69,6 +74,20 @@ export interface RefCareerActionVM {
   careerActionId?: CareerActionId
   /** Bugün kullanıldı mı (view-only gösterim). */
   usedToday?: boolean
+  /** C4-lite: RefApp'te tıklanabilir mi? */
+  bindable?: boolean
+  /** Tahmini mesai/aksiyon geliri. */
+  estimatedPay?: number
+}
+
+export interface RefCareerJobOptionVM {
+  id: CareerJobId
+  name: string
+  emoji: string
+  description: string
+  dailyWage: number
+  stressDelta: number
+  careerPath?: string
 }
 
 export interface RefCareerTimelineVM {
@@ -127,6 +146,19 @@ export interface RefCareerVM {
   firstBusinessGoal: RefFirstBusinessGoalVM
   timeline: RefCareerTimelineVM[]
   skills: RefCareerSkillVM[]
+  /** İş seçimi ekranı gösterilsin mi? */
+  needsJobSelection: boolean
+  availableJobs: RefCareerJobOptionVM[]
+  /** Bugünkü mesai/aksiyon geliri (wageEarnedToday). */
+  shiftIncomeToday: number
+  /** Bugün alınan normal günlük maaş. */
+  dailyWageReceivedToday: number
+  /** Manuel "Günlük Maaşı Al" butonu aktif mi? */
+  canCollectWage: boolean
+  /** Bu oyun gününde maaş zaten alındı mı? */
+  wageCollectedToday: boolean
+  /** Günlük aksiyonlar aktif mi? */
+  actionsEnabled: boolean
 }
 
 export interface RefViewModel {
@@ -360,12 +392,44 @@ const CAREER_ACTIONS: RefCareerActionVM[] = [
   { id: 'interview', ico: '🤝', label: 'İş Görüşmesine Git', effect: '+terfi şansı', careerActionId: 'satis_kapat' },
 ]
 
-function careerActionsForToday(career: CareerState, gameTimeMs: number): RefCareerActionVM[] {
+function careerActionsForToday(
+  career: CareerState,
+  gameTimeMs: number,
+  actionsEnabled: boolean,
+): RefCareerActionVM[] {
   const day = gameDay(gameTimeMs)
   const used = career.lastActionDay === day ? career.actionsUsedToday : []
-  return CAREER_ACTIONS.map((a) => ({
-    ...a,
-    usedToday: a.careerActionId ? used.includes(a.careerActionId) : false,
+  return CAREER_ACTIONS.map((a) => {
+    const actionId = a.careerActionId
+    const bindable = actionsEnabled
+      && !!actionId
+      && BINDABLE_CAREER_ACTION_IDS.includes(actionId)
+    const estimatedPay = actionId && bindable ? estimatedCareerActionPay(career, actionId) : 0
+    let effect = a.effect
+    if (bindable && estimatedPay > 0) {
+      effect = `+${fmt(estimatedPay)} · +XP`
+    } else if (bindable && actionId === 'egitim_al') {
+      effect = '+XP · −stres'
+    }
+    return {
+      ...a,
+      effect,
+      usedToday: actionId ? used.includes(actionId) : false,
+      bindable,
+      estimatedPay,
+    }
+  })
+}
+
+function buildAvailableJobs(): RefCareerJobOptionVM[] {
+  return CAREER_JOBS.map((j) => ({
+    id: j.id,
+    name: j.name,
+    emoji: j.emoji,
+    description: j.description,
+    dailyWage: Math.floor(j.baseDailyWage * careerWageMultiplier(1)),
+    stressDelta: j.stressDelta,
+    careerPath: j.careerPath,
   }))
 }
 
@@ -562,12 +626,30 @@ export function buildRefCareerVM(state: GameState): RefCareerVM {
   const actionStatus = careerActionsRemaining(career, state.gameTimeMs)
   const hasRealJob = !!career.jobId && !career.isEntrepreneur
   const jobDef = careerJobDef(career.jobId)
+  const needsJobSelection = phase === 'employee' && ownedCount === 0 && !career.jobId && !career.isEntrepreneur
+  const actionsEnabled = hasRealJob && phase === 'employee'
+  const today = gameDay(state.gameTimeMs)
+  const shiftIncomeToday = hasRealJob && career.lastActionDay === today
+    ? Math.round(career.wageEarnedToday)
+    : 0
+  const wageCollectedToday = hasRealJob && career.lastWageDay >= today
+  const dailyWageReceivedToday = wageCollectedToday
+    ? Math.round(career.dailyWagePaidToday ?? 0)
+    : 0
+  const canCollectWage = hasRealJob
+    && phase === 'employee'
+    && ownedCount === 0
+    && !wageCollectedToday
+    && dailyCareerWage(career) > 0
 
   let jobTitle: string
   let jobCompany: string
   let wageDaily = 0
 
-  if (hasRealJob && jobDef) {
+  if (needsJobSelection) {
+    jobTitle = 'İş seçimi bekleniyor'
+    jobCompany = 'Aşağıdan ilk işini seç'
+  } else if (hasRealJob && jobDef) {
     jobTitle = jobDef.name
     jobCompany = `${jobDef.emoji} ${jobDef.description.split('.')[0]} · Tam zamanlı`
     wageDaily = dailyCareerWage(career)
@@ -622,7 +704,7 @@ export function buildRefCareerVM(state: GameState): RefCareerVM {
     level: hasRealJob || career.jobId ? career.level : careerLevel(state.totalEarned, ownedCount, state.ipoCount),
     wageDaily,
     businessIncomeDaily,
-    showWage: phase === 'employee' && wageDaily > 0,
+    showWage: hasRealJob && phase === 'employee' && wageDaily > 0,
     showBusinessIncome: ownedCount > 0,
     stress: stressVal,
     seniorityYears: Math.max(0, age - 18),
@@ -636,7 +718,7 @@ export function buildRefCareerVM(state: GameState): RefCareerVM {
     transitionBanner: transitionBanner(phase),
     actionsRemaining: actionStatus.remaining,
     actionsMax: actionStatus.max,
-    actions: careerActionsForToday(career, state.gameTimeMs),
+    actions: careerActionsForToday(career, state.gameTimeMs, actionsEnabled),
     firstBusinessGoal: {
       producerId: 'stajyer',
       producerName: stajyerDef ? producerName(stajyerDef) : 'Limonata Tezgahı',
@@ -657,6 +739,13 @@ export function buildRefCareerVM(state: GameState): RefCareerVM {
       ),
     ),
     skills: deriveCareerSkills(state),
+    needsJobSelection,
+    availableJobs: needsJobSelection ? buildAvailableJobs() : [],
+    shiftIncomeToday,
+    dailyWageReceivedToday,
+    canCollectWage,
+    wageCollectedToday,
+    actionsEnabled,
   }
 }
 
@@ -726,6 +815,16 @@ export function buildRefCareerPhasePreview(
     ? base.businessIncomeDaily
     : 42
 
+  const previewJobMeta = {
+    needsJobSelection: false,
+    availableJobs: [],
+    shiftIncomeToday: 0,
+    dailyWageReceivedToday: 0,
+    canCollectWage: false,
+    wageCollectedToday: false,
+    actionsEnabled: false,
+  }
+
   switch (mode) {
     case 'employee':
       return {
@@ -757,6 +856,7 @@ export function buildRefCareerPhasePreview(
           { id: 'holding', label: 'Holding Sahibi', status: 'locked' },
         ],
         skills: PREVIEW_SKILLS_LOW,
+        ...previewJobMeta,
       }
     case 'entrepreneur':
       return {
@@ -788,6 +888,7 @@ export function buildRefCareerPhasePreview(
           { id: 'holding', label: 'Holding Sahibi', status: 'locked' },
         ],
         skills: PREVIEW_SKILLS_MID,
+        ...previewJobMeta,
       }
     case 'tycoon':
       return {
@@ -819,6 +920,7 @@ export function buildRefCareerPhasePreview(
           { id: 'holding', label: 'Holding Sahibi', status: 'locked' },
         ],
         skills: PREVIEW_SKILLS_HIGH,
+        ...previewJobMeta,
       }
   }
 }

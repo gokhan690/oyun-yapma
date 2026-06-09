@@ -144,6 +144,7 @@ import {
   createCareerState,
   applyCareerAction,
   applyDailyWage,
+  dailyCareerWage,
   FIRST_GOAL_TARGET,
   type CareerState,
   type CareerActionId,
@@ -952,6 +953,8 @@ export class GameState {
   private lastGameClockEmit = 0
   private lastDynastyGameDay = 0
   private lastMarketNewsGameDay = 0
+  /** startTick passive gün izleyicisi — reset sonrası catch-up önleme */
+  private tickLastPassiveGameDay = 0
 
   private listeners = new Set<(event: GameEvent) => void>()
   private tickHandle: number | null = null
@@ -1053,7 +1056,10 @@ export class GameState {
   startTick(): void {
     if (this.tickHandle !== null) return
     let last = performance.now()
-    let lastPassiveGameDay = gameDay(this.gameTimeMs)
+    if (this.tickLastPassiveGameDay <= 0) {
+      this.tickLastPassiveGameDay = gameDay(this.gameTimeMs)
+    }
+    let lastPassiveGameDay = this.tickLastPassiveGameDay
     const loop = (now: number) => {
       const dt = (now - last) / 1000
       last = now
@@ -1067,14 +1073,21 @@ export class GameState {
         this.gameTimeMs += gameMsDelta
         this.tickChildEducation(gameMsDelta)
         const currentPassiveGameDay = gameDay(this.gameTimeMs)
+        // Fresh-start/reset sonrası closure baseline'ı instance ile hizala.
+        if (this.tickLastPassiveGameDay > 0) {
+          lastPassiveGameDay = this.tickLastPassiveGameDay
+        }
         if (currentPassiveGameDay < lastPassiveGameDay) lastPassiveGameDay = currentPassiveGameDay
         const passiveDays = currentPassiveGameDay - lastPassiveGameDay
         if (passiveDays > 0) {
           lastPassiveGameDay = currentPassiveGameDay
+          this.tickLastPassiveGameDay = currentPassiveGameDay
           const currentIpd = PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0)
           if (currentIpd > this.peakIncomePerDay) this.peakIncomePerDay = currentIpd
           const income = this.incomePerDay() * passiveDays
-          if (income > 0) this.addMoney(income, true)
+          if (income > 0) this.addMoney(income, true, `passive_tick(days=${passiveDays})`)
+          // Kariyer günlük maaşı: gün geçişinde otomatik yatar — günde 1× (asla × passiveDays).
+          this.payCareerDailyWageAuto(currentPassiveGameDay)
         }
       }
       this.updateComboDecay(now)
@@ -1899,7 +1912,6 @@ export class GameState {
     const day = gameDay(this.gameTimeMs)
     if (day === this.lastDynastyGameDay) return
     this.lastDynastyGameDay = day
-    this.tickCareerDailyWage(day)
     const metaReady = this.isMetaSystemsReady()
     syncEmpireFromProducers(this.empire, this.producers)
     const { matchBonus, election, matches } = tickEmpireDaily(this.empire, this.producers, this.gameTimeMs, gameYear(this.gameTimeMs))
@@ -2237,8 +2249,12 @@ export class GameState {
     return PRODUCERS.filter((p) => (this.producers[p.id] ?? 0) > 0).length
   }
 
-  addMoney(amount: number, countTotal = true): void {
+  addMoney(amount: number, countTotal = true, source?: string): void {
     if (amount <= 0) return
+    if (import.meta.env.DEV && amount >= 1000) {
+      // Büyük para girişlerinin kaynağını izle (yalnızca DEV; prod build'de strip edilir).
+      console.log(`[MoneyDebug] addMoney source=${source ?? 'unknown'} amount=${Math.round(amount)} before=${Math.round(this.money)} after=${Math.round(this.money + amount)}`)
+    }
     const prevLifetime = this.lifetimeTotalEarned
     this.money += amount
     this.recordPassiveEarned(amount, performance.now())
@@ -3277,7 +3293,7 @@ export class GameState {
     this.comebackPending = 0
     this.comebackClaimed = true
     this.comebackClaimedDay = todayKey()
-    this.addMoney(amount)
+    this.addMoney(amount, true, 'comeback_bonus')
     this.awardBadge('comeback')
     return amount
   }
@@ -3289,7 +3305,7 @@ export class GameState {
     this.comebackPending = 0
     this.comebackClaimed = true
     this.comebackClaimedDay = todayKey()
-    this.addMoney(amount)
+    this.addMoney(amount, true, 'comeback_via_ad')
     this.awardBadge('comeback')
     this.emit({ type: 'offline_earnings', amount })
     return amount
@@ -3344,7 +3360,7 @@ export class GameState {
     if (this.pendingOfflineEarnings <= 0) return 0
     const amount = Math.floor(this.pendingOfflineEarnings * multiplier)
     this.pendingOfflineEarnings = 0
-    this.addMoney(amount)
+    this.addMoney(amount, true, 'offline_via_ad')
     this.emit({ type: 'offline_earnings', amount })
     return amount
   }
@@ -3638,6 +3654,44 @@ export class GameState {
   getWeeklyEventDef() {
     this.ensureWeekly()
     return getWeeklyDef(this.weekly)
+  }
+
+  /**
+   * RefApp çalışan fazı test başlangıcı (C1.5B).
+   * İşletmesiz, düşük nakit, iş seçimi bekleyen career; tutorial zorlaması kapalı.
+   */
+  applyRefCareerFreshStart(startingMoney = 100): void {
+    this.resetProgress()
+    this.tutorialDone = true
+    this.onboardingComplete = true
+    this.money = startingMoney
+    this.career = createCareerState()
+    this.career.jobId = null
+    this.career.stress = 0
+    this.career.xp = 0
+    this.career.level = 1
+    this.career.isEntrepreneur = false
+    this.career.firstGoalComplete = false
+    this.characterBackground = null
+    const day = gameDay(this.gameTimeMs)
+    this.career.lastWageDay = day
+    this.career.dailyWagePaidToday = 0
+    this.career.wageEarnedToday = 0
+    this.lastDynastyGameDay = day
+    this.tickLastPassiveGameDay = day
+    // Eski kayıttan kalan pasif gelir baseline'ları — 156K toplu para bug'ını keser.
+    this.dynastyPassiveIncome = 0
+    this.peakIncomePerDay = 0
+    this.pendingOfflineEarnings = 0
+    this.comebackPending = 0
+    this.empire = createEmpireState()
+    // 156K bug'ının ASIL kaynağı: fresh state 3 varsayılan temaya sahip olduğu için
+    // "Tema Koleksiyoncusu" (₺75.000) achievement'ı anında tetikleniyordu. Zaten
+    // sağlanan tüm achievement'ları ödülsüz kazanılmış say → toplu ödül imkânsız.
+    this.seedEarnedAchievements()
+    this.lastSaveTime = Date.now()
+    this.emit({ type: 'money_changed' })
+    this.emit({ type: 'career_phase_changed', isEntrepreneur: false })
   }
 
   resetProgress(): void {
@@ -4643,6 +4697,11 @@ export class GameState {
   setCareerJob(jobId: CareerJobId): void {
     this.career.jobId = jobId
     this.career.isEntrepreneur = false
+    // İş seçince para değişmez; ilk günün maaşı manuel butonla alınabilsin diye
+    // baseline'ı "dün"e çek (otomatik tick yok, catch-up riski yok).
+    this.career.lastWageDay = gameDay(this.gameTimeMs) - 1
+    this.career.dailyWagePaidToday = 0
+    this.career.wageEarnedToday = 0
     this.emit({ type: 'money_changed' })
   }
 
@@ -4675,15 +4734,69 @@ export class GameState {
     this.emit({ type: 'money_changed' })
   }
 
-  private tickCareerDailyWage(day: number): void {
-    const wage = applyDailyWage(this.career, day)
-    if (wage > 0) {
-      this.addMoney(wage, true)
-      this.emit({ type: 'career_wage', amount: wage })
-      if (!this.career.firstGoalComplete && this.money >= FIRST_GOAL_TARGET) {
-        this.career.firstGoalComplete = true
-      }
+  /**
+   * Otomatik günlük maaş — startTick gün geçişinde çağrılır.
+   * Günde yalnızca 1× öder (applyDailyWage lastWageDay guard'ı) ve asla
+   * tek günlük maaşı (dailyCareerWage) aşmaz → 156K toplu para imkânsız.
+   */
+  private payCareerDailyWageAuto(currentDay: number): void {
+    if (this.career.isEntrepreneur) return
+    if (!this.career.jobId) return
+    if (this.hasAnyBusiness()) return
+    if (this.career.lastWageDay >= currentDay) return
+    const maxWage = dailyCareerWage(this.career)
+    if (maxWage <= 0) return
+    const wage = applyDailyWage(this.career, currentDay)
+    const pay = Math.min(wage, maxWage)
+    if (pay <= 0) return
+    this.addMoney(pay, true, 'career_daily_wage(auto)')
+    this.emit({ type: 'career_wage', amount: pay })
+    this.emit({ type: 'money_changed' })
+    if (!this.career.firstGoalComplete && this.money >= FIRST_GOAL_TARGET) {
+      this.career.firstGoalComplete = true
     }
+  }
+
+  /** Bu oyun gününde günlük maaş alınabilir mi? (manuel buton koşulu) */
+  canCollectDailyWage(): boolean {
+    if (this.career.isEntrepreneur) return false
+    if (!this.career.jobId) return false
+    if (this.hasAnyBusiness()) return false
+    if (dailyCareerWage(this.career) <= 0) return false
+    return this.career.lastWageDay < gameDay(this.gameTimeMs)
+  }
+
+  /**
+   * Manuel günlük maaş tahsilatı (RefCareerPage butonu).
+   * Otomatik tick YOK; aynı oyun gününde yalnızca 1 kez ödenir.
+   */
+  collectDailyWage(): { ok: boolean; wage: number; reason?: string } {
+    if (this.career.isEntrepreneur) return { ok: false, wage: 0, reason: 'entrepreneur' }
+    if (!this.career.jobId) return { ok: false, wage: 0, reason: 'no_job' }
+    if (this.hasAnyBusiness()) return { ok: false, wage: 0, reason: 'has_business' }
+
+    const day = gameDay(this.gameTimeMs)
+    if (this.career.lastWageDay >= day) return { ok: false, wage: 0, reason: 'already_paid' }
+
+    const maxWage = dailyCareerWage(this.career)
+    if (maxWage <= 0) return { ok: false, wage: 0, reason: 'no_wage' }
+
+    // applyDailyWage tek günlük maaşı döndürür ve lastWageDay/dailyWagePaidToday'i set eder.
+    const wage = applyDailyWage(this.career, day)
+    if (wage <= 0) return { ok: false, wage: 0, reason: 'no_wage' }
+    if (wage > maxWage) {
+      // güvenlik: tek günlük maaşı asla aşma
+      this.career.dailyWagePaidToday = maxWage
+    }
+
+    const pay = Math.min(wage, maxWage)
+    this.addMoney(pay, true, 'career_daily_wage(manual)')
+    this.emit({ type: 'career_wage', amount: pay })
+    this.emit({ type: 'money_changed' })
+    if (!this.career.firstGoalComplete && this.money >= FIRST_GOAL_TARGET) {
+      this.career.firstGoalComplete = true
+    }
+    return { ok: true, wage: pay }
   }
 
   // ---- Eş Etkileşimi ----
@@ -5420,8 +5533,8 @@ export class GameState {
     return this.activeCrisis !== null && !this.activeCrisis.resolved
   }
 
-  private checkAchievements(): void {
-    const ctx = {
+  private achievementContext() {
+    return {
       totalEarned: this.totalEarned,
       totalClicks: this.totalClicks,
       comboBest: this.comboBest,
@@ -5447,11 +5560,42 @@ export class GameState {
       dynastyMarried: !!this.dynasty.spouseName,
       advisorBuys: this.advisorBuys,
     }
-    const newOnes = checkNewAchievements(ctx)
-    for (const a of newOnes) {
+  }
+
+  /**
+   * Şu anda zaten sağlanan achievement'ları ÖDÜLSÜZ "kazanılmış" işaretle.
+   * RefApp çalışan başlangıcında çağrılır: fresh state'in (ör. 3 varsayılan tema)
+   * tetiklediği toplu ödül cascade'ini (156K bug) tamamen engeller.
+   */
+  private seedEarnedAchievements(): void {
+    for (const a of checkNewAchievements(this.achievementContext())) {
       this.achievements.add(a.id)
-      this.addMoney(a.reward)
-      this.emit({ type: 'achievement', def: a })
+    }
+  }
+
+  private achievementCheckInProgress = false
+
+  private checkAchievements(): void {
+    // Re-entrancy guard: addMoney(reward) tekrar checkAchievements çağırır.
+    // Guard olmadan dış döngü bayat listeyi tekrar ödeyip çift ödeme yapıyordu
+    // (75K achievement'ın 2 kez yatması → 156K bug'ının çarpanı).
+    if (this.achievementCheckInProgress) return
+    this.achievementCheckInProgress = true
+    try {
+      // Ödül totalEarned'i artırıp yeni achievement'lar açabilir → tükenene
+      // kadar döngü; her achievement set guard'ı ile yalnızca 1 kez ödenir.
+      for (let guard = 0; guard < 64; guard++) {
+        const newOnes = checkNewAchievements(this.achievementContext())
+        if (newOnes.length === 0) break
+        for (const a of newOnes) {
+          if (this.achievements.has(a.id)) continue
+          this.achievements.add(a.id)
+          this.addMoney(a.reward)
+          this.emit({ type: 'achievement', def: a })
+        }
+      }
+    } finally {
+      this.achievementCheckInProgress = false
     }
   }
 
@@ -5802,6 +5946,16 @@ export class GameState {
       }
     } else {
       this.career = createCareerState()
+    }
+    const wageBaselineDay = gameDay(this.gameTimeMs)
+    this.tickLastPassiveGameDay = wageBaselineDay
+    // Otomatik maaş tick'i yok; load sırasında catch-up yapma.
+    // Sadece bozuk (gelecekteki) lastWageDay'i düzelt ve eski gün gösterimini temizle.
+    if (this.career.lastWageDay > wageBaselineDay) {
+      this.career.lastWageDay = wageBaselineDay
+    }
+    if (this.career.lastWageDay !== wageBaselineDay) {
+      this.career.dailyWagePaidToday = 0
     }
     if (data.characterBackground !== undefined) {
       this.characterBackground = data.characterBackground ?? null

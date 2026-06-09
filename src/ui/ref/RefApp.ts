@@ -13,6 +13,10 @@ import { RefFamilyPage } from './RefFamilyPage'
 import { RefAchievementsPage } from './RefAchievementsPage'
 import type { RefViewModel } from './refAppDataAdapter'
 import type { GameState } from '../../game/GameState'
+import { performRefCareerReset } from './refDevReset'
+
+/** DEV-only: production build'de false (vite dead-code elimination). */
+const IS_DEV = import.meta.env.DEV
 
 /** Tüm ref sayfalarının ortak arayüzü: header + nav RefApp tarafından sağlanır. */
 export interface RefPage {
@@ -96,6 +100,10 @@ export class RefApp {
     this.timeBar = new RefTimeCard(this.gameState)
     this.el.appendChild(this.timeBar.el)
 
+    if (IS_DEV && this.gameState) {
+      this.el.appendChild(this.buildDevToolsBar())
+    }
+
     // ── Content (scroll) ──
     this.content = document.createElement('div')
     this.content.className = 'ref-body'
@@ -177,7 +185,7 @@ export class RefApp {
         return firms
       }
       case 'career': {
-        const career = new RefCareerPage(vm?.career, !!vm)
+        const career = new RefCareerPage(vm?.career, !!vm, st)
         career.onGoToFirms = () => this.show('firms')
         return career
       }
@@ -185,6 +193,47 @@ export class RefApp {
       case 'empire': return new RefEmpirePage(st)
       case 'family': return new RefFamilyPage()
     }
+  }
+
+  /** DEV: RefApp çalışan fazı test başlangıcı — iki onay + yedek + reload. */
+  private buildDevToolsBar(): HTMLElement {
+    const bar = document.createElement('div')
+    bar.className = 'ref-devtools'
+    bar.setAttribute('aria-label', 'Geliştirici araçları')
+
+    const label = document.createElement('div')
+    label.className = 'ref-devtools__label'
+    label.innerHTML = '🛠 Dev Tools <span class="ref-est-tag">DEV</span>'
+    bar.appendChild(label)
+
+    const row = document.createElement('div')
+    row.className = 'ref-devtools__row'
+
+    const resetBtn = document.createElement('button')
+    resetBtn.type = 'button'
+    resetBtn.className = 'ref-devtools__btn ref-devtools__btn--danger'
+    resetBtn.textContent = 'Yeni Oyun / Sıfırla'
+    resetBtn.title = 'Mevcut save yedeklenir, çalışan fazı başlangıcı yazılır'
+    resetBtn.addEventListener('click', () => this.onNewGameReset())
+    row.appendChild(resetBtn)
+
+    bar.appendChild(row)
+
+    const hint = document.createElement('div')
+    hint.className = 'ref-devtools__hint'
+    hint.textContent = 'İşletmesiz çalışan başlangıcı · tutorial bypass · sıfırlama öncesi otomatik yedek'
+    bar.appendChild(hint)
+
+    return bar
+  }
+
+  private onNewGameReset(): void {
+    const st = this.gameState
+    if (!st || !IS_DEV) return
+    const result = performRefCareerReset(st)
+    if (!result.ok) return
+    // HUD/tutorial senkronu için tam yenileme (otomatik onay yok — performRefCareerReset zaten sordu).
+    window.setTimeout(() => window.location.reload(), 120)
   }
 
   /** Aktif nav sekmesini değiştir. */
