@@ -143,7 +143,11 @@ export class RefApp {
 
   /** Aktif (görünür) sayfanın canlı değerlerini tazele. */
   private refreshActive(st: GameState): void {
-    this.pages.get(this.active)?.refresh?.(st)
+    // Başarılar overlay açıksa onu tazele, değilse aktif sekmeyi
+    const activePage = this.content.contains(this.achievements?.el ?? null)
+      ? this.achievements
+      : this.pages.get(this.active)
+    activePage?.refresh?.(st)
   }
 
   /** money_changed/passive_income için ~600ms throttle (her tikte rebuild olmasın). */
@@ -191,7 +195,7 @@ export class RefApp {
       }
       case 'market': return new RefMarketPage(st)
       case 'empire': return new RefEmpirePage(st)
-      case 'family': return new RefFamilyPage()
+      case 'family': return new RefFamilyPage(st)
     }
   }
 
@@ -245,7 +249,7 @@ export class RefApp {
 
   private showAchievements(): void {
     if (!this.achievements) {
-      this.achievements = new RefAchievementsPage()
+      this.achievements = new RefAchievementsPage(this.gameState)
       this.achievements.onBack = () => this.show(this.active)
     }
     this.mountBody(this.achievements)

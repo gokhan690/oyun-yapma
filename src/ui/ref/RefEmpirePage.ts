@@ -15,6 +15,7 @@ import {
   type ResearchBranch,
   type ResearchNode,
 } from '../../game/Research'
+import { EXPANSION_CITIES, canUnlockCity, type CityId } from '../../game/ExpansionMap'
 import { SaveManager } from '../../security/SaveManager'
 
 interface BranchMeta { id: ResearchBranch; label: string; ico: string }
@@ -127,18 +128,40 @@ export class RefEmpirePage implements RefPage {
   private handleClick(e: Event): void {
     const s = this.state
     if (!s) return
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-research-id]')
-    if (!btn || btn.disabled) return
-    const id = btn.dataset.researchId
-    if (!id) return
-    const ok = s.buyResearch(id)
-    if (ok) {
-      new SaveManager().save(s)
-      const node = RESEARCH_NODES.find((x) => x.id === id)
-      refToast(`Ar-Ge yükseltildi${node ? ': ' + researchNodeName(node) : ''}`, 'ok')
-      this.renderResearch()
-    } else {
-      refToast('Yetersiz bakiye veya kilitli', 'err')
+    const t = e.target as HTMLElement
+
+    // Ar-Ge satın alma
+    const researchBtn = t.closest<HTMLButtonElement>('[data-research-id]')
+    if (researchBtn && !researchBtn.disabled) {
+      const id = researchBtn.dataset.researchId!
+      const ok = s.buyResearch(id)
+      if (ok) {
+        new SaveManager().save(s)
+        const node = RESEARCH_NODES.find((x) => x.id === id)
+        refToast(`Ar-Ge yükseltildi${node ? ': ' + researchNodeName(node) : ''}`, 'ok')
+        this.renderResearch()
+      } else {
+        refToast('Yetersiz bakiye veya kilitli', 'err')
+      }
+      return
+    }
+
+    // Şehir aç
+    const cityBtn = t.closest<HTMLButtonElement>('[data-unlock-city]')
+    if (cityBtn && !cityBtn.disabled) {
+      const id = cityBtn.dataset.unlockCity as CityId
+      const ok = s.unlockCity(id)
+      if (ok) {
+        new SaveManager().save(s)
+        const def = EXPANSION_CITIES.find((c) => c.id === id)
+        refToast(`${def?.label ?? id} fethedildi! ${def?.emoji ?? '🏙️'}`, 'ok')
+        // Şehirler bölümünü yeniden oluştur
+        const cityGrid = this.el.querySelector<HTMLElement>('.ref-city-grid')
+        if (cityGrid) cityGrid.outerHTML = this.buildCityGrid(s)
+      } else {
+        const check = canUnlockCity(id, s.cities, s.money, s.reputation, s.ipoCount)
+        refToast(check.reason ?? 'Şehir açılamadı', 'err')
+      }
     }
   }
 
@@ -286,16 +309,36 @@ export class RefEmpirePage implements RefPage {
 
     // ── Şehirler ───────────────────────────────────────────────────────
     this.el.appendChild(sectionTitle('Şehirler', '5 bölge'))
-    const cityGrid = document.createElement('div')
-    cityGrid.className = 'ref-city-grid'
-    cityGrid.innerHTML = CITY_DEFS.map(c => {
+    const cityGridEl = document.createElement('div')
+    cityGridEl.innerHTML = this.buildCityGrid(s)
+    this.el.appendChild(cityGridEl.firstElementChild ?? cityGridEl)
+  }
+
+  private buildCityGrid(s?: GameState): string {
+    const firmsCount = s ? Object.entries(s.producers).filter(([,cnt]) => cnt > 0).length : 0
+    const cityIncomePer = s && s.cities.unlocked.length > 0
+      ? Math.round(s.incomePerDay() / s.cities.unlocked.length) : 0
+
+    const cards = CITY_DEFS.map(c => {
       const owned = s ? s.cities.unlocked.includes(c.id as any) : ['istanbul','ankara','izmir'].includes(c.id)
       const card = REF_ASSETS_V2_GENERIC.cities[c.key].card
-      // Şehirdeki firma sayısı (yaklaşım)
-      const firmsInCity = s
-        ? Object.entries(s.producers).filter(([,cnt]) => cnt > 0).length
-        : 0
-      const cityIncome = s && owned ? Math.round(s.incomePerDay() / Math.max(1, s.cities.unlocked.length)) : 0
+      const def = EXPANSION_CITIES.find((d) => d.id === c.id)
+
+      let foot: string
+      if (owned) {
+        foot = `<div class="ref-city-card__meta">${firmsCount} firma · ${fmtMoney(cityIncomePer)}/gün</div>`
+      } else if (s && def) {
+        const check = canUnlockCity(c.id as CityId, s.cities, s.money, s.reputation, s.ipoCount)
+        const canBuy = check.ok
+        foot = `
+          <div class="ref-city-card__meta locked">${check.reason ?? 'Kilitli'}</div>
+          <button type="button" class="ref-city-unlock-btn"
+            data-unlock-city="${c.id}"
+            ${canBuy ? '' : 'disabled'}
+          >${canBuy ? `🔓 Aç · ${fmtMoney(def.unlockCost)}` : fmtMoney(def.unlockCost)}</button>`
+      } else {
+        foot = `<div class="ref-city-card__meta locked">Kilitli — yakında</div>`
+      }
 
       return `
         <div class="ref-city-card ${owned ? '' : 'locked'}">
@@ -305,13 +348,10 @@ export class RefEmpirePage implements RefPage {
           </div>
           <div class="ref-city-card__body">
             <div class="ref-city-card__name">${c.name}</div>
-            ${owned
-              ? `<div class="ref-city-card__meta">${s ? firmsInCity + ' firma · ' + fmtMoney(cityIncome) + '/gün' : 'Aktif'}</div>`
-              : `<div class="ref-city-card__meta locked">Kilitli — yakında</div>`}
+            ${foot}
           </div>
-        </div>
-      `
+        </div>`
     }).join('')
-    this.el.appendChild(cityGrid)
+    return `<div class="ref-city-grid">${cards}</div>`
   }
 }

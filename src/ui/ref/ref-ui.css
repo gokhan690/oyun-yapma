@@ -1237,6 +1237,13 @@
 .ref-city-card__name { font-size: 14px; font-weight: 800; color: var(--r-text); }
 .ref-city-card__meta { font-size: 11px; font-weight: 700; color: var(--r-muted); margin-top: 1px; }
 .ref-city-card__meta.locked { color: var(--r-muted-lt); }
+.ref-city-unlock-btn {
+  display: block; width: calc(100% - 2px); border: none; cursor: pointer;
+  margin-top: 6px; border-radius: var(--r-pill); padding: 7px 8px;
+  font-family: 'Outfit', system-ui, sans-serif; font-size: 11px; font-weight: 800;
+  color: #fff; background: linear-gradient(135deg, #13B8A6, #0E9C8C);
+}
+.ref-city-unlock-btn:disabled { opacity: 0.35; cursor: not-allowed; background: rgba(18,58,82,0.12); color: var(--r-muted); }
 
 .ref-dept-grid { padding: 0 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .ref-dept-tile {
@@ -1878,6 +1885,34 @@
 .ref-tstatus.done { background: var(--r-success-bg); color: var(--r-success); }
 .ref-tstatus.active { background: var(--r-blue-bg); color: var(--r-blue); }
 .ref-tstatus.locked { background: rgba(0,0,0,0.06); color: var(--r-muted-lt); }
+.ref-tstatus.claim { background: rgba(246,166,9,0.15); color: #C68500; }
+/* Görev topla butonu */
+.ref-claim-btn {
+  border: none; cursor: pointer; border-radius: var(--r-pill);
+  padding: 5px 11px; font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 11px; font-weight: 800;
+  color: #fff; background: linear-gradient(135deg, #F6A609, #C68500);
+}
+/* Başarı listesi ek stiller */
+.ref-ach-emoji { font-size: 20px; margin: 2px 0; }
+.ref-ach-reward { font-size: 10.5px; font-weight: 800; color: var(--r-muted); margin-top: 2px; }
+.ref-ach-empty { text-align: center; padding: 32px 20px; color: var(--r-muted); font-size: 13px; font-weight: 700; line-height: 1.6; }
+/* Evlilik adayları grid */
+.ref-spouse-grid { padding: 0 14px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.ref-spouse-card {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  background: var(--r-card); border: 1px solid var(--r-border); border-radius: var(--r-lg); padding: 12px 10px;
+}
+.ref-spouse-emoji { font-size: 24px; }
+.ref-spouse-name { font-size: 13px; font-weight: 900; color: var(--r-text); }
+.ref-spouse-trait { font-size: 10.5px; font-weight: 700; color: var(--r-muted); }
+.ref-spouse-bonus { font-size: 9.5px; font-weight: 700; color: var(--r-accent); line-height: 1.3; }
+.ref-spouse-btn {
+  width: 100%; border: none; cursor: pointer; border-radius: var(--r-pill);
+  padding: 7px; font-family: 'Outfit', system-ui, sans-serif; font-size: 11px; font-weight: 800;
+  color: #fff; background: linear-gradient(135deg, #13B8A6, #0E9C8C); margin-top: 4px;
+}
+.ref-spouse-btn:disabled { opacity: 0.35; cursor: not-allowed; background: rgba(18,58,82,0.1); color: var(--r-muted); }
 
 .ref-ach-content .ref-ach-grid { padding-top: 4px; }
 .ref-badge-grid { padding: 4px 14px 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
