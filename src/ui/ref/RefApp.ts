@@ -13,7 +13,7 @@ import { RefFamilyPage } from './RefFamilyPage'
 import { RefAchievementsPage } from './RefAchievementsPage'
 import type { RefViewModel } from './refAppDataAdapter'
 import type { GameState } from '../../game/GameState'
-import { performRefCareerReset } from './refDevReset'
+import { performRefCareerReset, performRefCareerRestore } from './refDevReset'
 import { REFAPP_DEFAULT_FLAG } from './refShared'
 
 /** DEV-only: production build'de false (vite dead-code elimination). */
@@ -232,6 +232,22 @@ export class RefApp {
     resetBtn.title = 'Mevcut save yedeklenir, çalışan fazı başlangıcı yazılır'
     resetBtn.addEventListener('click', () => this.onNewGameReset())
     row.appendChild(resetBtn)
+
+    const restoreBtn = document.createElement('button')
+    restoreBtn.type = 'button'
+    restoreBtn.className = 'ref-devtools__btn'
+    restoreBtn.textContent = '⏪ Yedekten Geri Yükle'
+    restoreBtn.title = 'Sıfırlama öncesi alınan snapshot\'tan tüm kayıtları geri yükler'
+    restoreBtn.addEventListener('click', () => {
+      const result = performRefCareerRestore()
+      if (!result.ok) {
+        alert(result.message)
+        return
+      }
+      alert(result.message)
+      window.setTimeout(() => window.location.reload(), 120)
+    })
+    row.appendChild(restoreBtn)
 
     bar.appendChild(row)
 
