@@ -1,4 +1,4 @@
-export type RefNavTab = 'home' | 'career' | 'firms' | 'market' | 'empire' | 'family'
+export type RefNavTab = 'home' | 'career' | 'firms' | 'market' | 'empire' | 'cities' | 'family'
 
 interface TabDef {
   id: RefNavTab
@@ -12,6 +12,7 @@ const TABS: TabDef[] = [
   { id: 'firms',  label: 'Firmalar',     icon: '🏢' },
   { id: 'market', label: 'Piyasa',       icon: '📊' },
   { id: 'empire', label: 'İmparatorluk', icon: '👑' },
+  { id: 'cities', label: 'Şehirler',     icon: '🌍' },
   { id: 'family', label: 'Aile',         icon: '👨‍👩‍👧' },
 ]
 

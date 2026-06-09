@@ -9,6 +9,7 @@ import { RefDashboardPage } from './RefDashboardPage'
 import { RefCareerPage } from './RefCareerPage'
 import { RefMarketPage } from './RefMarketPage'
 import { RefEmpirePage } from './RefEmpirePage'
+import { RefCitiesPage } from './RefCitiesPage'
 import { RefFamilyPage } from './RefFamilyPage'
 import { RefAchievementsPage } from './RefAchievementsPage'
 import type { RefViewModel } from './refAppDataAdapter'
@@ -207,6 +208,7 @@ export class RefApp {
       }
       case 'market': return new RefMarketPage(st)
       case 'empire': return new RefEmpirePage(st)
+      case 'cities': return new RefCitiesPage(st)
       case 'family': return new RefFamilyPage(st)
     }
   }

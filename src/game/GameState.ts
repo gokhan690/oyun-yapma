@@ -456,6 +456,14 @@ import {
 } from './TorpilNetwork'
 import { obsolescenceMult, modernizeCost } from './TechObsolescence'
 import { pickDisaster, disasterDamage } from './NaturalDisasters'
+import {
+  createDepartmentState,
+  departmentUpgradeCost,
+  operasyonLegalBonus,
+  pazarlamaGlobalBonus,
+  hukukRaidReduction,
+  type DepartmentId,
+} from './EmpireDepartments'
 import { progressPathSnapshot, type ProgressPathSnapshot } from './ProgressPath'
 
 export interface PendingUndo {
@@ -638,6 +646,7 @@ export interface SerializableState {
   characterBackground?: CharacterBackgroundId | null
   producerLevels?: Record<string, number>
   producerUpgrades?: Record<string, string[]>
+  departments?: Record<string, number>
 }
 
 export interface ProducerBreakdown {
@@ -922,6 +931,8 @@ export class GameState {
   producerLevels: Record<string, number> = {}
   /** Kategoriye özel firma geliştirmeleri (Karar 8-10) */
   producerUpgrades: Record<string, string[]> = {}
+  /** İmparatorluk departman seviyeleri (Karar 11-13) */
+  departments: Record<DepartmentId, number> = createDepartmentState()
   pendingUndo: PendingUndo | null = null
   lastDisasterGameDay = 0
   dynastyPassiveIncome = 0
@@ -3844,6 +3855,7 @@ export class GameState {
     this.childCrises = []
     this.producerLevels = {}
     this.producerUpgrades = {}
+    this.departments = createDepartmentState()
     this.emit({ type: 'money_changed' })
   }
 
@@ -5572,6 +5584,36 @@ export class GameState {
     return true
   }
 
+  /** Departman seviyesini bir artır (Karar 11). */
+  upgradeDepartment(id: DepartmentId): boolean {
+    const currentLevel = this.departments[id] ?? 0
+    const cost = departmentUpgradeCost(id, currentLevel)
+    if (!isFinite(cost) || !this.canAfford(cost)) return false
+    this.money -= cost
+    this.departments[id] = currentLevel + 1
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  departmentLevel(id: DepartmentId): number {
+    return this.departments[id] ?? 0
+  }
+
+  departmentUpgradeCostFor(id: DepartmentId): number {
+    return departmentUpgradeCost(id, this.departments[id] ?? 0)
+  }
+
+  /** Operasyon + Pazarlama departman bonusunun toplam yasal gelir çarpanı. */
+  departmentLegalBonus(): number {
+    return operasyonLegalBonus(this.departments.operasyon ?? 0)
+      + pazarlamaGlobalBonus(this.departments.pazarlama ?? 0)
+  }
+
+  /** Hukuk departmanının baskın cezası azaltması. */
+  departmentRaidReduction(): number {
+    return hukukRaidReduction(this.departments.hukuk ?? 0)
+  }
+
   obsolescenceLabel(producerId: string): string | null {
     const def = PRODUCERS.find((p) => p.id === producerId)
     if (!def || this.ipoCount <= 0 || this.producerModernized[producerId]) return null
@@ -5859,6 +5901,7 @@ export class GameState {
       producerModernized: { ...this.producerModernized },
       producerLevels: { ...this.producerLevels },
       producerUpgrades: Object.fromEntries(Object.entries(this.producerUpgrades).map(([k, v]) => [k, [...v]])),
+      departments: { ...this.departments },
       pendingUndo: this.pendingUndo ? { ...this.pendingUndo } : null,
       lastDisasterGameDay: this.lastDisasterGameDay,
       dynastyPassiveIncome: this.dynastyPassiveIncome,
@@ -6207,6 +6250,9 @@ export class GameState {
       this.producerUpgrades = Object.fromEntries(
         Object.entries(data.producerUpgrades).map(([k, v]) => [k, [...(v as string[])]]),
       )
+    }
+    if (data.departments) {
+      this.departments = { ...createDepartmentState(), ...(data.departments as Record<DepartmentId, number>) }
     }
     this.pendingUndo = data.pendingUndo ?? null
     this.lastDisasterGameDay = data.lastDisasterGameDay ?? 0

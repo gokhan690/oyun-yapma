@@ -25,8 +25,10 @@ import { producerVisual, renderProducerIconHtml } from './producerVisual'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
 import { type ProducerDef } from '../../game/Economy'
-import { FIRM_MAX_LEVEL, firmLevelBonusLabel, isFirmMaxLevel } from '../../game/FirmLevels'
+import { FIRM_MAX_LEVEL, isFirmMaxLevel } from '../../game/FirmLevels'
 import { firmUpgradesForProducer } from '../../game/FirmUpgrades'
+import { modernizeCost } from '../../game/TechObsolescence'
+import { hasManager } from '../../game/Managers'
 import { SaveManager } from '../../security/SaveManager'
 
 /* ── Mock data (state yoksa saf önizleme) ─────────────────────────────── */
@@ -317,30 +319,43 @@ export class RefFirmsPage implements RefPage {
     const firmLv = s.producerLevel(def.id)
     const lvCost = s.firmLevelUpCostFor(def)
     const canLevelUp = snap.owned > 0 && !isFirmMaxLevel(firmLv) && s.canAfford(lvCost)
+    const owned = snap.owned
+    const isModernized = s.producerModernized?.[def.id] ?? false
+    const mrzCost = modernizeCost(def.tier, owned)
+    const canModernize = owned > 0 && !isModernized && s.canAfford(mrzCost)
+    const managerHired = hasManager(s.managers, def.id)
+    const mgrCost = s.managerCostFor(def)
+    const canHireManager = owned > 0 && !managerHired && s.canAfford(mgrCost)
+    const cityLabel = s.cities?.activeCity ?? 'TR'
+    const growthPct = firmLv > 0 ? `+${firmLv * 10}%` : '—'
 
     card.className = `ref-live-firm-card ref-firm-card ref-firm-card--premium state-${snap.stateClass}`
     card.dataset.chip = snap.chip
     card.dataset.state = snap.state
     card.dataset.tone = visual.tone
 
-    const buyHtml = !snap.unlocked
-      ? `<div class="ref-live-lock-foot"><span class="ref-live-lock-ico">🔒</span><span>${snap.lockReason ?? 'Kilitli'}</span></div>`
-      : snap.canBuy
-        ? `<button type="button" class="ref-live-buy-btn" data-action="buy-producer">${buyLabel}<small>${snap.costText}</small></button>`
-        : `<button type="button" class="ref-live-buy-btn disabled" disabled>Para Yetersiz<small>${snap.costText}</small></button>`
-
     const riskHtml = def.illegal
-      ? `<div class="ref-risk-bar ref-risk-bar--sm"><span>⚠️</span> Riskli${snap.owned > 0 ? ' · Isı takibi' : ''}</div>`
+      ? `<div class="ref-risk-bar ref-risk-bar--sm"><span>⚠️</span> Riskli${owned > 0 ? ' · Isı takibi' : ''}</div>`
       : ''
 
-    const ownedHtml = snap.owned > 0
-      ? `<span class="ref-live-owned-pill">×${snap.owned}</span>`
+    const ownedHtml = owned > 0
+      ? `<span class="ref-live-owned-pill">×${owned}</span>`
       : `<span class="ref-live-owned-empty">Sahip değil</span>`
+
+    const lockHtml = !snap.unlocked
+      ? `<div class="ref-live-lock-foot"><span class="ref-live-lock-ico">🔒</span><span>${snap.lockReason ?? 'Kilitli'}</span></div>`
+      : ''
+
+    const buyHtml = snap.unlocked
+      ? snap.canBuy
+        ? `<button type="button" class="ref-firm-quick-buy" data-action="buy-producer">${buyLabel} <small>${snap.costText}</small></button>`
+        : `<button type="button" class="ref-firm-quick-buy ref-firm-quick-buy--disabled" disabled>Para Yetersiz <small>${snap.costText}</small></button>`
+      : ''
 
     card.innerHTML = `
       <div class="ref-firm-card__tone-accent ref-tone-accent-${visual.tone}"></div>
-      <div class="ref-firm-card__body ref-live-firm-body">
-        <div class="ref-firm-card__info">
+      <div class="ref-firm-card__body ref-firm-card__body--actions">
+        <div class="ref-firm-card__main">
           <div class="ref-firm-top ref-firm-top--premium">
             <div class="ref-firm-icon-slot">${renderProducerIconHtml(visual)}</div>
             <div class="ref-firm-head">
@@ -351,38 +366,52 @@ export class RefFirmsPage implements RefPage {
               <div class="ref-firm-meta">
                 <span class="ref-live-cat-chip">${chipLabel}</span>
                 <span class="ref-level-txt">T${def.tier}</span>
-                ${snap.owned > 0 ? `<span class="ref-firm-lvl-badge">Lv.${firmLv}</span>` : ''}
+                ${owned > 0 ? `<span class="ref-firm-lvl-badge">Lv.${firmLv}</span>` : ''}
                 ${ownedHtml}
               </div>
             </div>
-            <span class="ref-firm-chevron" aria-hidden="true">›</span>
           </div>
           ${riskHtml}
-          <div class="ref-live-econ-row">
-            <div class="ref-live-econ ref-live-econ--income">
-              <span class="ref-live-econ-lbl">Günlük +${snap.buyCount}</span>
-              <span class="ref-live-econ-val">${snap.marginalIncomeText}</span>
+          ${lockHtml}
+          <div class="ref-firm-ministats">
+            <div class="ref-ministat">
+              <span class="ref-ministat__lbl">Günlük Gelir</span>
+              <span class="ref-ministat__val ref-ministat__val--income">${snap.totalIncomeText ?? snap.marginalIncomeText}</span>
             </div>
-            <div class="ref-live-econ ref-live-econ--cost">
-              <span class="ref-live-econ-lbl">${snap.buyCount > 1 ? 'Toplu maliyet' : 'Sonraki maliyet'}</span>
-              <span class="ref-live-econ-val">${snap.costText}</span>
+            <div class="ref-ministat">
+              <span class="ref-ministat__lbl">Büyüme</span>
+              <span class="ref-ministat__val ref-ministat__val--up">${growthPct}</span>
+            </div>
+            <div class="ref-ministat">
+              <span class="ref-ministat__lbl">Maliyet</span>
+              <span class="ref-ministat__val ref-ministat__val--expense">${snap.costText}</span>
+            </div>
+            <div class="ref-ministat">
+              <span class="ref-ministat__lbl">Şehir</span>
+              <span class="ref-ministat__val">${cityLabel}</span>
             </div>
           </div>
-          ${snap.totalIncomeText ? `
-          <div class="ref-live-total-income">
-            <span>Toplam pasif</span><strong>${snap.totalIncomeText}</strong>
-          </div>` : ''}
           <div class="ref-perf ref-perf--slim">
             <div class="ref-perf-track"><div class="ref-perf-fill ${snap.perfCls}" style="width:${snap.perfPct}%"></div></div>
           </div>
-        </div>
-        <div class="ref-live-buy-col">
           ${buyHtml}
-          ${snap.owned > 0 && !isFirmMaxLevel(firmLv)
-            ? `<button type="button" class="ref-live-levelup-btn${canLevelUp ? '' : ' disabled'}" data-action="levelup-firm"${canLevelUp ? '' : ' disabled'}>⬆️ Lv.${firmLv + 1}<small>${fmtMoney(lvCost)} · ${firmLevelBonusLabel(firmLv + 1)}</small></button>`
-            : snap.owned > 0
-              ? `<span class="ref-firm-lvl-maxed">Lv.${FIRM_MAX_LEVEL} Maks</span>`
-              : ''}
+        </div>
+        <div class="ref-firm-actions">
+          <button type="button" class="ref-firm-action-btn ref-firm-action-btn--develop${canLevelUp ? '' : ' ref-firm-action-btn--off'}"
+            data-action="levelup-firm" ${canLevelUp ? '' : 'disabled'}>
+            ⬆️ GELİŞTİR
+            <small>${isFirmMaxLevel(firmLv) ? 'Maks Lv' : `Lv.${firmLv + 1} · ${fmtMoney(lvCost)}`}</small>
+          </button>
+          <button type="button" class="ref-firm-action-btn ref-firm-action-btn--modernize${canModernize ? '' : ' ref-firm-action-btn--off'}"
+            data-action="modernize-producer" ${canModernize ? '' : 'disabled'}>
+            🔧 MODERNİZE
+            <small>${isModernized ? '✓ Modernize' : owned > 0 ? fmtMoney(mrzCost) : 'Önce al'}</small>
+          </button>
+          <button type="button" class="ref-firm-action-btn ref-firm-action-btn--manager${canHireManager ? '' : ' ref-firm-action-btn--off'}"
+            data-action="hire-manager" ${canHireManager ? '' : 'disabled'}>
+            👤 MANAGER
+            <small>${managerHired ? '✓ Atandı' : owned > 0 ? fmtMoney(mgrCost) : 'Önce al'}</small>
+          </button>
         </div>
       </div>
     `
@@ -408,6 +437,44 @@ export class RefFirmsPage implements RefPage {
       } else refToast('Seviye atlatılamadı', 'err')
       return
     }
+    const mrzBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-action="modernize-producer"]')
+    if (mrzBtn) {
+      e.stopPropagation()
+      const card = mrzBtn.closest<HTMLElement>('.ref-live-firm-card')
+      const id = card?.dataset.id
+      if (!id) return
+      const def = NORMAL_PRODUCERS.find((p) => p.id === id)
+      if (!def) return
+      const ok = this.state.modernizeProducer(id)
+      if (ok) {
+        new SaveManager().save(this.state)
+        refToast(`🔧 ${def.name} modernize edildi`, 'ok')
+        this.refreshProducerCards()
+        this.updateKpi()
+        if (this.openDetailId === id) this.paintProducerDetail(def, this.state)
+      } else refToast('Modernize edilemedi', 'err')
+      return
+    }
+
+    const mgrBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-action="hire-manager"]')
+    if (mgrBtn) {
+      e.stopPropagation()
+      const card = mgrBtn.closest<HTMLElement>('.ref-live-firm-card')
+      const id = card?.dataset.id
+      if (!id) return
+      const def = NORMAL_PRODUCERS.find((p) => p.id === id)
+      if (!def) return
+      const ok = this.state.hireManager(id)
+      if (ok) {
+        new SaveManager().save(this.state)
+        refToast(`👤 ${def.name} yöneticisi atandı`, 'ok')
+        this.refreshProducerCards()
+        this.updateKpi()
+        if (this.openDetailId === id) this.paintProducerDetail(def, this.state)
+      } else refToast('Yönetici atanamadı', 'err')
+      return
+    }
+
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-action="buy-producer"]')
     if (btn) {
       e.stopPropagation()
@@ -547,24 +614,64 @@ export class RefFirmsPage implements RefPage {
               </div>
             </div>
           </div>
+          <div class="ref-detail-id-card">
+            <div class="ref-detail-id-card__row">
+              <div class="ref-detail-id-card__cell">
+                <span class="ref-detail-id-card__lbl">Seviye</span>
+                <span class="ref-detail-id-card__val">${snap.owned > 0 ? `Lv.${firmLv}` : '—'}</span>
+              </div>
+              <div class="ref-detail-id-card__cell">
+                <span class="ref-detail-id-card__lbl">Şehir</span>
+                <span class="ref-detail-id-card__val">${s.cities?.activeCity ?? 'TR'}</span>
+              </div>
+              <div class="ref-detail-id-card__cell">
+                <span class="ref-detail-id-card__lbl">Günlük Gelir</span>
+                <span class="ref-detail-id-card__val ref-detail-id-card__val--income">${snap.totalIncomeText ?? '—'}</span>
+              </div>
+              <div class="ref-detail-id-card__cell">
+                <span class="ref-detail-id-card__lbl">Aylık Kâr</span>
+                <span class="ref-detail-id-card__val ref-detail-id-card__val--income">${snap.totalIncomeText ? fmtMoney(Math.round(parseFloat(snap.totalIncomeText.replace(/[^0-9.]/g, '')) * 30)) : '—'}</span>
+              </div>
+            </div>
+          </div>
           <div class="ref-detail-section-title">Geliştirmeler <span class="ref-est-tag">sektöre özel</span></div>
-          <div class="ref-detail-upgrades">
+          <div class="ref-detail-upg-list">
             ${upgrades.length === 0
-              ? '<div class="ref-detail-upg ref-detail-upg--empty">Bu işletme için geliştirme yok</div>'
-              : upgrades.map((up) => {
+              ? '<div class="ref-detail-upg-row ref-detail-upg-row--empty">Bu işletme için geliştirme yok</div>'
+              : upgrades.map((up, i) => {
                 const isPurchased = purchased.includes(up.id)
                 const cost = s.firmUpgradeCostFor(def, up.id)
                 const canBuy = !isPurchased && snap.owned > 0 && s.canAfford(cost)
                 return `
-              <button type="button" class="ref-detail-upg${isPurchased ? ' ref-detail-upg--owned' : ''}"
-                data-action="buy-firm-upgrade" data-upgrade-id="${up.id}"
-                ${isPurchased || !canBuy ? 'disabled' : ''}>
-                <span class="ref-detail-upg__emoji">${up.emoji}</span>
-                <span class="ref-detail-upg__lbl">${up.name}</span>
-                <span class="ref-detail-upg__desc">${up.description}</span>
-                <span class="ref-detail-upg__price">${isPurchased ? '✓ Alındı' : fmtMoney(cost)}</span>
-              </button>`
+              <div class="ref-detail-upg-row${isPurchased ? ' ref-detail-upg-row--owned' : ''}">
+                <span class="ref-detail-upg-row__icon">${up.emoji}</span>
+                <div class="ref-detail-upg-row__info">
+                  <span class="ref-detail-upg-row__name">${up.name}</span>
+                  <span class="ref-detail-upg-row__desc">${up.description}</span>
+                </div>
+                <div class="ref-detail-upg-row__lvl">Lv.${i + 1}</div>
+                <button type="button" class="ref-detail-upg-row__btn${isPurchased ? ' ref-detail-upg-row__btn--owned' : canBuy ? '' : ' ref-detail-upg-row__btn--off'}"
+                  data-action="buy-firm-upgrade" data-upgrade-id="${up.id}"
+                  ${isPurchased || !canBuy ? 'disabled' : ''}>
+                  ${isPurchased ? '✓' : fmtMoney(cost)}
+                </button>
+              </div>`
               }).join('')}
+          </div>
+          <div class="ref-detail-section-title">Şubeler</div>
+          <div class="ref-detail-branches">
+            ${snap.owned > 0
+              ? `<div class="ref-detail-branch-row">
+                  <span class="ref-detail-branch-ico">🏪</span>
+                  <span class="ref-detail-branch-name">${def.name}</span>
+                  <span class="ref-detail-branch-count">${snap.owned} şube</span>
+                </div>`
+              : `<div class="ref-detail-upg-row--empty ref-detail-branch-empty">Henüz şube yok</div>`}
+            <div class="ref-detail-branch-row ref-detail-branch-row--locked">
+              <span class="ref-detail-branch-ico">🔒</span>
+              <span class="ref-detail-branch-name">Franchise</span>
+              <span class="ref-detail-branch-count">Kilitli</span>
+            </div>
           </div>
           <div class="ref-detail-actions">
             ${isEmpire
@@ -853,16 +960,21 @@ export class RefFirmsPage implements RefPage {
   private liveKpiItems(s: GameState): KpiItem[] {
     const legalIncome = Math.round(s.legalIncomePerDay())
     const illegalIncome = Math.round(s.illegalIncomePerDay())
-    const ownedTypes = NORMAL_PRODUCERS.filter((p) => (s.producers[p.id] ?? 0) > 0).length
+    const ownedProducers = NORMAL_PRODUCERS.filter((p) => (s.producers[p.id] ?? 0) > 0)
+    const ownedTypes = ownedProducers.length
     const totalUnits = NORMAL_PRODUCERS.reduce((sum, p) => sum + (s.producers[p.id] ?? 0), 0)
     const efficiency = NORMAL_PRODUCERS.length
       ? Math.round((ownedTypes / NORMAL_PRODUCERS.length) * 100)
       : 0
+    const avgLevel = ownedProducers.length
+      ? (ownedProducers.reduce((sum, p) => sum + s.producerLevel(p.id), 0) / ownedProducers.length).toFixed(1)
+      : '0'
     return [
-      { icon: '🏢', label: 'Aktif Tür', value: String(ownedTypes), sub: `${totalUnits} birim`, subDir: 'muted' },
+      { icon: '🏢', label: 'Aktif Firma', value: String(ownedTypes), sub: `${totalUnits} birim`, subDir: 'muted' },
       { icon: '📈', label: 'Yasal Gelir', value: fmtMoney(legalIncome), sub: 'Günlük', subDir: 'up' },
-      { icon: '💰', label: 'Yasadışı Gelir', value: illegalIncome > 0 ? fmtMoney(illegalIncome) : 'Yok', sub: 'Günlük', subDir: 'muted' },
-      { icon: '⚙️', label: 'Verimlilik', value: `%${efficiency}`, sub: `${ownedTypes}/${NORMAL_PRODUCERS.length} tür`, subDir: efficiency > 0 ? 'up' : 'muted' },
+      { icon: '💰', label: 'Yasadışı Gelir', value: illegalIncome > 0 ? fmtMoney(illegalIncome) : 'Yok', sub: 'Günlük', subDir: illegalIncome > 0 ? 'up' : 'muted' },
+      { icon: '⚙️', label: 'Op. Verimlilik', value: `%${efficiency}`, sub: `${ownedTypes}/${NORMAL_PRODUCERS.length} tür`, subDir: efficiency > 0 ? 'up' : 'muted' },
+      { icon: '⭐', label: 'Ort. Firma Lv', value: `Lv.${avgLevel}`, sub: 'Seviye ortalaması', subDir: parseFloat(avgLevel) > 1 ? 'up' : 'muted' },
     ]
   }
 
