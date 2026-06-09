@@ -2368,6 +2368,81 @@
 .ref-ipo-card .ref-perf-track { margin: 2px 0 5px; }
 .ref-ipo-card__meta { font-size: 10.5px; font-weight: 700; color: var(--r-muted); text-align: right; }
 
+/* ===== Piyasa aksiyon binding (E-phase) ===== */
+
+/* Borsa satır içi al/sat butonları */
+.ref-stock-row--interactive { flex-wrap: wrap; row-gap: 6px; align-items: center; }
+.ref-stock-btns { display: flex; gap: 5px; margin-left: auto; }
+.ref-stock-btn {
+  border: none; cursor: pointer; border-radius: var(--r-pill);
+  padding: 5px 11px; font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 11px; font-weight: 800; line-height: 1;
+}
+.ref-stock-btn.buy  { color: #fff; background: linear-gradient(135deg, #28C76F, #1EA85A); }
+.ref-stock-btn.sell { color: #fff; background: linear-gradient(135deg, #EA5455, #C43B3B); }
+.ref-stock-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+
+/* Banka işlem paneli */
+.ref-bank-panel { padding: 0 14px; display: flex; flex-direction: column; gap: 6px; }
+.ref-bank-stats {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;
+  background: var(--r-card-soft); border: 1px solid var(--r-border);
+  border-radius: var(--r-lg); padding: 10px 12px; margin-bottom: 4px;
+}
+.ref-bank-stat { display: flex; flex-direction: column; gap: 2px; }
+.ref-bank-stat span { font-size: 10.5px; font-weight: 700; color: var(--r-muted); }
+.ref-bank-stat b { font-size: 13px; font-weight: 900; color: var(--r-text); }
+.ref-bank-stat b.debt { color: var(--r-danger, #EA5455); }
+.ref-bank-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ref-bank-row__lbl { font-size: 11px; font-weight: 800; color: var(--r-muted); white-space: nowrap; min-width: 90px; }
+.ref-bank-row__btns { display: flex; gap: 5px; flex-wrap: wrap; }
+.ref-bank-btn {
+  border: 1px solid var(--r-border); background: var(--r-card); cursor: pointer;
+  border-radius: var(--r-pill); padding: 6px 10px;
+  font-family: 'Outfit', system-ui, sans-serif; font-size: 11px; font-weight: 800;
+  color: var(--r-text);
+}
+.ref-bank-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.ref-bank-btn:not(:disabled):hover { background: var(--r-accent, #13B8A6); color: #fff; border-color: transparent; }
+
+/* Sigorta toggle grid */
+.ref-ins-grid { padding: 0 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ref-ins-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: var(--r-card); border: 1px solid var(--r-border);
+  border-radius: var(--r-lg); padding: 10px 8px; text-align: center;
+}
+.ref-ins-cell.on  { border-color: rgba(40,199,111,0.5); background: rgba(236,252,243,0.7); }
+.ref-ins-cell.off { opacity: 0.75; }
+.ref-ins-cell__ico { font-size: 20px; }
+.ref-ins-cell__lbl { font-size: 10.5px; font-weight: 800; color: var(--r-muted); }
+.ref-ins-cell__val { font-size: 11px; font-weight: 900; color: var(--r-text); }
+.ref-ins-cell.on .ref-ins-cell__val { color: #1E9E5A; }
+.ref-ins-toggle-btn {
+  margin-top: 2px; border: none; cursor: pointer; border-radius: var(--r-pill);
+  padding: 5px 10px; font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 10.5px; font-weight: 800;
+  background: rgba(18,58,82,0.1); color: var(--r-text);
+  width: 100%;
+}
+.ref-ins-cell.on .ref-ins-toggle-btn { background: rgba(234,84,85,0.12); color: #C43B3B; }
+
+/* IPO aksiyon butonu + önizleme */
+.ref-ipo-preview {
+  display: flex; justify-content: space-between;
+  font-size: 11px; font-weight: 800; color: var(--r-muted);
+  margin: 8px 0 4px;
+}
+.ref-ipo-btn {
+  width: 100%; border: none; cursor: pointer; border-radius: var(--r-pill);
+  padding: 12px; font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 13px; font-weight: 900; color: #fff;
+  background: linear-gradient(135deg, #FFB02E, #E08800);
+  box-shadow: 0 4px 14px rgba(255,176,46,0.4);
+  margin-top: 6px;
+}
+.ref-ipo-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
 /* ===== B2 — Firmalar & Firma Detay polish ===== */
 .ref-firms-page {
   min-width: 0;

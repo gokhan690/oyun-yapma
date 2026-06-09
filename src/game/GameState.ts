@@ -5182,6 +5182,7 @@ export class GameState {
 
   toggleInsurance(kind: keyof InsuranceState): void {
     this.insurance[kind] = !this.insurance[kind]
+    this.emit({ type: 'money_changed' })
   }
 
   buyCommodity(id: CommodityId, units: number): boolean {
