@@ -305,6 +305,12 @@ export function producerDetailSatisfaction(perfPct: number): number {
   return Math.min(96, Math.max(28, perfPct + 14))
 }
 
+/**
+ * localStorage'da tutulan kalıcı mod feature flag anahtarı.
+ * `'1'` ise intro bitince RefApp otomatik açılır, eski HUD gizlenir.
+ */
+export const REFAPP_DEFAULT_FLAG = 'ii_use_refapp'
+
 /** Kısa süreli bildirim (satın alma başarı/başarısızlık geri bildirimi). */
 let refToastEl: HTMLElement | null = null
 let refToastTimer: number | null = null

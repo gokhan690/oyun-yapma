@@ -1,5 +1,6 @@
 import { RefApp } from './RefApp'
 import { buildRefViewModel, type RefViewModel } from './refAppDataAdapter'
+import { REFAPP_DEFAULT_FLAG } from './refShared'
 import type { GameState } from '../../game/GameState'
 
 /*
@@ -20,8 +21,7 @@ import type { GameState } from '../../game/GameState'
  * herhangi bir büyük modal/sheet açıkken GİZLENİR.
  */
 
-/** localStorage'da tutulan kalıcı mod feature flag anahtarı. */
-export const REFAPP_DEFAULT_FLAG = 'ii_use_refapp'
+export { REFAPP_DEFAULT_FLAG }
 
 // Oyunu kilitleyen/odak çalan tam ekran katmanlar (görünürlerse launcher gizlenir)
 const BLOCKING_SELECTORS = [

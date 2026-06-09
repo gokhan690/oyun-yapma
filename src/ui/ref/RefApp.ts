@@ -14,7 +14,7 @@ import { RefAchievementsPage } from './RefAchievementsPage'
 import type { RefViewModel } from './refAppDataAdapter'
 import type { GameState } from '../../game/GameState'
 import { performRefCareerReset } from './refDevReset'
-import { REFAPP_DEFAULT_FLAG } from './RefTestLauncher'
+import { REFAPP_DEFAULT_FLAG } from './refShared'
 
 /** DEV-only: production build'de false (vite dead-code elimination). */
 const IS_DEV = import.meta.env.DEV
