@@ -76,15 +76,18 @@ export class RefProfilePage implements RefPage {
   }
 
   private buildKpis(vm?: RefViewModel, state?: GameState): KpiItem[] {
-    const cash = vm?.dashboard.cash ?? state?.money ?? 0
-    const income = vm?.dashboard.dailyIncome ?? 0
-    const rep = vm?.dashboard.reputation ?? 0
-    const netWorth = vm?.dashboard.netWorth ?? 0
+    // TEK KAYNAK: canlı state öncelikli — vm açılışta bir kez kurulur, bayatlar
+    const cash      = state ? Math.round(state.money) : vm?.dashboard.cash ?? 0
+    const income    = state ? Math.round(state.incomePerDay()) : vm?.dashboard.dailyIncome ?? 0
+    const netWorth  = state ? Math.round(state.financeNetWorth()) : vm?.dashboard.netWorth ?? 0
+    const rep       = state ? Math.round(state.reputation) : vm?.dashboard.reputation ?? 0
+    const firmCount = state ? Object.values(state.producers).filter(c => c > 0).length : vm?.dashboard.firmCount ?? 0
+    const cityCount = state ? state.cities.unlocked.length : vm?.dashboard.cityCount ?? 1
     return [
       { icon: '💰', label: 'Nakit', value: fmtMoney(cash), sub: fmtMoney(income) + '/gün', subDir: 'up' },
       { icon: '🏆', label: 'Net Değer', value: fmtMoney(netWorth) },
       { icon: '⭐', label: 'İtibar', value: String(rep), sub: vm?.dashboard.reputationLabel ?? '' },
-      { icon: '🏢', label: 'Şirket', value: String(vm?.dashboard.firmCount ?? 0), sub: `${vm?.dashboard.cityCount ?? 1} şehir` },
+      { icon: '🏢', label: 'Şirket', value: String(firmCount), sub: `${cityCount} şehir` },
     ]
   }
 
