@@ -3,11 +3,11 @@ import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import { RefSubTabs } from './RefSubTabs'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
-import { PRODUCERS } from '../../game/Economy'
+import { PRODUCERS, UPGRADES, type UpgradeDef } from '../../game/Economy'
 import { politicsLevelLabel } from '../../game/Empire'
 import { EXPANSION_CITIES, canUnlockCity, type CityId } from '../../game/ExpansionMap'
 import { TORPIL_CONTACTS, type TorpilId } from '../../game/TorpilNetwork'
-import { RESEARCH_NODES } from '../../game/Research'
+import { RESEARCH_NODES, researchCost, researchIsUnlocked, researchPrereqName, type ResearchNode } from '../../game/Research'
 import {
   RIVAL_FAMILY_DEFS, isRivalUnlocked, nextLockedRivalDef,
   attitudeLabel, mergeRivalCost,
@@ -123,7 +123,8 @@ export class RefEmpirePage implements RefPage {
     const owned = Object.entries(s.producers).filter(([, c]) => c > 0).map(([id, c]) => `${id}:${c}`).join(',')
     const depts = deptLevelsFromState(s).map(d => d.lvl).join('')
     const research = Object.values(s.research).reduce((a, b) => a + b, 0)
-    return `${owned}|${s.cities.unlocked.length}|${Math.round(s.illegalHeat * 100)}|${s.empire.politics.level}|${s.ipoCount}|${depts}|${research}`
+    const upgrades = s.purchasedUpgrades.size
+    return `${owned}|${s.cities.unlocked.length}|${Math.round(s.illegalHeat * 100)}|${s.empire.politics.level}|${s.ipoCount}|${depts}|${research}|${upgrades}`
   }
 
   private worldSig(s: GameState): string {
@@ -321,19 +322,29 @@ export class RefEmpirePage implements RefPage {
     `).join('')
     wrap.appendChild(deptGrid)
 
-    // ── Ar-Ge özeti ──
-    if (s) {
-      const activeNodes = RESEARCH_NODES.filter(n => (s.research[n.id] ?? 0) > 0)
-      wrap.appendChild(sectionTitle('Ar-Ge', `${activeNodes.length}/${RESEARCH_NODES.length} aktif`))
-      const rndWrap = document.createElement('div')
-      rndWrap.className = 'ref-empire-rnd-summary'
-      rndWrap.innerHTML = activeNodes.length
-        ? activeNodes.map(n => `
-            <span class="ref-empire-rnd-chip">🔬 ${n.name} <b>Sv ${s.research[n.id]}</b></span>
-          `).join('')
-        : '<div class="ref-empire-empty">Henüz araştırma yok — Firmalar → Ar-Ge sekmesinden başla.</div>'
-      wrap.appendChild(rndWrap)
+    // ── Ar-Ge & Yükseltmeler ──
+    const rndNote = document.createElement('div')
+    rndNote.className = 'ref-preview-note' + (s ? ' live-mode' : '')
+    rndNote.textContent = s
+      ? '🔬 Ar-Ge & Yükseltmeler · seviye/maliyet gerçek (satın alma bu aşamada kapalı)'
+      : '🔬 Ar-Ge & Yükseltmeler · önizleme (gerçek veri yok)'
+    wrap.appendChild(rndNote)
+
+    wrap.appendChild(sectionTitle('Araştırma Ağacı', `${RESEARCH_NODES.length} düğüm`))
+    const resList = document.createElement('div')
+    resList.className = 'ref-rnd-list'
+    for (const node of RESEARCH_NODES) {
+      resList.appendChild(this.buildResearchRow(node, s))
     }
+    wrap.appendChild(resList)
+
+    wrap.appendChild(sectionTitle('Yükseltmeler', `${UPGRADES.length} adet`))
+    const upgList = document.createElement('div')
+    upgList.className = 'ref-rnd-list'
+    for (const upg of [...UPGRADES].sort((a, b) => a.cost - b.cost)) {
+      upgList.appendChild(this.buildUpgradeRow(upg, s))
+    }
+    wrap.appendChild(upgList)
 
     // ── Şehirler ──
     wrap.appendChild(sectionTitle('Şehirler', '5 bölge'))
@@ -585,5 +596,65 @@ export class RefEmpirePage implements RefPage {
         </div>`
       wrap.appendChild(lockedCard)
     }
+  }
+
+  /* ── Ar-Ge yardımcıları ─────────────────────────────────────────────── */
+
+  private buildRndBranchLabel(branch: ResearchNode['branch']): string {
+    return branch === 'operasyon' ? 'Operasyon' : branch === 'finans' ? 'Finans' : 'İmparatorluk'
+  }
+
+  private buildResearchRow(node: ResearchNode, s?: GameState): HTMLElement {
+    const level    = s ? (s.research[node.id] ?? 0) : 0
+    const maxed    = level >= node.maxLevel
+    const unlocked = s ? researchIsUnlocked(node.id, s.research) : true
+    const cost     = researchCost(node, level)
+    const prereq   = researchPrereqName(node.id)
+    const curr     = node.currency === 'prestige' ? 'Prestij' : '₺'
+
+    const row = document.createElement('div')
+    row.className = 'ref-rnd-row' + (maxed ? ' maxed' : !unlocked ? ' locked' : level > 0 ? ' active' : '')
+    const statusRight = maxed
+      ? '<span class="ref-rnd-status max">MAKS</span>'
+      : !unlocked
+        ? `<span class="ref-rnd-status lock">🔒 ${prereq ?? '?'}</span>`
+        : `<span class="ref-rnd-cost">${node.currency === 'prestige' ? cost + ' ⭐' : fmtMoney(cost)}</span>`
+
+    row.innerHTML = `
+      <div class="ref-rnd-row__main">
+        <div class="ref-rnd-row__head">
+          <span class="ref-rnd-row__name">${node.name}</span>
+          <span class="ref-rnd-branch">${this.buildRndBranchLabel(node.branch)}</span>
+        </div>
+        <div class="ref-rnd-row__desc">${node.description}</div>
+        <div class="ref-rnd-levels">
+          ${Array.from({ length: node.maxLevel }, (_, i) =>
+            `<span class="ref-rnd-pip ${i < level ? 'on' : ''}"></span>`).join('')}
+          <span class="ref-rnd-lvl-txt">Sv ${level}/${node.maxLevel}</span>
+        </div>
+      </div>
+      <div class="ref-rnd-row__right" title="${curr}">${statusRight}</div>`
+    return row
+  }
+
+  private buildUpgradeRow(upg: UpgradeDef, s?: GameState): HTMLElement {
+    const owned  = s ? s.purchasedUpgrades.has(upg.id) : false
+    const cost   = s ? s.upgradeCostFor(upg) : upg.cost
+    const afford = s ? s.money >= cost : false
+
+    const row = document.createElement('div')
+    row.className = 'ref-rnd-row upg' + (owned ? ' maxed' : afford ? ' active' : '')
+    const right = owned
+      ? '<span class="ref-rnd-status max">SAHİP</span>'
+      : `<span class="ref-rnd-cost ${afford ? '' : 'dim'}">${fmtMoney(cost)}</span>`
+    row.innerHTML = `
+      <div class="ref-rnd-row__main">
+        <div class="ref-rnd-row__head">
+          <span class="ref-rnd-row__name">${upg.name}</span>
+        </div>
+        <div class="ref-rnd-row__desc">${upg.description}</div>
+      </div>
+      <div class="ref-rnd-row__right">${right}</div>`
+    return row
   }
 }
