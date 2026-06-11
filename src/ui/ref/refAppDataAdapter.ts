@@ -289,6 +289,19 @@ function rankFor(netWorth: number): { idx: number; title: string; next: string; 
   return { idx, title: RANKS[idx].title, next: next.title, nextMin: next.min }
 }
 
+/** Hafif: yalnızca header player alanını hesaplar (firma/kariyer build'i yok). */
+export function playerVMFromState(state: GameState): RefPlayerVM {
+  const netWorth = Math.round(state.financeNetWorth())
+  const rank = rankFor(netWorth)
+  return {
+    name: state.playerName || 'Baron',
+    title: rank.title,
+    age: state.playerAge(),
+    city: cityDef(state.cities.activeCity).label,
+    avatarAsset: AVATAR,
+  }
+}
+
 /* ── Ana giriş ── */
 export function buildRefViewModel(state: GameState): RefViewModel {
   const netWorth = Math.round(state.financeNetWorth())

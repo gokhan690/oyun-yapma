@@ -14,6 +14,7 @@ import { RefAchievementsPage } from './RefAchievementsPage'
 import { RefProfilePage } from './RefProfilePage'
 import { RefNotifsPage } from './RefNotifsPage'
 import type { RefViewModel } from './refAppDataAdapter'
+import { playerVMFromState } from './refAppDataAdapter'
 import type { GameState } from '../../game/GameState'
 
 /** Tüm ref sayfalarının ortak arayüzü: header + nav RefApp tarafından sağlanır. */
@@ -141,9 +142,11 @@ export class RefApp {
     }
   }
 
-  /** Aktif (görünür) sayfanın canlı değerlerini tazele. */
+  /** Aktif (görünür) sayfanın canlı değerlerini tazele + header player bilgisini güncelle. */
   private refreshActive(st: GameState): void {
     this.mounted?.refresh?.(st)
+    const p = playerVMFromState(st)
+    this.header.updatePlayer(p.name, p.title, p.age, p.city)
   }
 
   /** money_changed/passive_income için ~600ms throttle (her tikte rebuild olmasın). */

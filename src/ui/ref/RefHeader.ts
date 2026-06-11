@@ -71,6 +71,17 @@ export class RefHeader {
     }
   }
 
+  /** Header player bilgisini (isim, unvan, yaş, şehir) canlı günceller. */
+  updatePlayer(name: string, title: string, age: number, city: string): void {
+    const nameEl = this.el.querySelector<HTMLElement>('.ref-header__name')
+    const titleEl = this.el.querySelector<HTMLElement>('.ref-header__title')
+    const metaItems = this.el.querySelectorAll<HTMLElement>('.ref-header__meta-item')
+    if (nameEl) nameEl.textContent = name
+    if (titleEl) titleEl.textContent = title
+    if (metaItems[0]) metaItems[0].textContent = `👤 ${age}`
+    if (metaItems[1]) metaItems[1].textContent = `📍 ${city}`
+  }
+
   /** 🔔 üstündeki okunmamış rozetini aç/kapat. */
   setNotifBadge(show: boolean): void {
     const btn = this.el.querySelector<HTMLElement>('[data-hdr="notifs"]')
