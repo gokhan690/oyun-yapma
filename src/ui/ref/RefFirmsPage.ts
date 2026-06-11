@@ -73,7 +73,10 @@ export class RefFirmsPage implements RefPage {
   // Canlı producer kartları
   private producerCardsContainer!: HTMLElement
   private producerCards = new Map<string, HTMLElement>()
+  /** Kart başına durum imzası — yalnız imzası değişen kart yeniden kurulur (perf). */
+  private cardSignatures = new Map<string, string>()
   private summaryEl?: HTMLElement
+  private lastSummaryHtml = ''
   private kpiStrip?: RefKpiStrip
 
   private firms?: FirmData[]
@@ -197,14 +200,26 @@ export class RefFirmsPage implements RefPage {
 
   private buildProducerCards(): void {
     this.producerCards.clear()
+    this.cardSignatures.clear()
     this.producerCardsContainer.innerHTML = ''
     const s = this.state!
     const sorted = [...NORMAL_PRODUCERS].sort((a, b) => a.tier - b.tier || a.unlockAt - b.unlockAt)
     for (const def of sorted) {
       const card = this.buildOneProducerCard(def, s)
       this.producerCards.set(def.id, card)
+      this.cardSignatures.set(def.id, this.cardSignature(def, s))
       this.producerCardsContainer.appendChild(card)
     }
+  }
+
+  /** Kartın görsel durumunu belirleyen değerlerin imzası — değişmediyse DOM'a dokunma. */
+  private cardSignature(def: ProducerDef, s: GameState): string {
+    const owned    = s.producers[def.id] ?? 0
+    const unlocked = isProducerUnlocked(def, s.totalEarned, s.forcedUnlocks, s.ipoCount)
+    const cost     = s.producerCostFor(def, owned, 1)
+    const canBuy   = unlocked && s.money >= cost
+    const income   = owned > 0 ? Math.round(s.producerIncome(def)) : Math.round(def.baseIncome)
+    return `${owned}|${unlocked ? 1 : 0}|${canBuy ? 1 : 0}|${cost}|${income}`
   }
 
   private buildOneProducerCard(def: ProducerDef, s: GameState): HTMLElement {
@@ -262,16 +277,21 @@ export class RefFirmsPage implements RefPage {
     return card
   }
 
-  /** Satın alma/para değişince yalnız değişen kartları yeniden çiz (tüm sayfa değil). */
+  /** Satın alma/para değişince YALNIZ imzası değişen kartları yeniden çiz.
+   *  Önceki sürüm her refresh'te ~70+ kartı innerHTML ile yeniden kuruyordu → kasma.
+   *  İmza eşleşirse karta hiç dokunulmaz; tipik refresh 0–2 kart günceller. */
   private refreshProducerCards(): void {
     if (!this.state || !this.producerCardsContainer) return
     const s = this.state
     for (const def of NORMAL_PRODUCERS) {
       const existing = this.producerCards.get(def.id)
       if (!existing) continue
+      const sig = this.cardSignature(def, s)
+      if (sig === this.cardSignatures.get(def.id)) continue
       const newCard = this.buildOneProducerCard(def, s)
       existing.replaceWith(newCard)
       this.producerCards.set(def.id, newCard)
+      this.cardSignatures.set(def.id, sig)
     }
     this.updateSummary()
   }
@@ -280,10 +300,13 @@ export class RefFirmsPage implements RefPage {
     if (!this.summaryEl || !this.state) return
     const s = this.state
     const ownedTypes = NORMAL_PRODUCERS.filter(p => (s.producers[p.id] ?? 0) > 0).length
-    this.summaryEl.innerHTML = `
+    const html = `
       <span class="ref-summary-count">${NORMAL_PRODUCERS.length} işletme türü · ${ownedTypes} sahip</span>
       <span class="ref-summary-total">Nakit: ${fmtMoney(Math.round(s.money))}</span>
     `
+    if (html === this.lastSummaryHtml) return
+    this.lastSummaryHtml = html
+    this.summaryEl.innerHTML = html
   }
 
   // ── Mock (saf önizleme, state yok) ───────────────────────────────────

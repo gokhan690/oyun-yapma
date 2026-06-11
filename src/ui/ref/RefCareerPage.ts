@@ -1,8 +1,10 @@
-import { sectionTitle, ua, fmtMoney } from './refShared'
+import { sectionTitle, ua, fmtMoney, refToast } from './refShared'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
-import type { RefCareerVM } from './refAppDataAdapter'
+import type { RefCareerVM, RefDiseaseVM } from './refAppDataAdapter'
 import type { RefPage } from './RefApp'
-import { FAME_CAREERS } from '../../game/Fame'
+import { FAME_CAREERS, fameLevelLabel, fameDef, type FameCareerType } from '../../game/Fame'
+import { healthStatusLabel } from '../../game/Health'
+import { diseaseDef, type DiseaseId } from '../../game/Diseases'
 import type { GameState } from '../../game/GameState'
 
 const MOCK_CAREER: RefCareerVM = {
@@ -35,10 +37,24 @@ const SKILLS: Skill[] = [
   { asset: REF_ASSETS_V2_GENERIC.upgrades.marketAnalysis, name: 'Finans',    level: 8, max: 10, pct: 82 },
 ]
 
+/** Sağlık/şöhret/karma bölümlerinin ihtiyaç duyduğu canlı değerler. */
+interface DynamicVitals {
+  health: number
+  healthLabel: string
+  diseases: RefDiseaseVM[]
+  fame: number
+  fameLabel: string
+  fameCareerName: string | null
+  karma: number
+}
+
 export class RefCareerPage implements RefPage {
   readonly el: HTMLElement
   readonly title = 'KARİYER'
   private liveState?: GameState
+  /** Canlı bölümlerin (sağlık+şöhret) konteyneri — refresh yalnız burayı günceller. */
+  private dynWrap!: HTMLElement
+  private lastDynSig = ''
 
   constructor(vm?: RefCareerVM) {
     this.el = document.createElement('div')
@@ -47,20 +63,47 @@ export class RefCareerPage implements RefPage {
     this.el.addEventListener('click', (e) => this.handleClick(e))
   }
 
+  /** RefApp tek aboneliğinden: sağlık/şöhret/karma bölümlerini state'ten tazeler. */
   refresh(state: GameState): void {
     this.liveState = state
-    // Rebuild career VM from state via adapter-like logic handled by parent
-    // Just re-render health/fame section if VM is available
+    const vitals = this.vitalsFromState(state)
+    const sig = [
+      Math.round(vitals.health), vitals.diseases.map(d => d.id).join(','),
+      Math.round(vitals.fame), vitals.fameCareerName ?? '', vitals.karma,
+    ].join('|')
+    if (sig === this.lastDynSig) return
+    this.lastDynSig = sig
+    this.renderDynamic(vitals)
+  }
+
+  private vitalsFromState(s: GameState): DynamicVitals {
+    const diseases: RefDiseaseVM[] = (s.diseases ?? []).map((d) => {
+      const def = diseaseDef(d.id)
+      return { id: d.id, name: def.name, emoji: def.emoji, treatCost: def.treatCost, dailyDamage: def.dailyDamage, surgery: def.surgery }
+    })
+    const fame = s.fameState?.fame ?? 0
+    const careerId = s.fameState?.activeCareer ?? null
+    return {
+      health: Math.round(s.health.health),
+      healthLabel: healthStatusLabel(s.health.health),
+      diseases,
+      fame: Math.round(fame),
+      fameLabel: fameLevelLabel(fame),
+      fameCareerName: careerId ? fameDef(careerId).name : null,
+      karma: s.karma ?? 0,
+    }
   }
 
   private renderAll(c: RefCareerVM): void {
     this.el.innerHTML = ''
 
-    // Health & status section (always shown)
-    this.el.appendChild(this.buildHealthSection(c))
-
-    // Fame section
-    this.el.appendChild(this.buildFameSection(c))
+    // Canlı bölümler (sağlık + şöhret + karma) — refresh() yalnız burayı yeniler
+    this.dynWrap = document.createElement('div')
+    this.el.appendChild(this.dynWrap)
+    this.renderDynamic({
+      health: c.health, healthLabel: c.healthLabel, diseases: c.diseases,
+      fame: c.fame, fameLabel: c.fameLabel, fameCareerName: c.fameCareerName, karma: c.karma,
+    })
 
     // Aktif iş kartı
     const job = document.createElement('div')
@@ -89,7 +132,6 @@ export class RefCareerPage implements RefPage {
           <div class="ref-perf-track"><div class="ref-perf-fill ${c.stress >= 70 ? 'low' : c.stress >= 45 ? 'medium' : 'high'}" style="width:${c.stress}%"></div></div>
         </div>
       </div>
-      ${c.karma !== 0 ? `<div class="ref-karma-row"><span>${c.karma > 0 ? '😇' : '😈'} Karma:</span><span class="${c.karma > 0 ? 'ref-karma-good' : 'ref-karma-bad'}">${c.karma > 0 ? '+' : ''}${c.karma}</span></div>` : ''}
     `
     this.el.appendChild(job)
 
@@ -145,10 +187,16 @@ export class RefCareerPage implements RefPage {
     this.el.appendChild(skills)
   }
 
-  private buildHealthSection(c: RefCareerVM): HTMLElement {
+  private renderDynamic(v: DynamicVitals): void {
+    this.dynWrap.innerHTML = ''
+    this.dynWrap.appendChild(this.buildHealthSection(v))
+    this.dynWrap.appendChild(this.buildFameSection(v))
+  }
+
+  private buildHealthSection(v: DynamicVitals): HTMLElement {
     const wrap = document.createElement('div')
     wrap.className = 'ref-health-card'
-    const healthPct = c.health
+    const healthPct = v.health
     const healthColor = healthPct >= 80 ? 'high' : healthPct >= 40 ? 'medium' : 'low'
     wrap.innerHTML = `
       <div class="ref-health-card__header">${sectionTitle('Sağlık & Yaşam').outerHTML}</div>
@@ -157,16 +205,16 @@ export class RefCareerPage implements RefPage {
         <div class="ref-health-main">
           <div class="ref-health-head">
             <span>Sağlık</span>
-            <span class="ref-health-val">${healthPct} — ${c.healthLabel}</span>
+            <span class="ref-health-val">${healthPct} — ${v.healthLabel}</span>
           </div>
           <div class="ref-perf-track"><div class="ref-perf-fill ${healthColor}" style="width:${healthPct}%"></div></div>
         </div>
       </div>
     `
-    if (c.diseases.length > 0) {
+    if (v.diseases.length > 0) {
       const diseaseSection = document.createElement('div')
       diseaseSection.className = 'ref-disease-list'
-      diseaseSection.innerHTML = c.diseases.map(d => `
+      diseaseSection.innerHTML = v.diseases.map(d => `
         <div class="ref-disease-row" data-disease-id="${d.id}">
           <span class="ref-disease-ico">${d.emoji}</span>
           <div class="ref-disease-main">
@@ -185,27 +233,31 @@ export class RefCareerPage implements RefPage {
       ok.textContent = '✅ Aktif hastalık yok'
       wrap.appendChild(ok)
     }
+    if (v.karma !== 0) {
+      const karmaRow = document.createElement('div')
+      karmaRow.className = 'ref-karma-row'
+      karmaRow.innerHTML = `<span>${v.karma > 0 ? '😇' : '😈'} Karma:</span><span class="${v.karma > 0 ? 'ref-karma-good' : 'ref-karma-bad'}">${v.karma > 0 ? '+' : ''}${v.karma}</span>`
+      wrap.appendChild(karmaRow)
+    }
     return wrap
   }
 
-  private buildFameSection(c: RefCareerVM): HTMLElement {
+  private buildFameSection(v: DynamicVitals): HTMLElement {
     const wrap = document.createElement('div')
     wrap.className = 'ref-fame-section'
-    const headerEl = sectionTitle('Şöhret Kariyeri')
-    wrap.appendChild(headerEl)
+    wrap.appendChild(sectionTitle('Şöhret Kariyeri'))
 
-    if (c.fameCareerName) {
-      // Active fame career
+    if (v.fameCareerName) {
       const active = document.createElement('div')
       active.className = 'ref-fame-active'
       active.innerHTML = `
         <div class="ref-fame-active__head">
-          <span class="ref-fame-active__name">${c.fameCareerName}</span>
-          <span class="ref-fame-active__label">${c.fameLabel}</span>
+          <span class="ref-fame-active__name">${v.fameCareerName}</span>
+          <span class="ref-fame-active__label">${v.fameLabel}</span>
         </div>
         <div class="ref-fame-bar">
-          <div class="ref-fame-bar__lbl"><span>Şöhret</span><span>${c.fame}/100</span></div>
-          <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:${c.fame}%"></div></div>
+          <div class="ref-fame-bar__lbl"><span>Şöhret</span><span>${v.fame}/100</span></div>
+          <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:${v.fame}%"></div></div>
         </div>
         <div class="ref-fame-actions">
           <button class="ref-fame-action-btn" data-action="fame_do" type="button">🎤 Aksiyon Al</button>
@@ -214,7 +266,6 @@ export class RefCareerPage implements RefPage {
       `
       wrap.appendChild(active)
     } else {
-      // Pick career
       const pick = document.createElement('div')
       pick.className = 'ref-fame-pick-grid'
       pick.innerHTML = FAME_CAREERS.map(fc => `
@@ -230,23 +281,36 @@ export class RefCareerPage implements RefPage {
 
   private handleClick(e: Event): void {
     const target = e.target as HTMLElement
+    const st = this.liveState
+    if (!st) return
     const treatBtn = target.closest('[data-treat]') as HTMLElement | null
-    if (treatBtn && this.liveState) {
-      const diseaseId = treatBtn.dataset.treat as string
-      this.liveState.treatDisease(diseaseId as any)
+    if (treatBtn) {
+      const id = treatBtn.dataset.treat as DiseaseId
+      const before = (st.diseases ?? []).length
+      const paid = st.treatDisease(id)
+      if (!paid) {
+        refToast('Tedavi için yeterli para yok', 'err')
+      } else if ((st.diseases ?? []).length < before) {
+        refToast('💊 Tedavi başarılı — iyileştin!', 'ok')
+      } else {
+        refToast('Tedavi tutmadı — tekrar deneyebilirsin', 'err')
+      }
+      this.refresh(st)
       return
     }
     const actionBtn = target.closest('[data-action]') as HTMLElement | null
-    if (actionBtn && this.liveState) {
-      const action = actionBtn.dataset.action
-      if (action === 'fame_do') {
-        this.liveState.doFameAction()
-      } else if (action === 'fame_quit') {
-        this.liveState.quitFameCareer()
-      } else if (action === 'fame_start') {
-        const career = actionBtn.dataset.career as string
-        this.liveState.startFameCareer(career as any)
-      }
+    if (!actionBtn) return
+    const action = actionBtn.dataset.action
+    if (action === 'fame_do') {
+      const ok = st.doFameAction()
+      refToast(ok ? '🌟 Şöhret aksiyonu başarılı!' : 'Aksiyon tutmadı (günde 1 hak)', ok ? 'ok' : 'err')
+    } else if (action === 'fame_quit') {
+      st.quitFameCareer()
+      refToast('Şöhret kariyeri bırakıldı', 'ok')
+    } else if (action === 'fame_start') {
+      const career = actionBtn.dataset.career as FameCareerType
+      if (st.startFameCareer(career)) refToast(`${fameDef(career).emoji} ${fameDef(career).name} kariyeri başladı`, 'ok')
     }
+    this.refresh(st)
   }
 }

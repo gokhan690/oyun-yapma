@@ -11,6 +11,7 @@ import { RefMarketPage } from './RefMarketPage'
 import { RefEmpirePage } from './RefEmpirePage'
 import { RefFamilyPage } from './RefFamilyPage'
 import { RefAchievementsPage } from './RefAchievementsPage'
+import { RefProfilePage } from './RefProfilePage'
 import type { RefViewModel } from './refAppDataAdapter'
 import type { GameState } from '../../game/GameState'
 
@@ -62,9 +63,12 @@ export class RefApp {
   /** Tembel önbellek: sayfa yalnızca ilk ziyarette kurulur, sonra saklanır. */
   private pages = new Map<RefNavTab, RefPage>()
   private achievements?: RefAchievementsPage
+  private profile?: RefProfilePage
   private vm?: RefViewModel
   private gameState?: GameState
   private active: RefNavTab
+  /** Şu an gövdede görünen sayfa (tab sayfası, profil veya başarımlar). */
+  private mounted?: RefPage
   /** Tek GameState aboneliği (canlı para/KPI refresh) + throttle timer. */
   private unsub?: () => void
   private refreshTimer: number | null = null
@@ -89,6 +93,7 @@ export class RefApp {
       ...PLAYER,
       ...(vm ? { name: vm.player.name, title: vm.player.title, age: vm.player.age, city: vm.player.city, avatarAsset: vm.player.avatarAsset } : {}),
       onClose: opts.onExit ? () => this.onExit?.() : undefined,
+      onProfile: () => this.showProfile(),
     })
     this.el.appendChild(this.header.el)
 
@@ -120,22 +125,26 @@ export class RefApp {
     const st = this.gameState
     if (st) {
       this.unsub = st.subscribe((ev) => {
-        if (ev.type === 'purchase') this.refreshActive(st)
-        else if (ev.type === 'money_changed' || ev.type === 'passive_income') this.scheduleRefresh(st)
-        else if (
-          ev.type === 'disease_diagnosed' || ev.type === 'disease_treated' ||
-          ev.type === 'pet_died' || ev.type === 'sibling_died' ||
-          ev.type === 'fame_action' || ev.type === 'fame_changed' ||
+        // Kullanıcı aksiyonunun ANINDA geri bildirimi gereken eventler → hemen tazele
+        if (ev.type === 'purchase' || ev.type === 'disease_treated' || ev.type === 'fame_action') {
+          this.refreshActive(st)
+          return
+        }
+        // Pasif/periyodik eventler → 600ms throttle (her tikte rebuild olmasın)
+        if (
+          ev.type === 'money_changed' || ev.type === 'passive_income' ||
+          ev.type === 'disease_diagnosed' || ev.type === 'pet_died' ||
+          ev.type === 'sibling_died' || ev.type === 'fame_changed' ||
           ev.type === 'career_fired' || ev.type === 'career_promoted' ||
           ev.type === 'health_changed'
-        ) this.refreshActive(st)
+        ) this.scheduleRefresh(st)
       })
     }
   }
 
   /** Aktif (görünür) sayfanın canlı değerlerini tazele. */
   private refreshActive(st: GameState): void {
-    this.pages.get(this.active)?.refresh?.(st)
+    ;(this.mounted ?? this.pages.get(this.active))?.refresh?.(st)
   }
 
   /** money_changed/passive_income için ~600ms throttle (her tikte rebuild olmasın). */
@@ -198,7 +207,17 @@ export class RefApp {
     this.mountBody(this.achievements)
   }
 
+  /** Header avatar/isim tıklaması → profil sayfası (tembel kurulur). */
+  private showProfile(): void {
+    if (!this.profile) {
+      this.profile = new RefProfilePage()
+      this.profile.onOpenAchievements = () => this.showAchievements()
+    }
+    this.mountBody(this.profile)
+  }
+
   private mountBody(page: RefPage): void {
+    this.mounted = page
     // Sayfa değişiminde açık firma detay overlay'ini kapat
     this.detail.hide()
     // Görseller tembel yüklensin (aynı anda onlarca asset decode etmesin)

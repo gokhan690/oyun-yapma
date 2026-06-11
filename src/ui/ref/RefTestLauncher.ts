@@ -81,15 +81,28 @@ export function installRefTestLauncher(state?: GameState): void {
 
   let overlay: HTMLElement | null = null
   let bodyOverflowPrev = ''
+  let appDisplayPrev = ''
   let mo: MutationObserver | null = null
   let pollId: number | null = null
+  let syncDebounceId: number | null = null
+
+  // syncVisibility her DOM mutasyonunda DEĞİL, 250ms'de en fazla 1 kez çalışır.
+  // HUD sürekli DOM değiştirir (parçacık, sayaç); her mutasyonda 6 querySelector +
+  // offsetParent (reflow) klasik oyunda ölçülür kasma yaratıyordu.
+  const scheduleSync = (): void => {
+    if (syncDebounceId !== null) return
+    syncDebounceId = window.setTimeout(() => {
+      syncDebounceId = null
+      syncVisibility()
+    }, 250)
+  }
 
   // Launcher görünürlük izleyicileri. Overlay AÇIKKEN durdurulur: buton zaten
   // gizli, ve RefApp her nav geçişinde innerHTML değiştirdiği için observer
   // sürekli tetiklenir → gereksiz arka plan işi/kasma.
   const startWatchers = (): void => {
     if (!mo) {
-      mo = new MutationObserver(() => syncVisibility())
+      mo = new MutationObserver(scheduleSync)
       mo.observe(document.body, { childList: true, subtree: true })
     }
     if (pollId === null) pollId = window.setInterval(syncVisibility, 600)
@@ -98,6 +111,7 @@ export function installRefTestLauncher(state?: GameState): void {
     mo?.disconnect()
     mo = null
     if (pollId !== null) { window.clearInterval(pollId); pollId = null }
+    if (syncDebounceId !== null) { window.clearTimeout(syncDebounceId); syncDebounceId = null }
   }
 
   const close = (): void => {
@@ -106,6 +120,9 @@ export function installRefTestLauncher(state?: GameState): void {
     }
     overlay?.remove()
     overlay = null
+    // Klasik UI'ı geri göster (open() display:none yapmıştı)
+    const appEl = document.getElementById('app')
+    if (appEl) appEl.style.display = appDisplayPrev
     document.body.style.overflow = bodyOverflowPrev
     startWatchers()   // izleyicileri geri aç
     syncVisibility()
@@ -144,6 +161,15 @@ export function installRefTestLauncher(state?: GameState): void {
     // Arka plan (eski oyun) scroll'unu kilitle
     bodyOverflowPrev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+
+    // PERF: Klasik UI overlay arkasında zaten görünmez — display:none ile
+    // tarayıcının layout/paint maliyetini sıfırla (HUD eventleri JS'te çalışmaya
+    // devam eder, oyun mantığı etkilenmez; close() eski değeri geri yükler).
+    const appEl = document.getElementById('app')
+    if (appEl) {
+      appDisplayPrev = appEl.style.display
+      appEl.style.display = 'none'
+    }
 
     btn.style.display = 'none'
     stopWatchers()   // overlay açıkken izleyiciler boşuna çalışmasın
