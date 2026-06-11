@@ -43,6 +43,18 @@ export function refToast(message: string, kind: 'ok' | 'err' = 'ok'): void {
   }, 1800)
 }
 
+/** Header'dan açılan sayfalar için "‹ Geri" satırı (RefAchievementsPage deseni). */
+export function backRow(onBack: () => void, rightText?: string): HTMLElement {
+  const top = document.createElement('div')
+  top.className = 'ref-ach-top ref-page-topbar'
+  top.innerHTML = `
+    <button class="ref-back-btn" type="button">‹ Geri</button>
+    ${rightText ? `<span class="ref-ach-count">${rightText}</span>` : ''}
+  `
+  top.querySelector('.ref-back-btn')!.addEventListener('click', onBack)
+  return top
+}
+
 /** Bölüm başlığı satırı oluşturur (opsiyonel "tümü" linki). */
 export function sectionTitle(text: string, action?: string): HTMLElement {
   const el = document.createElement('div')

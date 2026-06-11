@@ -2042,3 +2042,192 @@
 .ref-header__profile-chevron {
   font-size: 20px; font-weight: 300; color: var(--r-muted-lt); margin-left: 4px; align-self: center;
 }
+
+/* ═══════════ Navigasyon revizyonu: alt sekmeler + yeni sayfalar ═══════════ */
+
+/* ===== Ortak alt sekmeler (RefSubTabs) ===== */
+.ref-subtabs { margin: 10px 14px 4px; }
+.ref-subtab-content { display: block; }
+
+/* ===== Geri tuş satırı (header'dan açılan sayfalar) ===== */
+.ref-page-topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 0; }
+
+/* ===== İmparatorluk: kategori mini kartları ===== */
+.ref-empire-cat-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 8px 14px 0;
+}
+.ref-empire-cat-card {
+  background: var(--r-card, #fff); border-radius: var(--r-md); padding: 10px 8px;
+  text-align: center; box-shadow: var(--r-shadow-sm); border: 1px solid rgba(255,255,255,0.6);
+}
+.ref-empire-cat-card.inactive { opacity: 0.5; filter: grayscale(0.5); }
+.ref-empire-cat-card__ico { font-size: 22px; display: block; }
+.ref-empire-cat-card__name { font-size: 11px; font-weight: 800; color: var(--r-text); margin-top: 3px; }
+.ref-empire-cat-card__meta { font-size: 9px; font-weight: 700; color: var(--r-muted); margin-top: 1px; }
+
+/* ===== İmparatorluk: Ar-Ge özeti çipleri ===== */
+.ref-empire-rnd-summary { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 14px 0; }
+.ref-empire-rnd-chip {
+  font-size: 10.5px; font-weight: 700; color: var(--r-text2);
+  background: rgba(255,255,255,0.7); border-radius: var(--r-pill); padding: 4px 10px;
+  border: 1px solid rgba(19,184,166,0.25);
+}
+.ref-empire-rnd-chip b { color: var(--r-teal-dk); }
+
+/* ===== Dünya sekmesi ===== */
+.ref-world-rep-card {
+  margin: 8px 14px 0; padding: 12px; background: var(--r-card, #fff);
+  border-radius: var(--r-md); box-shadow: var(--r-shadow-sm);
+  display: flex; flex-direction: column; gap: 7px;
+}
+.ref-world-rep-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--r-text2); }
+.ref-world-rep-row b { color: var(--r-text); }
+
+.ref-world-city-list { display: flex; flex-direction: column; gap: 7px; padding: 8px 14px 0; }
+.ref-world-city-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  background: var(--r-card, #fff); border-radius: var(--r-md); box-shadow: var(--r-shadow-sm);
+}
+.ref-world-city-row.locked { opacity: 0.78; }
+.ref-world-city-row__ico { font-size: 22px; flex-shrink: 0; }
+.ref-world-city-row__main { flex: 1; min-width: 0; }
+.ref-world-city-row__name { font-size: 12.5px; font-weight: 800; color: var(--r-text); }
+.ref-world-city-row__name small { font-size: 10px; color: var(--r-teal-dk); }
+.ref-world-city-row__req { font-size: 10px; font-weight: 700; color: var(--r-muted); margin-top: 2px; }
+.ref-world-city-row__rep { font-size: 14px; font-weight: 900; color: var(--r-teal-dk); }
+.ref-world-city-row__reason { font-size: 10px; font-weight: 700; color: var(--r-muted); white-space: nowrap; }
+
+.ref-world-btn {
+  border: none; cursor: pointer; border-radius: var(--r-pill);
+  background: linear-gradient(180deg, var(--r-teal), var(--r-teal-dk));
+  color: #fff; font-weight: 800; font-size: 11px; padding: 7px 12px;
+  box-shadow: 0 2px 6px rgba(7,139,131,0.3); white-space: nowrap;
+}
+.ref-world-btn:disabled { opacity: 0.45; cursor: default; }
+.ref-world-btn.sm { font-size: 10px; padding: 6px 9px; }
+.ref-world-btn.danger { background: linear-gradient(180deg, #EA5455, #C23637); box-shadow: 0 2px 6px rgba(234,84,85,0.3); }
+.ref-world-btn.warn { background: linear-gradient(180deg, #FFB02E, #DB8B07); box-shadow: 0 2px 6px rgba(255,176,46,0.3); }
+.ref-world-btn.gold { background: linear-gradient(180deg, var(--r-gold), var(--r-gold-dk)); box-shadow: 0 2px 6px rgba(246,200,76,0.35); }
+
+/* ===== Torpil paneli ===== */
+.ref-torpil-panel { display: flex; flex-direction: column; gap: 7px; padding: 8px 14px 0; }
+.ref-torpil-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  background: var(--r-card, #fff); border-radius: var(--r-md); box-shadow: var(--r-shadow-sm);
+}
+.ref-torpil-row.active { border-left: 3px solid var(--r-success); }
+.ref-torpil-row.gift-due { border-left: 3px solid var(--r-warning); }
+.ref-torpil-row__ico { font-size: 22px; flex-shrink: 0; }
+.ref-torpil-row__main { flex: 1; min-width: 0; }
+.ref-torpil-row__name { font-size: 12px; font-weight: 800; color: var(--r-text); }
+.ref-torpil-row__name small { font-weight: 700; color: var(--r-muted); }
+.ref-torpil-row__desc { font-size: 10px; font-weight: 600; color: var(--r-muted); margin-top: 2px; }
+.ref-torpil-ok { font-size: 10.5px; font-weight: 800; color: var(--r-success); white-space: nowrap; }
+
+/* ===== Rüşvet paneli ===== */
+.ref-rushvet-panel {
+  margin: 8px 14px 0; padding: 12px; background: var(--r-card, #fff);
+  border-radius: var(--r-md); box-shadow: var(--r-shadow-sm);
+}
+.ref-rushvet-actions { display: flex; gap: 8px; margin-top: 10px; }
+.ref-rushvet-actions .ref-world-btn { flex: 1; }
+.ref-rushvet-note { font-size: 9.5px; font-weight: 600; color: var(--r-muted); margin-top: 8px; }
+
+/* ===== Rakipler ===== */
+.ref-rival-list { display: flex; flex-direction: column; gap: 8px; padding: 8px 14px 0; }
+.ref-rival-card {
+  background: var(--r-card, #fff); border-radius: var(--r-md); padding: 12px;
+  box-shadow: var(--r-shadow-sm);
+}
+.ref-rival-card.gone { opacity: 0.55; filter: grayscale(0.5); }
+.ref-rival-card.allied { border-left: 3px solid var(--r-success); }
+.ref-rival-card.hostile { border-left: 3px solid var(--r-danger); }
+.ref-rival-card.locked-next { opacity: 0.65; margin: 8px 14px 0; }
+.ref-rival-card__head { display: flex; align-items: center; gap: 10px; }
+.ref-rival-card__emoji { font-size: 26px; flex-shrink: 0; }
+.ref-rival-card__info { flex: 1; min-width: 0; }
+.ref-rival-card__name { font-size: 13px; font-weight: 800; color: var(--r-text); }
+.ref-rival-card__meta { font-size: 9.5px; font-weight: 700; color: var(--r-muted); margin-top: 2px; }
+.ref-rival-card__worth { text-align: right; font-size: 12.5px; font-weight: 900; color: var(--r-text); }
+.ref-rival-card__worth small { display: block; font-size: 9px; font-weight: 700; color: var(--r-muted); }
+.ref-rival-card__worth.ahead { color: var(--r-danger); }
+.ref-rival-relation { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.ref-rival-relation__lbl { font-size: 10px; font-weight: 800; color: var(--r-text2); width: 64px; flex-shrink: 0; }
+.ref-rival-relation .ref-perf-track { flex: 1; }
+.ref-rival-card__actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.ref-rival-card__actions .ref-world-btn { flex: 1; min-width: 90px; }
+
+.ref-rival-offer-banner {
+  margin: 8px 14px 0; padding: 12px; border-radius: var(--r-md);
+  background: linear-gradient(135deg, rgba(40,199,111,0.14), rgba(19,184,166,0.10));
+  border: 1.5px solid rgba(40,199,111,0.4); box-shadow: var(--r-shadow-sm);
+}
+.ref-rival-offer-banner.attack {
+  background: linear-gradient(135deg, rgba(234,84,85,0.12), rgba(255,176,46,0.08));
+  border-color: rgba(234,84,85,0.4);
+}
+.ref-rival-offer-banner__head { font-size: 12.5px; font-weight: 900; color: var(--r-text); }
+.ref-rival-offer-banner__msg { font-size: 11px; font-weight: 600; color: var(--r-text2); margin-top: 4px; }
+.ref-rival-offer-banner__actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.ref-rival-offer-banner__actions .ref-world-btn { flex: 1; min-width: 100px; }
+
+/* ===== Yaşam sayfası ===== */
+.ref-life-cat-list { display: flex; flex-direction: column; gap: 7px; padding: 8px 14px 0; }
+.ref-life-item-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  background: var(--r-card, #fff); border-radius: var(--r-md); box-shadow: var(--r-shadow-sm);
+}
+.ref-life-item-row.owned { border-left: 3px solid var(--r-success); }
+.ref-life-item-row.locked { opacity: 0.7; }
+.ref-life-item-row__ico { font-size: 24px; flex-shrink: 0; width: 32px; text-align: center; }
+.ref-life-item-row__main { flex: 1; min-width: 0; }
+.ref-life-item-row__name { font-size: 12px; font-weight: 800; color: var(--r-text); }
+.ref-life-item-row__desc { font-size: 10px; font-weight: 600; color: var(--r-muted); margin-top: 1px; }
+.ref-life-item-row__meta { font-size: 9.5px; font-weight: 700; color: var(--r-teal-dk); margin-top: 2px; }
+.ref-life-item-row__actions { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
+.ref-life-owned-tag {
+  font-size: 8px; font-weight: 800; letter-spacing: 0.4px; vertical-align: middle;
+  color: #fff; background: var(--r-success); border-radius: var(--r-pill); padding: 1px 6px;
+}
+.ref-life-room-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 8px 14px 0; }
+.ref-life-room-card {
+  background: var(--r-card, #fff); border-radius: var(--r-md); padding: 10px;
+  text-align: center; box-shadow: var(--r-shadow-sm); position: relative;
+  display: flex; flex-direction: column; gap: 4px; align-items: center;
+}
+.ref-life-room-card.owned { border: 1.5px solid rgba(40,199,111,0.5); }
+.ref-life-room-card.clickable { cursor: pointer; }
+.ref-life-room-card.clickable:active { transform: scale(0.98); }
+.ref-life-room-card__ico { font-size: 24px; }
+.ref-life-room-card__name { font-size: 11.5px; font-weight: 800; color: var(--r-text); }
+.ref-life-room-card__desc { font-size: 9px; font-weight: 600; color: var(--r-muted); }
+.ref-life-travel-banner {
+  margin: 8px 14px 0; padding: 10px 12px; border-radius: var(--r-md);
+  font-size: 11px; font-weight: 700; color: var(--r-text);
+  background: linear-gradient(135deg, rgba(246,200,76,0.18), rgba(19,184,166,0.10));
+  border: 1.5px solid var(--r-gold-brd);
+}
+
+/* ===== Bildirimler ===== */
+.ref-notif-list { display: flex; flex-direction: column; gap: 6px; padding: 8px 14px 14px; }
+.ref-notif-row {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+  background: var(--r-card, #fff); border-radius: var(--r-md); box-shadow: var(--r-shadow-sm);
+}
+.ref-notif-row__ico { font-size: 18px; flex-shrink: 0; }
+.ref-notif-row__main { flex: 1; min-width: 0; }
+.ref-notif-row__headline { font-size: 11.5px; font-weight: 700; color: var(--r-text); }
+.ref-notif-row__date { font-size: 9px; font-weight: 700; color: var(--r-muted); margin-top: 1px; }
+.ref-notif-row.cat-crisis { border-left: 3px solid var(--r-danger); }
+.ref-notif-row.cat-rival { border-left: 3px solid var(--r-warning); }
+.ref-notif-empty { padding: 18px 14px; font-size: 11.5px; font-weight: 600; color: var(--r-muted); text-align: center; }
+
+/* ===== Kariyer: karakter profili ===== */
+.ref-career-profile { margin: 8px 14px 0; }
+.ref-career-profile:empty { display: none; }
+.ref-career-profile__title { font-size: 11px; font-weight: 800; color: var(--r-text2); margin-bottom: 5px; }
+.ref-career-profile__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ===== Onboarding karakter adımları ===== */
+.onboarding-character-grid .onboarding-country-btn .ob-flag { font-size: 26px; }
+.onboarding-character-grid .ob-country-capital { white-space: normal; line-height: 1.25; }

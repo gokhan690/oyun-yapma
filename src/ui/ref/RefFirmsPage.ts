@@ -39,20 +39,22 @@ const CATEGORIES: { id: CategoryKey; label: string; icon: string }[] = [
 ]
 
 /* ── İmparatorluk alt sekmeleri ──────────────────────────────────────── */
-type EmpireTab = 'spor' | 'siyaset' | 'yeralti' | 'luks' | 'finans'
+type EmpireTab = 'futbol' | 'siyaset' | 'yeralti' | 'luks' | 'bilim' | 'finans'
 const EMPIRE_TABS: { id: EmpireTab; label: string; icon: string }[] = [
-  { id: 'spor', label: 'Spor', icon: '⚽' },
+  { id: 'futbol', label: 'Futbol', icon: '⚽' },
   { id: 'siyaset', label: 'Siyaset', icon: '🏛️' },
   { id: 'yeralti', label: 'Yeraltı', icon: '🔥' },
   { id: 'luks', label: 'Lüks', icon: '💎' },
+  { id: 'bilim', label: 'Bilim', icon: '🔬' },
   { id: 'finans', label: 'Finans', icon: '📊' },
 ]
 const EMPIRE_PRODUCER_FILTER: Record<EmpireTab, (p: ProducerDef) => boolean> = {
-  spor:    p => p.category === 'sport',
+  futbol:  p => p.category === 'sport',
   siyaset: p => p.category === 'politics',
-  yeralti: p => p.category === 'dark' || (!!p.illegal && p.category !== 'sport' && p.category !== 'politics' && p.category !== 'luxury'),
+  yeralti: p => p.category === 'dark' || (!!p.illegal && p.category !== 'sport' && p.category !== 'politics' && p.category !== 'luxury' && p.category !== 'science' && p.category !== 'finance'),
   luks:    p => p.category === 'luxury',
-  finans:  p => p.category === 'finance' || p.category === 'science',
+  bilim:   p => p.category === 'science',
+  finans:  p => p.category === 'finance',
 }
 
 type MainTab = 'normal' | 'empire' | 'rnd'
@@ -68,7 +70,9 @@ export class RefFirmsPage implements RefPage {
   private cardsContainer!: HTMLElement
   private catBtns = new Map<CategoryKey, HTMLButtonElement>()
 
-  private activeEmpireTab: EmpireTab = 'spor'
+  private activeEmpireTab: EmpireTab = 'futbol'
+  private empireContent?: HTMLElement
+  private lastEmpireSig = ''
 
   // Canlı producer kartları
   private producerCardsContainer!: HTMLElement
@@ -150,8 +154,8 @@ export class RefFirmsPage implements RefPage {
     const wrap = document.createElement('div')
     wrap.className = 'ref-main-tabs'
     const tabs: { id: MainTab; label: string; icon: string }[] = [
-      { id: 'normal', label: 'İşletmeler', icon: '🏪' },
-      { id: 'empire', label: 'İmparatorluk', icon: '👑' },
+      { id: 'normal', label: 'Normal Firmalar', icon: '🏪' },
+      { id: 'empire', label: 'İmparatorluk Yatırımları', icon: '👑' },
       { id: 'rnd',    label: 'Ar-Ge', icon: '🔬' },
     ]
     for (const tab of tabs) {
@@ -362,20 +366,23 @@ export class RefFirmsPage implements RefPage {
     }
   }
 
-  // ── İmparatorluk Yatırımları (view-only) ────────────────────────────
+  // ── İmparatorluk Yatırımları (canlı — Büyüt aktif) ───────────────────
   private buildEmpireSection(): HTMLElement {
     const wrap = document.createElement('div')
     wrap.className = 'ref-empire-inv'
 
     const note = document.createElement('div')
-    note.className = 'ref-preview-note'
-    note.textContent = '🔒 Önizleme · İmparatorluk satın alma henüz aktif değil (yönetim için İmparatorluk sekmesi)'
+    note.className = 'ref-preview-note' + (this.state ? ' live-mode' : '')
+    note.textContent = this.state
+      ? '👑 İmparatorluk yatırımları · gerçek veri · Büyüt aktif'
+      : '🔒 Önizleme modu · gerçek oyun verisi yok (mock)'
     wrap.appendChild(note)
 
     const tabBar = document.createElement('div')
     tabBar.className = 'ref-empire-tabs'
     const content = document.createElement('div')
     content.className = 'ref-empire-inv-content'
+    this.empireContent = content
     for (const tab of EMPIRE_TABS) {
       const btn = document.createElement('button')
       btn.className = 'ref-empire-tab' + (tab.id === this.activeEmpireTab ? ' active' : '')
@@ -397,34 +404,73 @@ export class RefFirmsPage implements RefPage {
     this.renderEmpireTab(id, content)
   }
 
+  private empireTabSig(id: EmpireTab, s: GameState): string {
+    return PRODUCERS.filter(EMPIRE_PRODUCER_FILTER[id])
+      .map(def => this.cardSignature(def, s))
+      .join(';')
+  }
+
   private renderEmpireTab(id: EmpireTab, content: HTMLElement): void {
-    const list = PRODUCERS.filter(EMPIRE_PRODUCER_FILTER[id]).sort((a, b) => a.tier - b.tier)
+    const list = PRODUCERS.filter(EMPIRE_PRODUCER_FILTER[id]).sort((a, b) => a.tier - b.tier || a.unlockAt - b.unlockAt)
     content.innerHTML = ''
+    this.lastEmpireSig = this.state ? this.empireTabSig(id, this.state) : ''
     if (!list.length) {
       content.innerHTML = '<div class="ref-empire-empty">Bu kategoride içerik yok.</div>'
       return
     }
     const grid = document.createElement('div')
     grid.className = 'ref-empire-cards'
+    const s = this.state
     for (const def of list) {
-      const owned = this.state ? (this.state.producers[def.id] ?? 0) : 0
+      const owned    = s ? (s.producers[def.id] ?? 0) : 0
+      const unlocked = s ? isProducerUnlocked(def, s.totalEarned, s.forcedUnlocks, s.ipoCount) : false
+      const cost     = s ? s.producerCostFor(def, owned, 1) : def.baseCost
+      const canBuy   = !!s && unlocked && s.money >= cost
+      const income   = s && owned > 0 ? Math.round(s.producerIncome(def)) : Math.round(def.baseIncome)
+
+      let foot: string
+      if (!s) {
+        foot = `<button class="ref-prod-btn disabled" type="button" disabled>${fmtMoney(def.baseCost)} · önizleme</button>`
+      } else if (!unlocked) {
+        const reason = (def.ipoRequirement && s.ipoCount < def.ipoRequirement)
+          ? `🔒 ${def.ipoRequirement} IPO gerekli`
+          : `🔒 ${fmtMoney(def.unlockAt)} kazanınca`
+        foot = `<span class="ref-prod-locked-lbl">${reason}</span>`
+      } else if (canBuy) {
+        foot = `<button class="ref-prod-btn buyable" type="button" data-buy="${def.id}">${owned > 0 ? '📈 BÜYÜT' : 'SATIN AL'} · ${fmtMoney(cost)}</button>`
+      } else {
+        foot = `<button class="ref-prod-btn disabled" type="button" disabled>Para Yetersiz · ${fmtMoney(cost)}</button>`
+      }
+
       const card = document.createElement('div')
-      card.className = 'ref-empire-card' + (owned > 0 ? ' owned' : '')
+      card.className = 'ref-empire-card' + (owned > 0 ? ' owned' : '') + (s && !unlocked ? ' locked' : '')
       card.innerHTML = `
         <div class="ref-empire-card__head">
           <span class="ref-empire-card__emoji">${def.emoji}</span>
           <div class="ref-empire-card__info">
             <div class="ref-empire-card__name">${def.name}</div>
-            <div class="ref-empire-card__tier">Tier ${def.tier} · ${owned > 0 ? `<b>${owned} adet</b>` : 'Sahip değilsin'}</div>
+            <div class="ref-empire-card__tier">Tier ${def.tier} · ${owned > 0 ? `<b>${owned} adet · ${fmtMoney(income)}/g</b>` : 'Sahip değilsin'}</div>
           </div>
           ${owned > 0 ? '<span class="ref-empire-card__badge">✓</span>' : ''}
         </div>
-        <div class="ref-empire-card__foot">
-          <button class="ref-prod-btn disabled" type="button" disabled>${fmtMoney(def.baseCost)} · yakında</button>
-        </div>`
+        <div class="ref-empire-card__foot">${foot}</div>`
+
+      card.querySelector<HTMLButtonElement>('[data-buy]')?.addEventListener('click', () => {
+        const ok = this.state?.buyProducer(def.id, 1)
+        if (ok) refToast(`${def.emoji} ${def.name} büyütüldü`, 'ok')
+        else refToast('Satın alınamadı', 'err')
+      })
       grid.appendChild(card)
     }
     content.appendChild(grid)
+  }
+
+  /** Aktif imparatorluk sekmesini imza değiştiyse yeniden çiz. */
+  private refreshEmpireSection(): void {
+    if (!this.state || !this.empireContent) return
+    const sig = this.empireTabSig(this.activeEmpireTab, this.state)
+    if (sig === this.lastEmpireSig) return
+    this.renderEmpireTab(this.activeEmpireTab, this.empireContent)
   }
 
   // ── Ar-Ge / Yükseltmeler (gerçek veri okunur, view-only) ─────────────
@@ -550,5 +596,6 @@ export class RefFirmsPage implements RefPage {
     this.state = state
     this.updateKpi()
     this.refreshProducerCards()
+    this.refreshEmpireSection()
   }
 }

@@ -10,6 +10,7 @@ import { scheduleDailyReminder, registerServiceWorker } from './notifications/No
 import { applyDocumentTheme } from './utils/themeApply'
 import { applyCountry } from './game/Countries'
 import { OnboardingOverlay } from './ui/components/OnboardingOverlay'
+import { applyProfileToState } from './game/CharacterProfile'
 import { i18n } from './i18n'
 import { installGlobalCrashHandlers, reportCrash } from './utils/crashReport'
 import { installRefTestLauncher } from './ui/ref/RefTestLauncher'
@@ -73,9 +74,11 @@ async function bootstrap(): Promise<void> {
 
     const setupDone = localStorage.getItem('baron_setup_done') === '1'
     if (!saveLoaded && !setupDone) {
-      const onboarding = new OnboardingOverlay((country) => {
+      const onboarding = new OnboardingOverlay((country, profile) => {
         state.country = country
         applyCountry(country)
+        state.setCharacterProfile(profile)
+        applyProfileToState(profile, state)
         localStorage.setItem('baron_setup_done', '1')
         saveManager.save(state)
         hud.renderAll()

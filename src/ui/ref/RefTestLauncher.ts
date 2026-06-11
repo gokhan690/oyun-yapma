@@ -172,6 +172,10 @@ export function installRefTestLauncher(state?: GameState): void {
   btn.addEventListener('click', open)
   document.body.appendChild(btn)
 
+  // Otomatik tam ekran: intro tamamlanınca yeni arayüz bir kez kendiliğinden
+  // açılır. ✕ ile kapatılırsa tekrar otomatik açılmaz (buton manuel açar).
+  let autoOpened = false
+
   // Görünürlük senkronu: oyun durumu değiştikçe launcher'ı göster/gizle
   const syncVisibility = (): void => {
     if (overlay) {
@@ -181,7 +185,13 @@ export function installRefTestLauncher(state?: GameState): void {
     // Launcher YALNIZCA intro akışı tamamlandığında görünür; aksi hâlde RefApp
     // tick'i başlamamış bir oyun üzerine açılır → oyun saati donar.
     const notReady = !!state && !state.isIntroFlowReady()
-    btn.style.display = (notReady || gameBusy()) ? 'none' : ''
+    const ready = !notReady && !gameBusy()
+    if (ready && !autoOpened) {
+      autoOpened = true
+      open()
+      return
+    }
+    btn.style.display = ready ? '' : 'none'
   }
 
   syncVisibility()

@@ -1,4 +1,5 @@
 import { RefKpiStrip, type KpiItem } from './RefKpiStrip'
+import { RefSubTabs } from './RefSubTabs'
 import { sectionTitle, fmtMoney, gaugeSvg, demoBanner, refToast } from './refShared'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
@@ -39,6 +40,7 @@ export class RefMarketPage implements RefPage {
 
   private state?: GameState
   private kpiStrip?: RefKpiStrip
+  private tabs?: RefSubTabs
   private sentCard?: HTMLElement
   private stockList?: HTMLElement
   private bankGrid?: HTMLElement
@@ -58,51 +60,63 @@ export class RefMarketPage implements RefPage {
   }
 
   // ── Gerçek veri (GameState borsa/banka/IPO sistemleri) ───────────────
+  // Alt sekmeler: 📈 Borsa | 🏦 Banka | 🛡️ Sigorta & IPO — KPI üstte sabit.
   private buildReal(s: GameState): void {
     this.kpiStrip = new RefKpiStrip(this.buildKpis(s))
     this.el.appendChild(this.kpiStrip.el)
 
-    // Piyasa duyarlılığı (marketFear → iyimserlik)
+    this.tabs = new RefSubTabs([
+      { id: 'stocks', label: 'Borsa',         icon: '📈' },
+      { id: 'bank',   label: 'Banka',         icon: '🏦' },
+      { id: 'ins',    label: 'Sigorta & IPO', icon: '🛡️' },
+    ])
+    this.el.appendChild(this.tabs.tabsEl)
+    const secStocks = this.tabs.section('stocks')
+    const secBank = this.tabs.section('bank')
+    const secIns = this.tabs.section('ins')
+    this.el.appendChild(secStocks)
+    this.el.appendChild(secBank)
+    this.el.appendChild(secIns)
+
+    // ── 📈 Borsa: duyarlılık + tickerlar ──
     this.sentCard = document.createElement('div')
     this.sentCard.className = 'ref-card-soft ref-detail-gauge'
     this.sentCard.style.margin = '8px 14px 0'
     this.sentCard.innerHTML = this.sentHtml(s)
-    this.el.appendChild(this.sentCard)
+    secStocks.appendChild(this.sentCard)
 
-    // Borsa — gerçek tickerlar
-    this.el.appendChild(sectionTitle('Borsa', `${Object.keys(s.stock.tickers).length} enstrüman`))
+    secStocks.appendChild(sectionTitle('Borsa', `${Object.keys(s.stock.tickers).length} enstrüman`))
     this.stockList = document.createElement('div')
     this.stockList.className = 'ref-stock-list'
     this.stockList.innerHTML = this.stockHtml(s)
-    this.el.appendChild(this.stockList)
+    secStocks.appendChild(this.stockList)
 
     const stockNote = document.createElement('div')
     stockNote.className = 'ref-preview-note'
     stockNote.textContent = '🔒 Önizleme · Al/Sat işlemleri ana oyun ekranından yapılır'
-    this.el.appendChild(stockNote)
+    secStocks.appendChild(stockNote)
 
-    // Banka — canlı değerler + hızlı işlemler
-    this.el.appendChild(sectionTitle('Banka & Kredi'))
+    // ── 🏦 Banka: canlı değerler + hızlı işlemler ──
+    secBank.appendChild(sectionTitle('Banka & Kredi'))
     this.bankGrid = document.createElement('div')
     this.bankGrid.innerHTML = this.bankHtml(s)
-    this.el.appendChild(this.bankGrid)
+    secBank.appendChild(this.bankGrid)
 
-    // Sigorta
-    this.el.appendChild(sectionTitle('Sigorta'))
+    // ── 🛡️ Sigorta & IPO ──
+    secIns.appendChild(sectionTitle('Sigorta'))
     const ins = document.createElement('div')
     ins.className = 'ref-fin-grid ins'
     ins.innerHTML = `
       ${this.insCell('🏢', 'İşletme', s.insurance.business)}
       ${this.insCell('🕶️', 'Yasadışı', s.insurance.illegal)}
       ${this.insCell('👨‍👩‍👧', 'Hanedan', s.insurance.dynasty)}`
-    this.el.appendChild(ins)
+    secIns.appendChild(ins)
 
-    // IPO / Prestij
-    this.el.appendChild(sectionTitle('IPO / Prestij', `${s.ipoCount} IPO`))
+    secIns.appendChild(sectionTitle('IPO / Prestij', `${s.ipoCount} IPO`))
     this.ipoCard = document.createElement('div')
     this.ipoCard.className = 'ref-ipo-card'
     this.ipoCard.innerHTML = this.ipoHtml(s)
-    this.el.appendChild(this.ipoCard)
+    secIns.appendChild(this.ipoCard)
 
     // Açılış imzaları (ilk refresh'te gereksiz rebuild olmasın)
     this.lastSentSig  = this.sentSig(s)

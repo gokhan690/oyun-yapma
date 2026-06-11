@@ -318,6 +318,7 @@ import {
   applyFameAction,
   tickFameDecay,
 } from './Fame'
+import type { CharacterProfile } from './CharacterProfile'
 import {
   createLifestyleState,
   lifestyleMonthlyExpense,
@@ -650,6 +651,8 @@ export interface SerializableState {
   siblings?: Sibling[]
   fameState?: FameState
   karma?: number
+  characterProfile?: CharacterProfile | null
+  characterIncomeDailyBonus?: number
 }
 
 export interface ProducerBreakdown {
@@ -852,6 +855,8 @@ export class GameState {
   siblings: Sibling[] = generateSiblings()
   fameState: FameState = createFameState()
   karma = 0
+  characterProfile: CharacterProfile | null = null
+  characterIncomeDailyBonus = 0
   private lastDiseaseTickDay = 0
   private lastSiblingTickYear = 0
   dailyRoutineDay = 0
@@ -2144,7 +2149,7 @@ export class GameState {
   }
 
   incomePerDay(): number {
-    return PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0) + this.dynastyPassiveIncome
+    return PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0) + this.dynastyPassiveIncome + this.characterIncomeDailyBonus
   }
 
   /** Oyun günü bazlı pasif gelir; gerçek saniyeye çevrim GameClock üzerinden yapılır. */
@@ -3746,6 +3751,12 @@ export class GameState {
     this.siblings = generateSiblings()
     this.fameState = createFameState()
     this.karma = 0
+    this.emit({ type: 'money_changed' })
+  }
+
+  /** Onboarding'de seçilen karakter profilini uygula (yalnız yeni oyunda bir kez). */
+  setCharacterProfile(profile: CharacterProfile): void {
+    this.characterProfile = { ...profile }
     this.emit({ type: 'money_changed' })
   }
 
@@ -5674,6 +5685,8 @@ export class GameState {
       siblings: this.siblings.map((s) => ({ ...s })),
       fameState: { ...this.fameState },
       karma: this.karma,
+      characterProfile: this.characterProfile ? { ...this.characterProfile } : null,
+      characterIncomeDailyBonus: this.characterIncomeDailyBonus,
       difficulty: this.difficulty,
       difficultyChosen: this.difficultyChosen,
       playerName: this.playerName,
@@ -5935,6 +5948,8 @@ export class GameState {
     this.siblings = data.siblings ?? generateSiblings()
     this.fameState = data.fameState ? { ...createFameState(), ...data.fameState } : createFameState()
     this.karma = data.karma ?? 0
+    this.characterProfile = data.characterProfile ? { ...data.characterProfile } : null
+    this.characterIncomeDailyBonus = data.characterIncomeDailyBonus ?? 0
     if (data.travel) {
       this.travel = { ...createTravelState(), ...data.travel }
     }

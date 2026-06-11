@@ -1,4 +1,5 @@
 import { sectionTitle, fmtMoney, refToast } from './refShared'
+import { RefSubTabs } from './RefSubTabs'
 import type { RefCareerVM } from './refAppDataAdapter'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
@@ -7,6 +8,7 @@ import { FAME_CAREERS, fameLevelLabel } from '../../game/Fame'
 import type { FameCareerType } from '../../game/Fame'
 import { diseaseDef } from '../../game/Diseases'
 import { PLAYER_RANKS, rankProgress } from '../../game/PlayerRank'
+import { JOB_DEFS, EDUCATION_DEFS, LIFESTYLE_DEFS } from '../../game/CharacterProfile'
 
 const MOCK_CAREER: RefCareerVM = {
   jobTitle: 'Holding YK Başkanı', level: 24, salaryDaily: 48_000, stress: 48,
@@ -19,8 +21,9 @@ export class RefCareerPage implements RefPage {
   readonly el: HTMLElement
   readonly title = 'KARİYER'
 
-  private dynWrap!: HTMLElement
+  private tabs: RefSubTabs
   private jobCard!: HTMLElement
+  private profileCard!: HTMLElement
   private vm: RefCareerVM
   private state?: GameState
   private lastDynSig = ''
@@ -32,15 +35,47 @@ export class RefCareerPage implements RefPage {
 
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-career-page'
+
+    this.tabs = new RefSubTabs([
+      { id: 'job',    label: 'İş',     icon: '💼' },
+      { id: 'health', label: 'Sağlık', icon: '❤️' },
+      { id: 'fame',   label: 'Şöhret', icon: '⭐' },
+    ])
+    this.el.appendChild(this.tabs.tabsEl)
+    const secJob = this.tabs.section('job')
+    this.el.appendChild(secJob)
+    this.el.appendChild(this.tabs.section('health'))
+    this.el.appendChild(this.tabs.section('fame'))
+
     this.jobCard = document.createElement('div')
     this.jobCard.className = 'ref-job-card'
     this.jobCard.innerHTML = this.jobCardHtml(this.vm)
-    this.el.appendChild(this.jobCard)
-    this.dynWrap = document.createElement('div')
-    this.dynWrap.className = 'ref-career-dyn'
-    this.el.appendChild(this.dynWrap)
+    secJob.appendChild(this.jobCard)
+
+    // Karakter profili (onboarding seçimleri) — İş sekmesinde
+    this.profileCard = document.createElement('div')
+    this.profileCard.className = 'ref-career-profile'
+    this.profileCard.innerHTML = this.profileHtml()
+    secJob.appendChild(this.profileCard)
+
     this.renderDyn(this.vm)
     this.el.addEventListener('click', (e) => this.handleClick(e))
+  }
+
+  /** Onboarding'de seçilen meslek/eğitim/yaşam tarzı çipleri. */
+  private profileHtml(): string {
+    const p = this.state?.characterProfile
+    if (!p) return ''
+    const job = JOB_DEFS[p.jobId]
+    const edu = EDUCATION_DEFS[p.educationLevel]
+    const life = LIFESTYLE_DEFS[p.lifestyleType]
+    return `
+      <div class="ref-career-profile__title">Karakter Profili</div>
+      <div class="ref-career-profile__chips">
+        <span class="ref-member-chip">${job.emoji} ${job.label}${job.incomeDailyBonus > 0 ? ` · +${fmtMoney(job.incomeDailyBonus)}/g` : ''}</span>
+        <span class="ref-member-chip">${edu.emoji} ${edu.label}</span>
+        <span class="ref-member-chip">${life.emoji} ${life.label} yaşam</span>
+      </div>`
   }
 
   private jobCardHtml(c: RefCareerVM): string {
@@ -72,10 +107,13 @@ export class RefCareerPage implements RefPage {
   }
 
   private renderDyn(c: RefCareerVM): void {
-    this.dynWrap.innerHTML = ''
-    this.dynWrap.appendChild(this.buildHealthSection(c))
-    this.dynWrap.appendChild(this.buildFameSection(c))
-    this.dynWrap.appendChild(this.buildKarmaRow(c))
+    const secHealth = this.tabs.section('health')
+    secHealth.innerHTML = ''
+    secHealth.appendChild(this.buildHealthSection(c))
+    const secFame = this.tabs.section('fame')
+    secFame.innerHTML = ''
+    secFame.appendChild(this.buildFameSection(c))
+    secFame.appendChild(this.buildKarmaRow(c))
   }
 
   private buildHealthSection(c: RefCareerVM): HTMLElement {
@@ -207,6 +245,11 @@ export class RefCareerPage implements RefPage {
     if (jSig !== this.lastJobSig) {
       this.lastJobSig = jSig
       this.jobCard.innerHTML = this.jobCardHtml(vm)
+    }
+
+    // Profil onboarding'de bir kez seçilir — boşsa ve artık varsa doldur
+    if (!this.profileCard.innerHTML && state.characterProfile) {
+      this.profileCard.innerHTML = this.profileHtml()
     }
 
     const sig = this.dynSig(vm)

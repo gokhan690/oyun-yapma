@@ -1,4 +1,4 @@
-import { fmtMoney, starsHtml, ua } from './refShared'
+import { fmtMoney, starsHtml, ua, backRow } from './refShared'
 import type { RefPage } from './RefApp'
 import type { RefViewModel } from './refAppDataAdapter'
 import type { GameState } from '../../game/GameState'
@@ -27,6 +27,9 @@ export class RefProfilePage implements RefPage {
 
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-profile-page'
+
+    // ── Geri ──
+    this.el.appendChild(backRow(() => this.onBack?.()))
 
     // ── Hero card ──
     this.el.appendChild(this.buildHero(vm))

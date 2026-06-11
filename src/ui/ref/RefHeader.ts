@@ -13,6 +13,10 @@ export interface HeaderData {
   onClose?: () => void
   /** Avatar/isim alanına tıklayınca profil sayfasını aç. */
   onProfile?: () => void
+  /** 🏆 Başarımlar hızlı erişim. */
+  onAchievements?: () => void
+  /** 🔔 Bildirimler hızlı erişim. */
+  onNotifs?: () => void
 }
 
 export class RefHeader {
@@ -42,12 +46,11 @@ export class RefHeader {
           ${data.onProfile ? '<span class="ref-header__profile-chevron">›</span>' : ''}
         </div>
         <div class="ref-header__actions">
-          <button class="ref-hdr-btn" title="VIP">👑</button>
-          <button class="ref-hdr-btn" title="Mesajlar">
-            ✉️
+          <button class="ref-hdr-btn" data-hdr="ach" title="Başarımlar">🏆</button>
+          <button class="ref-hdr-btn" data-hdr="notifs" title="Bildirimler">
+            🔔
             ${(data.notifCount ?? 0) > 0 ? '<span class="ref-hdr-btn__dot"></span>' : ''}
           </button>
-          <button class="ref-hdr-btn" title="Bildirimler">🔔</button>
           ${data.onClose ? '<button class="ref-hdr-close" title="Test modundan çık" aria-label="Kapat">✕</button>' : ''}
         </div>
       </div>
@@ -59,6 +62,26 @@ export class RefHeader {
     if (data.onProfile) {
       const left = this.el.querySelector<HTMLElement>('.ref-header__left')!
       left.addEventListener('click', () => data.onProfile!())
+    }
+    if (data.onAchievements) {
+      this.el.querySelector('[data-hdr="ach"]')!.addEventListener('click', () => data.onAchievements!())
+    }
+    if (data.onNotifs) {
+      this.el.querySelector('[data-hdr="notifs"]')!.addEventListener('click', () => data.onNotifs!())
+    }
+  }
+
+  /** 🔔 üstündeki okunmamış rozetini aç/kapat. */
+  setNotifBadge(show: boolean): void {
+    const btn = this.el.querySelector<HTMLElement>('[data-hdr="notifs"]')
+    if (!btn) return
+    const dot = btn.querySelector('.ref-hdr-btn__dot')
+    if (show && !dot) {
+      const span = document.createElement('span')
+      span.className = 'ref-hdr-btn__dot'
+      btn.appendChild(span)
+    } else if (!show && dot) {
+      dot.remove()
     }
   }
 

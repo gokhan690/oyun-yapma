@@ -9,9 +9,10 @@ import { RefDashboardPage } from './RefDashboardPage'
 import { RefCareerPage } from './RefCareerPage'
 import { RefMarketPage } from './RefMarketPage'
 import { RefEmpirePage } from './RefEmpirePage'
-import { RefFamilyPage } from './RefFamilyPage'
+import { RefLifePage } from './RefLifePage'
 import { RefAchievementsPage } from './RefAchievementsPage'
 import { RefProfilePage } from './RefProfilePage'
+import { RefNotifsPage } from './RefNotifsPage'
 import type { RefViewModel } from './refAppDataAdapter'
 import type { GameState } from '../../game/GameState'
 
@@ -64,6 +65,7 @@ export class RefApp {
   private pages = new Map<RefNavTab, RefPage>()
   private achievements?: RefAchievementsPage
   private profile?: RefProfilePage
+  private notifs?: RefNotifsPage
   /** Şu an gövdede görünen sayfa (profil/başarımlar tab haritasında yok). */
   private mounted?: RefPage
   private vm?: RefViewModel
@@ -94,6 +96,8 @@ export class RefApp {
       ...(vm ? { name: vm.player.name, title: vm.player.title, age: vm.player.age, city: vm.player.city, avatarAsset: vm.player.avatarAsset } : {}),
       onClose: opts.onExit ? () => this.onExit?.() : undefined,
       onProfile: () => this.showProfile(),
+      onAchievements: () => this.showAchievements(),
+      onNotifs: () => this.showNotifs(),
     })
     this.el.appendChild(this.header.el)
 
@@ -128,6 +132,11 @@ export class RefApp {
         if (ev.type === 'purchase') this.refreshActive(st)
         else if (ev.type === 'health_changed' || ev.type === 'fame_changed') this.refreshActive(st)
         else if (ev.type === 'money_changed' || ev.type === 'passive_income') this.scheduleRefresh(st)
+        else if (ev.type === 'gazette_headline') {
+          // 🔔 rozeti + açıksa bildirim sayfasını tazele
+          if (this.mounted === this.notifs) this.notifs?.refresh(st)
+          else this.header.setNotifBadge(true)
+        }
       })
     }
   }
@@ -178,7 +187,7 @@ export class RefApp {
       case 'career': return new RefCareerPage(vm?.career, st)
       case 'market': return new RefMarketPage(st)
       case 'empire': return new RefEmpirePage(st)
-      case 'family': return new RefFamilyPage(st)
+      case 'life':   return new RefLifePage(st)
     }
   }
 
@@ -204,6 +213,16 @@ export class RefApp {
       this.profile.onOpenAchievements = () => this.showAchievements()
     }
     this.mountBody(this.profile)
+  }
+
+  private showNotifs(): void {
+    if (!this.notifs) {
+      this.notifs = new RefNotifsPage(this.gameState)
+      this.notifs.onBack = () => this.show(this.active)
+    }
+    this.mountBody(this.notifs)
+    // Görüldü → rozet söner
+    this.header.setNotifBadge(false)
   }
 
   private mountBody(page: RefPage): void {
@@ -242,6 +261,7 @@ export class RefApp {
     }
     ;(this.profile as { destroy?: () => void } | undefined)?.destroy?.()
     ;(this.achievements as { destroy?: () => void } | undefined)?.destroy?.()
+    ;(this.notifs as { destroy?: () => void } | undefined)?.destroy?.()
     this.el.remove()
   }
 }

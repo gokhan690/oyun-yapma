@@ -1,4 +1,4 @@
-export type RefNavTab = 'home' | 'career' | 'firms' | 'market' | 'empire' | 'family'
+export type RefNavTab = 'home' | 'career' | 'market' | 'firms' | 'empire' | 'life'
 
 interface TabDef {
   id: RefNavTab
@@ -7,12 +7,12 @@ interface TabDef {
 }
 
 const TABS: TabDef[] = [
-  { id: 'home',   label: 'Ana Panel',    icon: '🏠' },
+  { id: 'home',   label: 'Ana Sayfa',    icon: '🏠' },
   { id: 'career', label: 'Kariyer',      icon: '💼' },
-  { id: 'firms',  label: 'Firmalar',     icon: '🏢' },
   { id: 'market', label: 'Piyasa',       icon: '📊' },
+  { id: 'firms',  label: 'Firmalar',     icon: '🏢' },
   { id: 'empire', label: 'İmparatorluk', icon: '👑' },
-  { id: 'family', label: 'Aile',         icon: '👨‍👩‍👧' },
+  { id: 'life',   label: 'Yaşam',        icon: '🌿' },
 ]
 
 export class RefBottomNav {
