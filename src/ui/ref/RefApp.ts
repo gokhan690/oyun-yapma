@@ -122,6 +122,13 @@ export class RefApp {
       this.unsub = st.subscribe((ev) => {
         if (ev.type === 'purchase') this.refreshActive(st)
         else if (ev.type === 'money_changed' || ev.type === 'passive_income') this.scheduleRefresh(st)
+        else if (
+          ev.type === 'disease_diagnosed' || ev.type === 'disease_treated' ||
+          ev.type === 'pet_died' || ev.type === 'sibling_died' ||
+          ev.type === 'fame_action' || ev.type === 'fame_changed' ||
+          ev.type === 'career_fired' || ev.type === 'career_promoted' ||
+          ev.type === 'health_changed'
+        ) this.refreshActive(st)
       })
     }
   }

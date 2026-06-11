@@ -439,6 +439,13 @@ import {
 import { obsolescenceMult, modernizeCost } from './TechObsolescence'
 import { pickDisaster, disasterDamage } from './NaturalDisasters'
 import { progressPathSnapshot, type ProgressPathSnapshot } from './ProgressPath'
+import {
+  type ActiveDisease, type DiseaseId, diseaseDef, diseasesDailyDamage, dailyDiagnosisChance,
+  eligibleDiseases, pickRandomDisease,
+} from './Diseases'
+import { type Sibling, generateSiblings, tickSiblingYear, visitSibling as visitSiblingFn, siblingInheritance } from './Siblings'
+import { type FameState, createFameState, fameDailyIncome, tickFameDecay, applyFameAction, type FameCareerType } from './Fame'
+import { randomPetName, petLifespanDays, expirePets, type OwnedPetEntry } from './Lifestyle'
 
 export interface PendingUndo {
   id: string
@@ -616,6 +623,10 @@ export interface SerializableState {
   hobby?: HobbyState
   ageMilestonesShown?: number[]
   travel?: TravelState
+  diseases?: ActiveDisease[]
+  siblings?: Sibling[]
+  fameState?: FameState
+  karma?: number
 }
 
 export interface ProducerBreakdown {
@@ -714,6 +725,15 @@ export type GameEvent =
   | { type: 'baron_legacy_card'; peakNetWorth: number; generation: number; ipoCount: number; reputation: number; legacyScore: number; publicTitle: string; publicEmoji: string }
   | { type: 'age_milestone'; age: number; question: string }
   | { type: 'social_status_changed'; score: number; title: string }
+  | { type: 'career_fired' }
+  | { type: 'career_promoted'; newTitle: string }
+  | { type: 'disease_diagnosed'; diseaseId: DiseaseId; name: string }
+  | { type: 'disease_treated'; diseaseId: DiseaseId; cured: boolean }
+  | { type: 'pet_died'; petId: string; petName: string }
+  | { type: 'sibling_died'; siblingName: string }
+  | { type: 'fame_action'; success: boolean; fameDelta: number; moneyEarned: number }
+  | { type: 'fame_changed'; fame: number }
+  | { type: 'life_event_risk_outcome'; won: boolean; moneyDelta: number; reputationDelta: number; headline: string }
 
 const MILESTONE_THRESHOLDS = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
 const CRIT_CHANCE = 0.1
@@ -797,6 +817,10 @@ export class GameState {
   activeRivalEvents: RivalEvent[] = []
   private lastRivalEventDay = -1
   health = createHealthState()
+  diseases: ActiveDisease[] = []
+  siblings: Sibling[] = generateSiblings()
+  fameState: FameState = createFameState()
+  karma = 0
   friendships = createFriendshipsState()
   mentorEnemy = createMentorEnemyState()
   legacyScore = 0
@@ -3695,6 +3719,10 @@ export class GameState {
     this.presidentSinceSeasonKey = null
     this.lastWorldStageId = 'local'
     this.childCrises = []
+    this.diseases = []
+    this.siblings = generateSiblings()
+    this.fameState = createFameState()
+    this.karma = 0
     this.emit({ type: 'money_changed' })
   }
 
@@ -4063,6 +4091,10 @@ export class GameState {
     this.tickCalendarEvents()
     this.tickLifestyle(day)
     this.tickHealth(day)
+    this.tickDiseases(day)
+    this.tickPets(day)
+    this.tickSiblings(day)
+    this.tickFame(day)
     this.tickSpouseSatisfaction(day)
     this.tickAnnualSummary(day)
     this.tickAgeMilestones(day)
@@ -4158,11 +4190,77 @@ export class GameState {
       : 30
     const delta = dailyHealthDelta(age, this.lifestyle.stress, this.health)
     const gymBonus = hasHomeRoom(this.lifestyle, 'gym') ? 3 : 0
-    this.health.health = Math.max(0, Math.min(100, this.health.health + delta + gymBonus))
+    const diseaseDmg = diseasesDailyDamage(this.diseases)
+    this.health.health = Math.max(0, Math.min(100, this.health.health + delta + gymBonus - diseaseDmg))
     if (this.health.exerciseDaysActive > 0) {
       this.health.exerciseDaysActive--
     }
     this.emit({ type: 'health_changed', health: this.health.health })
+  }
+
+  private lastDiseaseTickDay = 0
+  private tickDiseases(day: number): void {
+    if (day === this.lastDiseaseTickDay) return
+    this.lastDiseaseTickDay = day
+    const age = this.playerAge()
+    const chance = dailyDiagnosisChance(age)
+    if (Math.random() < chance) {
+      const candidates = eligibleDiseases(this.diseases, age)
+      const picked = pickRandomDisease(candidates)
+      if (picked) {
+        this.diseases.push({ id: picked, diagnosedDay: day })
+        const def = diseaseDef(picked)
+        this.emit({ type: 'disease_diagnosed', diseaseId: picked, name: def.name })
+        this.addGazette(`🏥 Yeni teşhis: ${def.name} — tedavi gerekebilir`, 'player')
+      }
+    }
+  }
+
+  private lastPetTickDay = 0
+  private tickPets(day: number): void {
+    if (day === this.lastPetTickDay) return
+    this.lastPetTickDay = day
+    if (!this.lifestyle.ownedPets) this.lifestyle.ownedPets = []
+    const died = expirePets(this.lifestyle, day)
+    for (const petId of died) {
+      this.emit({ type: 'pet_died', petId, petName: petId })
+      this.addGazette(`🐾 Evcil hayvanın hayatını kaybetti — hüzünlü bir gün`, 'player')
+    }
+  }
+
+  private lastSiblingTickDay = 0
+  private tickSiblings(day: number): void {
+    // Check once per year
+    if (day - this.lastSiblingTickDay < 365) return
+    this.lastSiblingTickDay = day
+    const age = this.playerAge()
+    const died = tickSiblingYear(this.siblings, age)
+    for (const sibId of died) {
+      const sib = this.siblings.find((s) => s.id === sibId)
+      if (!sib) continue
+      const inheritance = siblingInheritance(sib)
+      if (inheritance > 0) {
+        this.money += inheritance
+        this.emit({ type: 'money_changed' })
+      }
+      this.emit({ type: 'sibling_died', siblingName: sib.name })
+      this.addGazette(`😢 ${sib.name} hayatını kaybetti${inheritance > 0 ? ` — ₺${Math.round(inheritance / 1000)}K miras bıraktı` : ''}`, 'player')
+    }
+  }
+
+  private lastFameTickDay = 0
+  private tickFame(day: number): void {
+    if (day === this.lastFameTickDay) return
+    this.lastFameTickDay = day
+    tickFameDecay(this.fameState, day)
+    if (this.fameState.activeCareer) {
+      const income = fameDailyIncome(this.fameState)
+      if (income > 0) {
+        this.money += income
+        this.fameState.totalFameIncome += income
+        this.emit({ type: 'passive_income' })
+      }
+    }
   }
 
   private lastSpouseTickDay = 0
@@ -4514,6 +4612,40 @@ export class GameState {
         consequenceId: choice.consequenceId,
       })
     }
+    // Apply karma based on choice alignment
+    this.applyChoiceKarma(choiceId)
+    // Apply 2nd-layer risk outcome if present
+    if (choice.riskOutcome) {
+      this.resolveRiskOutcome(choice.riskOutcome)
+    }
+  }
+
+  private applyChoiceKarma(choiceId: string): void {
+    const goodChoices = ['police', 'pay', 'raise', 'support', 'donate_big', 'donate_small', 'full_compliance', 'make_time', 'meet_mentor', 'compensate_fully', 'best_lawyer']
+    const badChoices = ['keep', 'bribe', 'bribe_fix', 'partner_mafia', 'partial_hide', 'play_big']
+    if (goodChoices.includes(choiceId)) this.karma = Math.min(100, this.karma + 2)
+    else if (badChoices.includes(choiceId)) this.karma = Math.max(-100, this.karma - 2)
+  }
+
+  private resolveRiskOutcome(risk: import('./LifeEvents').ChoiceRiskOutcome): void {
+    const won = Math.random() < risk.winChance
+    const moneyDelta = won ? risk.winMoneyDelta : risk.loseMoneyDelta
+    const repDelta = won ? risk.winReputationDelta : risk.loseReputationDelta
+    const healthDelta = won ? 0 : (risk.loseHealthDelta ?? 0)
+    if (moneyDelta !== 0) {
+      this.money += moneyDelta
+      this.emit({ type: 'money_changed' })
+    }
+    if (repDelta !== 0) {
+      this.reputation = Math.max(0, Math.min(100, this.reputation + repDelta))
+    }
+    if (healthDelta !== 0) {
+      this.health.health = Math.max(0, Math.min(100, this.health.health + healthDelta))
+    }
+    const headline = won
+      ? `✅ Şans seninleydi — risk kazanımla sonuçlandı${moneyDelta > 0 ? ` (+₺${Math.round(moneyDelta / 1000)}K)` : ''}`
+      : `❌ Risk gerçekleşti${moneyDelta < 0 ? ` (−₺${Math.round(Math.abs(moneyDelta) / 1000)}K)` : ''}`
+    this.emit({ type: 'life_event_risk_outcome', won, moneyDelta, reputationDelta: repDelta, headline })
   }
 
   private scoreAlignment(eventId: string, choiceId: string): void {
@@ -4833,7 +4965,66 @@ export class GameState {
     this.money -= pet.buyCost
     this.emit({ type: 'money_changed' })
     if (!this.lifestyle.pets.includes(id)) this.lifestyle.pets.push(id)
+    if (!this.lifestyle.ownedPets) this.lifestyle.ownedPets = []
+    if (!this.lifestyle.ownedPets.some((e) => e.id === id)) {
+      const entry: OwnedPetEntry = {
+        id,
+        name: randomPetName(id),
+        adoptedDay: gameDay(this.gameTimeMs),
+        lifespanDays: petLifespanDays(id),
+      }
+      this.lifestyle.ownedPets.push(entry)
+    }
     return true
+  }
+
+  treatDisease(diseaseId: DiseaseId): boolean {
+    const def = diseaseDef(diseaseId)
+    if (!def || !this.canAfford(def.treatCost)) return false
+    const idx = this.diseases.findIndex((d) => d.id === diseaseId)
+    if (idx === -1) return false
+    this.money -= def.treatCost
+    this.emit({ type: 'money_changed' })
+    const cured = Math.random() < def.cureChance
+    if (cured) {
+      this.diseases.splice(idx, 1)
+      this.health.health = Math.min(100, this.health.health + 10)
+    }
+    this.emit({ type: 'disease_treated', diseaseId, cured })
+    return true
+  }
+
+  visitSibling(siblingId: string): boolean {
+    const sib = this.siblings.find((s) => s.id === siblingId)
+    if (!sib) return false
+    const day = gameDay(this.gameTimeMs)
+    visitSiblingFn(sib, day)
+    return true
+  }
+
+  startFameCareer(career: FameCareerType): boolean {
+    if (this.fameState.activeCareer) return false
+    this.fameState.activeCareer = career
+    this.emit({ type: 'fame_changed', fame: this.fameState.fame })
+    return true
+  }
+
+  quitFameCareer(): void {
+    this.fameState.activeCareer = null
+    this.emit({ type: 'fame_changed', fame: this.fameState.fame })
+  }
+
+  doFameAction(): boolean {
+    if (!this.fameState.activeCareer) return false
+    const day = gameDay(this.gameTimeMs)
+    const result = applyFameAction(this.fameState, day, this.reputation)
+    if (result.moneyEarned > 0) {
+      this.money += result.moneyEarned
+      this.emit({ type: 'money_changed' })
+    }
+    this.emit({ type: 'fame_action', success: result.success, fameDelta: result.fameDelta, moneyEarned: result.moneyEarned })
+    this.emit({ type: 'fame_changed', fame: this.fameState.fame })
+    return result.success
   }
 
   buyWellbeing(id: WellbeingActivityId): boolean {
@@ -5447,7 +5638,11 @@ export class GameState {
       reducedMotion: this.reducedMotion,
       removeAdsOwned: this.removeAdsOwned,
       vipPassActive: this.vipPassActive,
-      lifestyle: { ...this.lifestyle, pets: [...this.lifestyle.pets] },
+      lifestyle: { ...this.lifestyle, pets: [...this.lifestyle.pets], ownedPets: [...(this.lifestyle.ownedPets ?? [])] },
+      diseases: this.diseases.map((d) => ({ ...d })),
+      siblings: this.siblings.map((s) => ({ ...s })),
+      fameState: { ...this.fameState },
+      karma: this.karma,
       lifeEvents: this.lifeEvents.map((e) => ({ ...e })),
       pendingConsequences: this.pendingConsequences.map((c) => ({ ...c })),
       eventChoiceHistory: this.eventChoiceHistory.map((r) => ({ ...r })),
@@ -5670,6 +5865,7 @@ export class GameState {
         pets: [...(data.lifestyle.pets ?? [])],
         ownedResidences: [...(data.lifestyle.ownedResidences ?? [])],
         ownedVehicles: [...(data.lifestyle.ownedVehicles ?? [])],
+        ownedPets: [...(data.lifestyle.ownedPets ?? [])],
       }
       // Migrate: if old save has residence != 'kira' and no ownedResidences, backfill
       if (this.lifestyle.ownedResidences.length === 0 && this.lifestyle.residence !== 'kira') {
@@ -5698,6 +5894,10 @@ export class GameState {
     if (data.health) {
       this.health = { ...createHealthState(), ...data.health }
     }
+    this.diseases = Array.isArray(data.diseases) ? data.diseases.map((d) => ({ ...d })) : []
+    this.siblings = Array.isArray(data.siblings) ? data.siblings.map((s) => ({ ...s })) : generateSiblings()
+    this.fameState = data.fameState ? { ...createFameState(), ...data.fameState } : createFameState()
+    this.karma = data.karma ?? 0
     this.lastAnnualSummaryYear = data.lastAnnualSummaryYear ?? -1
     this.personality = data.personality ?? null
     if (data.playerSkills) {

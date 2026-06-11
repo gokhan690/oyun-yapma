@@ -221,6 +221,36 @@ export const VEHICLES: VehicleDef[] = [
   },
 ]
 
+/** Game-days each pet species lives (approximate) */
+export const PET_LIFESPAN_DAYS: Record<PetId, number> = {
+  kopek: 13 * 365,
+  kedi: 15 * 365,
+  kus: 8 * 365,
+  akvaryum: 4 * 365,
+  at: 25 * 365,
+  kaplan: 18 * 365,
+}
+
+const PET_NAMES: Record<PetId, string[]> = {
+  kopek: ['Karabaş', 'Pamuq', 'Boncuk', 'Şero'],
+  kedi: ['Karamel', 'Minik', 'Şeytan', 'Boncuk'],
+  kus: ['Maviş', 'Cici', 'Tüy', 'Renkli'],
+  akvaryum: ['Dori', 'Nemo', 'Balık', 'Sumo'],
+  at: ['Rüzgar', 'Yıldız', 'Fırtına', 'Kartal'],
+  kaplan: ['Rex', 'Arslan', 'Sultan', 'Kaplan'],
+}
+
+export function randomPetName(id: PetId): string {
+  const names = PET_NAMES[id]
+  return names[Math.floor(Math.random() * names.length)]!
+}
+
+export function petLifespanDays(id: PetId): number {
+  const base = PET_LIFESPAN_DAYS[id]
+  // ±15% variation
+  return Math.round(base * (0.85 + Math.random() * 0.30))
+}
+
 export const PETS: PetDef[] = [
   {
     id: 'kopek',
@@ -328,6 +358,29 @@ export interface OwnedPropertyEntry {
   rentalMonthlyIncome: number
 }
 
+export interface OwnedPetEntry {
+  id: PetId
+  name: string
+  adoptedDay: number
+  lifespanDays: number
+}
+
+/** Remove pets that have exceeded their lifespan. Returns ids of deceased pets. */
+export function expirePets(ls: LifestyleState, currentDay: number): PetId[] {
+  if (!ls.ownedPets) return []
+  const died: PetId[] = []
+  ls.ownedPets = ls.ownedPets.filter((entry) => {
+    if (currentDay - entry.adoptedDay >= entry.lifespanDays) {
+      died.push(entry.id)
+      // Also remove from pets array
+      ls.pets = ls.pets.filter((pid) => pid !== entry.id)
+      return false
+    }
+    return true
+  })
+  return died
+}
+
 export type HomeRoomId = 'study' | 'game_room' | 'gym' | 'guest_room'
 
 export interface HomeRoomDef {
@@ -364,6 +417,8 @@ export interface LifestyleState {
   ownedVehicles: OwnedPropertyEntry[]
   /** Ev odaları */
   homeRooms?: HomeRoomId[]
+  /** Detailed pet records with lifespan tracking */
+  ownedPets?: OwnedPetEntry[]
 }
 
 export function createLifestyleState(): LifestyleState {
@@ -378,6 +433,7 @@ export function createLifestyleState(): LifestyleState {
     vacationActiveUntilDay: 0,
     ownedResidences: [],
     ownedVehicles: [],
+    ownedPets: [],
   }
 }
 

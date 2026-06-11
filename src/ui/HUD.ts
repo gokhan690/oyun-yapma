@@ -1041,6 +1041,30 @@ export class HUD {
       if (ev.type === 'health_changed') {
         this.renderHealthBar()
       }
+      if (ev.type === 'life_event_risk_outcome') {
+        this.toast(ev.headline, !ev.won)
+      }
+      if (ev.type === 'disease_diagnosed') {
+        this.modals.showToast(this.root, `🏥 Teşhis: ${ev.name} — tedavi olmayı unutma!`)
+      }
+      if (ev.type === 'disease_treated') {
+        this.toast(ev.cured ? `✅ ${ev.diseaseId} tedavi edildi!` : `⚠️ Tedavi başarısız — tekrar dene`)
+      }
+      if (ev.type === 'pet_died') {
+        this.toast(`🐾 Evcil hayvanın vefat etti — hüzün 😢`, true)
+      }
+      if (ev.type === 'sibling_died') {
+        this.modals.showToast(this.root, `💔 ${ev.siblingName} hayatını kaybetti`)
+      }
+      if (ev.type === 'fame_action') {
+        this.toast(ev.success ? `🌟 Şöhret aksiyonu başarılı! +${ev.fameDelta} şöhret` : `😕 Aksiyon başarısız`)
+      }
+      if (ev.type === 'career_fired') {
+        this.modals.showToast(this.root, `😰 Kovuldun! İş hayatına devam et.`)
+      }
+      if (ev.type === 'career_promoted') {
+        this.modals.showToast(this.root, `🎉 Terfi ettin: ${ev.newTitle}`)
+      }
       if (ev.type === 'annual_summary') {
         this.showAnnualSummaryModal(ev.year, ev.playerAge, ev.totalEarned, ev.businessCount, ev.incomePerDay)
       }

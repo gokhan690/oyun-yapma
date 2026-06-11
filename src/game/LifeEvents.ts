@@ -29,6 +29,18 @@ export type LifeEventId =
   | 'mentor_call'
   | 'stock_market_crash'
   | 'city_expansion_offer'
+  | 'street_lawsuit'
+  | 'gambling_night'
+
+export interface ChoiceRiskOutcome {
+  /** Probability of winning (0–1) */
+  winChance: number
+  winMoneyDelta: number
+  winReputationDelta: number
+  loseMoneyDelta: number
+  loseReputationDelta: number
+  loseHealthDelta?: number
+}
 
 export interface LifeEventChoice {
   id: string
@@ -40,6 +52,8 @@ export interface LifeEventChoice {
   healthDelta?: number
   consequenceId?: string
   consequenceDelayDays?: number
+  /** Optional 2nd-layer risk dice roll applied immediately after choice */
+  riskOutcome?: ChoiceRiskOutcome
 }
 
 export interface LifeEventDef {
@@ -280,6 +294,7 @@ export const LIFE_EVENTS: LifeEventDef[] = [
         moneyDelta: -8_000,
         reputationDelta: -5,
         stressDelta: 8,
+        riskOutcome: { winChance: 0.70, winMoneyDelta: 5_000, winReputationDelta: 0, loseMoneyDelta: -20_000, loseReputationDelta: -15 },
       },
     ],
   },
@@ -392,6 +407,7 @@ export const LIFE_EVENTS: LifeEventDef[] = [
         moneyDelta: -100_000,
         reputationDelta: 10,
         stressDelta: 10,
+        riskOutcome: { winChance: 0.55, winMoneyDelta: 200_000, winReputationDelta: 15, loseMoneyDelta: -150_000, loseReputationDelta: -10 },
       },
     ],
   },
@@ -467,6 +483,7 @@ export const LIFE_EVENTS: LifeEventDef[] = [
         moneyDelta: -200_000,
         reputationDelta: -15,
         stressDelta: 20,
+        riskOutcome: { winChance: 0.65, winMoneyDelta: 0, winReputationDelta: 5, loseMoneyDelta: -100_000, loseReputationDelta: -20 },
       },
       {
         id: 'legal_route',
@@ -735,6 +752,7 @@ export const LIFE_EVENTS: LifeEventDef[] = [
         moneyDelta: 0,
         reputationDelta: 20,
         stressDelta: 15,
+        riskOutcome: { winChance: 0.70, winMoneyDelta: 0, winReputationDelta: 25, loseMoneyDelta: -1_000_000, loseReputationDelta: -20 },
       },
     ],
   },
@@ -790,6 +808,7 @@ export const LIFE_EVENTS: LifeEventDef[] = [
         moneyDelta: -300_000,
         reputationDelta: 5,
         stressDelta: -5,
+        riskOutcome: { winChance: 0.60, winMoneyDelta: 0, winReputationDelta: 10, loseMoneyDelta: 0, loseReputationDelta: -5 },
       },
     ],
   },
@@ -877,6 +896,61 @@ export const LIFE_EVENTS: LifeEventDef[] = [
         moneyDelta: 0,
         reputationDelta: 0,
         stressDelta: -5,
+      },
+    ],
+  },
+  {
+    id: 'street_lawsuit',
+    title: 'Kaldırım Davası!',
+    description: 'Bir yaya, aracının geçişi sırasında yaralandığını iddia ediyor. Mahkeme tazminat istiyor.',
+    emoji: '⚖️',
+    minTotalEarned: 200_000,
+    cooldownDays: 90,
+    choices: [
+      {
+        id: 'best_lawyer',
+        label: 'Pahalı avukat tut',
+        emoji: '👨‍⚖️',
+        moneyDelta: -80_000,
+        reputationDelta: 0,
+        stressDelta: 10,
+        riskOutcome: { winChance: 0.75, winMoneyDelta: 0, winReputationDelta: 10, loseMoneyDelta: -300_000, loseReputationDelta: -20 },
+      },
+      {
+        id: 'self_defense',
+        label: 'Kendin savun',
+        emoji: '💪',
+        moneyDelta: 0,
+        reputationDelta: -5,
+        stressDelta: 20,
+        riskOutcome: { winChance: 0.35, winMoneyDelta: 0, winReputationDelta: 5, loseMoneyDelta: -500_000, loseReputationDelta: -30, loseHealthDelta: -5 },
+      },
+    ],
+  },
+  {
+    id: 'gambling_night',
+    title: 'Poker Gecesi',
+    description: 'Yüksek profilli iş insanlarıyla özel poker gecesine davet edildin. Büyük kazanç veya büyük kayıp.',
+    emoji: '🃏',
+    minTotalEarned: 500_000,
+    cooldownDays: 60,
+    choices: [
+      {
+        id: 'play_big',
+        label: 'Giriş yap — ₺100K',
+        emoji: '🎰',
+        moneyDelta: -100_000,
+        reputationDelta: 5,
+        stressDelta: 15,
+        riskOutcome: { winChance: 0.45, winMoneyDelta: 300_000, winReputationDelta: 10, loseMoneyDelta: 0, loseReputationDelta: 0 },
+      },
+      {
+        id: 'watch_only',
+        label: 'İzle — katılma',
+        emoji: '👀',
+        moneyDelta: 0,
+        reputationDelta: 5,
+        stressDelta: -2,
       },
     ],
   },

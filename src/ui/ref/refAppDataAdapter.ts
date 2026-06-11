@@ -3,6 +3,10 @@ import { PRODUCERS, producerName, type ProducerDef } from '../../game/Economy'
 import { reputationLabel } from '../../game/Reputation'
 import { cityDef, type CityId } from '../../game/ExpansionMap'
 import type { FirmData, FirmSector, FirmStatus } from './RefCard'
+import { healthStatusLabel } from '../../game/Health'
+import { fameLevelLabel, type FameCareerType } from '../../game/Fame'
+import type { ActiveDisease } from '../../game/Diseases'
+import { diseaseDef } from '../../game/Diseases'
 
 /*
  * RefAppDataAdapter — SALT OKUNUR. GÜVENLİK DENETİMİ:
@@ -46,6 +50,15 @@ export interface RefDashboardVM {
   goals: RefGoalVM[]
 }
 
+export interface RefDiseaseVM {
+  id: string
+  name: string
+  emoji: string
+  treatCost: number
+  dailyDamage: number
+  surgery: boolean
+}
+
 export interface RefCareerVM {
   jobTitle: string
   level: number
@@ -55,6 +68,15 @@ export interface RefCareerVM {
   xpText: string
   nextRank: string
   seniorityYears: number
+  jobPerformance: number | null
+  health: number
+  healthLabel: string
+  diseases: RefDiseaseVM[]
+  fame: number
+  fameLabel: string
+  fameCareerName: string | null
+  karma: number
+  siblingCount: number
 }
 
 export interface RefViewModel {
@@ -331,6 +353,18 @@ export function buildRefViewModel(state: GameState): RefViewModel {
     goals,
   }
 
+  const diseases: RefDiseaseVM[] = (state.diseases ?? []).map((d: ActiveDisease) => {
+    const def = diseaseDef(d.id)
+    return { id: d.id, name: def.name, emoji: def.emoji, treatCost: def.treatCost, dailyDamage: def.dailyDamage, surgery: def.surgery }
+  })
+
+  const fameState = state.fameState
+  const fameCareerName = fameState?.activeCareer
+    ? (['muzisyen', 'oyuncu', 'sosyal_medya'] as FameCareerType[]).find((id) => id === fameState.activeCareer)
+      ? { muzisyen: 'Müzisyen', oyuncu: 'Oyuncu', sosyal_medya: 'Sosyal Medya' }[fameState.activeCareer as FameCareerType] ?? null
+      : null
+    : null
+
   const career: RefCareerVM = {
     jobTitle: rank.title,
     level: rank.idx * 6 + Math.min(6, ownedCities.length + state.ipoCount),
@@ -340,6 +374,15 @@ export function buildRefViewModel(state: GameState): RefViewModel {
     xpText: `₺${fmt(netWorth)} / ₺${fmt(rank.nextMin)}`,
     nextRank: rank.next,
     seniorityYears: Math.max(0, age - 18),
+    jobPerformance: null,
+    health: Math.round(state.health.health),
+    healthLabel: healthStatusLabel(state.health.health),
+    diseases,
+    fame: Math.round(fameState?.fame ?? 0),
+    fameLabel: fameLevelLabel(fameState?.fame ?? 0),
+    fameCareerName,
+    karma: state.karma ?? 0,
+    siblingCount: (state.siblings ?? []).filter((s) => s.alive).length,
   }
 
   const player: RefPlayerVM = {
