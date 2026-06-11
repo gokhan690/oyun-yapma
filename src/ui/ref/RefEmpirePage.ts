@@ -30,15 +30,70 @@ const DEPTS: Dept[] = [
   { asset: REF_ASSETS_V2_GENERIC.departments.globalStrategy, name: 'Strateji',  lvl: 4 },
 ]
 
+/** Eşik dizisinde değerin kaçıncı basamağı geçtiğini döndürür (0 = henüz yok). */
+function lvlFrom(value: number, thresholds: number[]): number {
+  let lvl = 0
+  for (const t of thresholds) if (value >= t) lvl++
+  return lvl
+}
+
+const POLITICS_LVL: Record<string, number> = { none: 0, belediye: 3, milletvekili: 5, bakan: 8, cumhurbaskan: 10 }
+
+/** Departman seviyeleri — tamamı mevcut state alanlarından SALT OKUNUR türetilir. */
+function deptLevelsFromState(s: GameState): Dept[] {
+  const ownedTypes  = Object.values(s.producers).filter(c => c > 0).length
+  const totalUnits  = Object.values(s.producers).reduce((a, b) => a + b, 0)
+  const managerCnt  = Object.values(s.managers).filter(Boolean).length
+  const researchSum = Object.values(s.research).reduce((a, b) => a + b, 0)
+  const insuranceCnt = (s.insurance.business ? 1 : 0) + (s.insurance.illegal ? 1 : 0) + (s.insurance.dynasty ? 1 : 0)
+  const bankUsage   = s.bank.deposit + s.bank.bonds
+  // 'media' ayrı kategori değil — medya/yayın işleri id üzerinden sayılır
+  const mediaOwned  = PRODUCERS.filter(p => (p.id === 'medya' || p.id === 'streaming') && (s.producers[p.id] ?? 0) > 0).length
+  const famSize     = (s.dynasty.spouseId ? 1 : 0) + s.dynasty.children.length
+
+  return [
+    { asset: REF_ASSETS_V2_GENERIC.departments.operations,     name: 'Operasyon', lvl: lvlFrom(ownedTypes, [1, 3, 6, 10, 15, 22, 30, 45, 65, 90]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.finance,        name: 'Finans',    lvl: lvlFrom(bankUsage, [1_000, 10_000, 50_000, 200_000, 1e6, 5e6, 2e7, 1e8, 5e8, 1e9]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.marketing,      name: 'Pazarlama', lvl: lvlFrom(s.reputation, [5, 15, 25, 35, 45, 55, 65, 75, 85, 95]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.hr,             name: 'İK',        lvl: lvlFrom(managerCnt, [1, 3, 6, 10, 15, 22, 30, 40, 55, 70]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.legal,          name: 'Hukuk',     lvl: insuranceCnt * 3 + (s.bank.creditScore >= 80 ? 1 : 0) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.rnd,            name: 'Ar-Ge',     lvl: lvlFrom(researchSum, [1, 3, 6, 10, 15, 21, 28, 36, 45, 55]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.logistics,      name: 'Lojistik',  lvl: lvlFrom(totalUnits, [5, 20, 60, 150, 350, 700, 1500, 3000, 6000, 12000]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.security,       name: 'Güvenlik',  lvl: lvlFrom(100 - s.illegalHeat * 100, [10, 25, 40, 55, 70, 80, 88, 93, 97, 99]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.prMedia,        name: 'PR/Medya',  lvl: mediaOwned * 2 + lvlFrom(s.reputation, [30, 50, 70, 90]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.familyOffice,   name: 'Aile Ofisi', lvl: famSize * 2 + s.dynasty.generation },
+    { asset: REF_ASSETS_V2_GENERIC.departments.politics,       name: 'Siyaset',   lvl: POLITICS_LVL[s.empire.politics.level] ?? 0 },
+    { asset: REF_ASSETS_V2_GENERIC.departments.globalStrategy, name: 'Strateji',  lvl: Math.min(10, s.ipoCount + s.cities.unlocked.length) },
+  ].map(d => ({ ...d, lvl: Math.max(0, Math.min(10, d.lvl)) }))
+}
+
 export class RefEmpirePage implements RefPage {
   readonly el: HTMLElement
   readonly title = 'İMPARATORLUK'
   private state?: GameState
+  private lastSig = ''
 
   constructor(state?: GameState) {
     this.state = state
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-empire-page'
+    this.build()
+    if (state) this.lastSig = this.pageSig(state)
+  }
+
+  /** Kaba imza: para hariç yapısal değerler — her tikte değil, gerçek değişimde rebuild. */
+  private pageSig(s: GameState): string {
+    const owned = Object.entries(s.producers).filter(([, c]) => c > 0).map(([id, c]) => `${id}:${c}`).join(',')
+    const depts = deptLevelsFromState(s).map(d => d.lvl).join('')
+    return `${owned}|${s.cities.unlocked.length}|${Math.round(s.illegalHeat * 100)}|${s.empire.politics.level}|${s.ipoCount}|${depts}`
+  }
+
+  refresh(state: GameState): void {
+    this.state = state
+    const sig = this.pageSig(state)
+    if (sig === this.lastSig) return
+    this.lastSig = sig
+    this.el.innerHTML = ''
     this.build()
   }
 
@@ -160,19 +215,20 @@ export class RefEmpirePage implements RefPage {
       this.el.appendChild(emptyCard)
     }
 
-    // ── Departmanlar (MOCK — salt görüntü) ──────────────────────────────
+    // ── Departmanlar (state varsa imparatorluk verisinden türetilir) ────
     if (!s) {
-      this.el.appendChild(demoBanner('departman/şehir paneli henüz oyun verisine bağlı değil'))
+      this.el.appendChild(demoBanner('departman paneli — gerçek oyun verisi yok'))
     }
 
+    const depts = s ? deptLevelsFromState(s) : DEPTS
     this.el.appendChild(sectionTitle('Departmanlar', `${deptCount} birim`))
     const deptGrid = document.createElement('div')
     deptGrid.className = 'ref-dept-grid'
-    deptGrid.innerHTML = DEPTS.map(d => `
-      <div class="ref-dept-tile">
+    deptGrid.innerHTML = depts.map(d => `
+      <div class="ref-dept-tile ${d.lvl === 0 ? 'inactive' : ''}">
         <img src="${ua(d.asset)}" alt="" class="ref-dept-tile__img">
         <span class="ref-dept-tile__name">${d.name}</span>
-        <span class="ref-dept-tile__lvl">Sv ${d.lvl}</span>
+        <span class="ref-dept-tile__lvl">${d.lvl === 0 ? '—' : `Sv ${d.lvl}`}</span>
       </div>
     `).join('')
     this.el.appendChild(deptGrid)

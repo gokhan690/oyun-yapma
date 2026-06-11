@@ -1809,3 +1809,236 @@
 .ref-ipo-card__row b.ready { color: var(--r-success); }
 .ref-ipo-card .ref-perf-track { margin: 2px 0 5px; }
 .ref-ipo-card__meta { font-size: 10.5px; font-weight: 700; color: var(--r-muted); text-align: right; }
+
+/* ===== Sağlık & Hastalık (RefCareerPage) ===== */
+.ref-health-card {
+  margin: 0 14px 8px; padding: 12px 14px; border-radius: var(--r-md);
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt); box-shadow: var(--r-shadow-sm);
+}
+.ref-health-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12.5px; font-weight: 700; color: var(--r-text); margin-bottom: 6px;
+}
+.ref-health-val { font-size: 13px; font-weight: 900; color: var(--r-success); }
+.ref-disease-list-title {
+  font-size: 11px; font-weight: 800; color: var(--r-danger); margin: 10px 0 6px; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.ref-disease-list { display: flex; flex-direction: column; gap: 8px; }
+.ref-disease-row {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(220,38,38,0.06); border: 1px solid rgba(220,38,38,0.18);
+  border-radius: var(--r-md); padding: 9px 12px;
+}
+.ref-disease-emoji { font-size: 20px; flex-shrink: 0; }
+.ref-disease-info { flex: 1; min-width: 0; }
+.ref-disease-name { font-size: 12.5px; font-weight: 800; color: var(--r-text); }
+.ref-disease-dmg { font-size: 10.5px; font-weight: 700; color: var(--r-danger); margin-top: 1px; }
+.ref-disease-treat-btn {
+  flex-shrink: 0; padding: 6px 11px; border-radius: var(--r-pill);
+  background: var(--r-danger); color: #fff; border: none;
+  font-size: 10.5px; font-weight: 800; cursor: pointer; font-family: 'Outfit', system-ui, sans-serif;
+  white-space: nowrap;
+}
+.ref-disease-treat-btn:active { opacity: 0.8; }
+.ref-disease-ok {
+  font-size: 11.5px; font-weight: 700; color: var(--r-success);
+  margin-top: 8px; text-align: center; padding: 6px 0;
+}
+
+/* ===== Şöhret Kariyeri (RefCareerPage) ===== */
+.ref-fame-section { margin-bottom: 4px; }
+.ref-fame-inactive {
+  font-size: 11.5px; font-weight: 700; color: var(--r-muted);
+  padding: 0 14px 8px;
+}
+.ref-fame-pick-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 0 14px 10px;
+}
+.ref-fame-pick-card {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 8px; border-radius: var(--r-md); cursor: pointer;
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  font-family: 'Outfit', system-ui, sans-serif; text-align: center;
+}
+.ref-fame-pick-card:active { opacity: 0.8; }
+.ref-fame-pick-emoji { font-size: 24px; }
+.ref-fame-pick-name { font-size: 10.5px; font-weight: 800; color: var(--r-text); }
+.ref-fame-pick-income { font-size: 10px; font-weight: 700; color: var(--r-success); }
+.ref-fame-active {
+  margin: 0 14px 8px; padding: 12px 14px; border-radius: var(--r-md);
+  background: linear-gradient(135deg, rgba(255,193,7,0.1), rgba(255,152,0,0.08));
+  border: 1.5px solid rgba(255,193,7,0.3); box-shadow: var(--r-shadow-sm);
+}
+.ref-fame-active__head {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; font-weight: 800; color: var(--r-text); margin-bottom: 6px;
+}
+.ref-fame-level { font-size: 11px; font-weight: 700; color: var(--r-gold-dk); }
+.ref-fame-income {
+  font-size: 11px; font-weight: 700; color: var(--r-success); margin: 8px 0 6px;
+}
+.ref-fame-quit-btn {
+  padding: 5px 12px; border-radius: var(--r-pill); border: 1px solid var(--r-border);
+  background: var(--r-card); color: var(--r-muted); font-size: 10.5px; font-weight: 700;
+  cursor: pointer; font-family: 'Outfit', system-ui, sans-serif;
+}
+.ref-fame-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ref-fame-action-btn {
+  padding: 7px 12px; border-radius: var(--r-pill);
+  background: var(--r-teal); color: #fff; border: none;
+  font-size: 11px; font-weight: 800; cursor: pointer; font-family: 'Outfit', system-ui, sans-serif;
+}
+.ref-fame-action-btn:active { opacity: 0.8; }
+
+/* ===== Karma ===== */
+.ref-karma-row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin: 0 14px 12px; padding: 10px 14px; border-radius: var(--r-md);
+  font-size: 13px; font-weight: 800; border: 1px solid var(--r-border-lt);
+}
+.ref-karma-good { background: rgba(5,150,105,0.08); border-color: rgba(5,150,105,0.25); color: var(--r-success); }
+.ref-karma-bad  { background: rgba(220,38,38,0.08); border-color: rgba(220,38,38,0.25); color: var(--r-danger); }
+.ref-karma-val { font-size: 15px; font-weight: 900; }
+
+/* ===== Kardeşler (RefFamilyPage) ===== */
+.ref-sibling-list { padding: 2px 14px 8px; display: flex; flex-direction: column; gap: 8px; }
+.ref-sibling-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md); padding: 10px 12px; box-shadow: var(--r-shadow-sm);
+}
+.ref-sibling-row.deceased { opacity: 0.55; }
+.ref-sibling-emoji { font-size: 22px; flex-shrink: 0; }
+.ref-sibling-main { flex: 1; min-width: 0; }
+.ref-sibling-name { font-size: 12.5px; font-weight: 800; color: var(--r-text); }
+.ref-sibling-meta { font-size: 10.5px; font-weight: 600; color: var(--r-muted); margin: 2px 0 4px; }
+.ref-sibling-deceased { font-size: 10px; font-weight: 700; color: var(--r-muted-lt); font-style: italic; }
+.ref-sibling-visit-btn {
+  flex-shrink: 0; padding: 6px 10px; border-radius: var(--r-pill);
+  background: var(--r-teal); color: #fff; border: none;
+  font-size: 10px; font-weight: 800; cursor: pointer; font-family: 'Outfit', system-ui, sans-serif;
+  white-space: nowrap;
+}
+.ref-sibling-visit-btn:active { opacity: 0.8; }
+
+/* ===== Evcil Hayvanlar (RefFamilyPage) ===== */
+.ref-pet-list { padding: 2px 14px 8px; display: flex; flex-direction: column; gap: 8px; }
+.ref-pet-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md); padding: 10px 12px; box-shadow: var(--r-shadow-sm);
+}
+.ref-pet-emoji { font-size: 22px; flex-shrink: 0; }
+.ref-pet-main { flex: 1; min-width: 0; }
+.ref-pet-name { font-size: 12.5px; font-weight: 800; color: var(--r-text); }
+.ref-pet-meta { font-size: 10.5px; font-weight: 600; color: var(--r-muted); margin: 2px 0 4px; }
+.ref-pet-life { }
+
+/* ===== Profil Sayfası (RefProfilePage) ===== */
+.ref-profile-page { }
+.ref-profile-hero {
+  display: flex; align-items: center; gap: 16px;
+  margin: 0 14px 12px; padding: 16px 14px; border-radius: var(--r-lg);
+  background: linear-gradient(135deg, var(--r-card), var(--r-card-soft));
+  border: 1px solid var(--r-border-lt); box-shadow: var(--r-shadow-sm);
+}
+.ref-profile-avatar-wrap { position: relative; flex-shrink: 0; }
+.ref-profile-avatar {
+  width: 72px; height: 72px; border-radius: 50%; object-fit: cover;
+  border: 2.5px solid var(--r-teal); display: block;
+}
+.ref-profile-avatar-ring {
+  position: absolute; inset: -4px; border-radius: 50%;
+  border: 2px solid rgba(19,184,166,0.3); pointer-events: none;
+}
+.ref-profile-hero-info { flex: 1; min-width: 0; }
+.ref-profile-name { font-size: 17px; font-weight: 900; color: var(--r-text); }
+.ref-profile-title { font-size: 11px; font-weight: 700; color: var(--r-teal-dk); text-transform: uppercase; letter-spacing: 0.3px; margin: 2px 0 6px; }
+.ref-profile-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.ref-profile-meta-chip {
+  font-size: 10.5px; font-weight: 700; color: var(--r-muted);
+  background: var(--r-surface2); border-radius: var(--r-pill); padding: 2px 8px;
+}
+.ref-profile-stars { margin-top: 2px; }
+.ref-profile-info-section {
+  margin: 0 14px 12px; padding: 12px 14px; border-radius: var(--r-md);
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt); box-shadow: var(--r-shadow-sm);
+}
+.ref-profile-info-title {
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--r-muted-lt); margin-bottom: 10px;
+}
+.ref-profile-stat-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12.5px; font-weight: 700; color: var(--r-text2); margin-bottom: 4px;
+}
+.ref-profile-stat-lbl { color: var(--r-text); }
+.ref-profile-stat-val { font-weight: 900; color: var(--r-text); }
+.ref-profile-karma .ref-profile-stat-val { font-size: 14px; }
+.ref-profile-ach-btn {
+  display: block; width: calc(100% - 28px); margin: 0 14px 16px;
+  padding: 13px 16px; border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--r-gold), var(--r-gold-dk));
+  color: #fff; border: none; font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 14px; font-weight: 800; cursor: pointer; text-align: center;
+  box-shadow: var(--r-shadow-sm);
+}
+.ref-profile-ach-btn:active { opacity: 0.85; }
+
+/* ===== Banka hızlı işlemleri (RefMarketPage) ===== */
+.ref-bank-actions {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+  padding: 8px 14px 4px;
+}
+.ref-bank-btn {
+  padding: 9px 10px; border-radius: var(--r-md); border: none;
+  font-family: 'Outfit', system-ui, sans-serif; font-size: 11px; font-weight: 800;
+  color: #fff; cursor: pointer; box-shadow: var(--r-shadow-sm);
+}
+.ref-bank-btn:active { opacity: 0.82; }
+.ref-bank-btn:disabled { opacity: 0.4; cursor: default; }
+.ref-bank-btn.deposit  { background: linear-gradient(135deg, var(--r-teal), var(--r-teal-dk)); }
+.ref-bank-btn.withdraw { background: linear-gradient(135deg, #5a6e80, #43525f); }
+.ref-bank-btn.loan     { background: linear-gradient(135deg, var(--r-gold), var(--r-gold-dk)); }
+.ref-bank-btn.repay    { background: linear-gradient(135deg, var(--r-success), #1fa557); }
+
+/* ===== Eş kartı (RefFamilyPage — gerçek Dynasty) ===== */
+.ref-spouse-card {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 14px 10px; padding: 12px 14px; border-radius: var(--r-md);
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt); box-shadow: var(--r-shadow-sm);
+}
+.ref-spouse-card.single { opacity: 0.82; }
+.ref-spouse-emoji { font-size: 26px; flex-shrink: 0; }
+.ref-spouse-main { flex: 1; min-width: 0; }
+.ref-spouse-name { font-size: 13px; font-weight: 900; color: var(--r-text); }
+.ref-spouse-tag {
+  font-size: 8.5px; font-weight: 800; letter-spacing: 0.4px; vertical-align: middle;
+  color: #fff; background: var(--r-teal); border-radius: var(--r-pill); padding: 1px 7px; margin-left: 4px;
+}
+.ref-spouse-meta { font-size: 10.5px; font-weight: 600; color: var(--r-muted); margin: 2px 0 6px; }
+.ref-spouse-sat { font-size: 10px; font-weight: 700; color: var(--r-muted); }
+.ref-spouse-sat .ref-perf-track { margin-top: 3px; }
+
+/* ===== Çocuk satırları (gerçek Dynasty) ===== */
+.ref-child-avatar { font-size: 26px; flex-shrink: 0; width: 40px; text-align: center; }
+.ref-child-edu { font-size: 10px; font-weight: 700; color: var(--r-muted); margin-top: 4px; }
+.ref-child-edu .ref-perf-track { margin-top: 3px; }
+
+/* ===== Miras kalemleri (gerçek legacyItems) ===== */
+.ref-legacy-ico-emoji { font-size: 22px; flex-shrink: 0; width: 34px; text-align: center; }
+.ref-legacy-row.off { opacity: 0.55; }
+.ref-legacy-desc { font-size: 10px; font-weight: 600; color: var(--r-muted); margin-top: 2px; }
+
+/* ===== Pasif departman ===== */
+.ref-dept-tile.inactive { opacity: 0.45; filter: grayscale(0.7); }
+
+/* ===== Header profil tıklanabilir alan ===== */
+.ref-header__left--clickable {
+  cursor: pointer; border-radius: var(--r-md); padding: 4px 6px; margin: -4px -6px;
+  transition: background 0.15s;
+}
+.ref-header__left--clickable:active { background: rgba(255,255,255,0.08); }
+.ref-header__profile-chevron {
+  font-size: 20px; font-weight: 300; color: var(--r-muted-lt); margin-left: 4px; align-self: center;
+}

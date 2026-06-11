@@ -73,7 +73,9 @@ export class RefFirmsPage implements RefPage {
   // Canlı producer kartları
   private producerCardsContainer!: HTMLElement
   private producerCards = new Map<string, HTMLElement>()
+  private cardSignatures = new Map<string, string>()
   private summaryEl?: HTMLElement
+  private lastSummaryHtml = ''
   private kpiStrip?: RefKpiStrip
 
   private firms?: FirmData[]
@@ -262,13 +264,25 @@ export class RefFirmsPage implements RefPage {
     return card
   }
 
-  /** Satın alma/para değişince yalnız değişen kartları yeniden çiz (tüm sayfa değil). */
+  private cardSignature(def: { id: string }, s: GameState): string {
+    const owned    = s.producers[def.id] ?? 0
+    const unlocked = isProducerUnlocked(def as Parameters<typeof isProducerUnlocked>[0], s.totalEarned, s.forcedUnlocks, s.ipoCount)
+    const cost     = s.producerCostFor(def as Parameters<typeof s.producerCostFor>[0], owned, 1)
+    const canBuy   = unlocked && s.money >= cost
+    const income   = owned > 0 ? Math.round(s.producerIncome(def as Parameters<typeof s.producerIncome>[0])) : 0
+    return `${owned}|${unlocked ? 1 : 0}|${canBuy ? 1 : 0}|${cost}|${income}`
+  }
+
+  /** İmza tabanlı diff — yalnız durumu değişen kartı yeniden çizer. */
   private refreshProducerCards(): void {
     if (!this.state || !this.producerCardsContainer) return
     const s = this.state
     for (const def of NORMAL_PRODUCERS) {
       const existing = this.producerCards.get(def.id)
       if (!existing) continue
+      const sig = this.cardSignature(def, s)
+      if (sig === this.cardSignatures.get(def.id)) continue
+      this.cardSignatures.set(def.id, sig)
       const newCard = this.buildOneProducerCard(def, s)
       existing.replaceWith(newCard)
       this.producerCards.set(def.id, newCard)
@@ -280,10 +294,13 @@ export class RefFirmsPage implements RefPage {
     if (!this.summaryEl || !this.state) return
     const s = this.state
     const ownedTypes = NORMAL_PRODUCERS.filter(p => (s.producers[p.id] ?? 0) > 0).length
-    this.summaryEl.innerHTML = `
+    const html = `
       <span class="ref-summary-count">${NORMAL_PRODUCERS.length} işletme türü · ${ownedTypes} sahip</span>
       <span class="ref-summary-total">Nakit: ${fmtMoney(Math.round(s.money))}</span>
     `
+    if (html === this.lastSummaryHtml) return
+    this.lastSummaryHtml = html
+    this.summaryEl.innerHTML = html
   }
 
   // ── Mock (saf önizleme, state yok) ───────────────────────────────────

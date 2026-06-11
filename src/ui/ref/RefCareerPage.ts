@@ -1,54 +1,55 @@
-import { sectionTitle, ua, fmtMoney } from './refShared'
-import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
+import { sectionTitle, fmtMoney, refToast } from './refShared'
 import type { RefCareerVM } from './refAppDataAdapter'
 import type { RefPage } from './RefApp'
+import type { GameState } from '../../game/GameState'
+import type { DiseaseId } from '../../game/Diseases'
+import { FAME_CAREERS, fameLevelLabel } from '../../game/Fame'
+import type { FameCareerType } from '../../game/Fame'
+import { diseaseDef } from '../../game/Diseases'
+import { PLAYER_RANKS, rankProgress } from '../../game/PlayerRank'
 
 const MOCK_CAREER: RefCareerVM = {
   jobTitle: 'Holding YK Başkanı', level: 24, salaryDaily: 48_000, stress: 48,
   xpPct: 64, xpText: '₺248M / ₺1Mr', nextRank: 'Sektör Lideri', seniorityYears: 6,
+  health: 72, healthLabel: 'İyi', diseases: [], fame: 0, fameLabel: 'Yeni Başlayan',
+  fameCareerName: null, fameCareerType: null, fameIsActive: false, karma: 0, siblingCount: 0,
 }
-
-interface DailyAction { ico: string; label: string; effect: string }
-const ACTIONS: DailyAction[] = [
-  { ico: '🕐', label: 'Mesai Yap',    effect: '+₺2.4K · +6 XP' },
-  { ico: '🌙', label: 'Ek Mesai',     effect: '+₺3.8K · +stres' },
-  { ico: '🤝', label: 'Müşteri Bul',  effect: '+1 fırsat' },
-  { ico: '💼', label: 'Satış Kapat',  effect: '+₺5K · +12 XP' },
-  { ico: '🎓', label: 'Eğitim Al',    effect: '+beceri' },
-  { ico: '🌐', label: 'Networking',   effect: '+1 bağlantı' },
-]
-
-interface Goal { ico: string; name: string; desc: string; pct: number; reward: string }
-const GOALS: Goal[] = [
-  { ico: '🪙', name: '₺500 Kazan', desc: 'İlk küçük işletmeni aç', pct: 70, reward: 'İlk firma' },
-  { ico: '🚀', name: '₺10.000 Net Değer', desc: 'Girişimci unvanı kazan', pct: 32, reward: 'Girişimci' },
-]
-
-interface Skill { asset: string; name: string; level: number; max: number; pct: number }
-const SKILLS: Skill[] = [
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.marketing,      name: 'Pazarlama', level: 7, max: 10, pct: 70 },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.research,       name: 'Ar-Ge',     level: 5, max: 10, pct: 50 },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.marketAnalysis, name: 'Finans',    level: 8, max: 10, pct: 82 },
-]
 
 export class RefCareerPage implements RefPage {
   readonly el: HTMLElement
   readonly title = 'KARİYER'
 
-  constructor(vm?: RefCareerVM) {
-    const c = vm ?? MOCK_CAREER
+  private dynWrap!: HTMLElement
+  private jobCard!: HTMLElement
+  private vm: RefCareerVM
+  private state?: GameState
+  private lastDynSig = ''
+  private lastJobSig = ''
+
+  constructor(vm?: RefCareerVM, state?: GameState) {
+    this.vm = vm ?? MOCK_CAREER
+    this.state = state
+
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-career-page'
+    this.jobCard = document.createElement('div')
+    this.jobCard.className = 'ref-job-card'
+    this.jobCard.innerHTML = this.jobCardHtml(this.vm)
+    this.el.appendChild(this.jobCard)
+    this.dynWrap = document.createElement('div')
+    this.dynWrap.className = 'ref-career-dyn'
+    this.el.appendChild(this.dynWrap)
+    this.renderDyn(this.vm)
+    this.el.addEventListener('click', (e) => this.handleClick(e))
+  }
 
-    // Aktif iş kartı (gerçek: maaş/stres/kıdem/unvan; fallback: şirket/level)
-    const job = document.createElement('div')
-    job.className = 'ref-job-card'
-    job.innerHTML = `
+  private jobCardHtml(c: RefCareerVM): string {
+    return `
       <div class="ref-job-card__top">
         <div class="ref-job-card__icon">💼</div>
         <div class="ref-job-card__id">
           <div class="ref-job-card__title">${c.jobTitle}</div>
-          <div class="ref-job-card__company">Tam zamanlı · Aktif</div>
+          <div class="ref-job-card__company">Kariyer Basamağı · Aktif</div>
         </div>
         <div class="ref-job-card__lvl">LVL ${c.level}</div>
       </div>
@@ -59,7 +60,7 @@ export class RefCareerPage implements RefPage {
       </div>
       <div class="ref-job-bars">
         <div class="ref-job-bar">
-          <div class="ref-job-bar__lbl"><span>Servet Hedefi</span><span>${c.xpText}</span></div>
+          <div class="ref-job-bar__lbl"><span>Basamak İlerlemesi</span><span>${c.xpText}</span></div>
           <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:${c.xpPct}%"></div></div>
         </div>
         <div class="ref-job-bar">
@@ -68,57 +69,225 @@ export class RefCareerPage implements RefPage {
         </div>
       </div>
     `
-    this.el.appendChild(job)
+  }
 
-    // Bugünkü aksiyonlar (önizleme — butonlar işlem yapmaz)
-    this.el.appendChild(sectionTitle('Bugünkü Aksiyonlar <span class="ref-demo-tag">önizleme</span>', '3 hak'))
-    const actions = document.createElement('div')
-    actions.className = 'ref-action-grid'
-    actions.innerHTML = ACTIONS.map(a => `
-      <button class="ref-action-tile" type="button" disabled>
-        <span class="ref-action-tile__ico">${a.ico}</span>
-        <span class="ref-action-tile__lbl">${a.label}</span>
-        <span class="ref-action-tile__eff">${a.effect}</span>
-      </button>
-    `).join('')
-    this.el.appendChild(actions)
-    const actNote = document.createElement('div')
-    actNote.className = 'ref-preview-note'
-    actNote.textContent = '🔒 Önizleme modu · aksiyonlar işlem yapmaz'
-    this.el.appendChild(actNote)
+  private renderDyn(c: RefCareerVM): void {
+    this.dynWrap.innerHTML = ''
+    this.dynWrap.appendChild(this.buildHealthSection(c))
+    this.dynWrap.appendChild(this.buildFameSection(c))
+    this.dynWrap.appendChild(this.buildKarmaRow(c))
+  }
 
-    // İlk hedefler (örnek — gerçek hedefler Ana Panel'de türetiliyor)
-    this.el.appendChild(sectionTitle('İlk Hedefler <span class="ref-demo-tag">örnek</span>'))
-    const goals = document.createElement('div')
-    goals.className = 'ref-cgoal-list'
-    goals.innerHTML = GOALS.map(g => `
-      <div class="ref-cgoal-row">
-        <span class="ref-cgoal-ico">${g.ico}</span>
-        <div class="ref-cgoal-main">
-          <div class="ref-cgoal-head"><span class="ref-cgoal-name">${g.name}</span><span class="ref-cgoal-reward">🎁 ${g.reward}</span></div>
-          <div class="ref-cgoal-desc">${g.desc}</div>
-          <div class="ref-perf-track sm"><div class="ref-perf-fill high" style="width:${g.pct}%"></div></div>
-        </div>
+  private buildHealthSection(c: RefCareerVM): HTMLElement {
+    const wrap = document.createElement('div')
+    const hClass = c.health >= 70 ? 'high' : c.health >= 40 ? 'medium' : 'low'
+    wrap.appendChild(sectionTitle('Sağlık', `${c.health}% · ${c.healthLabel}`))
+
+    const card = document.createElement('div')
+    card.className = 'ref-health-card'
+    card.innerHTML = `
+      <div class="ref-health-row">
+        <span>💚 Sağlık Puanı</span><span class="ref-health-val">${c.health}%</span>
       </div>
-    `).join('')
-    this.el.appendChild(goals)
+      <div class="ref-perf-track"><div class="ref-perf-fill ${hClass}" style="width:${c.health}%"></div></div>
+    `
 
-    // Beceriler (demo — beceri sistemi henüz adapter'a bağlı değil)
-    this.el.appendChild(sectionTitle('Beceriler <span class="ref-demo-tag">demo</span>'))
-    const skills = document.createElement('div')
-    skills.className = 'ref-skill-list'
-    skills.innerHTML = SKILLS.map(s => `
-      <div class="ref-skill-row">
-        <img src="${ua(s.asset)}" alt="" class="ref-skill-ico">
-        <div class="ref-skill-main">
-          <div class="ref-skill-head">
-            <span class="ref-skill-name">${s.name}</span>
-            <span class="ref-skill-lvl">${s.level}/${s.max}</span>
+    if (c.diseases.length > 0) {
+      const dTitle = document.createElement('div')
+      dTitle.className = 'ref-disease-list-title'
+      dTitle.textContent = '🏥 Aktif Hastalıklar'
+      card.appendChild(dTitle)
+      const list = document.createElement('div')
+      list.className = 'ref-disease-list'
+      for (const d of c.diseases) {
+        const row = document.createElement('div')
+        row.className = 'ref-disease-row'
+        row.innerHTML = `
+          <span class="ref-disease-emoji">${d.emoji}</span>
+          <div class="ref-disease-info">
+            <div class="ref-disease-name">${d.name}</div>
+            <div class="ref-disease-dmg">−${d.dailyDamage} sağlık/gün</div>
           </div>
-          <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:${s.pct}%"></div></div>
+          <button class="ref-disease-treat-btn" type="button" data-disease="${d.id}">
+            Tedavi · ${fmtMoney(d.treatCost)}
+          </button>
+        `
+        list.appendChild(row)
+      }
+      card.appendChild(list)
+    } else {
+      const ok = document.createElement('div')
+      ok.className = 'ref-disease-ok'
+      ok.textContent = '✅ Aktif hastalık yok'
+      card.appendChild(ok)
+    }
+    wrap.appendChild(card)
+    return wrap
+  }
+
+  private buildFameSection(c: RefCareerVM): HTMLElement {
+    const wrap = document.createElement('div')
+    wrap.className = 'ref-fame-section'
+    wrap.appendChild(sectionTitle('Şöhret Kariyeri', c.fameIsActive ? (c.fameCareerName ?? '') : 'Pasif'))
+
+    if (c.fameIsActive && c.fameCareerType) {
+      const career = FAME_CAREERS.find((f) => f.id === c.fameCareerType)
+      const active = document.createElement('div')
+      active.className = 'ref-fame-active'
+      active.innerHTML = `
+        <div class="ref-fame-active__head">
+          <span>${career?.emoji ?? '⭐'} ${c.fameCareerName}</span>
+          <span class="ref-fame-level">${c.fameLabel} · ${c.fame}%</span>
         </div>
-      </div>
-    `).join('')
-    this.el.appendChild(skills)
+        <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:${c.fame}%"></div></div>
+        <div class="ref-fame-income">📈 Şöhret geliri: ${fmtMoney(c.fame * c.fame * 12 + (career?.baseDailyIncome ?? 0))}/gün</div>
+        <button class="ref-fame-quit-btn" type="button" data-action="quit_fame">Kariyeri Bırak</button>
+      `
+      if (career) {
+        const actWrap = document.createElement('div')
+        actWrap.className = 'ref-fame-actions'
+        for (const act of career.actions) {
+          const btn = document.createElement('button')
+          btn.className = 'ref-fame-action-btn'
+          btn.type = 'button'
+          btn.dataset.action = `fame_action:${act.id}`
+          btn.innerHTML = `${act.emoji} ${act.label}${act.cost > 0 ? ` · ${fmtMoney(act.cost)}` : ''}`
+          actWrap.appendChild(btn)
+        }
+        active.appendChild(actWrap)
+      }
+      wrap.appendChild(active)
+    } else {
+      const note = document.createElement('div')
+      note.className = 'ref-fame-inactive'
+      note.textContent = 'Şöhret kariyeri başlatmak için bir alan seç:'
+      wrap.appendChild(note)
+      const grid = document.createElement('div')
+      grid.className = 'ref-fame-pick-grid'
+      for (const career of FAME_CAREERS) {
+        const card = document.createElement('button')
+        card.className = 'ref-fame-pick-card'
+        card.type = 'button'
+        card.dataset.action = `start_fame:${career.id}`
+        card.innerHTML = `
+          <div class="ref-fame-pick-emoji">${career.emoji}</div>
+          <div class="ref-fame-pick-name">${career.name}</div>
+          <div class="ref-fame-pick-income">${fmtMoney(career.baseDailyIncome)}/gün</div>
+        `
+        grid.appendChild(card)
+      }
+      wrap.appendChild(grid)
+    }
+    return wrap
+  }
+
+  private buildKarmaRow(c: RefCareerVM): HTMLElement {
+    const row = document.createElement('div')
+    row.className = `ref-karma-row ${c.karma >= 0 ? 'ref-karma-good' : 'ref-karma-bad'}`
+    row.innerHTML = `
+      <span>${c.karma >= 0 ? '😇' : '😈'} Karma</span>
+      <span class="ref-karma-val">${c.karma >= 0 ? '+' : ''}${c.karma}</span>
+    `
+    return row
+  }
+
+  private dynSig(c: RefCareerVM): string {
+    return `${c.health}|${c.diseases.map((d) => d.id).join(',')}|${c.fame}|${c.fameIsActive}|${c.fameCareerType}|${c.karma}`
+  }
+
+  private jobSig(c: RefCareerVM): string {
+    return `${c.jobTitle}|${c.level}|${Math.round(c.salaryDaily)}|${c.stress}|${c.xpPct}|${c.nextRank}`
+  }
+
+  refresh(state: GameState): void {
+    this.state = state
+    const vm = this.buildVMFromState(state)
+
+    const jSig = this.jobSig(vm)
+    if (jSig !== this.lastJobSig) {
+      this.lastJobSig = jSig
+      this.jobCard.innerHTML = this.jobCardHtml(vm)
+    }
+
+    const sig = this.dynSig(vm)
+    if (sig === this.lastDynSig) return
+    this.lastDynSig = sig
+    this.renderDyn(vm)
+  }
+
+  private buildVMFromState(state: GameState): RefCareerVM {
+    const st = state as unknown as {
+      fameState?: { careerType: string | null; fameLevel: number; isActive: boolean }
+      diseases?: { id: DiseaseId; diagnosedDay: number }[]
+      karma?: number
+    }
+    const fs = st.fameState
+    const diseases = st.diseases ?? []
+    const karma = st.karma ?? 0
+    const health = Math.round(state.health?.health ?? 100)
+    const fameCareerDef = fs?.careerType
+      ? FAME_CAREERS.find((c) => c.id === fs.careerType)
+      : undefined
+
+    // Gerçek kariyer basamağı: PlayerRank (totalEarned tabanlı) — TEK KAYNAK
+    const rp = rankProgress(state.totalEarned)
+    const age = state.playerAge()
+
+    return {
+      ...this.vm,
+      jobTitle: `${rp.current.emoji} ${rp.current.name}`,
+      level: PLAYER_RANKS.indexOf(rp.current) + 1,
+      salaryDaily: Math.round(state.incomePerDay()),
+      stress: Math.round(state.lifestyle.stress),
+      xpPct: Math.round(rp.pct),
+      xpText: rp.next ? `${fmtMoney(Math.round(state.totalEarned))} / ${fmtMoney(rp.next.minEarned)}` : 'ZİRVE 🏆',
+      nextRank: rp.next ? `${rp.next.emoji} ${rp.next.name}` : '🏆 Zirvede',
+      seniorityYears: Math.max(0, age - 18),
+      health,
+      healthLabel: health >= 80 ? 'İyi' : health >= 50 ? 'Orta' : health >= 20 ? 'Kötü' : 'Kritik',
+      diseases: diseases.map((d) => {
+        const def = diseaseDef(d.id)
+        return { id: d.id, name: def.name, emoji: def.emoji, treatCost: def.treatCost, dailyDamage: def.dailyHealthDamage }
+      }),
+      fame: Math.round(fs?.fameLevel ?? 0),
+      fameLabel: fameLevelLabel(fs?.fameLevel ?? 0),
+      fameCareerName: fameCareerDef?.name ?? null,
+      fameCareerType: fs?.careerType ?? null,
+      fameIsActive: fs?.isActive ?? false,
+      karma,
+    }
+  }
+
+  private handleClick(e: MouseEvent): void {
+    if (!this.state) return
+    const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-action],[data-disease]')
+    if (!btn) return
+
+    const diseaseId = btn.dataset.disease as DiseaseId | undefined
+    if (diseaseId) {
+      const ok = (this.state as unknown as { treatDisease: (id: DiseaseId) => boolean }).treatDisease(diseaseId)
+      refToast(ok ? '💊 Tedavi tamamlandı' : '💸 Para yetersiz', ok ? 'ok' : 'err')
+      return
+    }
+
+    const action = btn.dataset.action
+    if (!action) return
+
+    if (action === 'quit_fame') {
+      ;(this.state as unknown as { quitFameCareer: () => void }).quitFameCareer()
+      refToast('Şöhret kariyeri bırakıldı', 'ok')
+      return
+    }
+    if (action.startsWith('start_fame:')) {
+      const type = action.split(':')[1] as FameCareerType
+      const ok = (this.state as unknown as { startFameCareer: (t: FameCareerType) => boolean }).startFameCareer(type)
+      refToast(ok ? '🌟 Kariyer başladı!' : 'Zaten aktif bir kariyer var', ok ? 'ok' : 'err')
+      return
+    }
+    if (action.startsWith('fame_action:')) {
+      const actionId = action.split(':')[1]!
+      const ok = (this.state as unknown as { doFameAction: (id: string) => boolean }).doFameAction(actionId)
+      refToast(ok ? '⭐ Aksiyon tamamlandı!' : '💸 Para yetersiz', ok ? 'ok' : 'err')
+    }
   }
 }

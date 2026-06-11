@@ -11,6 +11,7 @@ import { RefMarketPage } from './RefMarketPage'
 import { RefEmpirePage } from './RefEmpirePage'
 import { RefFamilyPage } from './RefFamilyPage'
 import { RefAchievementsPage } from './RefAchievementsPage'
+import { RefProfilePage } from './RefProfilePage'
 import type { RefViewModel } from './refAppDataAdapter'
 import type { GameState } from '../../game/GameState'
 
@@ -62,6 +63,9 @@ export class RefApp {
   /** Tembel önbellek: sayfa yalnızca ilk ziyarette kurulur, sonra saklanır. */
   private pages = new Map<RefNavTab, RefPage>()
   private achievements?: RefAchievementsPage
+  private profile?: RefProfilePage
+  /** Şu an gövdede görünen sayfa (profil/başarımlar tab haritasında yok). */
+  private mounted?: RefPage
   private vm?: RefViewModel
   private gameState?: GameState
   private active: RefNavTab
@@ -89,6 +93,7 @@ export class RefApp {
       ...PLAYER,
       ...(vm ? { name: vm.player.name, title: vm.player.title, age: vm.player.age, city: vm.player.city, avatarAsset: vm.player.avatarAsset } : {}),
       onClose: opts.onExit ? () => this.onExit?.() : undefined,
+      onProfile: () => this.showProfile(),
     })
     this.el.appendChild(this.header.el)
 
@@ -121,6 +126,7 @@ export class RefApp {
     if (st) {
       this.unsub = st.subscribe((ev) => {
         if (ev.type === 'purchase') this.refreshActive(st)
+        else if (ev.type === 'health_changed' || ev.type === 'fame_changed') this.refreshActive(st)
         else if (ev.type === 'money_changed' || ev.type === 'passive_income') this.scheduleRefresh(st)
       })
     }
@@ -128,7 +134,7 @@ export class RefApp {
 
   /** Aktif (görünür) sayfanın canlı değerlerini tazele. */
   private refreshActive(st: GameState): void {
-    this.pages.get(this.active)?.refresh?.(st)
+    this.mounted?.refresh?.(st)
   }
 
   /** money_changed/passive_income için ~600ms throttle (her tikte rebuild olmasın). */
@@ -169,10 +175,10 @@ export class RefApp {
         firms.onOpenFirm = (f: FirmData) => this.detail.show(f)
         return firms
       }
-      case 'career': return new RefCareerPage(vm?.career)
+      case 'career': return new RefCareerPage(vm?.career, st)
       case 'market': return new RefMarketPage(st)
       case 'empire': return new RefEmpirePage(st)
-      case 'family': return new RefFamilyPage()
+      case 'family': return new RefFamilyPage(st)
     }
   }
 
@@ -191,7 +197,17 @@ export class RefApp {
     this.mountBody(this.achievements)
   }
 
+  private showProfile(): void {
+    if (!this.profile) {
+      this.profile = new RefProfilePage(this.vm, this.gameState)
+      this.profile.onBack = () => this.show(this.active)
+      this.profile.onOpenAchievements = () => this.showAchievements()
+    }
+    this.mountBody(this.profile)
+  }
+
   private mountBody(page: RefPage): void {
+    this.mounted = page
     // Sayfa değişiminde açık firma detay overlay'ini kapat
     this.detail.hide()
     // Görseller tembel yüklensin (aynı anda onlarca asset decode etmesin)
@@ -224,6 +240,8 @@ export class RefApp {
     for (const page of this.pages.values()) {
       ;(page as { destroy?: () => void }).destroy?.()
     }
+    ;(this.profile as { destroy?: () => void } | undefined)?.destroy?.()
+    ;(this.achievements as { destroy?: () => void } | undefined)?.destroy?.()
     this.el.remove()
   }
 }

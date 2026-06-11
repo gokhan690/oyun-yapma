@@ -1038,6 +1038,25 @@ export class HUD {
         this.modals.showToast(this.root, ev.headline)
         if (this.baronSubTab === 'lifestyle') this.lifestylePanel.render(this.state)
       }
+      if (ev.type === 'life_event_risk_outcome') {
+        this.modals.showToast(this.root, ev.headline)
+      }
+      if (ev.type === 'disease_diagnosed') {
+        this.modals.showAchievementToast(ev.emoji, `Yeni Hastalık: ${ev.name}`, 'Kariyer sayfasından tedavi edebilirsin')
+      }
+      if (ev.type === 'disease_treated') {
+        this.toast(`💊 ${ev.name} tedavi edildi`)
+      }
+      if (ev.type === 'pet_died') {
+        this.toast(`${ev.petEmoji} ${ev.petName} hayatını kaybetti 💔`, true)
+      }
+      if (ev.type === 'sibling_died') {
+        const msg = ev.inheritance > 0 ? ` · Miras: ₺${ev.inheritance.toLocaleString()}` : ''
+        this.toast(`💔 ${ev.siblingName} hayatını kaybetti${msg}`, true)
+      }
+      if (ev.type === 'fame_action') {
+        this.toast(`⭐ Şöhret +${ev.fameDelta.toFixed(1)} (${ev.careerName})`)
+      }
       if (ev.type === 'health_changed') {
         this.renderHealthBar()
       }

@@ -11,6 +11,8 @@ export interface HeaderData {
   notifCount?: number
   /** Test/overlay modunda header'a kapat (✕) butonu ekler. */
   onClose?: () => void
+  /** Avatar/isim alanına tıklayınca profil sayfasını aç. */
+  onProfile?: () => void
 }
 
 export class RefHeader {
@@ -25,7 +27,7 @@ export class RefHeader {
     this.el.className = 'ref-header'
     this.el.innerHTML = `
       <div class="ref-header__row">
-        <div class="ref-header__left">
+        <div class="ref-header__left${data.onProfile ? ' ref-header__left--clickable' : ''}">
           <div class="ref-avatar">
             ${avatarInner}
           </div>
@@ -37,6 +39,7 @@ export class RefHeader {
               <span class="ref-header__meta-item">📍 ${data.city}</span>
             </div>
           </div>
+          ${data.onProfile ? '<span class="ref-header__profile-chevron">›</span>' : ''}
         </div>
         <div class="ref-header__actions">
           <button class="ref-hdr-btn" title="VIP">👑</button>
@@ -52,6 +55,10 @@ export class RefHeader {
 
     if (data.onClose) {
       this.el.querySelector('.ref-hdr-close')!.addEventListener('click', () => data.onClose!())
+    }
+    if (data.onProfile) {
+      const left = this.el.querySelector<HTMLElement>('.ref-header__left')!
+      left.addEventListener('click', () => data.onProfile!())
     }
   }
 

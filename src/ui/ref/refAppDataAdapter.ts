@@ -3,6 +3,10 @@ import { PRODUCERS, producerName, type ProducerDef } from '../../game/Economy'
 import { reputationLabel } from '../../game/Reputation'
 import { cityDef, type CityId } from '../../game/ExpansionMap'
 import type { FirmData, FirmSector, FirmStatus } from './RefCard'
+import { fameLevelLabel, FAME_CAREERS } from '../../game/Fame'
+import type { DiseaseId } from '../../game/Diseases'
+import { diseaseDef } from '../../game/Diseases'
+import { PLAYER_RANKS, rankProgress } from '../../game/PlayerRank'
 
 /*
  * RefAppDataAdapter — SALT OKUNUR. GÜVENLİK DENETİMİ:
@@ -46,6 +50,14 @@ export interface RefDashboardVM {
   goals: RefGoalVM[]
 }
 
+export interface RefDiseaseVM {
+  id: DiseaseId
+  name: string
+  emoji: string
+  treatCost: number
+  dailyDamage: number
+}
+
 export interface RefCareerVM {
   jobTitle: string
   level: number
@@ -55,6 +67,17 @@ export interface RefCareerVM {
   xpText: string
   nextRank: string
   seniorityYears: number
+  // Extended fields (health / fame / karma)
+  health: number
+  healthLabel: string
+  diseases: RefDiseaseVM[]
+  fame: number
+  fameLabel: string
+  fameCareerName: string | null
+  fameCareerType: string | null
+  fameIsActive: boolean
+  karma: number
+  siblingCount: number
 }
 
 export interface RefViewModel {
@@ -331,15 +354,43 @@ export function buildRefViewModel(state: GameState): RefViewModel {
     goals,
   }
 
+  const fameState = (state as unknown as { fameState?: { careerType: string | null; fameLevel: number; isActive: boolean } }).fameState
+  const diseases = (state as unknown as { diseases?: { id: DiseaseId; diagnosedDay: number }[] }).diseases ?? []
+  const siblings = (state as unknown as { siblings?: { isAlive: boolean }[] }).siblings ?? []
+  const karma = (state as unknown as { karma?: number }).karma ?? 0
+  const health = Math.round(state.health?.health ?? 100)
+  const healthLabel = health >= 80 ? 'İyi' : health >= 50 ? 'Orta' : health >= 20 ? 'Kötü' : 'Kritik'
+
+  const diseaseVMs: RefDiseaseVM[] = diseases.map((d) => {
+    const def = diseaseDef(d.id)
+    return { id: d.id, name: def.name, emoji: def.emoji, treatCost: def.treatCost, dailyDamage: def.dailyHealthDamage }
+  })
+
+  const fameCareerDef = fameState?.careerType
+    ? FAME_CAREERS.find((c) => c.id === fameState.careerType)
+    : null
+
+  // Gerçek kariyer basamağı: PlayerRank (totalEarned tabanlı 10 kademe) — TEK KAYNAK
+  const rp = rankProgress(state.totalEarned)
   const career: RefCareerVM = {
-    jobTitle: rank.title,
-    level: rank.idx * 6 + Math.min(6, ownedCities.length + state.ipoCount),
+    jobTitle: `${rp.current.emoji} ${rp.current.name}`,
+    level: PLAYER_RANKS.indexOf(rp.current) + 1,
     salaryDaily: dailyIncome,
     stress: Math.round(state.lifestyle.stress),
-    xpPct: rank.nextMin > 0 ? Math.min(100, Math.round((netWorth / rank.nextMin) * 100)) : 100,
-    xpText: `₺${fmt(netWorth)} / ₺${fmt(rank.nextMin)}`,
-    nextRank: rank.next,
+    xpPct: Math.round(rp.pct),
+    xpText: `₺${fmt(Math.round(state.totalEarned))} / ${rp.next ? '₺' + fmt(rp.next.minEarned) : 'ZİRVE'}`,
+    nextRank: rp.next ? `${rp.next.emoji} ${rp.next.name}` : '🏆 Zirvede',
     seniorityYears: Math.max(0, age - 18),
+    health,
+    healthLabel,
+    diseases: diseaseVMs,
+    fame: Math.round(fameState?.fameLevel ?? 0),
+    fameLabel: fameLevelLabel(fameState?.fameLevel ?? 0),
+    fameCareerName: fameCareerDef?.name ?? null,
+    fameCareerType: fameState?.careerType ?? null,
+    fameIsActive: fameState?.isActive ?? false,
+    karma,
+    siblingCount: siblings.filter((s) => s.isAlive).length,
   }
 
   const player: RefPlayerVM = {

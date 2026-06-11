@@ -81,22 +81,32 @@ export function installRefTestLauncher(state?: GameState): void {
 
   let overlay: HTMLElement | null = null
   let bodyOverflowPrev = ''
+  let appDisplayPrev = ''
   let mo: MutationObserver | null = null
   let pollId: number | null = null
+  let moDebounceTimer: number | null = null
 
   // Launcher görünürlük izleyicileri. Overlay AÇIKKEN durdurulur: buton zaten
   // gizli, ve RefApp her nav geçişinde innerHTML değiştirdiği için observer
   // sürekli tetiklenir → gereksiz arka plan işi/kasma.
   const startWatchers = (): void => {
     if (!mo) {
-      mo = new MutationObserver(() => syncVisibility())
-      mo.observe(document.body, { childList: true, subtree: true })
+      mo = new MutationObserver(() => {
+        // 250ms debounce: RefApp nav değişimleri çok hızlı ateşlenir
+        if (moDebounceTimer !== null) return
+        moDebounceTimer = window.setTimeout(() => {
+          moDebounceTimer = null
+          syncVisibility()
+        }, 250)
+      })
+      mo.observe(document.body, { childList: true, subtree: false })
     }
     if (pollId === null) pollId = window.setInterval(syncVisibility, 600)
   }
   const stopWatchers = (): void => {
     mo?.disconnect()
     mo = null
+    if (moDebounceTimer !== null) { window.clearTimeout(moDebounceTimer); moDebounceTimer = null }
     if (pollId !== null) { window.clearInterval(pollId); pollId = null }
   }
 
@@ -107,6 +117,9 @@ export function installRefTestLauncher(state?: GameState): void {
     overlay?.remove()
     overlay = null
     document.body.style.overflow = bodyOverflowPrev
+    // Eski oyun #app'i geri göster
+    const appEl = document.getElementById('app')
+    if (appEl) appEl.style.display = appDisplayPrev
     startWatchers()   // izleyicileri geri aç
     syncVisibility()
   }
@@ -134,6 +147,13 @@ export function installRefTestLauncher(state?: GameState): void {
       background: '#3a8fd4',
       overscrollBehavior: 'contain',
     } as CSSStyleDeclaration)
+
+    // Eski oyun #app'i gizle: layout cost sıfırlanır, scroll/reflow yoktur
+    const appEl = document.getElementById('app')
+    if (appEl) {
+      appDisplayPrev = appEl.style.display
+      appEl.style.display = 'none'
+    }
 
     const app = new RefApp({ initial: 'firms', onExit: close, data: buildData(), state: state ?? undefined })
     app.mount(overlay)
