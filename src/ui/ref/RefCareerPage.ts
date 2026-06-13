@@ -135,15 +135,35 @@ export class RefCareerPage implements RefPage {
   private buildHealthSection(c: RefCareerVM): HTMLElement {
     const wrap = document.createElement('div')
     const hClass = c.health >= 70 ? 'high' : c.health >= 40 ? 'medium' : 'low'
-    wrap.appendChild(sectionTitle('Sağlık', `${c.health}% · ${c.healthLabel}`))
+    const hEmoji = c.health >= 80 ? '💚' : c.health >= 50 ? '💛' : c.health >= 20 ? '🟠' : '❤️'
+    wrap.appendChild(sectionTitle('Sağlık & Yaşam', `${c.health}% · ${c.healthLabel}`))
 
     const card = document.createElement('div')
     card.className = 'ref-health-card'
     card.innerHTML = `
-      <div class="ref-health-row">
-        <span>💚 Sağlık Puanı</span><span class="ref-health-val">${c.health}%</span>
+      <div class="ref-health-stats">
+        <div class="ref-health-stat">
+          <span class="ref-health-stat__ico">${hEmoji}</span>
+          <div>
+            <div class="ref-health-stat__lbl">Sağlık Puanı</div>
+            <div class="ref-perf-track sm"><div class="ref-perf-fill ${hClass}" style="width:${c.health}%"></div></div>
+          </div>
+          <span class="ref-health-val">${c.health}%</span>
+        </div>
+        <div class="ref-health-stat">
+          <span class="ref-health-stat__ico">😤</span>
+          <div>
+            <div class="ref-health-stat__lbl">Stres</div>
+            <div class="ref-perf-track sm"><div class="ref-perf-fill ${c.stress >= 70 ? 'low' : c.stress >= 45 ? 'medium' : 'high'}" style="width:${c.stress}%"></div></div>
+          </div>
+          <span class="ref-health-val">${c.stress}%</span>
+        </div>
       </div>
-      <div class="ref-perf-track"><div class="ref-perf-fill ${hClass}" style="width:${c.health}%"></div></div>
+      <div class="ref-health-tips">
+        ${c.health >= 80 ? '<div class="ref-health-tip good">✅ Sağlık durumu mükemmel</div>' : ''}
+        ${c.health < 50 ? '<div class="ref-health-tip warn">⚠️ Sağlık düşük — tedavi önerilir</div>' : ''}
+        ${c.stress >= 70 ? '<div class="ref-health-tip warn">⚠️ Stres yüksek — dinlenme gerekli</div>' : ''}
+      </div>
     `
 
     if (c.diseases.length > 0) {

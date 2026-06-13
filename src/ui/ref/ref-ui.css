@@ -2231,3 +2231,50 @@
 /* ===== Onboarding karakter adımları ===== */
 .onboarding-character-grid .onboarding-country-btn .ob-flag { font-size: 26px; }
 .onboarding-character-grid .ob-country-capital { white-space: normal; line-height: 1.25; }
+
+/* ===== CHANGE 1: RefFirmsPage — Firma seviye badge + GELİŞTİR butonu ===== */
+.ref-prod-lvl-pips { display: flex; gap: 3px; padding: 4px 12px 2px; }
+.ref-prod-lvl-pip { width: 20%; height: 4px; border-radius: 2px; background: var(--ref-border, #e2e8f0); }
+.ref-prod-lvl-pip.on { background: var(--ref-accent, #0ea5e9); }
+.ref-prod-lv-badge { font-size: 0.68rem; font-weight: 700; background: #e0f2fe; color: #0369a1; border-radius: 4px; padding: 1px 5px; margin-left: 5px; vertical-align: middle; }
+.ref-prod-lv-badge--max { background: #fef9c3; color: #854d0e; }
+.ref-prod-lv-mult { color: #16a34a; margin-left: 6px; }
+.ref-prod-lvl-btn { display: block; width: calc(100% - 24px); margin: 4px 12px 8px; padding: 7px 10px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; color: #0369a1; font-size: 0.8rem; font-weight: 600; text-align: center; cursor: default; opacity: 0.55; }
+.ref-prod-lvl-btn--active { background: linear-gradient(135deg, #0ea5e9, #0284c7); color: #fff; border-color: transparent; opacity: 1; cursor: pointer; }
+.ref-prod-lvl-btn--active:active { opacity: 0.85; }
+
+/* ===== CHANGE 2: RefEmpirePage — Departman kartları ===== */
+.ref-dept-grid2 { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; }
+.ref-dept-card2 { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px 8px; }
+.ref-dept-card2__head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.ref-dept-card2__icon { font-size: 1.4rem; flex-shrink: 0; }
+.ref-dept-card2__info { flex: 1; min-width: 0; }
+.ref-dept-card2__name { display: block; font-size: 0.82rem; font-weight: 700; color: #1e293b; }
+.ref-dept-card2__bonus { display: block; font-size: 0.7rem; color: #64748b; margin-top: 1px; }
+.ref-dept-badge2 { font-size: 0.65rem; font-weight: 700; background: #f1f5f9; color: #475569; border-radius: 4px; padding: 2px 6px; white-space: nowrap; }
+.ref-dept-badge2--strong { background: #dcfce7; color: #166534; }
+.ref-dept-badge2--critical { background: #fee2e2; color: #991b1b; }
+.ref-dept-lvl-bar { display: flex; gap: 3px; margin-bottom: 7px; }
+.ref-dept-lvl-pip { flex: 1; height: 5px; border-radius: 2px; background: #e2e8f0; }
+.ref-dept-lvl-pip.on { background: #0ea5e9; }
+.ref-dept-upgrade-btn { display: block; width: 100%; padding: 7px 10px; background: linear-gradient(135deg, #0ea5e9, #0284c7); color: #fff; border: none; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer; }
+.ref-dept-upgrade-btn--off { background: #f1f5f9; color: #94a3b8; cursor: default; }
+
+/* ===== CHANGE 3: RefCareerPage — Job card banner + health section ===== */
+.ref-job-card__banner { border-radius: 10px; padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.ref-job-card__banner-left { flex: 1; }
+.ref-job-card__lvl-pill { color: #fff; font-size: 0.72rem; font-weight: 800; padding: 3px 8px; border-radius: 20px; white-space: nowrap; align-self: flex-start; flex-shrink: 0; }
+.ref-career-tips { display: flex; flex-direction: column; gap: 4px; padding: 0 2px 4px; }
+.ref-career-tip { font-size: 0.73rem; padding: 5px 10px; border-radius: 6px; }
+.ref-career-tip--warn { background: #fef3c7; color: #92400e; }
+.ref-career-tip--good { background: #dcfce7; color: #166534; }
+.ref-health-stats { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 6px; }
+.ref-health-stat { display: flex; align-items: center; gap: 8px; }
+.ref-health-stat__ico { font-size: 1.3rem; flex-shrink: 0; }
+.ref-health-stat > div { flex: 1; }
+.ref-health-stat__lbl { font-size: 0.72rem; color: #64748b; margin-bottom: 3px; }
+.ref-health-val { font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+.ref-health-tips { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.ref-health-tip { font-size: 0.72rem; padding: 5px 8px; border-radius: 6px; }
+.ref-health-tip.good { background: #dcfce7; color: #166534; }
+.ref-health-tip.warn { background: #fef3c7; color: #92400e; }
