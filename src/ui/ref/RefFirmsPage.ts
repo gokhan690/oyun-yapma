@@ -4,6 +4,7 @@ import { fmtMoney, refToast } from './refShared'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, isProducerUnlocked, type ProducerDef } from '../../game/Economy'
+import { FIRM_MAX_LEVEL, firmLevelIncomeMult, isFirmMaxLevel } from '../../game/FirmLevels'
 
 /* ── Mock data (gerçek veri/state yoksa saf önizleme) ──────────────────── */
 const MOCK_FIRMS: FirmData[] = [
@@ -211,6 +212,10 @@ export class RefFirmsPage implements RefPage {
     const canBuy   = unlocked && s.money >= cost
     const income   = owned > 0 ? Math.round(s.producerIncome(def)) : Math.round(def.baseIncome)
 
+    const firmLv   = owned > 0 ? (s.producerLevel ? s.producerLevel(def.id) : 1) : 0
+    const lvCost   = owned > 0 && !isFirmMaxLevel(firmLv) ? (s.firmLevelUpCostFor ? s.firmLevelUpCostFor(def) : 0) : 0
+    const canLevelUp = owned > 0 && !isFirmMaxLevel(firmLv) && s.money >= lvCost && lvCost > 0
+
     let stateClass: string
     if (!unlocked && def.ipoRequirement && s.ipoCount < def.ipoRequirement) stateClass = 'locked'
     else if (!unlocked) stateClass = 'locked'
@@ -222,7 +227,6 @@ export class RefFirmsPage implements RefPage {
     card.className = `ref-prod-card ${stateClass}`
     card.dataset.id = def.id
 
-    // Foot: buton veya kilit etiketi
     let footRight: string
     if (!unlocked) {
       const reason = (def.ipoRequirement && s.ipoCount < def.ipoRequirement)
@@ -235,20 +239,41 @@ export class RefFirmsPage implements RefPage {
       footRight = `<button class="ref-prod-btn disabled" type="button" disabled>Para Yetersiz · ${fmtMoney(cost)}</button>`
     }
 
+    const lvPips = owned > 0
+      ? `<div class="ref-prod-lvl-pips">${Array.from({ length: FIRM_MAX_LEVEL }, (_, i) =>
+          `<span class="ref-prod-lvl-pip${i < firmLv ? ' on' : ''}"></span>`).join('')}</div>`
+      : ''
+
+    const lvBadge = owned > 0
+      ? `<span class="ref-prod-lv-badge${isFirmMaxLevel(firmLv) ? ' ref-prod-lv-badge--max' : ''}">Lv.${firmLv}</span>`
+      : ''
+
+    const incomeMult = owned > 0 && firmLv > 1 ? `<small class="ref-prod-lv-mult">×${firmLevelIncomeMult(firmLv).toFixed(2)} gelir</small>` : ''
+
+    const lvBtn = owned > 0
+      ? `<button class="ref-prod-lvl-btn${canLevelUp ? ' ref-prod-lvl-btn--active' : ''}" type="button" data-levelup="${def.id}" ${canLevelUp ? '' : 'disabled'}>
+          ⬆️ GELİŞTİR ${isFirmMaxLevel(firmLv) ? '(MAK)' : `· Lv.${firmLv + 1} · ${fmtMoney(lvCost)}`}
+        </button>`
+      : ''
+
     card.innerHTML = `
       <div class="ref-prod-card__head">
         <span class="ref-prod-emoji">${def.emoji}</span>
         <div class="ref-prod-info">
-          <div class="ref-prod-name">${def.name}${owned > 0 ? `<span class="ref-prod-owned-badge">×${owned}</span>` : ''}</div>
-          <div class="ref-prod-desc">${def.description}</div>
+          <div class="ref-prod-name">${def.name}${owned > 0 ? `<span class="ref-prod-owned-badge">×${owned}</span>` : ''}${lvBadge}</div>
+          <div class="ref-prod-desc">${def.description}${incomeMult}</div>
         </div>
       </div>
+      ${lvPips}
       <div class="ref-prod-stats">
         <span class="ref-prod-stat"><small>Kademe</small><b>T${def.tier}</b></span>
         <span class="ref-prod-stat"><small>${owned > 0 ? 'Gelir' : 'Birim gelir'}</small><b class="inc">${fmtMoney(income)}/g</b></span>
         <span class="ref-prod-stat"><small>Sonraki</small><b>${fmtMoney(cost)}</b></span>
       </div>
-      <div class="ref-prod-card__foot">${footRight}</div>
+      <div class="ref-prod-card__foot">
+        ${footRight}
+        ${lvBtn}
+      </div>
     `
 
     card.querySelector<HTMLButtonElement>('.ref-prod-btn.buyable')?.addEventListener('click', () => {
@@ -256,6 +281,21 @@ export class RefFirmsPage implements RefPage {
       if (ok) refToast(`${def.emoji} ${def.name} alındı`, 'ok')
       else refToast('Satın alınamadı', 'err')
     })
+
+    card.querySelector<HTMLButtonElement>('[data-levelup]')?.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const ok = this.state?.levelUpFirm(def)
+      if (ok) {
+        refToast(`⬆️ ${def.emoji} ${def.name} Lv.${this.state!.producerLevel(def.id)}`, 'ok')
+        const newCard = this.buildOneProducerCard(def, this.state!)
+        card.replaceWith(newCard)
+        this.producerCards.set(def.id, newCard)
+        this.updateSummary()
+      } else {
+        refToast('Seviye atlatılamadı', 'err')
+      }
+    })
+
     return card
   }
 

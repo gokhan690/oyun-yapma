@@ -79,29 +79,45 @@ export class RefCareerPage implements RefPage {
   }
 
   private jobCardHtml(c: RefCareerVM): string {
+    const rankColor = c.level >= 20 ? '#7c3aed' : c.level >= 10 ? '#0369a1' : '#475569'
     return `
-      <div class="ref-job-card__top">
-        <div class="ref-job-card__icon">💼</div>
-        <div class="ref-job-card__id">
+      <div class="ref-job-card__banner" style="background:linear-gradient(135deg,${rankColor}22,${rankColor}08)">
+        <div class="ref-job-card__banner-left">
           <div class="ref-job-card__title">${c.jobTitle}</div>
-          <div class="ref-job-card__company">Kariyer Basamağı · Aktif</div>
+          <div class="ref-job-card__company">Kariyer Seviyesi ${c.level} · ${c.seniorityYears} yıl kıdem</div>
         </div>
-        <div class="ref-job-card__lvl">LVL ${c.level}</div>
+        <div class="ref-job-card__lvl-pill" style="background:${rankColor}">LVL ${c.level}</div>
       </div>
       <div class="ref-job-stats">
-        <div class="ref-job-stat"><span class="ref-job-stat__lbl">Günlük Gelir</span><span class="ref-job-stat__val income">${fmtMoney(c.salaryDaily)}</span></div>
-        <div class="ref-job-stat"><span class="ref-job-stat__lbl">Kıdem</span><span class="ref-job-stat__val">${c.seniorityYears} yıl</span></div>
-        <div class="ref-job-stat"><span class="ref-job-stat__lbl">Sıradaki</span><span class="ref-job-stat__val">${c.nextRank}</span></div>
+        <div class="ref-job-stat">
+          <span class="ref-job-stat__lbl">💰 Günlük Gelir</span>
+          <span class="ref-job-stat__val income">${fmtMoney(c.salaryDaily)}</span>
+        </div>
+        <div class="ref-job-stat">
+          <span class="ref-job-stat__lbl">📅 Aylık Tahmini</span>
+          <span class="ref-job-stat__val income">${fmtMoney(c.salaryDaily * 30)}</span>
+        </div>
+        <div class="ref-job-stat">
+          <span class="ref-job-stat__lbl">🏆 Sıradaki Rütbe</span>
+          <span class="ref-job-stat__val">${c.nextRank}</span>
+        </div>
       </div>
       <div class="ref-job-bars">
         <div class="ref-job-bar">
-          <div class="ref-job-bar__lbl"><span>Basamak İlerlemesi</span><span>${c.xpText}</span></div>
+          <div class="ref-job-bar__lbl"><span>📈 Kariyer İlerlemesi</span><span>${c.xpText}</span></div>
           <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:${c.xpPct}%"></div></div>
         </div>
         <div class="ref-job-bar">
-          <div class="ref-job-bar__lbl"><span>Stres</span><span>${c.stress}%</span></div>
+          <div class="ref-job-bar__lbl">
+            <span>😤 Stres ${c.stress >= 70 ? '⚠️' : ''}</span>
+            <span>${c.stress}%</span>
+          </div>
           <div class="ref-perf-track"><div class="ref-perf-fill ${c.stress >= 70 ? 'low' : c.stress >= 45 ? 'medium' : 'high'}" style="width:${c.stress}%"></div></div>
         </div>
+      </div>
+      <div class="ref-career-tips">
+        ${c.stress >= 70 ? '<div class="ref-career-tip ref-career-tip--warn">⚠️ Stres çok yüksek — sağlık riske girdi</div>' : ''}
+        ${c.xpPct >= 80 ? '<div class="ref-career-tip ref-career-tip--good">🚀 Rütbe atlamaya yakın!</div>' : ''}
       </div>
     `
   }

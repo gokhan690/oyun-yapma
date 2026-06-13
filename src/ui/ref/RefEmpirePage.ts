@@ -12,6 +12,7 @@ import {
   RIVAL_FAMILY_DEFS, isRivalUnlocked, nextLockedRivalDef,
   attitudeLabel, mergeRivalCost,
 } from '../../game/Rivals'
+import { DEPARTMENTS, DEPARTMENT_MAX_LEVEL, departmentUpgradeCost, type DepartmentId } from '../../game/EmpireDepartments'
 
 interface CityAssetDef { key: keyof typeof REF_ASSETS_V2_GENERIC.cities; name: string; id: string }
 const CITY_ASSET_DEFS: CityAssetDef[] = [
@@ -154,6 +155,19 @@ export class RefEmpirePage implements RefPage {
   /* ── Aksiyonlar (tek delege dinleyici) ──────────────────────────────── */
 
   private handleClick(e: Event): void {
+    const deptBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-upgrade-dept]')
+    if (deptBtn && !deptBtn.disabled && this.state) {
+      const id = deptBtn.dataset.upgradeDept as DepartmentId
+      const ok = this.state.upgradeDepartment(id)
+      if (ok) {
+        const def = DEPARTMENTS.find(d => d.id === id)
+        refToast(`${def?.emoji ?? '🏛️'} ${def?.name ?? id} Lv.${this.state.departments[id]}`, 'ok')
+        this.buildManage()
+      } else {
+        refToast('Yetersiz bakiye', 'err')
+      }
+      return
+    }
     const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-action]')
     if (!btn || !this.state) return
     const action = btn.dataset.action ?? ''
@@ -307,19 +321,56 @@ export class RefEmpirePage implements RefPage {
       wrap.appendChild(heatCard)
     }
 
-    // ── Departmanlar ──
-    if (!s) wrap.appendChild(demoBanner('departman paneli — gerçek oyun verisi yok'))
-    const depts = s ? deptLevelsFromState(s) : DEPTS
-    wrap.appendChild(sectionTitle('Departmanlar', `${DEPTS.length} birim`))
+    // ── Departmanlar (yükseltme butonlu gerçek kartlar) ──
+    wrap.appendChild(sectionTitle('Departmanlar', `${DEPARTMENTS.length} birim`))
     const deptGrid = document.createElement('div')
-    deptGrid.className = 'ref-dept-grid'
-    deptGrid.innerHTML = depts.map(d => `
-      <div class="ref-dept-tile ${d.lvl === 0 ? 'inactive' : ''}">
-        <img src="${ua(d.asset)}" alt="" class="ref-dept-tile__img">
-        <span class="ref-dept-tile__name">${d.name}</span>
-        <span class="ref-dept-tile__lvl">${d.lvl === 0 ? '—' : `Sv ${d.lvl}`}</span>
-      </div>
-    `).join('')
+    deptGrid.className = 'ref-dept-grid2'
+    if (s) {
+      deptGrid.innerHTML = DEPARTMENTS.map(d => {
+        const level = s.departments[d.id] ?? 0
+        const maxed = level >= DEPARTMENT_MAX_LEVEL
+        const cost  = departmentUpgradeCost(d.id, level)
+        const canUp = !maxed && s.money >= cost
+        const isStrong   = level >= 5
+        const isCritical = level === 0
+        const badgeCls   = isStrong ? 'ref-dept-badge2--strong' : isCritical ? 'ref-dept-badge2--critical' : ''
+        const badgeTxt   = isStrong ? 'GÜÇLÜ' : isCritical ? 'KRİTİK' : `Lv.${level}`
+        return `
+          <div class="ref-dept-card2">
+            <div class="ref-dept-card2__head">
+              <span class="ref-dept-card2__icon">${d.emoji}</span>
+              <div class="ref-dept-card2__info">
+                <span class="ref-dept-card2__name">${d.name}</span>
+                <span class="ref-dept-card2__bonus">${d.bonusPerLevel}</span>
+              </div>
+              <span class="ref-dept-badge2 ${badgeCls}">${badgeTxt}</span>
+            </div>
+            <div class="ref-dept-lvl-bar">
+              ${Array.from({ length: DEPARTMENT_MAX_LEVEL }, (_, i) =>
+                `<span class="ref-dept-lvl-pip${i < level ? ' on' : ''}"></span>`).join('')}
+            </div>
+            <button type="button" class="ref-dept-upgrade-btn${canUp ? '' : ' ref-dept-upgrade-btn--off'}"
+              data-upgrade-dept="${d.id}" ${canUp ? '' : 'disabled'}>
+              ${maxed ? '✓ Maks Seviye' : canUp ? `Yükselt · ${fmtMoney(cost)}` : level === 0 ? `🔒 ${fmtMoney(cost)}` : fmtMoney(cost)}
+            </button>
+          </div>`
+      }).join('')
+    } else {
+      deptGrid.innerHTML = DEPTS.map(d => `
+        <div class="ref-dept-card2">
+          <div class="ref-dept-card2__head">
+            <span class="ref-dept-card2__icon"><img src="${ua(d.asset)}" style="width:28px;height:28px;object-fit:cover;border-radius:6px" alt=""></span>
+            <div class="ref-dept-card2__info">
+              <span class="ref-dept-card2__name">${d.name}</span>
+            </div>
+            <span class="ref-dept-badge2">${d.lvl === 0 ? '—' : `Lv.${d.lvl}`}</span>
+          </div>
+          <div class="ref-dept-lvl-bar">
+            ${Array.from({ length: 10 }, (_, i) =>
+              `<span class="ref-dept-lvl-pip${i < d.lvl ? ' on' : ''}"></span>`).join('')}
+          </div>
+        </div>`).join('')
+    }
     wrap.appendChild(deptGrid)
 
     // ── Ar-Ge & Yükseltmeler ──
