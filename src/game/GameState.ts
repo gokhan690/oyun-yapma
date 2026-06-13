@@ -993,6 +993,7 @@ export class GameState {
   private eventScheduleRemainingMs = 0
   private eventExpireRemainingMs = 0
   private eventPreviewTimer: number | null = null
+  private _checkingAchievements = false
   private lastNearMissToastAt = 0
   private lastStockTick = Date.now()
   private lastAutoBuyTick = 0
@@ -5593,37 +5594,43 @@ export class GameState {
   }
 
   private checkAchievements(): void {
-    const ctx = {
-      totalEarned: this.totalEarned,
-      totalClicks: this.totalClicks,
-      comboBest: this.comboBest,
-      prestigePoints: this.prestigePoints,
-      producers: this.producers,
-      achievements: this.achievements,
-      lifetimePrestige: this.lifetimePrestige,
-      lifetimeTotalEarned: this.lifetimeTotalEarned,
-      ipoCount: this.ipoCount,
-      managers: this.managers,
-      stockShares: totalShares(this.stock),
-      weeklyClaimed: this.weekly.claimed,
-      seasonTier: currentTier(this.season.xp),
-      prestigeTreeCount: ownedNodeCount(this.prestigeTree),
-      stockTickerCount: ownedTickerCount(this.stock),
-      nightEarnings: this.nightEarningsSession,
-      managerAutoBuyCount: this.managerAutoBuyCount(),
-      dailyStreak: this.dailyStreak,
-      comebackClaimed: this.comebackClaimed,
-      heatSurvived: this.heatSurvived,
-      unlockedThemes: [...this.unlockedThemes],
-      undergroundLawyerUsed: this.undergroundLawyerUsed,
-      dynastyMarried: !!this.dynasty.spouseName,
-      advisorBuys: this.advisorBuys,
-    }
-    const newOnes = checkNewAchievements(ctx)
-    for (const a of newOnes) {
-      this.achievements.add(a.id)
-      this.addMoney(a.reward)
-      this.emit({ type: 'achievement', def: a })
+    if (this._checkingAchievements) return
+    this._checkingAchievements = true
+    try {
+      const ctx = {
+        totalEarned: this.totalEarned,
+        totalClicks: this.totalClicks,
+        comboBest: this.comboBest,
+        prestigePoints: this.prestigePoints,
+        producers: this.producers,
+        achievements: this.achievements,
+        lifetimePrestige: this.lifetimePrestige,
+        lifetimeTotalEarned: this.lifetimeTotalEarned,
+        ipoCount: this.ipoCount,
+        managers: this.managers,
+        stockShares: totalShares(this.stock),
+        weeklyClaimed: this.weekly.claimed,
+        seasonTier: currentTier(this.season.xp),
+        prestigeTreeCount: ownedNodeCount(this.prestigeTree),
+        stockTickerCount: ownedTickerCount(this.stock),
+        nightEarnings: this.nightEarningsSession,
+        managerAutoBuyCount: this.managerAutoBuyCount(),
+        dailyStreak: this.dailyStreak,
+        comebackClaimed: this.comebackClaimed,
+        heatSurvived: this.heatSurvived,
+        unlockedThemes: [...this.unlockedThemes],
+        undergroundLawyerUsed: this.undergroundLawyerUsed,
+        dynastyMarried: !!this.dynasty.spouseName,
+        advisorBuys: this.advisorBuys,
+      }
+      const newOnes = checkNewAchievements(ctx)
+      for (const a of newOnes) {
+        this.achievements.add(a.id)
+        this.money += a.reward
+        this.emit({ type: 'achievement', def: a })
+      }
+    } finally {
+      this._checkingAchievements = false
     }
   }
 
@@ -5670,7 +5677,7 @@ export class GameState {
     if (level >= FIRM_MAX_LEVEL) return false
     const cost = this.firmLevelUpCostFor(def)
     if (this.money < cost) return false
-    this.addMoney(-cost)
+    this.money -= cost
     this.producerLevels[def.id] = level + 1
     this.emit({ type: 'purchase' })
     this.emit({ type: 'money_changed' })
@@ -5695,7 +5702,7 @@ export class GameState {
     if (purchased.includes(upgradeId)) return false
     const cost = this.firmUpgradeCostFor(def, upgradeId)
     if (!isFinite(cost) || this.money < cost) return false
-    this.addMoney(-cost)
+    this.money -= cost
     this.producerUpgrades[def.id] = [...purchased, upgradeId]
     this.emit({ type: 'purchase' })
     this.emit({ type: 'money_changed' })
@@ -5711,7 +5718,7 @@ export class GameState {
   upgradeDepartment(id: DepartmentId): boolean {
     const cost = this.departmentUpgradeCostFor(id)
     if (!isFinite(cost) || this.money < cost) return false
-    this.addMoney(-cost)
+    this.money -= cost
     this.departments[id] = (this.departments[id] ?? 0) + 1
     this.emit({ type: 'purchase' })
     this.emit({ type: 'money_changed' })
