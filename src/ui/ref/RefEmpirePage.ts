@@ -262,13 +262,15 @@ export class RefEmpirePage implements RefPage {
       ? [...sportOwned, ...politicsOwned, ...darkOwned, ...luxOwned, ...sciOwned, ...finOwned].reduce((sum, p) => sum + s.producerIncome(p), 0)
       : 0
 
+    const nwDisplay = s ? fmtMoney(Math.round(s.financeNetWorth())) : '—'
+    const deptCount = s ? DEPARTMENTS.filter(d => (s.departments[d.id] ?? 0) > 0).length : DEPARTMENTS.length
     const summary = document.createElement('div')
     summary.className = 'ref-empire-summary'
     summary.innerHTML = `
       <div class="ref-empire-summary__item"><span>🏙️</span><b>${cityCount}</b><small>Şehir</small></div>
       <div class="ref-empire-summary__item"><span>🏢</span><b>${firmCount}</b><small>Firma</small></div>
-      <div class="ref-empire-summary__item"><span>🏛️</span><b>${DEPTS.length}</b><small>Departman</small></div>
-      <div class="ref-empire-summary__item"><span>💎</span><b>${empireIncome > 0 ? fmtMoney(Math.round(empireIncome)) : '—'}</b><small>${empireIncome > 0 ? 'İmpGelir' : 'Değer'}</small></div>
+      <div class="ref-empire-summary__item"><span>🏛️</span><b>${deptCount}/${DEPARTMENTS.length}</b><small>Departman</small></div>
+      <div class="ref-empire-summary__item"><span>💰</span><b>${empireIncome > 0 ? fmtMoney(Math.round(empireIncome)) : nwDisplay}</b><small>${empireIncome > 0 ? 'İmpGelir' : 'Net Değer'}</small></div>
     `
     wrap.appendChild(summary)
 
@@ -331,12 +333,16 @@ export class RefEmpirePage implements RefPage {
         const maxed = level >= DEPARTMENT_MAX_LEVEL
         const cost  = departmentUpgradeCost(d.id, level)
         const canUp = !maxed && s.money >= cost
+        const isMaxed    = maxed
         const isStrong   = level >= 5
+        const isMid      = level >= 3
+        const isLow      = level >= 1
         const isCritical = level === 0
-        const badgeCls   = isStrong ? 'ref-dept-badge2--strong' : isCritical ? 'ref-dept-badge2--critical' : ''
-        const badgeTxt   = isStrong ? 'GÜÇLÜ' : isCritical ? 'KRİTİK' : `Lv.${level}`
+        const badgeCls   = isStrong ? 'ref-dept-badge2--strong' : isMid ? 'ref-dept-badge2--mid' : isLow ? 'ref-dept-badge2--low' : isCritical ? 'ref-dept-badge2--critical' : ''
+        const badgeTxt   = isMaxed ? 'MAKS' : isStrong ? 'GÜÇLÜ' : isMid ? `Lv.${level}` : isLow ? 'ZAYIF' : 'KRİTİK'
+        const btnTxt     = maxed ? '✓ Maks Seviye' : canUp ? `Yükselt · ${fmtMoney(cost)}` : `🔒 ${fmtMoney(cost)}`
         return `
-          <div class="ref-dept-card2">
+          <div class="ref-dept-card2 ${isCritical ? 'critical' : isStrong ? 'strong' : ''}">
             <div class="ref-dept-card2__head">
               <span class="ref-dept-card2__icon">${d.emoji}</span>
               <div class="ref-dept-card2__info">
@@ -351,7 +357,7 @@ export class RefEmpirePage implements RefPage {
             </div>
             <button type="button" class="ref-dept-upgrade-btn${canUp ? '' : ' ref-dept-upgrade-btn--off'}"
               data-upgrade-dept="${d.id}" ${canUp ? '' : 'disabled'}>
-              ${maxed ? '✓ Maks Seviye' : canUp ? `Yükselt · ${fmtMoney(cost)}` : level === 0 ? `🔒 ${fmtMoney(cost)}` : fmtMoney(cost)}
+              ${btnTxt}
             </button>
           </div>`
       }).join('')
@@ -374,12 +380,12 @@ export class RefEmpirePage implements RefPage {
     wrap.appendChild(deptGrid)
 
     // ── Ar-Ge & Yükseltmeler ──
-    const rndNote = document.createElement('div')
-    rndNote.className = 'ref-preview-note' + (s ? ' live-mode' : '')
-    rndNote.textContent = s
-      ? '🔬 Ar-Ge & Yükseltmeler · seviye/maliyet gerçek (satın alma bu aşamada kapalı)'
-      : '🔬 Ar-Ge & Yükseltmeler · önizleme (gerçek veri yok)'
-    wrap.appendChild(rndNote)
+    if (!s) {
+      const rndNote = document.createElement('div')
+      rndNote.className = 'ref-preview-note'
+      rndNote.textContent = '🔬 Ar-Ge & Yükseltmeler · önizleme (gerçek veri yok)'
+      wrap.appendChild(rndNote)
+    }
 
     wrap.appendChild(sectionTitle('Araştırma Ağacı', `${RESEARCH_NODES.length} düğüm`))
     const resList = document.createElement('div')
@@ -398,7 +404,8 @@ export class RefEmpirePage implements RefPage {
     wrap.appendChild(upgList)
 
     // ── Şehirler ──
-    wrap.appendChild(sectionTitle('Şehirler', '5 bölge'))
+    const cityLabel = s ? `${s.cities.unlocked.length}/${EXPANSION_CITIES.length} açık` : '5 bölge'
+    wrap.appendChild(sectionTitle('Şehirler', cityLabel))
     const cityGrid = document.createElement('div')
     cityGrid.className = 'ref-city-grid'
     cityGrid.innerHTML = CITY_ASSET_DEFS.map(c => {

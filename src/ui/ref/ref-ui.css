@@ -2331,10 +2331,16 @@
 .ref-dept-card2__bonus { display: block; font-size: 0.7rem; color: #64748b; margin-top: 1px; }
 .ref-dept-badge2 { font-size: 0.65rem; font-weight: 700; background: #f1f5f9; color: #475569; border-radius: 4px; padding: 2px 6px; white-space: nowrap; }
 .ref-dept-badge2--strong { background: #dcfce7; color: #166534; }
+.ref-dept-badge2--mid { background: #dbeafe; color: #1d4ed8; }
+.ref-dept-badge2--low { background: #fef3c7; color: #92400e; }
 .ref-dept-badge2--critical { background: #fee2e2; color: #991b1b; }
+.ref-dept-card2.critical { border-color: rgba(239,68,68,0.25); background: rgba(255,250,250,0.9); }
+.ref-dept-card2.strong { border-color: rgba(34,197,94,0.25); background: rgba(240,253,244,0.9); }
 .ref-dept-lvl-bar { display: flex; gap: 3px; margin-bottom: 7px; }
 .ref-dept-lvl-pip { flex: 1; height: 5px; border-radius: 2px; background: #e2e8f0; }
 .ref-dept-lvl-pip.on { background: #0ea5e9; }
+.ref-dept-card2.critical .ref-dept-lvl-pip.on { background: #f87171; }
+.ref-dept-card2.strong .ref-dept-lvl-pip.on { background: #22c55e; }
 .ref-dept-upgrade-btn { display: block; width: 100%; padding: 7px 10px; background: linear-gradient(135deg, #0ea5e9, #0284c7); color: #fff; border: none; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer; }
 .ref-dept-upgrade-btn--off { background: #f1f5f9; color: #94a3b8; cursor: default; }
 
