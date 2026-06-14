@@ -1810,6 +1810,34 @@
 .ref-ipo-card .ref-perf-track { margin: 2px 0 5px; }
 .ref-ipo-card__meta { font-size: 10.5px; font-weight: 700; color: var(--r-muted); text-align: right; }
 
+/* Borsa Al/Sat butonları */
+.ref-stock-actions { display: flex; gap: 5px; flex-shrink: 0; }
+.ref-stock-buy-btn, .ref-stock-sell-btn {
+  font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 6px; border: none; cursor: pointer;
+}
+.ref-stock-buy-btn { background: var(--r-success); color: #fff; }
+.ref-stock-buy-btn:disabled { background: var(--r-muted-lt); color: var(--r-muted); cursor: not-allowed; }
+.ref-stock-sell-btn { background: var(--r-danger); color: #fff; }
+.ref-stock-sell-btn:disabled { background: var(--r-muted-lt); color: var(--r-muted); cursor: not-allowed; }
+
+/* Sigorta toggle butonu */
+.ref-fin-cell.ins { flex-direction: column; align-items: flex-start; }
+.ref-ins-toggle-btn {
+  margin-top: 6px; width: 100%; font-size: 11px; font-weight: 800; padding: 5px 0;
+  border-radius: 6px; border: none; cursor: pointer;
+  background: var(--r-card-soft); color: var(--r-text2);
+}
+.ref-fin-cell.ins.on .ref-ins-toggle-btn { background: color-mix(in srgb, var(--r-danger) 15%, transparent); color: var(--r-danger); }
+.ref-fin-cell.ins.off .ref-ins-toggle-btn { background: color-mix(in srgb, var(--r-success) 15%, transparent); color: var(--r-success); }
+
+/* IPO çift onay butonu */
+.ref-ipo-confirm-btn {
+  margin-top: 10px; width: 100%; padding: 11px; border-radius: var(--r-md); border: none; cursor: pointer;
+  font-size: 13px; font-weight: 800; background: var(--r-accent); color: #fff;
+}
+.ref-ipo-confirm-btn:disabled { background: var(--r-muted-lt); color: var(--r-muted); cursor: not-allowed; }
+.ref-ipo-confirm-btn.confirming { background: #FFB02E; color: #000; }
+
 /* ===== Sağlık & Hastalık (RefCareerPage) ===== */
 .ref-health-card {
   margin: 0 14px 8px; padding: 12px 14px; border-radius: var(--r-md);

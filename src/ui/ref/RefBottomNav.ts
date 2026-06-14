@@ -9,10 +9,10 @@ interface TabDef {
 const TABS: TabDef[] = [
   { id: 'home',   label: 'Ana Sayfa',    icon: '🏠' },
   { id: 'career', label: 'Kariyer',      icon: '💼' },
-  { id: 'market', label: 'Piyasa',       icon: '📊' },
   { id: 'firms',  label: 'Firmalar',     icon: '🏢' },
+  { id: 'market', label: 'Piyasa',       icon: '📊' },
   { id: 'empire', label: 'İmparatorluk', icon: '👑' },
-  { id: 'life',   label: 'Yaşam',        icon: '🌿' },
+  { id: 'life',   label: 'Aile',         icon: '👨‍👩‍👧' },
 ]
 
 export class RefBottomNav {
