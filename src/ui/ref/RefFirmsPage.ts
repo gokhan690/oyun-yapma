@@ -5,6 +5,8 @@ import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, isProducerUnlocked, type ProducerDef } from '../../game/Economy'
 import { FIRM_MAX_LEVEL, firmLevelIncomeMult, isFirmMaxLevel } from '../../game/FirmLevels'
+import { hasManager } from '../../game/Managers'
+import { modernizeCost } from '../../game/TechObsolescence'
 
 /* ── Mock data (gerçek veri/state yoksa saf önizleme) ──────────────────── */
 const MOCK_FIRMS: FirmData[] = [
@@ -81,6 +83,12 @@ export class RefFirmsPage implements RefPage {
   private summaryEl?: HTMLElement
   private lastSummaryHtml = ''
   private kpiStrip?: RefKpiStrip
+
+  // Tur 2: Buy mode + tier filter
+  private buyMode: 1 | 10 | 100 | 'max' = 1
+  private tierFilter: 'tumu' | 'small' | 'medium' | 'large' = 'tumu'
+  private buyModeRow?: HTMLElement
+  private tierFilterRow?: HTMLElement
 
   private firms?: FirmData[]
   private state?: GameState
@@ -175,10 +183,26 @@ export class RefFirmsPage implements RefPage {
     const wrap = document.createElement('div')
     wrap.className = 'ref-live-biz'
 
-    const note = document.createElement('div')
-    note.className = 'ref-preview-note ref-firms-note live-mode'
-    note.textContent = '✅ Gerçek veri · maliyet ve gelir Economy.ts kaynağından · Satın Al aktif'
-    wrap.appendChild(note)
+    // Buy mode selector
+    this.buyModeRow = document.createElement('div')
+    this.buyModeRow.className = 'ref-buy-mode-row'
+    this.buyModeRow.innerHTML = `
+      <span class="ref-buy-mode-lbl">Adet:</span>
+      <button class="ref-buy-mode-btn active" data-buy-mode="1">1×</button>
+      <button class="ref-buy-mode-btn" data-buy-mode="10">10×</button>
+      <button class="ref-buy-mode-btn" data-buy-mode="100">100×</button>
+      <button class="ref-buy-mode-btn" data-buy-mode="max">Max</button>`
+    wrap.appendChild(this.buyModeRow)
+
+    // Tier filter
+    this.tierFilterRow = document.createElement('div')
+    this.tierFilterRow.className = 'ref-tier-filter-row'
+    this.tierFilterRow.innerHTML = `
+      <button class="ref-tier-btn active" data-tier-filter="tumu">Tümü</button>
+      <button class="ref-tier-btn" data-tier-filter="small">T1–3</button>
+      <button class="ref-tier-btn" data-tier-filter="medium">T4–6</button>
+      <button class="ref-tier-btn" data-tier-filter="large">T7+</button>`
+    wrap.appendChild(this.tierFilterRow)
 
     this.summaryEl = document.createElement('div')
     this.summaryEl.className = 'ref-summary-strip'
@@ -188,9 +212,45 @@ export class RefFirmsPage implements RefPage {
     this.producerCardsContainer.className = 'ref-prod-list'
     wrap.appendChild(this.producerCardsContainer)
 
+    // Click delegation: buy-mode + tier filter
+    wrap.addEventListener('click', (e) => {
+      const buyBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-buy-mode]')
+      if (buyBtn) {
+        const raw = buyBtn.dataset.buyMode!
+        this.buyMode = (raw === 'max' ? 'max' : Number(raw) as 1 | 10 | 100)
+        this.buyModeRow?.querySelectorAll('.ref-buy-mode-btn').forEach(b => {
+          b.classList.toggle('active', (b as HTMLElement).dataset.buyMode === raw)
+        })
+        this.buildProducerCards()  // rebuild with new qty
+        this.applyTierFilter()
+        return
+      }
+      const tierBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-tier-filter]')
+      if (tierBtn) {
+        this.tierFilter = tierBtn.dataset.tierFilter as typeof this.tierFilter
+        this.tierFilterRow?.querySelectorAll('.ref-tier-btn').forEach(b => {
+          b.classList.toggle('active', (b as HTMLElement).dataset.tierFilter === this.tierFilter)
+        })
+        this.applyTierFilter()
+      }
+    })
+
     this.buildProducerCards()
     this.updateSummary()
     return wrap
+  }
+
+  private applyTierFilter(): void {
+    for (const [id, card] of this.producerCards) {
+      const def = NORMAL_PRODUCERS.find(p => p.id === id)
+      if (!def) continue
+      const tier = def.tier
+      const show = this.tierFilter === 'tumu'
+        || (this.tierFilter === 'small'  && tier <= 3)
+        || (this.tierFilter === 'medium' && tier >= 4 && tier <= 6)
+        || (this.tierFilter === 'large'  && tier >= 7)
+      card.style.display = show ? '' : 'none'
+    }
   }
 
   private buildProducerCards(): void {
@@ -205,16 +265,41 @@ export class RefFirmsPage implements RefPage {
     }
   }
 
+  /** Satın alınacak adet: buy mode + max hesabı */
+  private getQty(def: ProducerDef, s: GameState): number {
+    if (this.buyMode !== 'max') return this.buyMode
+    const owned = s.producers[def.id] ?? 0
+    if (!isProducerUnlocked(def, s.totalEarned, s.forcedUnlocks, s.ipoCount)) return 0
+    if (s.money < s.producerCostFor(def, owned, 1)) return 0
+    let lo = 1, hi = 2000
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2)
+      if (s.producerCostFor(def, owned, mid) <= s.money) lo = mid
+      else hi = mid - 1
+    }
+    return lo
+  }
+
   private buildOneProducerCard(def: ProducerDef, s: GameState): HTMLElement {
     const owned    = s.producers[def.id] ?? 0
     const unlocked = isProducerUnlocked(def, s.totalEarned, s.forcedUnlocks, s.ipoCount)
-    const cost     = s.producerCostFor(def, owned, 1)
-    const canBuy   = unlocked && s.money >= cost
+    const qty      = this.getQty(def, s)
+    const cost     = s.producerCostFor(def, owned, Math.max(1, qty))
+    const canBuy   = unlocked && qty > 0 && s.money >= cost
+
     const income   = owned > 0 ? Math.round(s.producerIncome(def)) : Math.round(def.baseIncome)
 
     const firmLv   = owned > 0 ? (s.producerLevel ? s.producerLevel(def.id) : 1) : 0
     const lvCost   = owned > 0 && !isFirmMaxLevel(firmLv) ? (s.firmLevelUpCostFor ? s.firmLevelUpCostFor(def) : 0) : 0
     const canLevelUp = owned > 0 && !isFirmMaxLevel(firmLv) && s.money >= lvCost && lvCost > 0
+
+    const managerHired = hasManager(s.managers, def.id)
+    const manCost      = owned > 0 && !managerHired ? s.managerCostFor(def) : 0
+    const canManager   = owned > 0 && !managerHired && s.money >= manCost && manCost > 0
+
+    const isModernized = !!s.producerModernized[def.id]
+    const modCost      = owned > 0 && !isModernized && s.ipoCount > 0 ? modernizeCost(def.tier, owned) : 0
+    const canModernize = owned > 0 && !isModernized && s.ipoCount > 0 && s.money >= modCost && modCost > 0
 
     let stateClass: string
     if (!unlocked && def.ipoRequirement && s.ipoCount < def.ipoRequirement) stateClass = 'locked'
@@ -226,6 +311,7 @@ export class RefFirmsPage implements RefPage {
     const card = document.createElement('div')
     card.className = `ref-prod-card ${stateClass}`
     card.dataset.id = def.id
+    card.dataset.tier = String(def.tier)
 
     let footRight: string
     if (!unlocked) {
@@ -234,9 +320,11 @@ export class RefFirmsPage implements RefPage {
         : `🔒 ${fmtMoney(def.unlockAt)} kazanınca`
       footRight = `<span class="ref-prod-locked-lbl">${reason}</span>`
     } else if (canBuy) {
-      footRight = `<button class="ref-prod-btn buyable" type="button">${owned > 0 ? '+1 AL' : 'SATIN AL'} · ${fmtMoney(cost)}</button>`
+      const qtyLbl = this.buyMode === 'max' ? `Max(${qty})×` : `+${qty}×`
+      footRight = `<button class="ref-prod-btn buyable" type="button">${owned > 0 ? qtyLbl : 'SATIN AL'} · ${fmtMoney(cost)}</button>`
     } else {
-      footRight = `<button class="ref-prod-btn disabled" type="button" disabled>Para Yetersiz · ${fmtMoney(cost)}</button>`
+      const cost1 = s.producerCostFor(def, owned, 1)
+      footRight = `<button class="ref-prod-btn disabled" type="button" disabled>Para Yetersiz · ${fmtMoney(cost1)}</button>`
     }
 
     const lvPips = owned > 0
@@ -256,6 +344,22 @@ export class RefFirmsPage implements RefPage {
         </button>`
       : ''
 
+    const manBtn = owned > 0 && !managerHired
+      ? `<button class="ref-prod-action-btn manager${canManager ? '' : ' disabled'}" type="button" data-manager="${def.id}" ${canManager ? '' : 'disabled'}>
+           👔 YÖNET. · ${fmtMoney(manCost)}
+         </button>`
+      : owned > 0 && managerHired
+        ? `<span class="ref-prod-badge-ok">✓ Yönetici</span>`
+        : ''
+
+    const modBtn = owned > 0 && s.ipoCount > 0 && !isModernized
+      ? `<button class="ref-prod-action-btn modernize${canModernize ? '' : ' disabled'}" type="button" data-modernize="${def.id}" ${canModernize ? '' : 'disabled'}>
+           🔧 MODERNİZE · ${fmtMoney(modCost)}
+         </button>`
+      : owned > 0 && isModernized
+        ? `<span class="ref-prod-badge-ok">✓ Modern</span>`
+        : ''
+
     card.innerHTML = `
       <div class="ref-prod-card__head">
         <span class="ref-prod-emoji">${def.emoji}</span>
@@ -267,18 +371,21 @@ export class RefFirmsPage implements RefPage {
       ${lvPips}
       <div class="ref-prod-stats">
         <span class="ref-prod-stat"><small>Kademe</small><b>T${def.tier}</b></span>
-        <span class="ref-prod-stat"><small>${owned > 0 ? 'Gelir' : 'Birim gelir'}</small><b class="inc">${fmtMoney(income)}/g</b></span>
-        <span class="ref-prod-stat"><small>Sonraki</small><b>${fmtMoney(cost)}</b></span>
+        <span class="ref-prod-stat"><small>${owned > 0 ? 'Gelir/g' : 'Birim'}</small><b class="inc">${fmtMoney(income)}</b></span>
+        <span class="ref-prod-stat"><small>Adet</small><b>${owned > 0 ? owned : '—'}</b></span>
+        <span class="ref-prod-stat"><small>Maliyet</small><b>${fmtMoney(s.producerCostFor(def, owned, 1))}</b></span>
       </div>
       <div class="ref-prod-card__foot">
         ${footRight}
         ${lvBtn}
       </div>
+      ${(manBtn || modBtn) ? `<div class="ref-prod-action-row">${manBtn}${modBtn}</div>` : ''}
     `
 
     card.querySelector<HTMLButtonElement>('.ref-prod-btn.buyable')?.addEventListener('click', () => {
-      const ok = this.state?.buyProducer(def.id, 1)
-      if (ok) refToast(`${def.emoji} ${def.name} alındı`, 'ok')
+      const buyQty = this.getQty(def, this.state!)
+      const ok = this.state?.buyProducer(def.id, Math.max(1, buyQty))
+      if (ok) refToast(`${def.emoji} ${def.name} ×${buyQty} alındı`, 'ok')
       else refToast('Satın alınamadı', 'err')
     })
 
@@ -296,6 +403,32 @@ export class RefFirmsPage implements RefPage {
       }
     })
 
+    card.querySelector<HTMLButtonElement>('[data-manager]')?.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const ok = this.state?.hireManager(def.id)
+      if (ok) {
+        refToast(`👔 ${def.name} yöneticisi işe alındı`, 'ok')
+        const newCard = this.buildOneProducerCard(def, this.state!)
+        card.replaceWith(newCard)
+        this.producerCards.set(def.id, newCard)
+      } else {
+        refToast('Yönetici işe alınamadı', 'err')
+      }
+    })
+
+    card.querySelector<HTMLButtonElement>('[data-modernize]')?.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const ok = this.state?.modernizeProducer(def.id)
+      if (ok) {
+        refToast(`🔧 ${def.name} modernize edildi`, 'ok')
+        const newCard = this.buildOneProducerCard(def, this.state!)
+        card.replaceWith(newCard)
+        this.producerCards.set(def.id, newCard)
+      } else {
+        refToast('Modernize edilemedi', 'err')
+      }
+    })
+
     return card
   }
 
@@ -305,7 +438,9 @@ export class RefFirmsPage implements RefPage {
     const cost     = s.producerCostFor(def as Parameters<typeof s.producerCostFor>[0], owned, 1)
     const canBuy   = unlocked && s.money >= cost
     const income   = owned > 0 ? Math.round(s.producerIncome(def as Parameters<typeof s.producerIncome>[0])) : 0
-    return `${owned}|${unlocked ? 1 : 0}|${canBuy ? 1 : 0}|${cost}|${income}`
+    const mgr      = hasManager(s.managers, def.id) ? 1 : 0
+    const mod      = s.producerModernized[def.id] ? 1 : 0
+    return `${owned}|${unlocked ? 1 : 0}|${canBuy ? 1 : 0}|${cost}|${income}|${mgr}|${mod}|${this.buyMode}`
   }
 
   /** İmza tabanlı diff — yalnız durumu değişen kartı yeniden çizer. */

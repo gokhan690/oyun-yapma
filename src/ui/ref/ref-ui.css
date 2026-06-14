@@ -2271,6 +2271,42 @@
 .ref-prod-lvl-btn--active { background: linear-gradient(135deg, #0ea5e9, #0284c7); color: #fff; border-color: transparent; opacity: 1; cursor: pointer; }
 .ref-prod-lvl-btn--active:active { opacity: 0.85; }
 
+/* Tur 2: Buy mode selector + tier filter */
+.ref-buy-mode-row {
+  display: flex; align-items: center; gap: 6px; padding: 8px 14px 0;
+}
+.ref-buy-mode-lbl { font-size: 11px; font-weight: 700; color: var(--r-muted); margin-right: 2px; }
+.ref-buy-mode-btn {
+  font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 6px;
+  border: 1.5px solid var(--r-border-lt); background: var(--r-card-soft); color: var(--r-text2); cursor: pointer;
+}
+.ref-buy-mode-btn.active { background: var(--r-accent); color: #fff; border-color: transparent; }
+
+.ref-tier-filter-row {
+  display: flex; gap: 6px; padding: 6px 14px 4px;
+}
+.ref-tier-btn {
+  font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 5px;
+  border: 1.5px solid var(--r-border-lt); background: var(--r-card-soft); color: var(--r-muted); cursor: pointer;
+}
+.ref-tier-btn.active { background: var(--r-teal-dk); color: #fff; border-color: transparent; }
+
+/* Tur 2: Producer action row (Manager + Modernize) */
+.ref-prod-action-row { display: flex; gap: 6px; padding: 0 12px 8px; }
+.ref-prod-action-btn {
+  flex: 1; font-size: 11px; font-weight: 800; padding: 6px 4px; border-radius: 7px;
+  border: none; cursor: pointer; text-align: center;
+}
+.ref-prod-action-btn.manager { background: color-mix(in srgb, #7c3aed 15%, transparent); color: #7c3aed; }
+.ref-prod-action-btn.manager:not(.disabled):hover { background: #7c3aed; color: #fff; }
+.ref-prod-action-btn.modernize { background: color-mix(in srgb, var(--r-teal-dk) 15%, transparent); color: var(--r-teal-dk); }
+.ref-prod-action-btn.modernize:not(.disabled):hover { background: var(--r-teal-dk); color: #fff; }
+.ref-prod-action-btn.disabled { opacity: 0.45; cursor: not-allowed; }
+.ref-prod-badge-ok { font-size: 11px; font-weight: 800; color: var(--r-success); padding: 0 6px; align-self: center; }
+
+/* 4 stat grid */
+.ref-prod-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px 12px 6px; }
+
 /* ===== CHANGE 2: RefEmpirePage — Departman kartları ===== */
 .ref-dept-grid2 { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; }
 .ref-dept-card2 { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px 8px; }
