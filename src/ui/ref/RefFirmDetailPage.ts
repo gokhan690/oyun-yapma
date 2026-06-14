@@ -2,7 +2,17 @@ import './ref-ui.css'
 import { type FirmData, firmHeroSrc } from './RefCard'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import { assetUrl } from '../../utils/assetUrl'
-import { areaChartSvg, gaugeSvg, donutSvg } from './refShared'
+import { areaChartSvg, gaugeSvg, donutSvg, refToast } from './refShared'
+import type { GameState } from '../../game/GameState'
+import { PRODUCERS, type ProducerDef } from '../../game/Economy'
+import { FIRM_MAX_LEVEL, firmLevelIncomeMult, isFirmMaxLevel } from '../../game/FirmLevels'
+import { hasManager } from '../../game/Managers'
+
+/** Detay sayfasını gerçek GameState'e bağlayan opsiyonel bağlam. */
+export interface FirmDetailLiveCtx {
+  state: GameState
+  producerId: string
+}
 
 /*
  * Firma Detay sayfası.
@@ -98,6 +108,8 @@ const UPGRADE_TILES: { asset: string; label: string; mult: number }[] = [
 export class RefFirmDetailPage {
   readonly el: HTMLElement
   private firm: FirmData | null = null
+  /** Gerçek veriye bağlıysa (canlı oyun) — aksiyon butonları işlevsel olur. */
+  private live?: FirmDetailLiveCtx
 
   /** Geri butonuna basılınca tetiklenir. */
   onBack?: () => void
@@ -108,11 +120,17 @@ export class RefFirmDetailPage {
     this.el.hidden = true
   }
 
-  show(firm: FirmData): void {
+  show(firm: FirmData, live?: FirmDetailLiveCtx): void {
     this.firm = firm
+    this.live = live
     this.render()
     this.el.hidden = false
     this.el.scrollTop = 0
+  }
+
+  private liveDef(): ProducerDef | undefined {
+    if (!this.live) return undefined
+    return PRODUCERS.find((p) => p.id === this.live!.producerId)
   }
 
   hide(): void { this.el.hidden = true }
@@ -257,18 +275,21 @@ export class RefFirmDetailPage {
           `).join('')}
         </div>
 
+        ${this.live ? this.liveManageHtml() : `
         <!-- Actions (ÖNİZLEME — işlem yapmaz) -->
         <div class="ref-detail-actions">
           <button class="ref-btn develop" type="button" disabled>📈 GELİŞTİR</button>
           <button class="ref-btn modernize" type="button" disabled>⚙️ MODERNİZE ET</button>
           <button class="ref-btn manager" type="button" disabled>👤 MANAGER ATA</button>
         </div>
-        <div class="ref-preview-note">🔒 Önizleme modu · butonlar işlem yapmaz</div>
+        <div class="ref-preview-note">🔒 Önizleme modu · butonlar işlem yapmaz</div>`}
       </div>
     `
 
     const back = this.el.querySelector<HTMLButtonElement>('.ref-detail-back')
     back?.addEventListener('click', () => this.onBack?.())
+
+    if (this.live) this.wireLiveActions()
 
     // Fade-in hero image after load; keep gradient fallback on error
     const heroImg = this.el.querySelector<HTMLImageElement>('.ref-detail-hero__img')
@@ -279,5 +300,74 @@ export class RefFirmDetailPage {
         heroImg.addEventListener('load', () => heroImg.classList.add('loaded'))
       }
     }
+  }
+
+  /** Gerçek veriye bağlı yönetim paneli — firma seviyesi + işlevsel aksiyonlar. */
+  private liveManageHtml(): string {
+    const ctx = this.live!
+    const def = this.liveDef()
+    if (!def) return ''
+    const s = ctx.state
+    const lv = s.producerLevel(def.id)
+    const maxed = isFirmMaxLevel(lv)
+    const lvCost = !maxed ? s.firmLevelUpCostFor(def) : 0
+    const canLevel = !maxed && s.money >= lvCost && lvCost > 0
+
+    const managerHired = hasManager(s.managers, def.id)
+    const manCost = !managerHired ? s.managerCostFor(def) : 0
+    const canManager = !managerHired && s.money >= manCost && manCost > 0
+
+    const isModern = !!s.producerModernized[def.id]
+    const modAvailable = s.ipoCount > 0
+
+    const pips = Array.from({ length: FIRM_MAX_LEVEL }, (_, i) =>
+      `<span class="ref-prod-lvl-pip${i < lv ? ' on' : ''}"></span>`).join('')
+
+    const lvBtn = maxed
+      ? `<button class="ref-btn develop" type="button" disabled>⭐ MAKSİMUM SEVİYE</button>`
+      : `<button class="ref-btn develop" type="button" data-act="level" ${canLevel ? '' : 'disabled'}>📈 GELİŞTİR · Lv.${lv + 1} · ${fmtMoney(lvCost)}</button>`
+
+    const modBtn = !modAvailable
+      ? `<button class="ref-btn modernize" type="button" disabled>⚙️ MODERNİZE (IPO sonrası)</button>`
+      : isModern
+        ? `<button class="ref-btn modernize" type="button" disabled>✓ MODERNİZE EDİLDİ</button>`
+        : `<button class="ref-btn modernize" type="button" data-act="modern">⚙️ MODERNİZE ET</button>`
+
+    const manBtn = managerHired
+      ? `<button class="ref-btn manager" type="button" disabled>✓ YÖNETİCİ ATANDI</button>`
+      : `<button class="ref-btn manager" type="button" data-act="manager" ${canManager ? '' : 'disabled'}>👤 MANAGER · ${fmtMoney(manCost)}</button>`
+
+    return `
+      <div class="ref-detail-section-title">Yönetim · Lv.${lv}/${FIRM_MAX_LEVEL} ${lv > 1 ? `<span class="ref-detail-mult">×${firmLevelIncomeMult(lv).toFixed(2)} gelir</span>` : ''}</div>
+      <div class="ref-detail-lvl-pips">${pips}</div>
+      <div class="ref-detail-actions live">
+        ${lvBtn}
+        ${modBtn}
+        ${manBtn}
+      </div>
+      <div class="ref-preview-note live">✅ Gerçek veri · butonlar oyunu günceller</div>`
+  }
+
+  private wireLiveActions(): void {
+    const ctx = this.live!
+    const def = this.liveDef()
+    if (!def) return
+    const s = ctx.state
+
+    this.el.querySelector<HTMLButtonElement>('[data-act="level"]')?.addEventListener('click', () => {
+      const ok = s.levelUpFirm(def)
+      if (ok) { refToast(`📈 ${def.name} Lv.${s.producerLevel(def.id)}`, 'ok'); this.render() }
+      else refToast('Geliştirilemedi', 'err')
+    })
+    this.el.querySelector<HTMLButtonElement>('[data-act="modern"]')?.addEventListener('click', () => {
+      const ok = s.modernizeProducer(def.id)
+      if (ok) { refToast(`⚙️ ${def.name} modernize edildi`, 'ok'); this.render() }
+      else refToast('Modernize edilemedi', 'err')
+    })
+    this.el.querySelector<HTMLButtonElement>('[data-act="manager"]')?.addEventListener('click', () => {
+      const ok = s.hireManager(def.id)
+      if (ok) { refToast(`👤 ${def.name} yöneticisi atandı`, 'ok'); this.render() }
+      else refToast('Yönetici atanamadı', 'err')
+    })
   }
 }

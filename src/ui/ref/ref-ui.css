@@ -2307,6 +2307,20 @@
 /* 4 stat grid */
 .ref-prod-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px 12px 6px; }
 
+/* Tur 3: tıklanabilir firma başlığı (detay aç) */
+.ref-prod-card__head--clickable { cursor: pointer; border-radius: 8px; transition: background .12s; }
+.ref-prod-card__head--clickable:hover { background: color-mix(in srgb, var(--r-accent) 8%, transparent); }
+.ref-prod-card__head--clickable::after { content: '›'; margin-left: auto; font-size: 20px; font-weight: 800; color: var(--r-muted); align-self: center; }
+
+/* Tur 3: Firma detay — canlı yönetim paneli */
+.ref-detail-lvl-pips { display: flex; gap: 6px; justify-content: center; padding: 2px 16px 8px; }
+.ref-detail-lvl-pips .ref-prod-lvl-pip { width: 28px; height: 6px; border-radius: 3px; background: var(--r-border-lt); }
+.ref-detail-lvl-pips .ref-prod-lvl-pip.on { background: linear-gradient(90deg, #0ea5e9, #0284c7); }
+.ref-detail-mult { font-size: 11px; font-weight: 800; color: #16a34a; margin-left: 6px; }
+.ref-detail-actions.live .ref-btn { opacity: 1; }
+.ref-detail-actions.live .ref-btn:disabled { opacity: 0.5; }
+.ref-preview-note.live { color: var(--r-success); }
+
 /* ===== CHANGE 2: RefEmpirePage — Departman kartları ===== */
 .ref-dept-grid2 { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; }
 .ref-dept-card2 { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px 8px; }

@@ -35,8 +35,8 @@ const TRAIT_LABELS: Record<string, string> = {
  */
 export class RefLifePage implements RefPage {
   readonly el: HTMLElement
-  readonly title = 'YAŞAM'
-  readonly titleDeco = '🌿'
+  readonly title = 'AİLE'
+  readonly titleDeco = '👨‍👩‍👧'
 
   private state?: GameState
   private tabs: RefSubTabs

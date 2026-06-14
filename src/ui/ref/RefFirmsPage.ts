@@ -65,7 +65,7 @@ export class RefFirmsPage implements RefPage {
   readonly el: HTMLElement
   readonly title = 'FİRMALAR'
 
-  onOpenFirm?: (firm: FirmData) => void
+  onOpenFirm?: (firm: FirmData, live?: { state: GameState; producerId: string }) => void
 
   private activeCategory: CategoryKey = 'tumu'
   private cardEls = new Map<string, RefCard>()
@@ -265,6 +265,32 @@ export class RefFirmsPage implements RefPage {
     }
   }
 
+  /** ProducerDef + canlı state → detay ekranı için FirmData (gerçek değerler). */
+  private producerToFirmData(def: ProducerDef, s: GameState): FirmData {
+    const owned = s.producers[def.id] ?? 0
+    const lv = s.producerLevel ? s.producerLevel(def.id) : 1
+    const income = Math.round(s.producerIncome(def))
+    const expense = Math.round(income * 0.28)  // gider ölçülmüyor → tahmini
+    const perf = Math.min(96, 45 + lv * 10)
+    const cat = (def as ProducerDef & { category?: string }).category ?? def.id
+    return {
+      id: def.id,
+      name: def.name,
+      slogan: def.description,
+      category: cat,
+      emoji: def.emoji,
+      level: lv,
+      stars: Math.min(5, Math.max(1, lv)),
+      maxStars: FIRM_MAX_LEVEL,
+      status: owned > 0 ? 'Karlı' : 'Büyüyor',
+      income,
+      expense,
+      growth: 5 + lv * 1.5,
+      city: 'İstanbul',
+      performance: perf,
+    }
+  }
+
   /** Satın alınacak adet: buy mode + max hesabı */
   private getQty(def: ProducerDef, s: GameState): number {
     if (this.buyMode !== 'max') return this.buyMode
@@ -381,6 +407,19 @@ export class RefFirmsPage implements RefPage {
       </div>
       ${(manBtn || modBtn) ? `<div class="ref-prod-action-row">${manBtn}${modBtn}</div>` : ''}
     `
+
+    // Sahip olunan firmanın başlığına tıkla → detay ekranı (gerçek veri + yönetim)
+    if (owned > 0) {
+      const head = card.querySelector<HTMLElement>('.ref-prod-card__head')
+      if (head) {
+        head.classList.add('ref-prod-card__head--clickable')
+        head.addEventListener('click', () => {
+          const s2 = this.state
+          if (!s2) return
+          this.onOpenFirm?.(this.producerToFirmData(def, s2), { state: s2, producerId: def.id })
+        })
+      }
+    }
 
     card.querySelector<HTMLButtonElement>('.ref-prod-btn.buyable')?.addEventListener('click', () => {
       const buyQty = this.getQty(def, this.state!)
