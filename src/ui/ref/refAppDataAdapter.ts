@@ -362,7 +362,7 @@ export function buildRefViewModel(state: GameState): RefViewModel {
     reputationLabel: reputationLabel(state.reputation),
     firmCount: state.ownedBusinessTiers(),
     cityCount: ownedCities.length,
-    incomeSources: incomeSources.length ? incomeSources : [{ label: 'Henüz yok', value: 100, color: '#94B4C2' }],
+    incomeSources: incomeSources.length ? incomeSources : dailyIncome > 0 ? [{ label: 'Kariyer Geliri', value: 100, color: '#2563EB' }] : [{ label: 'Henüz yok', value: 100, color: '#94B4C2' }],
     netWorthTrend: deriveNetWorthTrend(netWorth),   // gerçek netWorth'ten türetilmiş tahmini eğri
     goals,
   }

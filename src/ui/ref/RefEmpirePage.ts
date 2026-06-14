@@ -25,18 +25,14 @@ const CITY_ASSET_DEFS: CityAssetDef[] = [
 
 interface Dept { asset: string; name: string; lvl: number }
 const DEPTS: Dept[] = [
-  { asset: REF_ASSETS_V2_GENERIC.departments.operations,     name: 'Operasyon', lvl: 5 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.finance,        name: 'Finans',    lvl: 6 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.marketing,      name: 'Pazarlama', lvl: 4 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.hr,             name: 'İK',        lvl: 3 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.legal,          name: 'Hukuk',     lvl: 3 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.rnd,            name: 'Ar-Ge',     lvl: 5 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.logistics,      name: 'Lojistik',  lvl: 4 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.security,       name: 'Güvenlik',  lvl: 2 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.prMedia,        name: 'PR/Medya',  lvl: 3 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.familyOffice,   name: 'Aile Ofisi', lvl: 4 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.politics,       name: 'Siyaset',   lvl: 1 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.globalStrategy, name: 'Strateji',  lvl: 4 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.operations,   name: 'Operasyon',  lvl: 5 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.finance,      name: 'Finans',     lvl: 6 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.marketing,    name: 'Pazarlama',  lvl: 4 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.legal,        name: 'Hukuk',      lvl: 3 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.rnd,          name: 'Ar-Ge',      lvl: 5 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.logistics,    name: 'Lojistik',   lvl: 4 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.security,     name: 'Güvenlik',   lvl: 2 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.familyOffice, name: 'Aile Ofisi', lvl: 4 },
 ]
 
 /** Eşik dizisinde değerin kaçıncı basamağı geçtiğini döndürür (0 = henüz yok). */

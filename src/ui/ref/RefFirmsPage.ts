@@ -682,9 +682,8 @@ export class RefFirmsPage implements RefPage {
     const legalIncome   = Math.round(s.legalIncomePerDay())
     const illegalIncome = Math.round(s.illegalIncomePerDay())
     const ownedNormal   = NORMAL_PRODUCERS.filter(p => (s.producers[p.id] ?? 0) > 0).length
-    const totalUnits    = NORMAL_PRODUCERS.reduce((sum, p) => sum + (s.producers[p.id] ?? 0), 0)
     return [
-      { icon: '🏪', label: 'İşletme Türü',   value: String(ownedNormal), sub: `${totalUnits} birim`, subDir: 'muted' },
+      { icon: '🏪', label: 'İşletme Türü',   value: String(NORMAL_PRODUCERS.length), sub: `${ownedNormal} sahip`, subDir: 'muted' },
       { icon: '📈', label: 'Yasal Gelir',    value: fmtMoney(legalIncome), sub: 'Günlük', subDir: 'up' },
       { icon: '💰', label: 'Yasadışı Gelir', value: illegalIncome > 0 ? fmtMoney(illegalIncome) : 'Yok', sub: 'Günlük', subDir: 'muted' },
       { icon: '💵', label: 'Nakit',          value: fmtMoney(Math.round(s.money)), sub: 'Likit', subDir: 'muted' },
