@@ -203,7 +203,7 @@ export class RefApp {
 
   private showAchievements(): void {
     if (!this.achievements) {
-      this.achievements = new RefAchievementsPage()
+      this.achievements = new RefAchievementsPage(this.gameState)
       this.achievements.onBack = () => this.show(this.active)
     }
     this.mountBody(this.achievements)
