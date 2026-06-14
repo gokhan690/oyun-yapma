@@ -2058,6 +2058,17 @@
 .ref-legacy-row.off { opacity: 0.55; }
 .ref-legacy-desc { font-size: 10px; font-weight: 600; color: var(--r-muted); margin-top: 2px; }
 
+/* ===== Yaşam boş-durum ipucu (çocuk/varis vb.) ===== */
+.ref-life-empty {
+  margin: 0 14px; padding: 14px; display: flex; align-items: center; gap: 12px;
+  background: rgba(255,255,255,0.6); border: 1px dashed var(--r-border, #cbd5e1);
+  border-radius: 12px;
+}
+.ref-life-empty__ico { font-size: 30px; flex-shrink: 0; opacity: 0.85; }
+.ref-life-empty__main { flex: 1; min-width: 0; }
+.ref-life-empty__title { font-size: 13px; font-weight: 800; color: var(--r-text); }
+.ref-life-empty__desc { font-size: 11px; font-weight: 600; color: var(--r-muted); margin-top: 2px; line-height: 1.45; }
+
 /* ===== Pasif departman ===== */
 .ref-dept-tile.inactive { opacity: 0.45; filter: grayscale(0.7); }
 
