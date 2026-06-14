@@ -230,6 +230,9 @@ export class RefApp {
 
   private mountBody(page: RefPage): void {
     this.mounted = page
+    // Utility ekranlarda (Profil/Başarımlar/Bildirimler) bottom nav gizlenir.
+    const isUtility = page === this.profile || page === this.achievements || page === this.notifs
+    this.el.classList.toggle('ref-shell--utility', isUtility)
     // Sayfa değişiminde açık firma detay overlay'ini kapat
     this.detail.hide()
     // Görseller tembel yüklensin (aynı anda onlarca asset decode etmesin)

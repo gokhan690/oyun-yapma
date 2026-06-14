@@ -722,6 +722,12 @@
   z-index: 200;
 }
 
+/* ── Utility ekranlar (Profil/Başarımlar/Bildirimler): bottom nav gizli ── */
+.ref-shell--utility .ref-bottom-nav { display: none; }
+.ref-shell--utility .ref-body {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+}
+
 .ref-nav-btn {
   flex: 1;
   display: flex;
