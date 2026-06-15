@@ -2231,3 +2231,301 @@
 /* ===== Onboarding karakter adımları ===== */
 .onboarding-character-grid .onboarding-country-btn .ob-flag { font-size: 26px; }
 .onboarding-character-grid .ob-country-capital { white-space: normal; line-height: 1.25; }
+
+/* ===== CHANGE 1: RefFirmsPage — Firma seviye badge + GELİŞTİR butonu ===== */
+.ref-prod-lvl-pips { display: flex; gap: 3px; padding: 4px 12px 2px; }
+.ref-prod-lvl-pip { width: 20%; height: 4px; border-radius: 2px; background: var(--ref-border, #e2e8f0); }
+.ref-prod-lvl-pip.on { background: var(--ref-accent, #0ea5e9); }
+.ref-prod-lv-badge { font-size: 0.68rem; font-weight: 700; background: #e0f2fe; color: #0369a1; border-radius: 4px; padding: 1px 5px; margin-left: 5px; vertical-align: middle; }
+.ref-prod-lv-badge--max { background: #fef9c3; color: #854d0e; }
+.ref-prod-lv-mult { color: #16a34a; margin-left: 6px; }
+.ref-prod-lvl-btn { display: block; width: calc(100% - 24px); margin: 4px 12px 8px; padding: 7px 10px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; color: #0369a1; font-size: 0.8rem; font-weight: 600; text-align: center; cursor: default; opacity: 0.55; }
+.ref-prod-lvl-btn--active { background: linear-gradient(135deg, #0ea5e9, #0284c7); color: #fff; border-color: transparent; opacity: 1; cursor: pointer; }
+.ref-prod-lvl-btn--active:active { opacity: 0.85; }
+
+/* Tur 2: Buy mode selector + tier filter */
+.ref-buy-mode-row {
+  display: flex; align-items: center; gap: 6px; padding: 8px 14px 0;
+}
+.ref-buy-mode-lbl { font-size: 11px; font-weight: 700; color: var(--r-muted); margin-right: 2px; }
+.ref-buy-mode-btn {
+  font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 6px;
+  border: 1.5px solid var(--r-border-lt); background: var(--r-card-soft); color: var(--r-text2); cursor: pointer;
+}
+.ref-buy-mode-btn.active { background: var(--r-accent); color: #fff; border-color: transparent; }
+
+.ref-tier-filter-row {
+  display: flex; gap: 6px; padding: 6px 14px 4px;
+}
+.ref-tier-btn {
+  font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 5px;
+  border: 1.5px solid var(--r-border-lt); background: var(--r-card-soft); color: var(--r-muted); cursor: pointer;
+}
+.ref-tier-btn.active { background: var(--r-teal-dk); color: #fff; border-color: transparent; }
+
+/* Tur 2: Producer action row (Manager + Modernize) */
+.ref-prod-action-row { display: flex; gap: 6px; padding: 0 12px 8px; }
+.ref-prod-action-btn {
+  flex: 1; font-size: 11px; font-weight: 800; padding: 6px 4px; border-radius: 7px;
+  border: none; cursor: pointer; text-align: center;
+}
+.ref-prod-action-btn.manager { background: color-mix(in srgb, #7c3aed 15%, transparent); color: #7c3aed; }
+.ref-prod-action-btn.manager:not(.disabled):hover { background: #7c3aed; color: #fff; }
+.ref-prod-action-btn.modernize { background: color-mix(in srgb, var(--r-teal-dk) 15%, transparent); color: var(--r-teal-dk); }
+.ref-prod-action-btn.modernize:not(.disabled):hover { background: var(--r-teal-dk); color: #fff; }
+.ref-prod-action-btn.disabled { opacity: 0.45; cursor: not-allowed; }
+.ref-prod-badge-ok { font-size: 11px; font-weight: 800; color: var(--r-success); padding: 0 6px; align-self: center; }
+
+/* 4 stat grid */
+.ref-prod-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px 12px 6px; }
+
+/* Tur 3: tıklanabilir firma başlığı (detay aç) */
+.ref-prod-card__head--clickable { cursor: pointer; border-radius: 8px; transition: background .12s; }
+.ref-prod-card__head--clickable:hover { background: color-mix(in srgb, var(--r-accent) 8%, transparent); }
+.ref-prod-card__head--clickable::after { content: '›'; margin-left: auto; font-size: 20px; font-weight: 800; color: var(--r-muted); align-self: center; }
+
+/* Tur 3: Firma detay — canlı yönetim paneli */
+.ref-detail-lvl-pips { display: flex; gap: 6px; justify-content: center; padding: 2px 16px 8px; }
+.ref-detail-lvl-pips .ref-prod-lvl-pip { width: 28px; height: 6px; border-radius: 3px; background: var(--r-border-lt); }
+.ref-detail-lvl-pips .ref-prod-lvl-pip.on { background: linear-gradient(90deg, #0ea5e9, #0284c7); }
+.ref-detail-mult { font-size: 11px; font-weight: 800; color: #16a34a; margin-left: 6px; }
+.ref-detail-actions.live { grid-template-columns: 1fr 1fr; }
+.ref-detail-actions.live > :first-child { grid-column: 1 / -1; }
+.ref-detail-actions.live .ref-btn { opacity: 1; }
+.ref-detail-actions.live .ref-btn:disabled { opacity: 0.5; }
+.ref-preview-note.live { color: var(--r-success); }
+
+/* ===== CHANGE 2: RefEmpirePage — Departman kartları ===== */
+.ref-dept-grid2 { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; }
+.ref-dept-card2 { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px 8px; }
+.ref-dept-card2__head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.ref-dept-card2__icon { font-size: 1.4rem; flex-shrink: 0; }
+.ref-dept-card2__info { flex: 1; min-width: 0; }
+.ref-dept-card2__name { display: block; font-size: 0.82rem; font-weight: 700; color: #1e293b; }
+.ref-dept-card2__bonus { display: block; font-size: 0.7rem; color: #64748b; margin-top: 1px; }
+.ref-dept-badge2 { font-size: 0.65rem; font-weight: 700; background: #f1f5f9; color: #475569; border-radius: 4px; padding: 2px 6px; white-space: nowrap; }
+.ref-dept-badge2--strong { background: #dcfce7; color: #166534; }
+.ref-dept-badge2--mid { background: #dbeafe; color: #1d4ed8; }
+.ref-dept-badge2--low { background: #fef3c7; color: #92400e; }
+.ref-dept-badge2--critical { background: #fee2e2; color: #991b1b; }
+.ref-dept-card2.critical { border-color: rgba(239,68,68,0.25); background: rgba(255,250,250,0.9); }
+.ref-dept-card2.strong { border-color: rgba(34,197,94,0.25); background: rgba(240,253,244,0.9); }
+.ref-dept-lvl-bar { display: flex; gap: 3px; margin-bottom: 7px; }
+.ref-dept-lvl-pip { flex: 1; height: 5px; border-radius: 2px; background: #e2e8f0; }
+.ref-dept-lvl-pip.on { background: #0ea5e9; }
+.ref-dept-card2.critical .ref-dept-lvl-pip.on { background: #f87171; }
+.ref-dept-card2.strong .ref-dept-lvl-pip.on { background: #22c55e; }
+.ref-dept-upgrade-btn { display: block; width: 100%; padding: 7px 10px; background: linear-gradient(135deg, #0ea5e9, #0284c7); color: #fff; border: none; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer; }
+.ref-dept-upgrade-btn--off { background: #f1f5f9; color: #94a3b8; cursor: default; }
+
+/* ===== CHANGE 3: RefCareerPage — Job card banner + health section ===== */
+.ref-job-card__banner { border-radius: 10px; padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.ref-job-card__banner-left { flex: 1; }
+.ref-job-card__lvl-pill { color: #fff; font-size: 0.72rem; font-weight: 800; padding: 3px 8px; border-radius: 20px; white-space: nowrap; align-self: flex-start; flex-shrink: 0; }
+.ref-career-tips { display: flex; flex-direction: column; gap: 4px; padding: 0 2px 4px; }
+.ref-career-tip { font-size: 0.73rem; padding: 5px 10px; border-radius: 6px; }
+.ref-career-tip--warn { background: #fef3c7; color: #92400e; }
+.ref-career-tip--good { background: #dcfce7; color: #166534; }
+.ref-health-stats { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 6px; }
+.ref-health-stat { display: flex; align-items: center; gap: 8px; }
+.ref-health-stat__ico { font-size: 1.3rem; flex-shrink: 0; }
+.ref-health-stat > div { flex: 1; }
+.ref-health-stat__lbl { font-size: 0.72rem; color: #64748b; margin-bottom: 3px; }
+.ref-health-val { font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+.ref-health-tips { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.ref-health-tip { font-size: 0.72rem; padding: 5px 8px; border-radius: 6px; }
+.ref-health-tip.good { background: #dcfce7; color: #166534; }
+.ref-health-tip.warn { background: #fef3c7; color: #92400e; }
+
+/* ── Tur 6A: Kariyer Oynanabilirliği ───────────────────────────────── */
+.ref-career-section-title { font-size: 11px; font-weight: 800; color: var(--r-text2); margin: 12px 2px 6px; }
+
+/* PlayerRank küçük chip — ana başlığın altında, bağımsız durum badge'i değil */
+.ref-career-rank-chip {
+  display: inline-block; margin-top: 5px;
+  font-size: 10px; font-weight: 700; color: var(--r-muted);
+  background: var(--r-border); border-radius: 4px; padding: 2px 6px;
+}
+
+/* İş aksiyon butonları (mesai/ek mesai/eğitim/networking) */
+.ref-career-action-grid { display: flex; flex-direction: column; gap: 7px; }
+.ref-career-action-btn {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--r-card); border: 1.5px solid var(--r-border);
+  border-radius: 10px; padding: 10px 12px; cursor: pointer;
+  transition: background 0.15s; width: 100%; text-align: left;
+}
+.ref-career-action-btn:active { background: var(--r-border); }
+.ref-career-action-btn.used { opacity: 0.5; cursor: default; }
+.ref-career-action-btn__ico { font-size: 18px; flex-shrink: 0; }
+.ref-career-action-btn__main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ref-career-action-btn__label { font-size: 12.5px; font-weight: 800; color: var(--r-text); }
+.ref-career-action-btn__earn { font-size: 10.5px; font-weight: 700; color: var(--r-success); margin-top: 1px; }
+.ref-career-action-btn__done { font-size: 10px; font-weight: 700; color: var(--r-muted); margin-top: 1px; }
+.ref-career-action-btn__xp { font-size: 10.5px; font-weight: 700; color: #7c3aed; margin-top: 1px; }
+
+/* İş seçim grid */
+.ref-career-job-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+.ref-career-job-card {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: var(--r-card); border: 1.5px solid var(--r-border);
+  border-radius: 10px; padding: 10px 8px; cursor: pointer; text-align: center;
+}
+.ref-career-job-card:active { opacity: 0.8; }
+.ref-career-job-card__ico { font-size: 22px; }
+.ref-career-job-card__name { font-size: 11px; font-weight: 800; color: var(--r-text); }
+.ref-career-job-card__wage { font-size: 10px; font-weight: 700; color: var(--r-success); }
+.ref-career-job-card__stress { font-size: 9.5px; font-weight: 700; color: var(--r-muted); }
+
+/* Girişimci bilgilendirme badge'i */
+.ref-career-entrepreneur-badge {
+  background: linear-gradient(135deg, #7c3aed22, #7c3aed08);
+  border: 1.5px solid #7c3aed44; border-radius: 10px;
+  padding: 10px 12px; font-size: 12px; font-weight: 700; color: #7c3aed;
+}
+
+/* Girişimci paneli — firma sayısı / gelir / net değer / nakit + en iyi firma */
+.ref-entre-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+.ref-entre-stat {
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--r-card); border: 1.5px solid var(--r-border);
+  border-radius: 10px; padding: 9px 11px;
+}
+.ref-entre-stat__lbl { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--r-muted-lt); }
+.ref-entre-stat__val { font-size: 14px; font-weight: 900; color: var(--r-text); }
+.ref-entre-stat__val.income { color: var(--r-success); }
+.ref-entre-best {
+  display: flex; align-items: center; gap: 10px; margin-top: 8px;
+  background: linear-gradient(135deg, #0369a122, #0369a108);
+  border: 1.5px solid #0369a133; border-radius: 10px; padding: 9px 12px;
+}
+.ref-entre-best__ico { font-size: 22px; flex-shrink: 0; }
+.ref-entre-best__main { flex: 1; min-width: 0; }
+.ref-entre-best__lbl { font-size: 9.5px; font-weight: 700; color: var(--r-muted); }
+.ref-entre-best__name { font-size: 12.5px; font-weight: 800; color: var(--r-text); }
+.ref-entre-best__income { font-size: 12px; font-weight: 800; color: var(--r-success); white-space: nowrap; }
+.ref-entre-note { font-size: 11px; font-weight: 600; color: var(--r-muted); margin: 8px 2px 4px; }
+.ref-entre-cta {
+  display: block; width: 100%; margin: 4px 0 2px;
+  background: linear-gradient(180deg, #13B8A6, #078B83); color: #fff;
+  border: none; border-radius: 10px; padding: 11px; cursor: pointer;
+  font-size: 13px; font-weight: 800;
+}
+.ref-entre-cta:active { opacity: 0.85; }
+
+/* Günlük rutin butonları (Sağlık sekmesi) */
+.ref-routine-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+.ref-routine-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: var(--r-card); border: 1.5px solid var(--r-border);
+  border-radius: 10px; padding: 9px 10px; cursor: pointer; text-align: center;
+}
+.ref-routine-btn:active { opacity: 0.8; }
+.ref-routine-btn[disabled] { opacity: 0.45; cursor: default; }
+.ref-routine-btn__ico { font-size: 18px; }
+.ref-routine-btn__label { font-size: 10.5px; font-weight: 800; color: var(--r-text); }
+.ref-routine-btn__effect { font-size: 9.5px; font-weight: 700; color: var(--r-muted); }
+
+/* Stres tedavisi satırları (Sağlık sekmesi) */
+.ref-wellbeing-list { display: flex; flex-direction: column; gap: 6px; }
+.ref-wellbeing-row {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--r-card); border: 1.5px solid var(--r-border);
+  border-radius: 8px; padding: 8px 10px;
+}
+.ref-wellbeing-row__main { flex: 1; min-width: 0; }
+.ref-wellbeing-row__name { font-size: 12px; font-weight: 800; color: var(--r-text); }
+.ref-wellbeing-row__effect { font-size: 10px; font-weight: 700; color: var(--r-success); }
+
+/* ── Tur 6: Şehirler alt sekmesi ──────────────────────────────────────── */
+.ref-cities-kpi {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  padding: 12px 14px 4px;
+}
+.ref-cities-kpi__item {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: rgba(255,255,255,0.65); border-radius: 10px; padding: 8px 4px;
+  box-shadow: var(--r-shadow-sm);
+}
+.ref-cities-kpi__item > span { font-size: 14px; }
+.ref-cities-kpi__item > b { font-size: 12px; font-weight: 800; color: var(--r-text1); }
+.ref-cities-kpi__item > small { font-size: 9px; color: var(--r-text2); }
+
+.ref-cities-journey { overflow-x: auto; padding: 4px 14px 16px; -webkit-overflow-scrolling: touch; }
+.ref-cities-journey__inner {
+  display: flex; align-items: flex-start; min-width: max-content;
+}
+.ref-journey-stop {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  opacity: 0.4; width: 60px;
+}
+.ref-journey-stop--unlocked { opacity: 1; }
+.ref-journey-node {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,255,255,0.6); border: 2px solid rgba(0,0,0,0.1);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  box-shadow: var(--r-shadow-sm);
+}
+.ref-journey-stop--unlocked .ref-journey-node {
+  background: var(--r-teal); border-color: var(--r-teal-dk);
+}
+.ref-journey-label {
+  font-size: 9px; font-weight: 700; color: var(--r-text2); text-align: center;
+  white-space: nowrap;
+}
+.ref-journey-connector {
+  width: 20px; height: 3px; background: rgba(0,0,0,0.12);
+  margin-top: 19px; flex-shrink: 0;
+}
+.ref-journey-connector.on { background: var(--r-teal); opacity: 0.7; }
+
+.ref-city-mgmt-list { display: flex; flex-direction: column; gap: 8px; padding: 0 14px 8px; }
+.ref-city-mgmt-card {
+  background: rgba(255,255,255,0.72); border-radius: 12px; padding: 12px;
+  box-shadow: var(--r-shadow-sm); display: flex; flex-direction: column; gap: 8px;
+}
+.ref-city-mgmt-card--locked { opacity: 0.72; }
+.ref-city-mgmt-card__head { display: flex; align-items: center; gap: 10px; }
+.ref-city-mgmt-card__emoji { font-size: 24px; flex-shrink: 0; }
+.ref-city-mgmt-card__info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ref-city-mgmt-card__name { font-size: 14px; font-weight: 800; color: var(--r-text1); }
+.ref-city-mgmt-card__bonuses { display: flex; flex-wrap: wrap; gap: 3px; }
+.ref-city-mgmt-card__req { font-size: 11px; color: var(--r-text2); }
+.ref-city-mgmt-card__reason { font-size: 10px; color: var(--r-red, #ef4444); }
+.ref-city-active-badge {
+  padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800;
+  background: var(--r-teal); color: #fff; flex-shrink: 0;
+}
+.ref-city-locked-cost { font-size: 11px; font-weight: 700; color: var(--r-text2); flex-shrink: 0; }
+.ref-city-bonus-chip {
+  padding: 2px 6px; border-radius: 5px; font-size: 9px; font-weight: 700;
+  background: rgba(14,165,233,0.12); color: var(--r-teal);
+}
+.ref-city-mgmt-btn {
+  width: 100%; padding: 9px; border-radius: 8px; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 800;
+  background: var(--r-teal); color: #fff; transition: opacity 0.15s;
+}
+.ref-city-mgmt-btn--unlock { background: #22c55e; }
+.ref-city-mgmt-btn--off {
+  background: rgba(0,0,0,0.08); color: var(--r-text2); cursor: not-allowed;
+}
+
+.ref-city-bonus-table { display: flex; flex-direction: column; gap: 6px; padding: 0 14px 16px; }
+.ref-city-bonus-row {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,0.5); border-radius: 10px; padding: 10px 12px;
+  opacity: 0.5;
+}
+.ref-city-bonus-row--owned { opacity: 1; background: rgba(255,255,255,0.72); }
+.ref-city-bonus-row__ico { font-size: 20px; flex-shrink: 0; }
+.ref-city-bonus-row__info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.ref-city-bonus-row__city { font-size: 13px; font-weight: 800; color: var(--r-text1); }
+.ref-city-bonus-row__cat { font-size: 10px; color: var(--r-text2); }
+.ref-city-bonus-row__val { font-size: 11px; font-weight: 800; color: var(--r-teal); flex-shrink: 0; }
+
+.ref-cities-manage-note {
+  margin: 0 14px 12px; padding: 10px 12px;
+  background: rgba(14,165,233,0.08); border-radius: 10px;
+  font-size: 12px; color: var(--r-text2); font-weight: 600; text-align: center;
+}
