@@ -96,6 +96,10 @@ import {
 } from './PrestigeTree'
 import { localDayKey, yesterdayLocalKey, calendarWeekKey } from './dateUtils'
 import { gameDay, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSecondsToGameMs, gameCalendarDate } from './GameClock'
+import { createCareerState, applyCareerAction, applyDailyWage, FIRST_GOAL_TARGET, type CareerState, type CareerActionId, type CareerJobId, type CharacterBackgroundId } from './Career'
+import { firmLevelIncomeMult, firmLevelUpCost, FIRM_MAX_LEVEL } from './FirmLevels'
+import { firmUpgradeDef, firmUpgradeIncomeBonus, firmUpgradeCost } from './FirmUpgrades'
+import { createDepartmentState, departmentUpgradeCost, type DepartmentId } from './EmpireDepartments'
 import {
   createEmpireState,
   syncEmpireFromProducers,
@@ -653,6 +657,10 @@ export interface SerializableState {
   karma?: number
   characterProfile?: CharacterProfile | null
   characterIncomeDailyBonus?: number
+  career?: CareerState
+  producerLevels?: Record<string, number>
+  producerUpgrades?: Record<string, string[]>
+  departments?: Record<string, number>
 }
 
 export interface ProducerBreakdown {
@@ -758,6 +766,9 @@ export type GameEvent =
   | { type: 'fame_action'; careerName: string; fameDelta: number; newLevel: number }
   | { type: 'fame_changed'; fameLevel: number; label: string }
   | { type: 'life_event_risk_outcome'; headline: string; won: boolean }
+  | { type: 'career_action'; actionId: CareerActionId; money: number; levelUp: boolean }
+  | { type: 'career_wage'; amount: number }
+  | { type: 'career_phase_changed'; isEntrepreneur: boolean }
 
 const MILESTONE_THRESHOLDS = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
 const CRIT_CHANCE = 0.1
@@ -857,6 +868,10 @@ export class GameState {
   karma = 0
   characterProfile: CharacterProfile | null = null
   characterIncomeDailyBonus = 0
+  career: CareerState = createCareerState()
+  producerLevels: Record<string, number> = {}
+  producerUpgrades: Record<string, string[]> = {}
+  departments: Record<DepartmentId, number> = createDepartmentState()
   private lastDiseaseTickDay = 0
   private lastSiblingTickYear = 0
   dailyRoutineDay = 0
@@ -978,6 +993,7 @@ export class GameState {
   private eventScheduleRemainingMs = 0
   private eventExpireRemainingMs = 0
   private eventPreviewTimer: number | null = null
+  private _checkingAchievements = false
   private lastNearMissToastAt = 0
   private lastStockTick = Date.now()
   private lastAutoBuyTick = 0
@@ -1110,6 +1126,11 @@ export class GameState {
           if (currentIpd > this.peakIncomePerDay) this.peakIncomePerDay = currentIpd
           const income = this.incomePerDay() * passiveDays
           if (income > 0) this.addMoney(income, true)
+          const wage = applyDailyWage(this.career, currentPassiveGameDay)
+          if (wage > 0) {
+            this.addMoney(wage, false)
+            this.emit({ type: 'career_wage', amount: wage })
+          }
         }
       }
       this.updateComboDecay(now)
@@ -1825,6 +1846,10 @@ export class GameState {
     if (hobbyBonus > 0) mult *= 1 + hobbyBonus
     const cityBonus = this.cities ? (cityProducerBonus(this.cities, def.category) ?? 0) : 0
     if (cityBonus > 0) mult *= (1 + cityBonus)
+    const firmLv = this.producerLevels[def.id] ?? 1
+    if (firmLv > 1) mult *= firmLevelIncomeMult(firmLv)
+    const firmPurchased = this.producerUpgrades[def.id] ?? []
+    if (firmPurchased.length > 0) mult *= 1 + firmUpgradeIncomeBonus(def, firmPurchased)
     return scaledBaseIncome(def.baseIncome, def) * owned * mult * this.passiveMultiplier()
   }
 
@@ -5569,38 +5594,135 @@ export class GameState {
   }
 
   private checkAchievements(): void {
-    const ctx = {
-      totalEarned: this.totalEarned,
-      totalClicks: this.totalClicks,
-      comboBest: this.comboBest,
-      prestigePoints: this.prestigePoints,
-      producers: this.producers,
-      achievements: this.achievements,
-      lifetimePrestige: this.lifetimePrestige,
-      lifetimeTotalEarned: this.lifetimeTotalEarned,
-      ipoCount: this.ipoCount,
-      managers: this.managers,
-      stockShares: totalShares(this.stock),
-      weeklyClaimed: this.weekly.claimed,
-      seasonTier: currentTier(this.season.xp),
-      prestigeTreeCount: ownedNodeCount(this.prestigeTree),
-      stockTickerCount: ownedTickerCount(this.stock),
-      nightEarnings: this.nightEarningsSession,
-      managerAutoBuyCount: this.managerAutoBuyCount(),
-      dailyStreak: this.dailyStreak,
-      comebackClaimed: this.comebackClaimed,
-      heatSurvived: this.heatSurvived,
-      unlockedThemes: [...this.unlockedThemes],
-      undergroundLawyerUsed: this.undergroundLawyerUsed,
-      dynastyMarried: !!this.dynasty.spouseName,
-      advisorBuys: this.advisorBuys,
+    if (this._checkingAchievements) return
+    this._checkingAchievements = true
+    try {
+      const ctx = {
+        totalEarned: this.totalEarned,
+        totalClicks: this.totalClicks,
+        comboBest: this.comboBest,
+        prestigePoints: this.prestigePoints,
+        producers: this.producers,
+        achievements: this.achievements,
+        lifetimePrestige: this.lifetimePrestige,
+        lifetimeTotalEarned: this.lifetimeTotalEarned,
+        ipoCount: this.ipoCount,
+        managers: this.managers,
+        stockShares: totalShares(this.stock),
+        weeklyClaimed: this.weekly.claimed,
+        seasonTier: currentTier(this.season.xp),
+        prestigeTreeCount: ownedNodeCount(this.prestigeTree),
+        stockTickerCount: ownedTickerCount(this.stock),
+        nightEarnings: this.nightEarningsSession,
+        managerAutoBuyCount: this.managerAutoBuyCount(),
+        dailyStreak: this.dailyStreak,
+        comebackClaimed: this.comebackClaimed,
+        heatSurvived: this.heatSurvived,
+        unlockedThemes: [...this.unlockedThemes],
+        undergroundLawyerUsed: this.undergroundLawyerUsed,
+        dynastyMarried: !!this.dynasty.spouseName,
+        advisorBuys: this.advisorBuys,
+      }
+      const newOnes = checkNewAchievements(ctx)
+      for (const a of newOnes) {
+        this.achievements.add(a.id)
+        this.money += a.reward
+        this.emit({ type: 'achievement', def: a })
+      }
+    } finally {
+      this._checkingAchievements = false
     }
-    const newOnes = checkNewAchievements(ctx)
-    for (const a of newOnes) {
-      this.achievements.add(a.id)
-      this.addMoney(a.reward)
-      this.emit({ type: 'achievement', def: a })
+  }
+
+  // ── Kariyer metodları ──────────────────────────────────────────────────────
+
+  setCareerJob(jobId: CareerJobId | null): void {
+    this.career.jobId = jobId
+  }
+
+  setCharacterBackground(backgroundId: CharacterBackgroundId | null): void {
+    this.career.backgroundId = backgroundId
+  }
+
+  doCareerAction(actionId: CareerActionId): { money: number; xp: number; stressDelta: number; levelUp: boolean } {
+    if (actionId === 'isten_ayril') {
+      this.career.isEntrepreneur = true
+      this.emit({ type: 'career_phase_changed', isEntrepreneur: true })
+      return { money: 0, xp: 0, stressDelta: 0, levelUp: false }
     }
+    const currentDay = gameDay(this.gameTimeMs)
+    const result = applyCareerAction(this.career, actionId, currentDay)
+    if (result.money > 0) this.addMoney(result.money, false)
+    if (!this.career.firstGoalComplete && this.totalEarned >= FIRST_GOAL_TARGET) {
+      this.career.firstGoalComplete = true
+    }
+    this.emit({ type: 'career_action', actionId, money: result.money, levelUp: result.levelUp })
+    if (result.money > 0) this.emit({ type: 'money_changed' })
+    return result
+  }
+
+  // ── Firma seviyesi metodları ───────────────────────────────────────────────
+
+  producerLevel(id: string): number {
+    return this.producerLevels[id] ?? 1
+  }
+
+  firmLevelUpCostFor(def: ProducerDef): number {
+    const owned = this.producers[def.id] ?? 0
+    return firmLevelUpCost(def, this.producerLevel(def.id), owned)
+  }
+
+  levelUpFirm(def: ProducerDef): boolean {
+    const level = this.producerLevel(def.id)
+    if (level >= FIRM_MAX_LEVEL) return false
+    const cost = this.firmLevelUpCostFor(def)
+    if (this.money < cost) return false
+    this.money -= cost
+    this.producerLevels[def.id] = level + 1
+    this.emit({ type: 'purchase' })
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  // ── Firma geliştirme metodları ─────────────────────────────────────────────
+
+  firmUpgradesPurchased(producerId: string): string[] {
+    return this.producerUpgrades[producerId] ?? []
+  }
+
+  firmUpgradeCostFor(def: ProducerDef, upgradeId: string): number {
+    const up = firmUpgradeDef(def, upgradeId)
+    if (!up) return Infinity
+    const owned = this.producers[def.id] ?? 0
+    return firmUpgradeCost(def, up, owned)
+  }
+
+  buyFirmUpgrade(def: ProducerDef, upgradeId: string): boolean {
+    const purchased = this.firmUpgradesPurchased(def.id)
+    if (purchased.includes(upgradeId)) return false
+    const cost = this.firmUpgradeCostFor(def, upgradeId)
+    if (!isFinite(cost) || this.money < cost) return false
+    this.money -= cost
+    this.producerUpgrades[def.id] = [...purchased, upgradeId]
+    this.emit({ type: 'purchase' })
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  // ── Departman metodları ────────────────────────────────────────────────────
+
+  departmentUpgradeCostFor(id: DepartmentId): number {
+    return departmentUpgradeCost(id, this.departments[id] ?? 0)
+  }
+
+  upgradeDepartment(id: DepartmentId): boolean {
+    const cost = this.departmentUpgradeCostFor(id)
+    if (!isFinite(cost) || this.money < cost) return false
+    this.money -= cost
+    this.departments[id] = (this.departments[id] ?? 0) + 1
+    this.emit({ type: 'purchase' })
+    this.emit({ type: 'money_changed' })
+    return true
   }
 
   toJSON(): SerializableState {
@@ -5687,6 +5809,12 @@ export class GameState {
       karma: this.karma,
       characterProfile: this.characterProfile ? { ...this.characterProfile } : null,
       characterIncomeDailyBonus: this.characterIncomeDailyBonus,
+      career: { ...this.career },
+      producerLevels: { ...this.producerLevels },
+      producerUpgrades: Object.fromEntries(
+        Object.entries(this.producerUpgrades).map(([k, v]) => [k, [...v]])
+      ),
+      departments: { ...this.departments },
       difficulty: this.difficulty,
       difficultyChosen: this.difficultyChosen,
       playerName: this.playerName,
@@ -5950,6 +6078,14 @@ export class GameState {
     this.karma = data.karma ?? 0
     this.characterProfile = data.characterProfile ? { ...data.characterProfile } : null
     this.characterIncomeDailyBonus = data.characterIncomeDailyBonus ?? 0
+    this.career = data.career ? { ...createCareerState(), ...data.career } : createCareerState()
+    this.producerLevels = data.producerLevels ? { ...data.producerLevels } : {}
+    this.producerUpgrades = data.producerUpgrades
+      ? Object.fromEntries(Object.entries(data.producerUpgrades).map(([k, v]) => [k, [...(v as string[])]]))
+      : {}
+    this.departments = data.departments
+      ? { ...createDepartmentState(), ...(data.departments as Record<DepartmentId, number>) }
+      : createDepartmentState()
     if (data.travel) {
       this.travel = { ...createTravelState(), ...data.travel }
     }

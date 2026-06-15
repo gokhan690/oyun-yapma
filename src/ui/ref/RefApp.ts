@@ -184,7 +184,7 @@ export class RefApp {
         // hasRealData=!!vm: gerçek (ama boş) GameState'i saf-önizleme mock'undan
         // ayır → 0 firmalı oyuncuda dashboard ₺0 ile firmalar listesi çelişmez.
         const firms = new RefFirmsPage(vm?.firms, !!vm, st)
-        firms.onOpenFirm = (f: FirmData) => this.detail.show(f)
+        firms.onOpenFirm = (f: FirmData, live) => this.detail.show(f, live)
         return firms
       }
       case 'career': return new RefCareerPage(vm?.career, st)
@@ -203,7 +203,7 @@ export class RefApp {
 
   private showAchievements(): void {
     if (!this.achievements) {
-      this.achievements = new RefAchievementsPage()
+      this.achievements = new RefAchievementsPage(this.gameState)
       this.achievements.onBack = () => this.show(this.active)
     }
     this.mountBody(this.achievements)
@@ -230,6 +230,9 @@ export class RefApp {
 
   private mountBody(page: RefPage): void {
     this.mounted = page
+    // Utility ekranlarda (Profil/Başarımlar/Bildirimler) bottom nav gizlenir.
+    const isUtility = page === this.profile || page === this.achievements || page === this.notifs
+    this.el.classList.toggle('ref-shell--utility', isUtility)
     // Sayfa değişiminde açık firma detay overlay'ini kapat
     this.detail.hide()
     // Görseller tembel yüklensin (aynı anda onlarca asset decode etmesin)

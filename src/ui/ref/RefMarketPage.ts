@@ -44,11 +44,15 @@ export class RefMarketPage implements RefPage {
   private sentCard?: HTMLElement
   private stockList?: HTMLElement
   private bankGrid?: HTMLElement
+  private insGrid?: HTMLElement
   private ipoCard?: HTMLElement
   private lastSentSig = ''
   private lastStockSig = ''
   private lastBankSig = ''
+  private lastInsSig = ''
   private lastIpoSig = ''
+  private ipoConfirming = false
+  private ipoConfirmTimer: number | null = null
 
   constructor(state?: GameState) {
     this.state = state
@@ -91,11 +95,6 @@ export class RefMarketPage implements RefPage {
     this.stockList.innerHTML = this.stockHtml(s)
     secStocks.appendChild(this.stockList)
 
-    const stockNote = document.createElement('div')
-    stockNote.className = 'ref-preview-note'
-    stockNote.textContent = '🔒 Önizleme · Al/Sat işlemleri ana oyun ekranından yapılır'
-    secStocks.appendChild(stockNote)
-
     // ── 🏦 Banka: canlı değerler + hızlı işlemler ──
     secBank.appendChild(sectionTitle('Banka & Kredi'))
     this.bankGrid = document.createElement('div')
@@ -104,13 +103,10 @@ export class RefMarketPage implements RefPage {
 
     // ── 🛡️ Sigorta & IPO ──
     secIns.appendChild(sectionTitle('Sigorta'))
-    const ins = document.createElement('div')
-    ins.className = 'ref-fin-grid ins'
-    ins.innerHTML = `
-      ${this.insCell('🏢', 'İşletme', s.insurance.business)}
-      ${this.insCell('🕶️', 'Yasadışı', s.insurance.illegal)}
-      ${this.insCell('👨‍👩‍👧', 'Hanedan', s.insurance.dynasty)}`
-    secIns.appendChild(ins)
+    this.insGrid = document.createElement('div')
+    this.insGrid.className = 'ref-fin-grid ins'
+    this.insGrid.innerHTML = this.insGridHtml(s)
+    secIns.appendChild(this.insGrid)
 
     secIns.appendChild(sectionTitle('IPO / Prestij', `${s.ipoCount} IPO`))
     this.ipoCard = document.createElement('div')
@@ -122,6 +118,7 @@ export class RefMarketPage implements RefPage {
     this.lastSentSig  = this.sentSig(s)
     this.lastStockSig = this.stockSig(s)
     this.lastBankSig  = this.bankSig(s)
+    this.lastInsSig   = this.insSig(s)
     this.lastIpoSig   = this.ipoSig(s)
   }
 
@@ -167,6 +164,8 @@ export class RefMarketPage implements RefPage {
       const chg = tickerChangePct(t)
       const up = chg >= 0
       const ownedTxt = t.shares > 0 ? `<span class="ref-stock-owned">${t.shares} hisse</span>` : ''
+      const canBuy = s.money >= t.price
+      const canSell = t.shares > 0
       return `
         <div class="ref-stock-row">
           <div class="ref-stock-id">
@@ -177,6 +176,10 @@ export class RefMarketPage implements RefPage {
           <div class="ref-stock-num">
             <span class="ref-stock-price">${fmtMoney(Math.round(t.price))}</span>
             <span class="ref-stock-chg ${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(chg).toFixed(1)}%</span>
+          </div>
+          <div class="ref-stock-actions">
+            <button class="ref-stock-buy-btn" type="button" data-stock-buy="${t.id}" ${canBuy ? '' : 'disabled'}>✅ Al</button>
+            <button class="ref-stock-sell-btn" type="button" data-stock-sell="${t.id}" ${canSell ? '' : 'disabled'}>💰 Sat</button>
           </div>
         </div>`
     }).join('')
@@ -205,23 +208,42 @@ export class RefMarketPage implements RefPage {
       </div>`
   }
 
+  private insSig(s: GameState): string {
+    return `${s.insurance.business}|${s.insurance.illegal}|${s.insurance.dynasty}`
+  }
+
+  private insGridHtml(s: GameState): string {
+    return `
+      ${this.insCell('🏢', 'İşletme', 'business', s.insurance.business)}
+      ${this.insCell('🕶️', 'Yasadışı', 'illegal', s.insurance.illegal)}
+      ${this.insCell('👨‍👩‍👧', 'Hanedan', 'dynasty', s.insurance.dynasty)}`
+  }
+
   private ipoSig(s: GameState): string {
     const ipo = s.ipoProgress()
-    return `${s.prestigePoints}|${s.ipoCount}|${Math.round(ipo.pct)}|${ipo.ready}`
+    return `${s.prestigePoints}|${s.ipoCount}|${Math.round(ipo.pct)}|${ipo.ready}|${this.ipoConfirming}`
   }
 
   private ipoHtml(s: GameState): string {
     const ipo = s.ipoProgress()
+    const pending = s.pendingPrestigePoints()
+    const btnLabel = this.ipoConfirming ? '⚠️ Emin misin? Tekrar tıkla' : '🚀 IPO Başlat'
+    const btnAction = this.ipoConfirming ? 'confirm2' : 'confirm1'
+    const btnClass = `ref-ipo-confirm-btn${this.ipoConfirming ? ' confirming' : ''}`
     return `
       <div class="ref-ipo-card__row">
         <span>📈 Prestij Puanı</span><b>${s.prestigePoints}</b>
       </div>
       <div class="ref-ipo-card__row">
+        <span>Bu IPO'da kazanılacak</span><b>+${pending} puan</b>
+      </div>
+      <div class="ref-ipo-card__row">
         <span>Sonraki IPO eşiği</span>
-        <b class="${ipo.ready ? 'ready' : ''}">${ipo.ready ? 'HAZIR' : `%${Math.round(ipo.pct)}`}</b>
+        <b class="${ipo.ready ? 'ready' : ''}">${ipo.ready ? 'HAZIR ✓' : `%${Math.round(ipo.pct)}`}</b>
       </div>
       <div class="ref-perf-track"><div class="ref-perf-fill ${ipo.ready ? 'high' : 'medium'}" style="width:${Math.round(ipo.pct)}%"></div></div>
-      <div class="ref-ipo-card__meta">${fmtMoney(Math.round(ipo.current))} / ${fmtMoney(Math.round(ipo.target))} toplam kazanç</div>`
+      <div class="ref-ipo-card__meta">${fmtMoney(Math.round(ipo.current))} / ${fmtMoney(Math.round(ipo.target))} toplam kazanç</div>
+      <button class="${btnClass}" type="button" data-ipo-action="${btnAction}" ${ipo.ready ? '' : 'disabled'}>${btnLabel}</button>`
   }
 
   /* ── Canlı tazeleme: yalnız imzası değişen blok yeniden kurulur ── */
@@ -246,6 +268,11 @@ export class RefMarketPage implements RefPage {
       this.lastBankSig = bSig
       this.bankGrid.innerHTML = this.bankHtml(state)
     }
+    const insSig = this.insSig(state)
+    if (insSig !== this.lastInsSig && this.insGrid) {
+      this.lastInsSig = insSig
+      this.insGrid.innerHTML = this.insGridHtml(state)
+    }
     const iSig = this.ipoSig(state)
     if (iSig !== this.lastIpoSig && this.ipoCard) {
       this.lastIpoSig = iSig
@@ -253,14 +280,70 @@ export class RefMarketPage implements RefPage {
     }
   }
 
-  /* ── Banka hızlı işlemleri (GameState public API — ekonomi mantığına dokunmaz) ── */
+  /* ── Hızlı işlemler (GameState public API — ekonomi mantığına dokunmaz) ── */
   private handleClick(e: MouseEvent): void {
     const s = this.state
     if (!s) return
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-bank]')
-    if (!btn || btn.disabled) return
+    const el = e.target as HTMLElement
 
-    switch (btn.dataset.bank) {
+    // ── Borsa Al/Sat ──
+    const buyBtn = el.closest<HTMLButtonElement>('[data-stock-buy]')
+    if (buyBtn && !buyBtn.disabled) {
+      const tickerId = buyBtn.dataset.stockBuy!
+      const ok = s.stockBuy(tickerId, 1)
+      refToast(ok ? `✅ 1 hisse alındı` : '💸 Yetersiz nakit', ok ? 'ok' : 'err')
+      this.refresh(s)
+      return
+    }
+    const sellBtn = el.closest<HTMLButtonElement>('[data-stock-sell]')
+    if (sellBtn && !sellBtn.disabled) {
+      const tickerId = sellBtn.dataset.stockSell!
+      const ok = s.stockSell(tickerId, 1)
+      refToast(ok ? `💰 1 hisse satıldı` : '⛔ Hisse bulunamadı', ok ? 'ok' : 'err')
+      this.refresh(s)
+      return
+    }
+
+    // ── Sigorta toggle ──
+    const insBtn = el.closest<HTMLButtonElement>('[data-ins-toggle]')
+    if (insBtn && !insBtn.disabled) {
+      const kind = insBtn.dataset.insToggle as 'business' | 'illegal' | 'dynasty'
+      s.toggleInsurance(kind)
+      const nowActive = s.insurance[kind]
+      refToast(nowActive ? `🛡️ Sigorta aktif edildi` : `🔴 Sigorta kapatıldı`, 'ok')
+      this.refresh(s)
+      return
+    }
+
+    // ── IPO çift onay ──
+    const ipoBtn = el.closest<HTMLButtonElement>('[data-ipo-action]')
+    if (ipoBtn && !ipoBtn.disabled) {
+      if (ipoBtn.dataset.ipoAction === 'confirm1') {
+        this.ipoConfirming = true
+        if (this.ipoConfirmTimer !== null) window.clearTimeout(this.ipoConfirmTimer)
+        this.ipoConfirmTimer = window.setTimeout(() => {
+          this.ipoConfirming = false
+          this.ipoConfirmTimer = null
+          if (this.ipoCard && this.state) this.ipoCard.innerHTML = this.ipoHtml(this.state)
+        }, 5000)
+        if (this.ipoCard) this.ipoCard.innerHTML = this.ipoHtml(s)
+        return
+      }
+      if (ipoBtn.dataset.ipoAction === 'confirm2') {
+        if (this.ipoConfirmTimer !== null) { window.clearTimeout(this.ipoConfirmTimer); this.ipoConfirmTimer = null }
+        this.ipoConfirming = false
+        const pts = s.doPrestige()
+        refToast(pts > 0 ? `🚀 IPO tamamlandı! +${pts} prestij puanı` : '⛔ IPO koşulları sağlanamadı', pts > 0 ? 'ok' : 'err')
+        this.refresh(s)
+        return
+      }
+    }
+
+    // ── Banka işlemleri ──
+    const bankBtn = el.closest<HTMLButtonElement>('[data-bank]')
+    if (!bankBtn || bankBtn.disabled) return
+
+    switch (bankBtn.dataset.bank) {
       case 'deposit': {
         const amount = Math.floor(s.money * 0.25)
         if (amount < 100) { refToast('💸 Yatıracak yeterli nakit yok', 'err'); return }
@@ -297,8 +380,14 @@ export class RefMarketPage implements RefPage {
   private finCell(ico: string, label: string, value: string): string {
     return `<div class="ref-fin-cell"><span class="ref-fin-cell__ico">${ico}</span><span class="ref-fin-cell__lbl">${label}</span><b class="ref-fin-cell__val">${value}</b></div>`
   }
-  private insCell(ico: string, label: string, active: boolean): string {
-    return `<div class="ref-fin-cell ins ${active ? 'on' : 'off'}"><span class="ref-fin-cell__ico">${ico}</span><span class="ref-fin-cell__lbl">${label}</span><b class="ref-fin-cell__val">${active ? '✓ Aktif' : 'Pasif'}</b></div>`
+  private insCell(ico: string, label: string, kind: string, active: boolean): string {
+    const toggleLbl = active ? '🔴 Kapat' : '🟢 Aç'
+    return `<div class="ref-fin-cell ins ${active ? 'on' : 'off'}">
+      <span class="ref-fin-cell__ico">${ico}</span>
+      <span class="ref-fin-cell__lbl">${label}</span>
+      <b class="ref-fin-cell__val">${active ? '✓ Aktif' : 'Pasif'}</b>
+      <button class="ref-ins-toggle-btn" type="button" data-ins-toggle="${kind}">${toggleLbl}</button>
+    </div>`
   }
 
   // ── Mock (state yok) ─────────────────────────────────────────────────

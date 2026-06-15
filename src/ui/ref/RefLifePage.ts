@@ -35,8 +35,8 @@ const TRAIT_LABELS: Record<string, string> = {
  */
 export class RefLifePage implements RefPage {
   readonly el: HTMLElement
-  readonly title = 'YAŞAM'
-  readonly titleDeco = '🌿'
+  readonly title = 'AİLE'
+  readonly titleDeco = '👨‍👩‍👧'
 
   private state?: GameState
   private tabs: RefSubTabs
@@ -213,11 +213,13 @@ export class RefLifePage implements RefPage {
     const crest = document.createElement('div')
     crest.className = 'ref-dynasty-head'
     const famStars = Math.min(5, 1 + d.generation + (d.spouseId ? 1 : 0) + Math.min(2, d.children.length))
+    const spouseCount = d.spouseId ? 1 : 0
+    const memberCount = 1 + spouseCount + d.children.length
     crest.innerHTML = `
       <img src="${ua(REF_ASSETS_V2_GENERIC.family.crest)}" alt="" class="ref-dynasty-crest">
       <div class="ref-dynasty-info">
         <div class="ref-dynasty-name">${s.playerName || 'Baron'} Hanedanı</div>
-        <div class="ref-dynasty-sub">${d.generation}. Nesil · ${d.children.length} çocuk</div>
+        <div class="ref-dynasty-sub">${d.generation}. Nesil · ${memberCount} üye</div>
         <div class="ref-dynasty-stars">${starsHtml(famStars)}</div>
       </div>
       <div class="ref-dynasty-score">
@@ -286,6 +288,17 @@ export class RefLifePage implements RefPage {
           </div>`
       }).join('')
       wrap.appendChild(list)
+    } else {
+      wrap.appendChild(sectionTitle('Çocuklar', '0 çocuk'))
+      const empty = document.createElement('div')
+      empty.className = 'ref-life-empty'
+      empty.innerHTML = `
+        <span class="ref-life-empty__ico">👶</span>
+        <div class="ref-life-empty__main">
+          <div class="ref-life-empty__title">Henüz çocuğun yok</div>
+          <div class="ref-life-empty__desc">${d.spouseId ? 'Hanedanını sürdürecek varisler ana oyundaki Hanedan panelinden doğar.' : 'Önce evlen — sonra hanedanını sürdürecek varisler dünyaya gelir.'}</div>
+        </div>`
+      wrap.appendChild(empty)
     }
 
     // Miras
