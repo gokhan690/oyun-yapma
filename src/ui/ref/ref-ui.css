@@ -2442,3 +2442,103 @@
 .ref-health-tip { font-size: 0.72rem; padding: 5px 8px; border-radius: 6px; }
 .ref-health-tip.good { background: #dcfce7; color: #166534; }
 .ref-health-tip.warn { background: #fef3c7; color: #92400e; }
+
+/* ── Tur 6A: Kariyer Oynanabilirliği ───────────────────────────────── */
+.ref-career-section-title { font-size: 11px; font-weight: 800; color: var(--r-text2); margin: 12px 2px 6px; }
+
+/* PlayerRank küçük chip — ana başlığın altında, bağımsız durum badge'i değil */
+.ref-career-rank-chip {
+  display: inline-block; margin-top: 5px;
+  font-size: 10px; font-weight: 700; color: var(--r-muted);
+  background: var(--r-border); border-radius: 4px; padding: 2px 6px;
+}
+
+/* İş aksiyon butonları (mesai/ek mesai/eğitim/networking) */
+.ref-career-action-grid { display: flex; flex-direction: column; gap: 7px; }
+.ref-career-action-btn {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--r-card); border: 1.5px solid var(--r-border);
+  border-radius: 10px; padding: 10px 12px; cursor: pointer;
+  transition: background 0.15s; width: 100%; text-align: left;
+}
+.ref-career-action-btn:active { background: var(--r-border); }
+.ref-career-action-btn.used { opacity: 0.5; cursor: default; }
+.ref-career-action-btn__ico { font-size: 18px; flex-shrink: 0; }
+.ref-career-action-btn__main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ref-career-action-btn__label { font-size: 12.5px; font-weight: 800; color: var(--r-text); }
+.ref-career-action-btn__earn { font-size: 10.5px; font-weight: 700; color: var(--r-success); margin-top: 1px; }
+.ref-career-action-btn__done { font-size: 10px; font-weight: 700; color: var(--r-muted); margin-top: 1px; }
+.ref-career-action-btn__xp { font-size: 10.5px; font-weight: 700; color: #7c3aed; margin-top: 1px; }
+
+/* İş seçim grid */
+.ref-career-job-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+.ref-career-job-card {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: var(--r-card); border: 1.5px solid var(--r-border);
+  border-radius: 10px; padding: 10px 8px; cursor: pointer; text-align: center;
+}
+.ref-career-job-card:active { opacity: 0.8; }
+.ref-career-job-card__ico { font-size: 22px; }
+.ref-career-job-card__name { font-size: 11px; font-weight: 800; color: var(--r-text); }
+.ref-career-job-card__wage { font-size: 10px; font-weight: 700; color: var(--r-success); }
+.ref-career-job-card__stress { font-size: 9.5px; font-weight: 700; color: var(--r-muted); }
+
+/* Girişimci bilgilendirme badge'i */
+.ref-career-entrepreneur-badge {
+  background: linear-gradient(135deg, #7c3aed22, #7c3aed08);
+  border: 1.5px solid #7c3aed44; border-radius: 10px;
+  padding: 10px 12px; font-size: 12px; font-weight: 700; color: #7c3aed;
+}
+
+/* Girişimci paneli — firma sayısı / gelir / net değer / nakit + en iyi firma */
+.ref-entre-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+.ref-entre-stat {
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--r-card); border: 1.5px solid var(--r-border);
+  border-radius: 10px; padding: 9px 11px;
+}
+.ref-entre-stat__lbl { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--r-muted-lt); }
+.ref-entre-stat__val { font-size: 14px; font-weight: 900; color: var(--r-text); }
+.ref-entre-stat__val.income { color: var(--r-success); }
+.ref-entre-best {
+  display: flex; align-items: center; gap: 10px; margin-top: 8px;
+  background: linear-gradient(135deg, #0369a122, #0369a108);
+  border: 1.5px solid #0369a133; border-radius: 10px; padding: 9px 12px;
+}
+.ref-entre-best__ico { font-size: 22px; flex-shrink: 0; }
+.ref-entre-best__main { flex: 1; min-width: 0; }
+.ref-entre-best__lbl { font-size: 9.5px; font-weight: 700; color: var(--r-muted); }
+.ref-entre-best__name { font-size: 12.5px; font-weight: 800; color: var(--r-text); }
+.ref-entre-best__income { font-size: 12px; font-weight: 800; color: var(--r-success); white-space: nowrap; }
+.ref-entre-note { font-size: 11px; font-weight: 600; color: var(--r-muted); margin: 8px 2px 4px; }
+.ref-entre-cta {
+  display: block; width: 100%; margin: 4px 0 2px;
+  background: linear-gradient(180deg, #13B8A6, #078B83); color: #fff;
+  border: none; border-radius: 10px; padding: 11px; cursor: pointer;
+  font-size: 13px; font-weight: 800;
+}
+.ref-entre-cta:active { opacity: 0.85; }
+
+/* Günlük rutin butonları (Sağlık sekmesi) */
+.ref-routine-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+.ref-routine-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: var(--r-card); border: 1.5px solid var(--r-border);
+  border-radius: 10px; padding: 9px 10px; cursor: pointer; text-align: center;
+}
+.ref-routine-btn:active { opacity: 0.8; }
+.ref-routine-btn[disabled] { opacity: 0.45; cursor: default; }
+.ref-routine-btn__ico { font-size: 18px; }
+.ref-routine-btn__label { font-size: 10.5px; font-weight: 800; color: var(--r-text); }
+.ref-routine-btn__effect { font-size: 9.5px; font-weight: 700; color: var(--r-muted); }
+
+/* Stres tedavisi satırları (Sağlık sekmesi) */
+.ref-wellbeing-list { display: flex; flex-direction: column; gap: 6px; }
+.ref-wellbeing-row {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--r-card); border: 1.5px solid var(--r-border);
+  border-radius: 8px; padding: 8px 10px;
+}
+.ref-wellbeing-row__main { flex: 1; min-width: 0; }
+.ref-wellbeing-row__name { font-size: 12px; font-weight: 800; color: var(--r-text); }
+.ref-wellbeing-row__effect { font-size: 10px; font-weight: 700; color: var(--r-success); }

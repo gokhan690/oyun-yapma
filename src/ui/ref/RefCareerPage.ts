@@ -9,6 +9,29 @@ import type { FameCareerType } from '../../game/Fame'
 import { diseaseDef } from '../../game/Diseases'
 import { PLAYER_RANKS, rankProgress } from '../../game/PlayerRank'
 import { JOB_DEFS, EDUCATION_DEFS, LIFESTYLE_DEFS } from '../../game/CharacterProfile'
+import {
+  CAREER_JOBS, BINDABLE_CAREER_ACTION_IDS, careerJobDef, estimatedCareerActionPay,
+  type CareerJobId, type CareerActionId,
+} from '../../game/Career'
+import { WELLBEING_ACTIVITIES, type WellbeingActivityId } from '../../game/Lifestyle'
+import { PRODUCERS } from '../../game/Economy'
+
+/** Kariyer aksiyon butonlarının etiket/emoji/açıklaması. */
+const CAREER_ACTION_META: Record<string, { emoji: string; label: string; desc: string }> = {
+  mesai:      { emoji: '🕘', label: 'Mesai Yap',  desc: 'Günlük çalışma' },
+  ek_mesai:   { emoji: '🌙', label: 'Ek Mesai',   desc: 'Fazla mesai, yüksek prim' },
+  egitim_al:  { emoji: '📚', label: 'Eğitim Al',  desc: 'XP kazan, stres düşür' },
+  networking: { emoji: '🤝', label: 'Networking', desc: 'Ağ kur, az gelir + XP' },
+}
+
+/** Kariyer Sağlık sekmesinde bağlanan günlük rutin aksiyonları. */
+const ROUTINE_META: { id: 'exercise' | 'meditate'; emoji: string; label: string; effect: string }[] = [
+  { id: 'exercise', emoji: '🏃', label: 'Egzersiz',   effect: '+5 sağlık · -5 stres' },
+  { id: 'meditate', emoji: '🧘', label: 'Meditasyon', effect: '-10 stres' },
+]
+
+/** Kariyer Sağlık sekmesinde gösterilen stres tedavileri (yalnız bu ikisi). */
+const CAREER_WELLBEING_IDS: WellbeingActivityId[] = ['terapi', 'meditasyon']
 
 const MOCK_CAREER: RefCareerVM = {
   jobTitle: 'Holding YK Başkanı', level: 24, salaryDaily: 48_000, stress: 48,
@@ -79,15 +102,58 @@ export class RefCareerPage implements RefPage {
   }
 
   private jobCardHtml(c: RefCareerVM): string {
-    const rankColor = c.level >= 20 ? '#7c3aed' : c.level >= 10 ? '#0369a1' : '#475569'
-    return `
+    const career = this.state?.career
+    const isEntrepreneur = !!career?.isEntrepreneur
+    const hasJob = !!career?.jobId && !isEntrepreneur
+    const isUnemployed = !!this.state && !career?.jobId && !isEntrepreneur
+
+    const rankColor = isEntrepreneur ? '#7c3aed' : hasJob ? '#0369a1' : '#475569'
+
+    // Ana başlık / alt yazı / sağ-üst badge = oyuncunun GERÇEK durumu (PlayerRank değil).
+    let mainTitle: string
+    let mainSub: string
+    let badge: string
+    if (!this.state) {
+      mainTitle = c.jobTitle
+      mainSub = `Kariyer Seviyesi ${c.level} · ${c.seniorityYears} yıl kıdem`
+      badge = `LVL ${c.level}`
+    } else if (isEntrepreneur) {
+      mainTitle = '🚀 Girişimci'
+      mainSub = 'Gelir firmalarından geliyor'
+      badge = 'Firma Sahibi'
+    } else if (!career?.jobId) {
+      mainTitle = '🔍 İşsiz'
+      mainSub = 'Henüz iş seçilmedi'
+      badge = 'Başlangıç'
+    } else {
+      const jobDef = careerJobDef(career.jobId)
+      mainTitle = `${jobDef?.emoji ?? '💼'} ${jobDef?.name ?? ''}`
+      mainSub = `Çalışan · Kariyer Seviyesi ${career.level} · ${c.seniorityYears} yıl kıdem`
+      badge = `İş Lv.${career.level}`
+    }
+
+    const banner = `
       <div class="ref-job-card__banner" style="background:linear-gradient(135deg,${rankColor}22,${rankColor}08)">
         <div class="ref-job-card__banner-left">
-          <div class="ref-job-card__title">${c.jobTitle}</div>
-          <div class="ref-job-card__company">Kariyer Seviyesi ${c.level} · ${c.seniorityYears} yıl kıdem</div>
+          <div class="ref-job-card__title">${mainTitle}</div>
+          <div class="ref-job-card__company">${mainSub}</div>
         </div>
-        <div class="ref-job-card__lvl-pill" style="background:${rankColor}">LVL ${c.level}</div>
-      </div>
+        <div class="ref-job-card__lvl-pill" style="background:${rankColor}">${badge}</div>
+      </div>`
+
+    // Girişimci modu: maaş/rütbe/XP yerine firma odaklı panel.
+    if (isEntrepreneur) {
+      return banner + this.buildEntrepreneurPanel()
+    }
+
+    // 3. stat hücresi: işsizken rütbe yerine nötr yönlendirme.
+    const thirdStat = isUnemployed
+      ? `<span class="ref-job-stat__lbl">🎯 Başlangıç</span>
+         <span class="ref-job-stat__val">İlk işini seç</span>`
+      : `<span class="ref-job-stat__lbl">🏆 Sıradaki Rütbe</span>
+         <span class="ref-job-stat__val">${c.nextRank}</span>`
+
+    return banner + `
       <div class="ref-job-stats">
         <div class="ref-job-stat">
           <span class="ref-job-stat__lbl">💰 Günlük Gelir</span>
@@ -98,8 +164,7 @@ export class RefCareerPage implements RefPage {
           <span class="ref-job-stat__val income">${fmtMoney(c.salaryDaily * 30)}</span>
         </div>
         <div class="ref-job-stat">
-          <span class="ref-job-stat__lbl">🏆 Sıradaki Rütbe</span>
-          <span class="ref-job-stat__val">${c.nextRank}</span>
+          ${thirdStat}
         </div>
       </div>
       <div class="ref-job-bars">
@@ -119,7 +184,105 @@ export class RefCareerPage implements RefPage {
         ${c.stress >= 70 ? '<div class="ref-career-tip ref-career-tip--warn">⚠️ Stres çok yüksek — sağlık riske girdi</div>' : ''}
         ${c.xpPct >= 80 ? '<div class="ref-career-tip ref-career-tip--good">🚀 Rütbe atlamaya yakın!</div>' : ''}
       </div>
+      ${this.buildJobActionsHtml()}
     `
+  }
+
+  /**
+   * Girişimci paneli: firma sayısı, günlük gelir, net değer/nakit, en iyi firma
+   * ve Firmalar sekmesine geçiş. (Salt-okunur GameState getter'ları kullanır.)
+   */
+  private buildEntrepreneurPanel(): string {
+    const s = this.state
+    if (!s) return ''
+    const firmCount = s.ownedBusinessTiers()
+    const dailyIncome = Math.round(s.incomePerDay())
+    const netWorth = Math.round(s.financeNetWorth())
+    const cash = Math.round(s.money)
+
+    let best: { name: string; emoji: string; income: number } | null = null
+    for (const p of PRODUCERS) {
+      if ((s.producers[p.id] ?? 0) <= 0) continue
+      const inc = s.producerIncome(p)
+      if (!best || inc > best.income) best = { name: p.name, emoji: p.emoji, income: inc }
+    }
+
+    const bestRow = best
+      ? `<div class="ref-entre-best">
+           <span class="ref-entre-best__ico">${best.emoji}</span>
+           <div class="ref-entre-best__main">
+             <div class="ref-entre-best__lbl">En çok gelir getiren</div>
+             <div class="ref-entre-best__name">${best.name}</div>
+           </div>
+           <div class="ref-entre-best__income">${fmtMoney(Math.round(best.income))}/gün</div>
+         </div>`
+      : `<div class="ref-career-entrepreneur-badge">Henüz firman yok — Firmalar sekmesinden ilk işletmeni kur.</div>`
+
+    return `
+      <div class="ref-career-section-title">Girişimci Paneli</div>
+      <div class="ref-entre-grid">
+        <div class="ref-entre-stat"><span class="ref-entre-stat__lbl">🏢 Firma</span><span class="ref-entre-stat__val">${firmCount}</span></div>
+        <div class="ref-entre-stat"><span class="ref-entre-stat__lbl">💰 Günlük Gelir</span><span class="ref-entre-stat__val income">${fmtMoney(dailyIncome)}</span></div>
+        <div class="ref-entre-stat"><span class="ref-entre-stat__lbl">💎 Net Değer</span><span class="ref-entre-stat__val">${fmtMoney(netWorth)}</span></div>
+        <div class="ref-entre-stat"><span class="ref-entre-stat__lbl">💵 Nakit</span><span class="ref-entre-stat__val">${fmtMoney(cash)}</span></div>
+      </div>
+      ${bestRow}
+      <div class="ref-entre-note">Artık kariyer maaşı yerine şirketlerinden gelir kazanıyorsun.</div>
+      <button class="ref-entre-cta" type="button" data-career-goto-firms>🏢 Firmalara Git</button>
+      <div class="ref-career-tips">
+        <div class="ref-career-tip ref-career-tip--good">📈 Firma gelişimi: Firmalar sekmesinden yönet</div>
+      </div>
+    `
+  }
+
+  /**
+   * İş sekmesi aksiyonları (yalnız çalışan/işsiz):
+   *  - İş seçilmemişse: 6 iş seçim kartı.
+   *  - İş seçilmişse: günlük kariyer aksiyon butonları (mesai/ek mesai/eğitim/networking).
+   * (Girişimci modu jobCardHtml içinde ayrı panelle ele alınır.)
+   */
+  private buildJobActionsHtml(): string {
+    const s = this.state
+    if (!s) return ''
+    const career = s.career
+
+    if (!career.jobId) {
+      const cards = CAREER_JOBS.map((job) => `
+        <button class="ref-career-job-card" type="button" data-career-job="${job.id}">
+          <span class="ref-career-job-card__ico">${job.emoji}</span>
+          <span class="ref-career-job-card__name">${job.name}</span>
+          <span class="ref-career-job-card__wage">${fmtMoney(job.baseDailyWage)}/gün</span>
+          <span class="ref-career-job-card__stress">😤 +${job.stressDelta} stres</span>
+        </button>`).join('')
+      return `
+        <div class="ref-career-section-title">Bir İş Seç</div>
+        <div class="ref-career-job-grid">${cards}</div>`
+    }
+
+    const jobName = careerJobDef(career.jobId)?.name ?? 'İşin'
+    const buttons = BINDABLE_CAREER_ACTION_IDS.map((actId) => {
+      const meta = CAREER_ACTION_META[actId]
+      const used = career.actionsUsedToday.includes(actId)
+      const pay = estimatedCareerActionPay(career, actId)
+      const earnLine = pay > 0
+        ? `<div class="ref-career-action-btn__earn">≈ ${fmtMoney(pay)} + prim</div>`
+        : `<div class="ref-career-action-btn__xp">XP & stres odaklı</div>`
+      const sub = used
+        ? '<div class="ref-career-action-btn__done">✓ Bugün tamamlandı</div>'
+        : earnLine
+      return `
+        <button class="ref-career-action-btn${used ? ' used' : ''}" type="button"
+                data-career-action="${actId}" ${used ? 'disabled' : ''}>
+          <span class="ref-career-action-btn__ico">${meta.emoji}</span>
+          <span class="ref-career-action-btn__main">
+            <span class="ref-career-action-btn__label">${meta.label}</span>
+            ${sub}
+          </span>
+        </button>`
+    }).join('')
+    return `
+      <div class="ref-career-section-title">${jobName} · Günlük Aksiyonlar</div>
+      <div class="ref-career-action-grid">${buttons}</div>`
   }
 
   private renderDyn(c: RefCareerVM): void {
@@ -196,7 +359,54 @@ export class RefCareerPage implements RefPage {
       card.appendChild(ok)
     }
     wrap.appendChild(card)
+
+    // Günlük dinlenme + stres tedavisi (state'e gerçek bağlı)
+    const s = this.state
+    if (s) {
+      const routine = document.createElement('div')
+      routine.innerHTML = this.buildRoutineAndWellbeingHtml(s)
+      wrap.appendChild(routine)
+    }
     return wrap
+  }
+
+  /** Günlük rutin (egzersiz/meditasyon) + stres tedavisi (terapi/meditasyon). */
+  private buildRoutineAndWellbeingHtml(s: GameState): string {
+    const status = s.getDailyRoutineActions()
+    const limitFull = status.remaining <= 0
+    const routineBtns = ROUTINE_META.map((r) => {
+      const used = status.used.includes(r.id)
+      const disabled = used || limitFull
+      return `
+        <button class="ref-routine-btn" type="button" data-routine="${r.id}" ${disabled ? 'disabled' : ''}>
+          <span class="ref-routine-btn__ico">${r.emoji}</span>
+          <span class="ref-routine-btn__label">${r.label}</span>
+          <span class="ref-routine-btn__effect">${used ? '✓ Yapıldı' : r.effect}</span>
+        </button>`
+    }).join('')
+
+    const wbRows = CAREER_WELLBEING_IDS.map((id) => {
+      const act = WELLBEING_ACTIVITIES.find((a) => a.id === id)
+      if (!act) return ''
+      const canBuy = s.money >= act.cost
+      return `
+        <div class="ref-wellbeing-row">
+          <span class="ref-routine-btn__ico">${act.emoji}</span>
+          <div class="ref-wellbeing-row__main">
+            <div class="ref-wellbeing-row__name">${act.name}</div>
+            <div class="ref-wellbeing-row__effect">😌 -${act.stressReduction} stres</div>
+          </div>
+          <button class="ref-disease-treat-btn" type="button" data-wellbeing="${id}" ${canBuy ? '' : 'disabled'}>
+            ${fmtMoney(act.cost)}
+          </button>
+        </div>`
+    }).join('')
+
+    return `
+      <div class="ref-career-section-title">Günlük Dinlenme · ${status.remaining}/${status.max} hak</div>
+      <div class="ref-routine-grid">${routineBtns}</div>
+      <div class="ref-career-section-title">Stres Tedavisi</div>
+      <div class="ref-wellbeing-list">${wbRows}</div>`
   }
 
   private buildFameSection(c: RefCareerVM): HTMLElement {
@@ -266,11 +476,19 @@ export class RefCareerPage implements RefPage {
   }
 
   private dynSig(c: RefCareerVM): string {
-    return `${c.health}|${c.diseases.map((d) => d.id).join(',')}|${c.fame}|${c.fameIsActive}|${c.fameCareerType}|${c.karma}`
+    const routineUsed = this.state?.getDailyRoutineActions().used.join(',') ?? ''
+    return `${c.health}|${c.diseases.map((d) => d.id).join(',')}|${c.fame}|${c.fameIsActive}|${c.fameCareerType}|${c.karma}|${routineUsed}|${Math.round(this.state?.money ?? 0)}`
   }
 
   private jobSig(c: RefCareerVM): string {
-    return `${c.jobTitle}|${c.level}|${Math.round(c.salaryDaily)}|${c.stress}|${c.xpPct}|${c.nextRank}`
+    const career = this.state?.career
+    const acts = career?.actionsUsedToday.join(',') ?? ''
+    // Girişimci panelinde nakit/net değer canlı; yalnız o modda imzaya ekle
+    // (çalışan modda gereksiz rebuild olmasın).
+    const entrePart = career?.isEntrepreneur
+      ? `|${Math.round(this.state?.money ?? 0)}|${Math.round(this.state?.financeNetWorth() ?? 0)}`
+      : ''
+    return `${c.jobTitle}|${c.level}|${Math.round(c.salaryDaily)}|${c.stress}|${c.xpPct}|${c.nextRank}|${career?.jobId ?? '-'}|${career?.level ?? 0}|${career?.isEntrepreneur ?? false}|${acts}${entrePart}`
   }
 
   refresh(state: GameState): void {
@@ -337,10 +555,77 @@ export class RefCareerPage implements RefPage {
     }
   }
 
+  /**
+   * Firmalar sekmesine geç. RefApp'in bottom-nav butonunu DOM üzerinden
+   * tetikler → mevcut `nav.onChange → show('firms')` akışını aynen kullanır
+   * (RefApp'e dokunmadan, güvenli tab geçişi).
+   */
+  private navigateToFirms(): void {
+    const shell = this.el.closest('.ref-shell')
+    const btns = shell?.querySelectorAll<HTMLButtonElement>('.ref-bottom-nav .ref-nav-btn')
+    if (!btns) return
+    for (const b of Array.from(btns)) {
+      if (b.querySelector('.ref-nav-btn__lbl')?.textContent?.trim() === 'Firmalar') {
+        b.click()
+        return
+      }
+    }
+  }
+
   private handleClick(e: MouseEvent): void {
     if (!this.state) return
-    const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-action],[data-disease]')
+    const btn = (e.target as HTMLElement).closest<HTMLElement>(
+      '[data-action],[data-disease],[data-career-job],[data-career-action],[data-routine],[data-wellbeing],[data-career-goto-firms]',
+    )
     if (!btn) return
+    const s = this.state
+
+    // ── Firmalara Git (girişimci paneli) ──
+    if (btn.hasAttribute('data-career-goto-firms')) {
+      this.navigateToFirms()
+      return
+    }
+
+    // ── İş seçimi ──
+    const careerJob = btn.dataset.careerJob as CareerJobId | undefined
+    if (careerJob) {
+      s.setCareerJob(careerJob)
+      refToast('💼 İş seçildi', 'ok')
+      this.refresh(s)
+      return
+    }
+
+    // ── Kariyer günlük aksiyonu ──
+    const careerAction = btn.dataset.careerAction as CareerActionId | undefined
+    if (careerAction) {
+      const r = s.doCareerAction(careerAction)
+      const gained = r.money > 0 || r.xp > 0
+      const parts: string[] = []
+      if (r.money > 0) parts.push(`+${fmtMoney(r.money)}`)
+      if (r.xp > 0) parts.push(`+${r.xp} XP`)
+      if (r.levelUp) parts.push('🎉 Seviye atladın!')
+      refToast(gained ? `✅ ${parts.join(' · ')}` : '⚠️ Bugün bu aksiyonu kullandın', gained ? 'ok' : 'err')
+      this.refresh(s)
+      return
+    }
+
+    // ── Günlük rutin (egzersiz/meditasyon) ──
+    const routine = btn.dataset.routine as 'exercise' | 'meditate' | undefined
+    if (routine) {
+      const ok = s.doDailyRoutine(routine)
+      refToast(ok ? '✅ Tamamlandı' : '⚠️ Günlük limit doldu', ok ? 'ok' : 'err')
+      this.refresh(s)
+      return
+    }
+
+    // ── Stres tedavisi (wellbeing) ──
+    const wellbeing = btn.dataset.wellbeing as WellbeingActivityId | undefined
+    if (wellbeing) {
+      const ok = s.buyWellbeing(wellbeing)
+      refToast(ok ? '🧘 Aktivite tamamlandı' : '💸 Para yetersiz', ok ? 'ok' : 'err')
+      this.refresh(s)
+      return
+    }
 
     const diseaseId = btn.dataset.disease as DiseaseId | undefined
     if (diseaseId) {
