@@ -2635,3 +2635,46 @@
   background: rgba(14,165,233,0.08); border-radius: 10px;
   font-size: 12px; color: var(--r-text2); font-weight: 600; text-align: center;
 }
+
+/* ── Tur 7: Firma Kart Kategorisi ─────────────────────────────────── */
+.ref-prod-card--cat-sport    { border-left: 3px solid var(--r-orange); }
+.ref-prod-card--cat-politics { border-left: 3px solid var(--r-blue); }
+.ref-prod-card--cat-dark     { border-left: 3px solid var(--r-danger); }
+.ref-prod-card--cat-luxury   { border-left: 3px solid var(--r-gold); }
+.ref-prod-card--cat-science  { border-left: 3px solid var(--r-teal); }
+.ref-prod-card--cat-finance  { border-left: 3px solid var(--r-success); }
+
+.ref-prod-cat-chip {
+  display: inline-flex; align-items: center;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.2px;
+  padding: 1px 6px; border-radius: var(--r-pill);
+  margin-top: 2px; margin-bottom: 2px;
+}
+.ref-prod-cat-chip--sport    { background: rgba(255,155,54,0.15);  color: var(--r-orange-dk); }
+.ref-prod-cat-chip--politics { background: rgba(37,99,235,0.12);   color: var(--r-blue); }
+.ref-prod-cat-chip--dark     { background: rgba(234,84,85,0.12);   color: var(--r-danger); }
+.ref-prod-cat-chip--luxury   { background: rgba(246,200,76,0.22);  color: var(--r-gold-dk); }
+.ref-prod-cat-chip--science  { background: rgba(19,184,166,0.12);  color: var(--r-teal-dk); }
+.ref-prod-cat-chip--finance  { background: rgba(40,199,111,0.12);  color: #1a9050; }
+
+/* ── Tur 8: Firma Detay Gelir Kırılımı ─────────────────────────────── */
+.ref-detail-income-breakdown {
+  margin: 8px 14px; padding: 10px 12px;
+  background: rgba(19,184,166,0.06); border-radius: var(--r-sm);
+  display: flex; flex-direction: column; gap: 5px;
+}
+.ref-detail-ib-title {
+  font-size: 9.5px; font-weight: 900; text-transform: uppercase;
+  letter-spacing: 0.4px; color: var(--r-muted); margin-bottom: 3px;
+}
+.ref-detail-ib-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; color: var(--r-text2);
+}
+.ref-detail-ib-row span { color: var(--r-muted); }
+.ref-detail-ib-row b { font-weight: 800; color: var(--r-text); }
+.ref-detail-ib-row--total {
+  margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(0,0,0,0.08);
+}
+.ref-detail-ib-row--total span { color: var(--r-text2); font-weight: 700; }
+.ref-detail-ib-row--total b { color: var(--r-success); font-size: 13px; }

@@ -337,9 +337,24 @@ export class RefFirmDetailPage {
       ? `<button class="ref-btn manager" type="button" disabled>✓ YÖNETİCİ ATANDI</button>`
       : `<button class="ref-btn manager" type="button" data-act="manager" ${canManager ? '' : 'disabled'}>👤 MANAGER · ${fmtMoney(manCost)}</button>`
 
+    const owned = s.producers[def.id] ?? 0
+    const baseIncome = Math.round(def.baseIncome * owned)
+    const lvMult = firmLevelIncomeMult(lv)
+    const actualIncome = Math.round(s.producerIncome(def))
+
+    const incomeBreakdown = owned > 0 ? `
+      <div class="ref-detail-income-breakdown">
+        <div class="ref-detail-ib-title">Gelir Kırılımı</div>
+        <div class="ref-detail-ib-row"><span>Temel (${owned}×)</span><b>${fmtMoney(baseIncome)}</b></div>
+        <div class="ref-detail-ib-row"><span>Level Çarpanı (Lv.${lv})</span><b>×${lvMult.toFixed(2)}</b></div>
+        ${managerHired ? `<div class="ref-detail-ib-row"><span>Yönetici Bonusu</span><b>✓</b></div>` : ''}
+        <div class="ref-detail-ib-row ref-detail-ib-row--total"><span>Günlük Katkı</span><b>${fmtMoney(actualIncome)}</b></div>
+      </div>` : ''
+
     return `
       <div class="ref-detail-section-title">Yönetim · Lv.${lv}/${FIRM_MAX_LEVEL} ${lv > 1 ? `<span class="ref-detail-mult">×${firmLevelIncomeMult(lv).toFixed(2)} gelir</span>` : ''}</div>
       <div class="ref-detail-lvl-pips">${pips}</div>
+      ${incomeBreakdown}
       <div class="ref-detail-actions live">
         ${lvBtn}
         ${modBtn}
