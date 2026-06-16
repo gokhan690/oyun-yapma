@@ -2678,3 +2678,24 @@
 }
 .ref-detail-ib-row--total span { color: var(--r-text2); font-weight: 700; }
 .ref-detail-ib-row--total b { color: var(--r-success); font-size: 13px; }
+
+/* ── Tur 7 Fix: İmparatorluk Kart Kategorisi ───────────────────────── */
+.ref-empire-card--cat-sport    { border-left: 3px solid var(--r-orange); }
+.ref-empire-card--cat-politics { border-left: 3px solid var(--r-blue); }
+.ref-empire-card--cat-dark     { border-left: 3px solid var(--r-danger); }
+.ref-empire-card--cat-luxury   { border-left: 3px solid var(--r-gold); }
+.ref-empire-card--cat-science  { border-left: 3px solid var(--r-teal); }
+.ref-empire-card--cat-finance  { border-left: 3px solid var(--r-success); }
+
+.ref-empire-cat-chip {
+  display: inline-flex; align-items: center;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.2px;
+  padding: 1px 5px; border-radius: var(--r-pill);
+  margin-left: 5px; vertical-align: middle;
+}
+.ref-empire-cat-chip--sport    { background: rgba(255,155,54,0.15);  color: var(--r-orange-dk); }
+.ref-empire-cat-chip--politics { background: rgba(37,99,235,0.12);   color: var(--r-blue); }
+.ref-empire-cat-chip--dark     { background: rgba(234,84,85,0.12);   color: var(--r-danger); }
+.ref-empire-cat-chip--luxury   { background: rgba(246,200,76,0.22);  color: var(--r-gold-dk); }
+.ref-empire-cat-chip--science  { background: rgba(19,184,166,0.12);  color: var(--r-teal-dk); }
+.ref-empire-cat-chip--finance  { background: rgba(40,199,111,0.12);  color: #1a9050; }

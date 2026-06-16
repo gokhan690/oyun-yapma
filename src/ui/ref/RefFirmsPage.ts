@@ -345,13 +345,8 @@ export class RefFirmsPage implements RefPage {
 
     const card = document.createElement('div')
     card.className = `ref-prod-card ${stateClass}`
-    if (def.category) card.classList.add(`ref-prod-card--cat-${def.category}`)
     card.dataset.id = def.id
     card.dataset.tier = String(def.tier)
-
-    const catChip = def.category && CAT_LABELS[def.category]
-      ? `<span class="ref-prod-cat-chip ref-prod-cat-chip--${def.category}">${CAT_LABELS[def.category]}</span>`
-      : ''
 
     let footRight: string
     if (!unlocked) {
@@ -405,7 +400,6 @@ export class RefFirmsPage implements RefPage {
         <span class="ref-prod-emoji">${def.emoji}</span>
         <div class="ref-prod-info">
           <div class="ref-prod-name">${def.name}${owned > 0 ? `<span class="ref-prod-owned-badge">×${owned}</span>` : ''}${lvBadge}</div>
-          ${catChip}
           <div class="ref-prod-desc">${def.description}${incomeMult}</div>
         </div>
       </div>
@@ -663,12 +657,15 @@ export class RefFirmsPage implements RefPage {
       }
 
       const card = document.createElement('div')
-      card.className = 'ref-empire-card' + (owned > 0 ? ' owned' : '') + (s && !unlocked ? ' locked' : '')
+      card.className = 'ref-empire-card' + (owned > 0 ? ' owned' : '') + (s && !unlocked ? ' locked' : '') + (def.category ? ` ref-empire-card--cat-${def.category}` : '')
+      const catChip = def.category && CAT_LABELS[def.category]
+        ? `<span class="ref-empire-cat-chip ref-empire-cat-chip--${def.category}">${CAT_LABELS[def.category]}</span>`
+        : ''
       card.innerHTML = `
         <div class="ref-empire-card__head">
           <span class="ref-empire-card__emoji">${def.emoji}</span>
           <div class="ref-empire-card__info">
-            <div class="ref-empire-card__name">${def.name}</div>
+            <div class="ref-empire-card__name">${def.name}${catChip}</div>
             <div class="ref-empire-card__tier">Tier ${def.tier} · ${owned > 0 ? `<b>${owned} adet · ${fmtMoney(income)}/g</b>` : 'Sahip değilsin'}</div>
           </div>
           ${owned > 0 ? '<span class="ref-empire-card__badge">✓</span>' : ''}
