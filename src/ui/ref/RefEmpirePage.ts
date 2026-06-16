@@ -5,7 +5,7 @@ import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, UPGRADES, type UpgradeDef } from '../../game/Economy'
 import { politicsLevelLabel } from '../../game/Empire'
-import { EXPANSION_CITIES, canUnlockCity, type CityId } from '../../game/ExpansionMap'
+import { EXPANSION_CITIES, canUnlockCity, cityProducerBonus, type CityId } from '../../game/ExpansionMap'
 import { TORPIL_CONTACTS, type TorpilId } from '../../game/TorpilNetwork'
 import { RESEARCH_NODES, researchCost, researchIsUnlocked, researchPrereqName, type ResearchNode } from '../../game/Research'
 import {
@@ -14,13 +14,11 @@ import {
 } from '../../game/Rivals'
 import { DEPARTMENTS, DEPARTMENT_MAX_LEVEL, departmentUpgradeCost, type DepartmentId } from '../../game/EmpireDepartments'
 
-interface CityAssetDef { key: keyof typeof REF_ASSETS_V2_GENERIC.cities; name: string; id: string }
-const CITY_ASSET_DEFS: CityAssetDef[] = [
-  { key: 'istanbul', name: 'İstanbul',  id: 'istanbul' },
-  { key: 'ankara',   name: 'Ankara',    id: 'ankara' },
-  { key: 'izmir',    name: 'İzmir',     id: 'izmir' },
-  { key: 'dubai',    name: 'Dubai',     id: 'dubai' },
-  { key: 'london',   name: 'Londra',    id: 'london' },
+const REGIONAL_BONUSES: { id: string; category: string; bonus: string }[] = [
+  { id: 'ankara', category: 'Siyaset',     bonus: '+%20 Siyaset geliri' },
+  { id: 'izmir',  category: 'Turizm/Lüks', bonus: '+%20 Turizm · +%10 Lüks' },
+  { id: 'dubai',  category: 'Finans/Lüks', bonus: '+%25 Lüks · +%15 Finans' },
+  { id: 'london', category: 'Finans/Bilim',bonus: '+%25 Finans · +%15 Bilim' },
 ]
 
 interface Dept { asset: string; name: string; lvl: number }
@@ -94,7 +92,7 @@ export class RefEmpirePage implements RefPage {
 
     this.tabs = new RefSubTabs([
       { id: 'manage', label: 'Yönet',    icon: '🏗️' },
-      { id: 'world',  label: 'Dünya',    icon: '🌍' },
+      { id: 'world',  label: 'Şehir',    icon: '🏙️' },
       { id: 'rivals', label: 'Rakipler', icon: '⚔️' },
     ])
     this.el.appendChild(this.tabs.tabsEl)
@@ -128,7 +126,7 @@ export class RefEmpirePage implements RefPage {
     const cityRep = EXPANSION_CITIES.map(c => `${c.id}:${s.cities.unlocked.includes(c.id) ? 1 : 0}:${Math.round(s.cities.cityReputation[c.id] ?? 0)}`).join(',')
     const torpil = s.torpil.map(t => `${t.id}:${t.active ? 1 : 0}:${t.giftDue ? 1 : 0}`).join(',')
     const cooldowns = (['lawyer', 'bribe'] as const).map(a => s.undergroundCooldownRemaining(a) > 0 ? 1 : 0).join('')
-    return `${cityRep}|${torpil}|${Math.round(s.reputation)}|${s.empire.politics.influence}|${Math.round(s.illegalHeat * 100)}|${cooldowns}|${Math.floor(s.money / 10_000)}`
+    return `${cityRep}|${s.cities.activeCity}|${torpil}|${Math.round(s.reputation)}|${s.empire.politics.influence}|${Math.round(s.illegalHeat * 100)}|${cooldowns}|${Math.floor(s.money / 10_000)}`
   }
 
   private rivalsSig(s: GameState): string {
@@ -176,6 +174,13 @@ export class RefEmpirePage implements RefPage {
       case 'unlock_city': {
         const ok = s.unlockCity(id as CityId)
         refToast(ok ? '🏙️ Yeni şehir açıldı!' : 'Şehir açılamadı', ok ? 'ok' : 'err')
+        break
+      }
+      case 'set_active': {
+        if (s.cities.unlocked.includes(id as CityId)) {
+          s.cities.activeCity = id as CityId
+          refToast(`🏙️ Aktif şehir güncellendi`, 'ok')
+        }
         break
       }
       case 'torpil_hire': {
@@ -399,34 +404,15 @@ export class RefEmpirePage implements RefPage {
     }
     wrap.appendChild(upgList)
 
-    // ── Şehirler ──
-    const cityLabel = s ? `${s.cities.unlocked.length}/${EXPANSION_CITIES.length} açık` : '5 bölge'
-    wrap.appendChild(sectionTitle('Şehirler', cityLabel))
-    const cityGrid = document.createElement('div')
-    cityGrid.className = 'ref-city-grid'
-    cityGrid.innerHTML = CITY_ASSET_DEFS.map(c => {
-      const owned = s ? s.cities.unlocked.includes(c.id as CityId) : ['istanbul', 'ankara', 'izmir'].includes(c.id)
-      const card = REF_ASSETS_V2_GENERIC.cities[c.key].card
-      const firmsInCity = s ? Object.entries(s.producers).filter(([, cnt]) => cnt > 0).length : 0
-      const cityIncome = s && owned ? Math.round(s.incomePerDay() / Math.max(1, s.cities.unlocked.length)) : 0
-      return `
-        <div class="ref-city-card ${owned ? '' : 'locked'}">
-          <div class="ref-city-card__img">
-            <img src="${ua(card)}" alt="">
-            ${owned ? '' : '<span class="ref-city-lock">🔒</span>'}
-          </div>
-          <div class="ref-city-card__body">
-            <div class="ref-city-card__name">${c.name}</div>
-            ${owned
-              ? `<div class="ref-city-card__meta">${s ? firmsInCity + ' firma · ' + fmtMoney(cityIncome) + '/gün' : 'Aktif'}</div>`
-              : `<div class="ref-city-card__meta locked">Kilitli — Dünya sekmesinden aç</div>`}
-          </div>
-        </div>`
-    }).join('')
-    wrap.appendChild(cityGrid)
+    // ── Şehirler özet notu → Şehir sekmesine yönlendirme ──
+    const unlockedCnt = s ? s.cities.unlocked.length : 3
+    const citiesNote = document.createElement('div')
+    citiesNote.className = 'ref-cities-manage-note'
+    citiesNote.textContent = `🏙️ ${unlockedCnt}/${EXPANSION_CITIES.length} şehir açık — detaylar için "Şehir" sekmesine bakın`
+    wrap.appendChild(citiesNote)
   }
 
-  /* ── 🌍 DÜNYA ─────────────────────────────────────────────────────── */
+  /* ── 🏙️ ŞEHİR ──────────────────────────────────────────────────────── */
 
   private buildWorld(): void {
     const wrap = this.tabs.section('world')
@@ -434,58 +420,111 @@ export class RefEmpirePage implements RefPage {
     const s = this.state
 
     if (!s) {
-      wrap.appendChild(demoBanner('Dünya paneli — gerçek oyun verisi yok'))
+      wrap.appendChild(demoBanner('Şehir paneli — gerçek oyun verisi yok'))
       return
     }
 
-    // ── Dünya saygınlığı ──
-    wrap.appendChild(sectionTitle('Dünya Saygınlığı'))
-    const repCard = document.createElement('div')
-    repCard.className = 'ref-world-rep-card'
-    const rep = Math.round(s.reputation)
-    const influence = s.empire.politics.influence
-    repCard.innerHTML = `
-      <div class="ref-world-rep-row"><span>⭐ İtibar</span><b>${rep}/100</b></div>
-      <div class="ref-perf-track"><div class="ref-perf-fill ${rep >= 60 ? 'high' : rep >= 30 ? 'medium' : 'low'}" style="width:${rep}%"></div></div>
-      <div class="ref-world-rep-row"><span>🏛️ Siyasi Nüfuz</span><b>${influence} puan</b></div>
-      <div class="ref-world-rep-row"><span>🎖️ Makam</span><b>${politicsLevelLabel(s.empire.politics.level)}</b></div>
-    `
-    wrap.appendChild(repCard)
+    const unlocked = s.cities.unlocked
+    const activeCity = s.cities.activeCity
+    const financeBonus = Math.round(cityProducerBonus(s.cities, 'finance') * 100)
 
-    // ── Şehirler + saygınlık + kilit açma ──
-    wrap.appendChild(sectionTitle('Şehirler & Saygınlık'))
-    const cityList = document.createElement('div')
-    cityList.className = 'ref-world-city-list'
-    cityList.innerHTML = EXPANSION_CITIES.map(c => {
-      const owned = s.cities.unlocked.includes(c.id)
-      const cityRep = Math.round(s.cities.cityReputation[c.id] ?? 0)
-      if (owned) {
+    // ── KPI şerit ──
+    const kpi = document.createElement('div')
+    kpi.className = 'ref-cities-kpi'
+    kpi.innerHTML = `
+      <div class="ref-cities-kpi__item"><span>🌍</span><b>${unlocked.length}/${EXPANSION_CITIES.length}</b><small>Şehir</small></div>
+      <div class="ref-cities-kpi__item"><span>💰</span><b>${fmtMoney(Math.round(s.incomePerDay()))}</b><small>Günlük</small></div>
+      <div class="ref-cities-kpi__item"><span>⭐</span><b>${Math.round(s.reputation)}</b><small>İtibar</small></div>
+      <div class="ref-cities-kpi__item"><span>📊</span><b>${financeBonus > 0 ? `+%${financeBonus}` : '—'}</b><small>Finans B.</small></div>
+    `
+    wrap.appendChild(kpi)
+
+    // ── Yolculuk zinciri ──
+    wrap.appendChild(sectionTitle('Yolculuk', `${unlocked.length} şehir fethedildi`))
+    const journey = document.createElement('div')
+    journey.className = 'ref-cities-journey'
+    journey.innerHTML = `<div class="ref-cities-journey__inner">${
+      EXPANSION_CITIES.map((c, i) => {
+        const isUnlocked = unlocked.includes(c.id)
+        const isLast = i === EXPANSION_CITIES.length - 1
         return `
-          <div class="ref-world-city-row owned">
-            <span class="ref-world-city-row__ico">${c.emoji}</span>
-            <div class="ref-world-city-row__main">
-              <div class="ref-world-city-row__name">${c.label}${c.id === s.cities.activeCity ? ' <small>· aktif</small>' : ''}</div>
-              <div class="ref-perf-track sm"><div class="ref-perf-fill ${cityRep >= 60 ? 'high' : cityRep >= 30 ? 'medium' : 'low'}" style="width:${cityRep}%"></div></div>
+          <div class="ref-journey-stop${isUnlocked ? ' ref-journey-stop--unlocked' : ''}">
+            <div class="ref-journey-node">${isUnlocked ? c.emoji : '🔒'}</div>
+            <div class="ref-journey-label">${c.label}</div>
+          </div>
+          ${!isLast ? `<div class="ref-journey-connector${isUnlocked ? ' on' : ''}"></div>` : ''}`
+      }).join('')
+    }</div>`
+    wrap.appendChild(journey)
+
+    // ── Şehir yönetim kartları ──
+    const activeLabel = EXPANSION_CITIES.find(c => c.id === activeCity)?.label ?? activeCity
+    wrap.appendChild(sectionTitle('Şehir Yönetimi', `Aktif: ${activeLabel}`))
+    const mgmtList = document.createElement('div')
+    mgmtList.className = 'ref-city-mgmt-list'
+    mgmtList.innerHTML = EXPANSION_CITIES.map(c => {
+      const isUnlocked = unlocked.includes(c.id)
+      const isActive = c.id === activeCity
+      const bonusHtml = c.categoryBonuses
+        ? Object.entries(c.categoryBonuses).map(([cat, val]) =>
+            `<span class="ref-city-bonus-chip">+%${Math.round((val as number) * 100)} ${cat}</span>`
+          ).join('')
+        : '<span class="ref-city-bonus-chip">Temel</span>'
+      const check = canUnlockCity(c.id, s.cities, s.money, s.reputation, s.ipoCount)
+
+      if (isUnlocked) {
+        return `
+          <div class="ref-city-mgmt-card ref-city-mgmt-card--unlocked">
+            <div class="ref-city-mgmt-card__head">
+              <span class="ref-city-mgmt-card__emoji">${c.emoji}</span>
+              <div class="ref-city-mgmt-card__info">
+                <div class="ref-city-mgmt-card__name">${c.label}</div>
+                <div class="ref-city-mgmt-card__bonuses">${bonusHtml}</div>
+              </div>
+              ${isActive ? '<span class="ref-city-active-badge">AKTİF</span>' : ''}
             </div>
-            <span class="ref-world-city-row__rep">${cityRep}</span>
+            ${isActive ? '' : `<button class="ref-city-mgmt-btn" type="button" data-action="set_active:${c.id}">🏙️ Aktif Yap</button>`}
           </div>`
       }
-      const check = canUnlockCity(c.id, s.cities, s.money, s.reputation, s.ipoCount)
       return `
-        <div class="ref-world-city-row locked">
-          <span class="ref-world-city-row__ico">${c.emoji}</span>
-          <div class="ref-world-city-row__main">
-            <div class="ref-world-city-row__name">${c.label} 🔒</div>
-            <div class="ref-world-city-row__req">${fmtMoney(c.unlockCost)} · itibar ${c.repReq}${c.ipoReq ? ` · ${c.ipoReq} IPO` : ''}</div>
+        <div class="ref-city-mgmt-card ref-city-mgmt-card--locked">
+          <div class="ref-city-mgmt-card__head">
+            <span class="ref-city-mgmt-card__emoji">🔒</span>
+            <div class="ref-city-mgmt-card__info">
+              <div class="ref-city-mgmt-card__name">${c.label}</div>
+              <div class="ref-city-mgmt-card__req">${fmtMoney(c.unlockCost)} · itibar ${c.repReq}${c.ipoReq ? ` · ${c.ipoReq} IPO` : ''}</div>
+              ${!check.ok ? `<div class="ref-city-mgmt-card__reason">${check.reason ?? ''}</div>` : ''}
+            </div>
+            <span class="ref-city-locked-cost">${fmtMoney(c.unlockCost)}</span>
           </div>
-          ${check.ok
-            ? `<button class="ref-world-btn" type="button" data-action="unlock_city:${c.id}">AÇ</button>`
-            : `<span class="ref-world-city-row__reason">${check.reason}</span>`}
+          <button class="ref-city-mgmt-btn${check.ok ? ' ref-city-mgmt-btn--unlock' : ' ref-city-mgmt-btn--off'}"
+            type="button" data-action="unlock_city:${c.id}" ${check.ok ? '' : 'disabled'}>
+            🔓 Şehir Aç · ${fmtMoney(c.unlockCost)}
+          </button>
         </div>`
     }).join('')
-    wrap.appendChild(cityList)
+    wrap.appendChild(mgmtList)
 
-    // ── Torpil paneli (nüfuz ağı — gerçek TorpilNetwork sistemi) ──
+    // ── Bölgesel Bonuslar ──
+    wrap.appendChild(sectionTitle('Bölgesel Bonuslar', 'şehir açınca aktif olur'))
+    const bonusTable = document.createElement('div')
+    bonusTable.className = 'ref-city-bonus-table'
+    bonusTable.innerHTML = REGIONAL_BONUSES.map(b => {
+      const cityDef = EXPANSION_CITIES.find(c => c.id === b.id)
+      const isOwned = unlocked.includes(b.id as CityId)
+      return `
+        <div class="ref-city-bonus-row${isOwned ? ' ref-city-bonus-row--owned' : ''}">
+          <span class="ref-city-bonus-row__ico">${cityDef?.emoji ?? '🌍'}</span>
+          <div class="ref-city-bonus-row__info">
+            <span class="ref-city-bonus-row__city">${cityDef?.label ?? b.id}</span>
+            <span class="ref-city-bonus-row__cat">${b.category}</span>
+          </div>
+          <span class="ref-city-bonus-row__val">${b.bonus}</span>
+        </div>`
+    }).join('')
+    wrap.appendChild(bonusTable)
+
+    // ── Torpil Ağı ──
     wrap.appendChild(sectionTitle('Torpil Ağı', 'tanıdık çevresi'))
     const torpilList = document.createElement('div')
     torpilList.className = 'ref-torpil-panel'
@@ -515,7 +554,7 @@ export class RefEmpirePage implements RefPage {
     }).join('')
     wrap.appendChild(torpilList)
 
-    // ── Rüşvet paneli (yeraltı aksiyonları — gerçek underground sistemi) ──
+    // ── Rüşvet & Koruma ──
     wrap.appendChild(sectionTitle('Rüşvet & Koruma', 'riskli ama hızlı'))
     const heat = Math.round(s.illegalHeat * 100)
     const bribeCooldown = s.undergroundCooldownRemaining('bribe') > 0
