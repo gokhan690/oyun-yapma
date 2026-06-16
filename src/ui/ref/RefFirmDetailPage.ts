@@ -344,11 +344,11 @@ export class RefFirmDetailPage {
 
     const incomeBreakdown = owned > 0 ? `
       <div class="ref-detail-income-breakdown">
-        <div class="ref-detail-ib-title">Gelir Kırılımı</div>
-        <div class="ref-detail-ib-row"><span>Temel (${owned}×)</span><b>${fmtMoney(baseIncome)}</b></div>
+        <div class="ref-detail-ib-title">Gelir Özeti</div>
+        <div class="ref-detail-ib-row"><span>Şube / Temel Potansiyel (${owned}×)</span><b>${fmtMoney(baseIncome)}</b></div>
         <div class="ref-detail-ib-row"><span>Level Çarpanı (Lv.${lv})</span><b>×${lvMult.toFixed(2)}</b></div>
         ${managerHired ? `<div class="ref-detail-ib-row"><span>Yönetici Bonusu</span><b>✓</b></div>` : ''}
-        <div class="ref-detail-ib-row ref-detail-ib-row--total"><span>Günlük Katkı</span><b>${fmtMoney(actualIncome)}</b></div>
+        <div class="ref-detail-ib-row ref-detail-ib-row--total"><span>Gerçek Günlük Katkı</span><b>${fmtMoney(actualIncome)}</b></div>
       </div>` : ''
 
     return `

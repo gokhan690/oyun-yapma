@@ -2669,10 +2669,10 @@
 }
 .ref-detail-ib-row {
   display: flex; justify-content: space-between; align-items: center;
-  font-size: 11px; color: var(--r-text2);
+  gap: 10px; font-size: 11px; color: var(--r-text2);
 }
-.ref-detail-ib-row span { color: var(--r-muted); }
-.ref-detail-ib-row b { font-weight: 800; color: var(--r-text); }
+.ref-detail-ib-row span { color: var(--r-muted); min-width: 0; }
+.ref-detail-ib-row b { font-weight: 800; color: var(--r-text); flex-shrink: 0; }
 .ref-detail-ib-row--total {
   margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(0,0,0,0.08);
 }
