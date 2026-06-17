@@ -31,6 +31,10 @@ function achCategory(id: string): AchCat {
   if (/^click_|^combo_|streak|comeback|dynasty|theme_|^night_|weekly|season_|advisor|underground|heat/.test(id)) return 'aktivite'
   return 'isletme'
 }
+function catLabel(id: string): string {
+  const MAP: Record<AchCat, string> = { para: '💰 Para', isletme: '🏢 İşletme', borsa: '📊 Borsa', aktivite: '🎮 Aktivite' }
+  return MAP[achCategory(id)] ?? '🎮 Aktivite'
+}
 
 /* ── Kupa görseli: ödül büyüklüğüne göre kademe ── */
 function cupForReward(reward: number): string {
@@ -213,14 +217,17 @@ export class RefAchievementsPage implements RefPage {
 
   private missionRowHtml(m: MissionProgress): string {
     const pct = Math.max(0, Math.min(100, Math.round((m.progress / Math.max(1, m.target)) * 100)))
-    const st: 'done' | 'active' | 'locked' = m.claimed || pct >= 100 ? 'done' : 'active'
+    const stClass: 'done' | 'active' = m.claimed || pct >= 100 ? 'done' : 'active'
+    const statusHtml = m.claimed
+      ? '<span class="ref-tstatus done">✓ Alındı</span>'
+      : statusBadge(pct >= 100 ? 'done' : 'active')
     const tierIco = m.tier === 'risky' ? '🔥' : m.tier === 'strategic' ? '🎯' : '✅'
     const reward = m.rewardMoney > 0 ? fmtMoney(m.rewardMoney) : m.rewardBoostMinutes > 0 ? `${m.rewardBoostMinutes}dk boost` : '+XP'
     return `
-      <div class="ref-trow ${st}">
+      <div class="ref-trow ${stClass}">
         <span class="ref-trow__ico">${tierIco}</span>
         <div class="ref-trow__main">
-          <div class="ref-trow__head"><span class="ref-trow__name">${m.label}</span>${statusBadge(st)}</div>
+          <div class="ref-trow__head"><span class="ref-trow__name">${m.label}</span>${statusHtml}</div>
           <div class="ref-perf-track sm"><div class="ref-perf-fill ${pct >= 70 ? 'high' : pct > 0 ? 'medium' : 'low'}" style="width:${pct}%"></div></div>
           <div class="ref-trow__foot"><span class="ref-trow__prog">${Math.min(m.progress, m.target)}/${m.target}</span><span class="ref-trow__reward">🎁 ${reward}</span></div>
         </div>
@@ -240,14 +247,14 @@ export class RefAchievementsPage implements RefPage {
       return
     }
     this.contentEl.innerHTML = `
-      <div class="ref-ach-cat-hint">🎯 Sıradaki büyük hedeflerin — ödüle göre en yakından uzağa</div>
+      <div class="ref-ach-cat-hint">🎯 Sıradaki büyük hedeflerin</div>
       <div class="ref-trow-list">${locked.map(a => `
-        <div class="ref-trow active ref-ach-clickable" data-ach="${a.id}">
+        <div class="ref-trow ref-ach-clickable" data-ach="${a.id}">
           <span class="ref-trow__ico">${a.emoji}</span>
           <div class="ref-trow__main">
             <div class="ref-trow__head"><span class="ref-trow__name">${a.name}</span><span class="ref-tstatus locked">🔒 Hedef</span></div>
             <div class="ref-trow__desc">${a.description}</div>
-            <div class="ref-trow__foot"><span class="ref-trow__prog">${achCategory(a.id) === 'para' ? '💰 Para' : achCategory(a.id) === 'borsa' ? '📊 Borsa' : achCategory(a.id) === 'aktivite' ? '🎮 Aktivite' : '🏢 İşletme'}</span><span class="ref-trow__reward">🎁 ${fmtMoney(a.reward)}</span></div>
+            <div class="ref-trow__foot"><span class="ref-trow__prog">${catLabel(a.id)}</span><span class="ref-trow__reward">🎁 ${fmtMoney(a.reward)}</span></div>
           </div>
         </div>`).join('')}</div>`
     this.wireAchClicks()
@@ -264,8 +271,10 @@ export class RefAchievementsPage implements RefPage {
     const sorted = [...list].sort((a, b) => Number(done.has(b.id)) - Number(done.has(a.id)))
 
     const chips = CAT_CHIPS.map(c => {
-      const n = c.id === 'tumu' ? ACHIEVEMENTS.length : ACHIEVEMENTS.filter(a => achCategory(a.id) === c.id).length
-      return `<button class="ref-ach-chip ${c.id === this.activeCat ? 'active' : ''}" type="button" data-cat="${c.id}">${c.label} <b>${n}</b></button>`
+      const all = c.id === 'tumu' ? ACHIEVEMENTS : ACHIEVEMENTS.filter(a => achCategory(a.id) === c.id)
+      const total = all.length
+      const doneN = all.filter(a => done.has(a.id)).length
+      return `<button class="ref-ach-chip ${c.id === this.activeCat ? 'active' : ''}" type="button" data-cat="${c.id}">${c.label} <b>${doneN}/${total}</b></button>`
     }).join('')
 
     const catDone = sorted.filter(a => done.has(a.id)).length
@@ -335,14 +344,12 @@ export class RefAchievementsPage implements RefPage {
 
   private showAchDetail(def: AchievementDef): void {
     const isDone = this.state ? this.state.achievements.has(def.id) : false
-    const cat = achCategory(def.id)
-    const catLbl = cat === 'para' ? '💰 Para' : cat === 'borsa' ? '📊 Borsa' : cat === 'aktivite' ? '🎮 Aktivite' : '🏢 İşletme'
     this.openDetail(`
       <div class="ref-ach-detail__head">
         <span class="ref-ach-detail__emoji">${def.emoji}</span>
         <div class="ref-ach-detail__title">
           <div class="ref-ach-detail__name">${def.name}</div>
-          <div class="ref-ach-detail__cat">${catLbl}</div>
+          <div class="ref-ach-detail__cat">${catLabel(def.id)}</div>
         </div>
         <button class="ref-ach-detail__close" type="button">✕</button>
       </div>
@@ -350,7 +357,7 @@ export class RefAchievementsPage implements RefPage {
       <div class="ref-ach-detail__rows">
         <div class="ref-ach-detail__row"><span>🎁 Ödül</span><b>${fmtMoney(def.reward)}</b></div>
         <div class="ref-ach-detail__row"><span>Durum</span><b class="${isDone ? 'ok' : 'lock'}">${isDone ? '✓ Açıldı' : '🔒 Henüz kilitli'}</b></div>
-      </div>`)
+      </div>`, isDone)
   }
 
   private showBadgeDetail(bd: BadgeDef, on: boolean): void {
@@ -369,12 +376,12 @@ export class RefAchievementsPage implements RefPage {
       </div>`)
   }
 
-  private openDetail(html: string): void {
+  private openDetail(html: string, done = false): void {
     this.closeDetail()
     const overlay = document.createElement('div')
     overlay.className = 'ref-ach-detail-scrim'
     const panel = document.createElement('div')
-    panel.className = 'ref-ach-detail'
+    panel.className = 'ref-ach-detail' + (done ? ' ref-ach-detail--done' : '')
     panel.innerHTML = html
     overlay.appendChild(panel)
     overlay.addEventListener('click', (e) => { if (e.target === overlay) this.closeDetail() })
