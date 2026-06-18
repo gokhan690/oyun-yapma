@@ -332,6 +332,14 @@ export class RefLifePage implements RefPage {
     }
     const ls = s.lifestyle
 
+    // Boş state hint — hiç mülk/araç yokken
+    if (ls.ownedResidences.length + ls.ownedVehicles.length === 0) {
+      const hint = document.createElement('div')
+      hint.className = 'ref-life-tab-hint'
+      hint.textContent = '🏠 Henüz mülk veya araç yok — aşağıdan satın al.'
+      wrap.appendChild(hint)
+    }
+
     // Konutlar
     wrap.appendChild(sectionTitle('Konutlar', `${ls.ownedResidences.length} sahip`))
     const resList = document.createElement('div')
@@ -354,7 +362,7 @@ export class RefLifePage implements RefPage {
                  <button class="ref-world-btn sm danger" type="button" data-action="sell_res:${def.id}">Sat</button>`
               : canBuy
                 ? `<button class="ref-world-btn sm" type="button" data-action="buy_res:${def.id}">AL · ${fmtMoney(def.buyCost)}</button>`
-                : `<span class="ref-world-city-row__reason">${fmtMoney(def.buyCost)}</span>`}
+                : `<button type="button" class="ref-world-btn sm" disabled>AL · ${fmtMoney(def.buyCost)}</button>`}
           </div>
         </div>`
     }).join('')
@@ -401,7 +409,7 @@ export class RefLifePage implements RefPage {
                  <button class="ref-world-btn sm danger" type="button" data-action="sell_veh:${def.id}">Sat</button>`
               : canBuy
                 ? `<button class="ref-world-btn sm" type="button" data-action="buy_veh:${def.id}">AL · ${fmtMoney(def.buyCost)}</button>`
-                : `<span class="ref-world-city-row__reason">${fmtMoney(def.buyCost)}</span>`}
+                : `<button type="button" class="ref-world-btn sm" disabled>AL · ${fmtMoney(def.buyCost)}</button>`}
           </div>
         </div>`
     }).join('')
@@ -491,7 +499,7 @@ export class RefLifePage implements RefPage {
           <div class="ref-life-item-row__actions">
             ${canBuy
               ? `<button class="ref-world-btn sm" type="button" data-action="wellbeing:${w.id}">${fmtMoney(w.cost)}</button>`
-              : `<span class="ref-world-city-row__reason">${fmtMoney(w.cost)}</span>`}
+              : `<button type="button" class="ref-world-btn sm" disabled>🔒 ${fmtMoney(w.cost)}</button>`}
           </div>
         </div>`
     }).join('')
@@ -510,6 +518,14 @@ export class RefLifePage implements RefPage {
     }
     const day = gameDay(s.gameTimeMs)
     const ownedPets = s.lifestyle.ownedPets ?? []
+
+    // Boş state hint
+    if (ownedPets.length === 0) {
+      const hint = document.createElement('div')
+      hint.className = 'ref-life-tab-hint'
+      hint.textContent = '🐾 Henüz evcil hayvanın yok — aşağıdan birini sahiplen.'
+      wrap.appendChild(hint)
+    }
 
     // Sahip olunan evciller
     if (ownedPets.length > 0) {
@@ -544,8 +560,10 @@ export class RefLifePage implements RefPage {
         <div class="ref-life-room-card">
           <span class="ref-life-room-card__ico">${p.emoji}</span>
           <div class="ref-life-room-card__name">${p.name}</div>
-          <div class="ref-life-room-card__desc">😌 -${p.dailyStressReduction}/gün · ${fmtMoney(p.monthlyUpkeep)}/ay</div>
-          <button class="ref-world-btn sm" type="button" data-action="buy_pet:${p.id}" ${canBuy ? '' : 'disabled'}>${fmtMoney(p.buyCost)}</button>
+          <div class="ref-life-room-card__desc">😌 Stres -${p.dailyStressReduction}/gün · Gider ${fmtMoney(p.monthlyUpkeep)}/ay</div>
+          ${canBuy
+            ? `<button class="ref-world-btn sm" type="button" data-action="buy_pet:${p.id}">SAHİPLEN · ${fmtMoney(p.buyCost)}</button>`
+            : `<button class="ref-world-btn sm" type="button" disabled>🔒 ${fmtMoney(p.buyCost)}</button>`}
         </div>`
     }).join('')
     wrap.appendChild(catalog)

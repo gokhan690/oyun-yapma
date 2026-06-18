@@ -2073,7 +2073,8 @@
 .ref-profile-stat-val { font-weight: 900; color: var(--r-text); }
 .ref-profile-karma .ref-profile-stat-val { font-size: 14px; }
 .ref-profile-ach-btn {
-  display: block; width: calc(100% - 28px); margin: 0 14px 16px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: calc(100% - 28px); margin: 0 14px 16px;
   padding: 13px 16px; border-radius: var(--r-md);
   background: linear-gradient(135deg, var(--r-gold), var(--r-gold-dk));
   color: #fff; border: none; font-family: 'Outfit', system-ui, sans-serif;
@@ -2081,6 +2082,12 @@
   box-shadow: var(--r-shadow-sm);
 }
 .ref-profile-ach-btn:active { opacity: 0.85; }
+.ref-profile-ach-badge {
+  flex: 0 0 auto; font-size: 12.5px; font-weight: 900;
+  background: rgba(255,255,255,0.92); color: var(--r-gold-dk);
+  padding: 3px 10px; border-radius: var(--r-pill);
+  font-variant-numeric: tabular-nums; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
 
 /* ===== Banka hızlı işlemleri (RefMarketPage) ===== */
 .ref-bank-actions {
@@ -2709,3 +2716,30 @@
 .ref-ach-detail--done { border-top: 3px solid var(--r-success); }
 /* chip done/total sayacı tabular-nums ile hizalı */
 .ref-ach-chip b { font-variant-numeric: tabular-nums; }
+
+/* ── Tur 10: Yaşam + Profil Polish ─────────────────────────────── */
+/* Profil kariyer bölümü */
+.ref-profile-career-section { margin-top: 10px; }
+.ref-profile-career-section .ref-perf-track { margin: 4px 0 6px; }
+.ref-profile-career-hint { font-size: 10.5px; color: var(--r-muted); margin-top: 2px; padding-bottom: 2px; }
+/* Yaşam boş sekme hint'i */
+.ref-life-tab-hint {
+  font-size: 11.5px; color: var(--r-muted); padding: 10px 4px;
+  text-align: center; border-bottom: 1px solid var(--r-border-lt); margin-bottom: 8px;
+}
+/* Hero: "GENEL UNVAN" mikro etiket */
+.ref-profile-hero-rank-label {
+  font-size: 9px; font-weight: 900; color: var(--r-muted-lt);
+  text-transform: uppercase; letter-spacing: 0.8px; margin: 2px 0 0;
+}
+/* 375px: aksiyonlar + Aile alt sekme taşması */
+@media (max-width: 390px) {
+  .ref-life-item-row__actions .ref-world-btn.sm { font-size: 10.5px; padding: 5px 8px; }
+  .ref-life-item-row__actions { gap: 3px; }
+  /* Aile 5 sekmesi dar ekranda horizontal scroll */
+  .ref-subtabs { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+  .ref-subtabs::-webkit-scrollbar { display: none; }
+  .ref-subtabs .ref-main-tab { flex: 0 0 auto; padding: 10px 14px; }
+  /* trailing spacer — sona kaydırıldığında son sekme tam görünür */
+  .ref-subtabs::after { content: ''; flex: 0 0 12px; }
+}

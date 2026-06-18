@@ -275,11 +275,19 @@ function deriveNetWorthTrend(netWorth: number): number[] {
 }
 
 const RANKS = [
-  { min: 0,               title: 'Çırak Girişimci' },
-  { min: 10_000,          title: 'Esnaf' },
-  { min: 1_000_000,       title: 'İşletme Sahibi' },
-  { min: 100_000_000,     title: 'Holding Başkanı' },
-  { min: 1_000_000_000,   title: 'Sektör Lideri' },
+  { min: 0,                 title: 'Çırak Girişimci' },
+  { min: 2_500,             title: 'Acemi Esnaf' },
+  { min: 10_000,            title: 'Esnaf' },
+  { min: 50_000,            title: 'Dükkân Sahibi' },
+  { min: 250_000,           title: 'İş Sahibi' },
+  { min: 1_000_000,         title: 'İşletme Sahibi' },
+  { min: 5_000_000,         title: 'Girişimci' },
+  { min: 25_000_000,        title: 'Şirket Patronu' },
+  { min: 100_000_000,       title: 'Holding Sahibi' },
+  { min: 500_000_000,       title: 'Holding Başkanı' },
+  { min: 2_500_000_000,     title: 'Sektör Lideri' },
+  { min: 25_000_000_000,    title: 'Piyasa Devi' },
+  { min: 250_000_000_000,   title: 'İş İmparatoru' },
 ]
 
 function rankFor(netWorth: number): { idx: number; title: string; next: string; nextMin: number } {

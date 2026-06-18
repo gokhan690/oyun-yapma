@@ -48,6 +48,7 @@ export class RefSubTabs {
     this.activeId = id
     this.btns.forEach((btn, bid) => btn.classList.toggle('active', bid === id))
     this.sections.forEach((sec, sid) => { sec.style.display = sid === id ? '' : 'none' })
+    this.btns.get(id)?.scrollIntoView({ behavior: 'instant', block: 'nearest', inline: 'nearest' })
   }
 
   get active(): string {
