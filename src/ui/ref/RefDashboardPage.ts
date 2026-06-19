@@ -9,12 +9,13 @@ import type { GameState } from '../../game/GameState'
 import {
   TASK_DEFS, TASK_SEQUENTIAL_DEPS,
   type DailyPlanState, type DailyTaskId,
-  DAILY_BONUS_AMOUNT, DAILY_BONUS_REPUTATION,
+  DAILY_BONUS_REPUTATION, dailyCompletionBonusAmount,
 } from '../../game/DailyPlan'
 
 const DAILY_TASK_NAV_TARGETS: Record<DailyTaskId, RefNavTab> = {
   pick_job: 'career', career_action: 'career',
   buy_firm: 'firms',  upgrade_firm: 'firms',
+  visit_career: 'career',
   visit_firms: 'firms', visit_market: 'market',
   visit_empire: 'empire', visit_life: 'life',
   unlock_city: 'empire', upgrade_department: 'empire',
@@ -160,6 +161,12 @@ export class RefDashboardPage implements RefPage {
     this.todayFirmEl = todayBs[1]
     this.todayCityEl = todayBs[2]
 
+    // Bugünün Hamleleri paneli — title only inside panel (no external sectionTitle)
+    this.dailyPanelEl = document.createElement('div')
+    this.dailyPanelEl.className = 'ref-daily-panel ref-card-soft'
+    this.el.appendChild(this.dailyPanelEl)
+    this.el.addEventListener('click', (e) => this.handleDailyClick(e))
+
     // Risk paneli — GERÇEK itibar + nakit/servet oranından türetilmiş tahmin.
     // Yüksek itibar → düşük baskın riski; düşük nakit tamponu → yüksek likidite riski.
     const raidRisk = Math.max(8, Math.min(58, Math.round(58 - d.reputation * 0.5)))
@@ -216,12 +223,6 @@ export class RefDashboardPage implements RefPage {
     `).join('')
     this.el.appendChild(feed)
 
-    // Bugünün Hamleleri paneli
-    this.el.appendChild(sectionTitle('Bugünün Hamleleri'))
-    this.dailyPanelEl = document.createElement('div')
-    this.dailyPanelEl.className = 'ref-daily-panel ref-card-soft'
-    this.el.appendChild(this.dailyPanelEl)
-    this.el.addEventListener('click', (e) => this.handleDailyClick(e))
   }
 
   onShow(): void {
@@ -318,7 +319,7 @@ export class RefDashboardPage implements RefPage {
         btnHtml = `<button class="ref-btn ref-daily-btn ref-daily-btn--claim" data-action="daily-claim:${taskId}">ÖDÜLÜ AL ₺${def.reward}</button>`
       } else {
         const navTarget = DAILY_TASK_NAV_TARGETS[taskId]
-        btnHtml = `<button class="ref-btn ref-daily-btn ref-daily-btn--go" data-action="daily-go:${navTarget}" ${uiState === 'blocked_by_previous' ? 'disabled' : ''}>GİT →</button>`
+        btnHtml = `<button class="ref-btn ref-daily-btn ref-daily-btn--go" data-action="daily-go:${navTarget}">GİT →</button>`
       }
 
       const blockedNote = uiState === 'blocked_by_previous'
@@ -338,9 +339,10 @@ export class RefDashboardPage implements RefPage {
     }).join('')
 
     const allClaimed = plan.taskIds.every(id => plan.claimed.includes(id))
+    const bonusAmt = dailyCompletionBonusAmount(plan.taskIds)
     const bonusHtml = `
       <div class="ref-daily-bonus-row">
-        <span class="ref-daily-bonus-label">Tümünü tamamla: <b>+₺${DAILY_BONUS_AMOUNT} + ${DAILY_BONUS_REPUTATION} İtibar</b></span>
+        <span class="ref-daily-bonus-label">Tümünü tamamla: <b>+₺${bonusAmt} + ${DAILY_BONUS_REPUTATION} İtibar</b></span>
         ${allClaimed
           ? plan.completionBonusClaimed
             ? `<button class="ref-btn ref-daily-btn ref-daily-btn--done" disabled>BONUS ALINDI</button>`

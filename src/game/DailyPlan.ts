@@ -5,6 +5,7 @@ export type DailyTaskId =
   | 'career_action'
   | 'buy_firm'
   | 'upgrade_firm'
+  | 'visit_career'
   | 'visit_firms'
   | 'visit_market'
   | 'visit_empire'
@@ -19,6 +20,7 @@ export type DailyEvent =
   | 'career_action_completed'
   | 'firm_bought'
   | 'firm_level_upgraded'
+  | 'career_viewed'
   | 'firms_viewed'
   | 'market_viewed'
   | 'empire_viewed'
@@ -58,17 +60,34 @@ export interface EligibilitySnapshot {
   hasDeptToUpgrade: boolean
   affordableWellbeing: boolean
   affordableLifeItem: boolean
+  // Tab accessibility — all currently always true (no page-level lock exists).
+  // Kept explicit so a future access guard only needs to update GameState, not the algorithm.
+  canVisitCareer: boolean
+  canVisitFirms: boolean
+  canVisitMarket: boolean
+  canVisitEmpire: boolean
+  canVisitLife: boolean
 }
 
 export const AFFORDABILITY_BUFFER = 1.2
+// Separate buffer for daily task eligibility — requires player can still afford basic needs after purchase.
+export const DAILY_TASK_SPEND_BUFFER = 2.0
 export const DAILY_BONUS_AMOUNT = 500
+export const DAILY_BONUS_AMOUNT_VISITS_ONLY = 200
 export const DAILY_BONUS_REPUTATION = 1
+
+// Single source of truth for completion bonus — all-visit plans give a reduced reward.
+export function dailyCompletionBonusAmount(taskIds: DailyTaskId[]): number {
+  const allVisits = taskIds.every(id => id.startsWith('visit_'))
+  return allVisits ? DAILY_BONUS_AMOUNT_VISITS_ONLY : DAILY_BONUS_AMOUNT
+}
 
 export const TASK_DEFS: DailyTaskDef[] = [
   { id: 'pick_job',           label: 'İş Seç',             desc: 'Bir meslek dalı seç',               icon: '💼', target: 1, event: 'job_chosen',             reward: 100 },
   { id: 'career_action',      label: 'Mesai Yap',           desc: 'Bir kariyer aksiyonu gerçekleştir', icon: '🔨', target: 1, event: 'career_action_completed', reward: 100 },
   { id: 'buy_firm',           label: 'Firma Satın Al',      desc: 'Yeni bir işletme satın al',         icon: '🏪', target: 1, event: 'firm_bought',             reward: 150 },
   { id: 'upgrade_firm',       label: 'Firma Geliştir',      desc: 'Bir firmayı seviye yükselt',        icon: '⬆️', target: 1, event: 'firm_level_upgraded',     reward: 150 },
+  { id: 'visit_career',        label: 'Kariyerini İncele',   desc: 'Kariyer ekranını ziyaret et',       icon: '💼', target: 1, event: 'career_viewed',           reward: 50  },
   { id: 'visit_firms',        label: 'Firmaları İncele',    desc: 'Firmalar ekranını ziyaret et',      icon: '🏢', target: 1, event: 'firms_viewed',            reward: 50  },
   { id: 'visit_market',       label: 'Piyasayı Gör',        desc: 'Piyasa ekranını ziyaret et',        icon: '📈', target: 1, event: 'market_viewed',           reward: 50  },
   { id: 'visit_empire',       label: 'İmparatorluğu Gör',   desc: 'İmparatorluk ekranını ziyaret et', icon: '🏙️', target: 1, event: 'empire_viewed',           reward: 50  },
@@ -115,6 +134,16 @@ function isValidDayKey(value: string): boolean {
   return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
 }
 
+function buildVisitFallback(snap: EligibilitySnapshot): DailyTaskId[] {
+  const result: DailyTaskId[] = []
+  if (snap.canVisitCareer) result.push('visit_career')
+  if (snap.canVisitFirms)  result.push('visit_firms')
+  if (snap.canVisitMarket) result.push('visit_market')
+  if (snap.canVisitEmpire) result.push('visit_empire')
+  if (snap.canVisitLife)   result.push('visit_life')
+  return result
+}
+
 function isSequentiallyAvailable(
   taskId: DailyTaskId,
   snap: EligibilitySnapshot,
@@ -127,19 +156,27 @@ function isSequentiallyAvailable(
   return true
 }
 
+// Tasks that require significant spending — at most 1 per plan to avoid impossible daily lists.
+const COSTLY_TASK_IDS = new Set<DailyTaskId>([
+  'buy_firm', 'upgrade_firm', 'unlock_city', 'upgrade_department', 'wellbeing', 'life_item',
+])
+
 export function selectDailyTasks(snap: EligibilitySnapshot, dayKey: string): DailyTaskId[] {
   const selected: DailyTaskId[] = []
   const ids = new Set<DailyTaskId>()
   const events = new Set<DailyEvent>()
   const seed = hashDayKey(dayKey)
-  const VISIT_FALLBACK: DailyTaskId[] = ['visit_firms', 'visit_market', 'visit_empire', 'visit_life']
+  const visitFallback = buildVisitFallback(snap)
+  let costlyCount = 0
 
   function tryAdd(taskId: DailyTaskId): boolean {
     if (selected.length >= 4) return false
     if (ids.has(taskId)) return false
     const def = TASK_DEFS.find(d => d.id === taskId)!
     if (events.has(def.event)) return false
+    if (COSTLY_TASK_IDS.has(taskId) && costlyCount >= 1) return false
     selected.push(taskId); ids.add(taskId); events.add(def.event)
+    if (COSTLY_TASK_IDS.has(taskId)) costlyCount++
     return true
   }
 
@@ -187,8 +224,8 @@ export function selectDailyTasks(snap: EligibilitySnapshot, dayKey: string): Dai
     }
   }
 
-  // Phase 4: Visit fallback — fills remaining slots (always 4 unique events available)
-  for (const visitId of seededShuffle(VISIT_FALLBACK, seed + 4)) {
+  // Phase 4: Visit fallback — fills remaining slots with accessible tab visits
+  for (const visitId of seededShuffle(visitFallback, seed + 4)) {
     if (selected.length >= 4) break
     tryAdd(visitId)
   }

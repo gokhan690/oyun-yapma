@@ -20,6 +20,7 @@ import type { DailyEvent } from '../../game/DailyPlan'
 
 // Tab → DailyEvent map (here so DailyPlan.ts stays UI-free)
 const DAILY_VISIT_EVENTS: Partial<Record<RefNavTab, DailyEvent>> = {
+  career: 'career_viewed',
   firms:  'firms_viewed',
   market: 'market_viewed',
   empire: 'empire_viewed',
@@ -218,10 +219,10 @@ export class RefApp {
   /** Aktif nav sekmesini değiştir. */
   show(tab: RefNavTab): void {
     const previousTab = this.currentTab
-    this.active = tab
+    // Mount first — if it throws, active/currentTab stay unchanged and no visit event fires.
     this.mountBody(this.getPage(tab))
+    this.active = tab
     this.nav.setActive(tab)
-    // currentTab set AFTER mount — if mount throws, tab is not recorded
     this.currentTab = tab
     if (previousTab !== null && tab !== previousTab) {
       const visitEvent = DAILY_VISIT_EVENTS[tab]

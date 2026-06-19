@@ -1,6 +1,6 @@
 import {
   type DailyPlanState, type DailyTaskId, type DailyEvent, type EligibilitySnapshot,
-  TASK_DEFS, AFFORDABILITY_BUFFER, DAILY_BONUS_AMOUNT, DAILY_BONUS_REPUTATION,
+  TASK_DEFS, DAILY_TASK_SPEND_BUFFER, DAILY_BONUS_REPUTATION, dailyCompletionBonusAmount,
   selectDailyTasks, createDailyPlanState, sanitizeDailyPlanState,
 } from './DailyPlan'
 import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, type ProducerDef, type UpgradeDef } from './Economy'
@@ -5673,6 +5673,12 @@ export class GameState {
   doCareerAction(actionId: CareerActionId): { money: number; xp: number; stressDelta: number; levelUp: boolean } {
     this.ensureDailyPlan()
     if (actionId === 'isten_ayril') {
+      // Only a player who is actually employed can quit. Otherwise no-op:
+      // no event, no daily progress, no state change.
+      if (this.career.jobId === null || this.career.isEntrepreneur) {
+        return { money: 0, xp: 0, stressDelta: 0, levelUp: false }
+      }
+      this.recordDailyEvent('career_action_completed')
       this.career.isEntrepreneur = true
       this.emit({ type: 'career_phase_changed', isEntrepreneur: true })
       return { money: 0, xp: 0, stressDelta: 0, levelUp: false }
@@ -5760,26 +5766,36 @@ export class GameState {
   // ── Günlük Plan (DailyPlan) ──────────────────────────────────────────────
 
   private buildDailyEligibilitySnapshot(): EligibilitySnapshot {
-    const canAffordAnyFirm = PRODUCERS.some(
-      p => isProducerUnlocked(p, this.totalEarned, this.forcedUnlocks, this.ipoCount)
-        && this.money >= producerCost(p, this.producers[p.id] ?? 0, 1) * AFFORDABILITY_BUFFER
-    )
+    const canAffordAnyFirm = PRODUCERS.some(p => {
+      if (!isProducerUnlocked(p, this.totalEarned, this.forcedUnlocks, this.ipoCount)) return false
+      const owned = this.producers[p.id] ?? 0
+      return this.money >= this.producerCostFor(p, owned, 1) * DAILY_TASK_SPEND_BUFFER
+    })
     const upgradeableFirms = PRODUCERS.filter(p => {
       const owned = this.producers[p.id] ?? 0
       return owned > 0 && (this.producerLevels[p.id] ?? 1) < FIRM_MAX_LEVEL
     })
     const hasUpgradeableFirm = upgradeableFirms.length > 0
     const canAffordAnyUpgrade = upgradeableFirms.some(
-      p => this.money >= this.firmLevelUpCostFor(p) * AFFORDABILITY_BUFFER
+      p => this.money >= this.firmLevelUpCostFor(p) * DAILY_TASK_SPEND_BUFFER
     )
+    // Pass money/BUFFER so canUnlockCity's money check becomes: money >= cost*BUFFER.
+    // Rep and IPO checks inside canUnlockCity remain exact (no buffer applied).
     const canUnlockAnyCity = EXPANSION_CITIES.some(
-      c => canUnlockCity(c.id, this.cities, this.money, this.reputation, this.ipoCount).ok
+      c => canUnlockCity(c.id, this.cities, this.money / DAILY_TASK_SPEND_BUFFER, this.reputation, this.ipoCount).ok
     )
     const hasDeptToUpgrade = DEPARTMENTS.some(d => {
       const level = this.departments[d.id] ?? 0
       if (level >= DEPARTMENT_MAX_LEVEL) return false
-      return this.money >= departmentUpgradeCost(d.id, level) * AFFORDABILITY_BUFFER
+      return this.money >= departmentUpgradeCost(d.id, level) * DAILY_TASK_SPEND_BUFFER
     })
+    const minWellbeingCost = Math.min(...WELLBEING_ACTIVITIES.map(a => a.cost))
+    // HOME_ROOMS omitted: buyHomeRoom does not emit life_item_bought.
+    const minLifeItemCost = Math.min(
+      ...RESIDENCES.filter(r => r.buyCost > 0).map(r => r.buyCost),
+      ...VEHICLES.filter(v => v.buyCost > 0).map(v => v.buyCost),
+      ...PETS.map(p => p.buyCost),
+    )
     return {
       hasJob: this.career.jobId != null && !this.career.isEntrepreneur,
       isEntrepreneur: this.career.isEntrepreneur,
@@ -5789,8 +5805,14 @@ export class GameState {
       canAffordAnyUpgrade,
       canUnlockAnyCity,
       hasDeptToUpgrade,
-      affordableWellbeing: this.money >= 12000 * AFFORDABILITY_BUFFER,
-      affordableLifeItem:  this.money >= 4000 * AFFORDABILITY_BUFFER,
+      affordableWellbeing: this.money >= minWellbeingCost * DAILY_TASK_SPEND_BUFFER,
+      affordableLifeItem:  this.money >= minLifeItemCost * DAILY_TASK_SPEND_BUFFER,
+      // Audit (2026-06): all five tabs open without any page-level gate.
+      canVisitCareer: true,
+      canVisitFirms:  true,
+      canVisitMarket: true,
+      canVisitEmpire: true,
+      canVisitLife:   true,
     }
   }
 
@@ -5840,7 +5862,7 @@ export class GameState {
     if (plan.taskIds.length !== 4) return false
     if (!plan.taskIds.every(id => plan.claimed.includes(id))) return false
     plan.completionBonusClaimed = true
-    this.addMoney(DAILY_BONUS_AMOUNT, false)
+    this.addMoney(dailyCompletionBonusAmount(plan.taskIds), false)
     this.addReputation(DAILY_BONUS_REPUTATION)
     this.emit({ type: 'daily_plan_updated' })
     return true
