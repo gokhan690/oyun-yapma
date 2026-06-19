@@ -4,7 +4,22 @@ import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import { reputationLabel } from '../../game/Reputation'
 import type { RefDashboardVM } from './refAppDataAdapter'
 import type { RefPage } from './RefApp'
+import type { RefNavTab } from './RefBottomNav'
 import type { GameState } from '../../game/GameState'
+import {
+  TASK_DEFS, TASK_SEQUENTIAL_DEPS,
+  type DailyPlanState, type DailyTaskId,
+  DAILY_BONUS_AMOUNT, DAILY_BONUS_REPUTATION,
+} from '../../game/DailyPlan'
+
+const DAILY_TASK_NAV_TARGETS: Record<DailyTaskId, RefNavTab> = {
+  pick_job: 'career', career_action: 'career',
+  buy_firm: 'firms',  upgrade_firm: 'firms',
+  visit_firms: 'firms', visit_market: 'market',
+  visit_empire: 'empire', visit_life: 'life',
+  unlock_city: 'empire', upgrade_department: 'empire',
+  wellbeing: 'life', life_item: 'life',
+}
 
 /** Gerçek veri yoksa kullanılan fallback (mock) dashboard. */
 const MOCK_DASHBOARD: RefDashboardVM = {
@@ -48,6 +63,7 @@ export class RefDashboardPage implements RefPage {
   readonly title = 'ANA PANEL'
 
   onOpenAchievements?: () => void
+  onNavigate?: (tab: RefNavTab) => void
 
   private kpi!: RefKpiStrip
   private heroValEl?: HTMLElement
@@ -56,8 +72,12 @@ export class RefDashboardPage implements RefPage {
   private todayIncomeEl?: HTMLElement
   private todayFirmEl?: HTMLElement
   private todayCityEl?: HTMLElement
+  private state?: GameState
+  private dailyPanelEl: HTMLElement | null = null
+  private lastDailyPanelSig = ''
 
-  constructor(vm?: RefDashboardVM) {
+  constructor(vm?: RefDashboardVM, state?: GameState) {
+    this.state = state
     const d = vm ?? MOCK_DASHBOARD
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-dash-page'
@@ -195,6 +215,20 @@ export class RefDashboardPage implements RefPage {
       </div>
     `).join('')
     this.el.appendChild(feed)
+
+    // Bugünün Hamleleri paneli
+    this.el.appendChild(sectionTitle('Bugünün Hamleleri'))
+    this.dailyPanelEl = document.createElement('div')
+    this.dailyPanelEl.className = 'ref-daily-panel ref-card-soft'
+    this.el.appendChild(this.dailyPanelEl)
+    this.el.addEventListener('click', (e) => this.handleDailyClick(e))
+  }
+
+  onShow(): void {
+    if (this.state) {
+      this.state.ensureDailyPlan()
+      this.refreshDailyPanel()
+    }
   }
 
   private kpiItems(d: RefDashboardVM): KpiItem[] {
@@ -208,6 +242,7 @@ export class RefDashboardPage implements RefPage {
 
   /** Canlı GameState'ten para/servet/gelir/itibar değerlerini DOM kurmadan tazeler. */
   refresh(state: GameState): void {
+    this.state = state
     const netWorth   = Math.round(state.financeNetWorth())
     const cash       = Math.round(state.money)
     const income     = Math.round(state.incomePerDay())
@@ -227,5 +262,114 @@ export class RefDashboardPage implements RefPage {
     if (this.todayIncomeEl) this.todayIncomeEl.textContent = fmtMoney(income)
     if (this.todayFirmEl)   this.todayFirmEl.textContent = String(firmCount)
     if (this.todayCityEl)   this.todayCityEl.textContent = String(cityCount)
+    state.ensureDailyPlan()
+    this.refreshDailyPanel()
+  }
+
+  // ── Günlük Plan panel ──────────────────────────────────────────────────────
+
+  private computeDailySig(plan: DailyPlanState | null): string {
+    if (!plan) return 'null'
+    return [
+      plan.dayKey,
+      plan.taskIds.join(','),
+      plan.taskIds.map(id => plan.progress[id] ?? 0).join(','),
+      plan.claimed.join(','),
+      plan.completionBonusClaimed ? '1' : '0',
+    ].join('|')
+  }
+
+  private refreshDailyPanel(): void {
+    if (!this.dailyPanelEl || !this.state) return
+    const plan = this.state.dailyPlan
+    const sig = this.computeDailySig(plan)
+    if (sig === this.lastDailyPanelSig) return
+    this.lastDailyPanelSig = sig
+    this.dailyPanelEl.innerHTML = this.buildDailyPanelHtml(plan)
+  }
+
+  private buildDailyPanelHtml(plan: DailyPlanState | null): string {
+    if (!plan) return '<div class="ref-daily-empty">Yükleniyor…</div>'
+
+    const getTaskUIState = (taskId: DailyTaskId) => {
+      if (plan.claimed.includes(taskId)) return 'claimed'
+      const prereqId = TASK_SEQUENTIAL_DEPS[taskId]
+      if (prereqId && plan.taskIds.includes(prereqId)) {
+        const prereqDef = TASK_DEFS.find(d => d.id === prereqId)!
+        if ((plan.progress[prereqId] ?? 0) < prereqDef.target) return 'blocked_by_previous'
+      }
+      const def = TASK_DEFS.find(d => d.id === taskId)!
+      return (plan.progress[taskId] ?? 0) >= def.target ? 'ready_to_claim' : 'in_progress'
+    }
+
+    const doneCount = plan.taskIds.filter(id => {
+      const s = getTaskUIState(id)
+      return s === 'ready_to_claim' || s === 'claimed'
+    }).length
+
+    const taskRows = plan.taskIds.map(taskId => {
+      const def = TASK_DEFS.find(d => d.id === taskId)!
+      const uiState = getTaskUIState(taskId)
+
+      let btnHtml = ''
+      if (uiState === 'claimed') {
+        btnHtml = `<button class="ref-btn ref-daily-btn ref-daily-btn--done" disabled>ALINDI</button>`
+      } else if (uiState === 'ready_to_claim') {
+        btnHtml = `<button class="ref-btn ref-daily-btn ref-daily-btn--claim" data-action="daily-claim:${taskId}">ÖDÜLÜ AL ₺${def.reward}</button>`
+      } else {
+        const navTarget = DAILY_TASK_NAV_TARGETS[taskId]
+        btnHtml = `<button class="ref-btn ref-daily-btn ref-daily-btn--go" data-action="daily-go:${navTarget}" ${uiState === 'blocked_by_previous' ? 'disabled' : ''}>GİT →</button>`
+      }
+
+      const blockedNote = uiState === 'blocked_by_previous'
+        ? `<div class="ref-daily-task-blocked">Önce: ${TASK_DEFS.find(d => d.id === TASK_SEQUENTIAL_DEPS[taskId])?.label}</div>`
+        : ''
+
+      return `
+        <div class="ref-daily-task-row ref-daily-task-row--${uiState}">
+          <span class="ref-daily-task-icon">${uiState === 'claimed' ? '✅' : def.icon}</span>
+          <div class="ref-daily-task-info">
+            <div class="ref-daily-task-name">${def.label}</div>
+            <div class="ref-daily-task-desc">${def.desc}</div>
+            ${blockedNote}
+          </div>
+          <div class="ref-daily-task-action">${btnHtml}</div>
+        </div>`
+    }).join('')
+
+    const allClaimed = plan.taskIds.every(id => plan.claimed.includes(id))
+    const bonusHtml = `
+      <div class="ref-daily-bonus-row">
+        <span class="ref-daily-bonus-label">Tümünü tamamla: <b>+₺${DAILY_BONUS_AMOUNT} + ${DAILY_BONUS_REPUTATION} İtibar</b></span>
+        ${allClaimed
+          ? plan.completionBonusClaimed
+            ? `<button class="ref-btn ref-daily-btn ref-daily-btn--done" disabled>BONUS ALINDI</button>`
+            : `<button class="ref-btn ref-daily-btn ref-daily-btn--claim" data-action="daily-bonus">GÜNLÜK BONUS</button>`
+          : `<button class="ref-btn ref-daily-btn ref-daily-btn--done" disabled>${doneCount}/4</button>`
+        }
+      </div>`
+
+    return `
+      <div class="ref-daily-header">
+        <span class="ref-card-soft__title">Bugünün Hamleleri</span>
+        <span class="ref-daily-counter">${doneCount}/4</span>
+      </div>
+      ${taskRows}
+      ${bonusHtml}`
+  }
+
+  private handleDailyClick(e: MouseEvent): void {
+    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-action]')
+    if (!target || !this.state) return
+    const action = target.dataset.action ?? ''
+    if (action === 'daily-bonus') {
+      this.state.claimDailyCompletionBonus()
+    } else if (action.startsWith('daily-claim:')) {
+      const taskId = action.slice('daily-claim:'.length) as DailyTaskId
+      this.state.claimDailyTask(taskId)
+    } else if (action.startsWith('daily-go:')) {
+      const tab = action.slice('daily-go:'.length) as RefNavTab
+      this.onNavigate?.(tab)
+    }
   }
 }

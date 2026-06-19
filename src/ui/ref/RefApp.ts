@@ -16,6 +16,15 @@ import { RefNotifsPage } from './RefNotifsPage'
 import type { RefViewModel } from './refAppDataAdapter'
 import { playerVMFromState } from './refAppDataAdapter'
 import type { GameState } from '../../game/GameState'
+import type { DailyEvent } from '../../game/DailyPlan'
+
+// Tab → DailyEvent map (here so DailyPlan.ts stays UI-free)
+const DAILY_VISIT_EVENTS: Partial<Record<RefNavTab, DailyEvent>> = {
+  firms:  'firms_viewed',
+  market: 'market_viewed',
+  empire: 'empire_viewed',
+  life:   'life_viewed',
+}
 
 /** Tüm ref sayfalarının ortak arayüzü: header + nav RefApp tarafından sağlanır. */
 export interface RefPage {
@@ -72,9 +81,16 @@ export class RefApp {
   private vm?: RefViewModel
   private gameState?: GameState
   private active: RefNavTab
+  /** Ziyaret takibi için ayrı alan — null başlangıç, ilk show'da set edilir. */
+  private currentTab: RefNavTab | null = null
   /** Tek GameState aboneliği (canlı para/KPI refresh) + throttle timer. */
   private unsub?: () => void
   private refreshTimer: number | null = null
+  private readonly handleVisibilityChange = (): void => {
+    if (document.hidden || !this.gameState) return
+    this.gameState.ensureDailyPlan()
+    // daily_plan_updated emitted → subscription calls refreshActive automatically
+  }
 
   /** Ana oyuna bağlandığında geri/çıkış için (standalone'da kullanılmaz). */
   onExit?: () => void
@@ -122,6 +138,8 @@ export class RefApp {
     this.el.appendChild(this.detail.el)
 
     // Yalnızca açılış sekmesi kurulur; diğerleri ilk tıklamada (perf).
+    // ensureDailyPlan önce çağrılır; show() mount sırasında plan hazır olsun.
+    this.gameState?.ensureDailyPlan()
     this.show(initial)
 
     // ── Tek GameState aboneliği: yalnız AKTİF sayfanın para/KPI metnini tazeler ──
@@ -133,12 +151,14 @@ export class RefApp {
         if (ev.type === 'purchase') this.refreshActive(st)
         else if (ev.type === 'health_changed' || ev.type === 'fame_changed') this.refreshActive(st)
         else if (ev.type === 'money_changed' || ev.type === 'passive_income') this.scheduleRefresh(st)
+        else if (ev.type === 'daily_plan_updated') this.refreshActive(st)
         else if (ev.type === 'gazette_headline') {
           // 🔔 rozeti + açıksa bildirim sayfasını tazele
           if (this.mounted === this.notifs) this.notifs?.refresh(st)
           else this.header.setNotifBadge(true)
         }
       })
+      document.addEventListener('visibilitychange', this.handleVisibilityChange)
     }
   }
 
@@ -176,8 +196,9 @@ export class RefApp {
     const st  = this.gameState
     switch (tab) {
       case 'home': {
-        const dashboard = new RefDashboardPage(vm?.dashboard)
+        const dashboard = new RefDashboardPage(vm?.dashboard, st)
         dashboard.onOpenAchievements = () => this.showAchievements()
+        dashboard.onNavigate = (tab) => this.show(tab)
         return dashboard
       }
       case 'firms': {
@@ -196,9 +217,16 @@ export class RefApp {
 
   /** Aktif nav sekmesini değiştir. */
   show(tab: RefNavTab): void {
+    const previousTab = this.currentTab
     this.active = tab
     this.mountBody(this.getPage(tab))
     this.nav.setActive(tab)
+    // currentTab set AFTER mount — if mount throws, tab is not recorded
+    this.currentTab = tab
+    if (previousTab !== null && tab !== previousTab) {
+      const visitEvent = DAILY_VISIT_EVENTS[tab]
+      if (visitEvent && this.gameState) this.gameState.recordDailyEvent(visitEvent)
+    }
   }
 
   private showAchievements(): void {
@@ -255,6 +283,7 @@ export class RefApp {
 
   /** Overlay kapanınca çağrılır: tüm GameState aboneliklerini bırak (sızıntı önleme). */
   destroy(): void {
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange)
     this.unsub?.()
     this.unsub = undefined
     if (this.refreshTimer !== null) {

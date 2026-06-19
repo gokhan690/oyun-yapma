@@ -1,3 +1,8 @@
+import {
+  type DailyPlanState, type DailyTaskId, type DailyEvent, type EligibilitySnapshot,
+  TASK_DEFS, AFFORDABILITY_BUFFER, DAILY_BONUS_AMOUNT, DAILY_BONUS_REPUTATION,
+  selectDailyTasks, createDailyPlanState, sanitizeDailyPlanState,
+} from './DailyPlan'
 import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, type ProducerDef, type UpgradeDef } from './Economy'
 import { PRESTIGE_SHOP_ITEMS } from './PrestigeShop'
 import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, ipoThreshold, prestigeMultiplier } from './Prestige'
@@ -99,7 +104,7 @@ import { gameDay, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSec
 import { createCareerState, applyCareerAction, applyDailyWage, FIRST_GOAL_TARGET, type CareerState, type CareerActionId, type CareerJobId, type CharacterBackgroundId } from './Career'
 import { firmLevelIncomeMult, firmLevelUpCost, FIRM_MAX_LEVEL } from './FirmLevels'
 import { firmUpgradeDef, firmUpgradeIncomeBonus, firmUpgradeCost } from './FirmUpgrades'
-import { createDepartmentState, departmentUpgradeCost, type DepartmentId } from './EmpireDepartments'
+import { createDepartmentState, departmentUpgradeCost, DEPARTMENTS, DEPARTMENT_MAX_LEVEL, type DepartmentId } from './EmpireDepartments'
 import {
   createEmpireState,
   syncEmpireFromProducers,
@@ -457,6 +462,7 @@ import {
   canUnlockCity,
   cityDef,
   cityProducerBonus,
+  EXPANSION_CITIES,
   type CityState,
   type CityId,
 } from './ExpansionMap'
@@ -661,6 +667,7 @@ export interface SerializableState {
   producerLevels?: Record<string, number>
   producerUpgrades?: Record<string, string[]>
   departments?: Record<string, number>
+  dailyPlan?: DailyPlanState | null
 }
 
 export interface ProducerBreakdown {
@@ -769,6 +776,7 @@ export type GameEvent =
   | { type: 'career_action'; actionId: CareerActionId; money: number; levelUp: boolean }
   | { type: 'career_wage'; amount: number }
   | { type: 'career_phase_changed'; isEntrepreneur: boolean }
+  | { type: 'daily_plan_updated' }
 
 const MILESTONE_THRESHOLDS = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
 const CRIT_CHANCE = 0.1
@@ -872,6 +880,7 @@ export class GameState {
   producerLevels: Record<string, number> = {}
   producerUpgrades: Record<string, string[]> = {}
   departments: Record<DepartmentId, number> = createDepartmentState()
+  dailyPlan: DailyPlanState | null = null
   private lastDiseaseTickDay = 0
   private lastSiblingTickYear = 0
   dailyRoutineDay = 0
@@ -2493,6 +2502,7 @@ export class GameState {
   }
 
   buyProducer(id: string, count = 1): boolean {
+    this.ensureDailyPlan()
     const def = PRODUCERS.find((p) => p.id === id)
     if (!def || !isProducerUnlocked(def, this.totalEarned, this.forcedUnlocks, this.ipoCount)) return false
     const owned = this.producers[id] ?? 0
@@ -2544,6 +2554,7 @@ export class GameState {
     this.syncCampaignProgress()
     this.checkVictoryConditions()
     this.checkWorldStage()
+    this.recordDailyEvent('firm_bought')
     return true
   }
 
@@ -4934,6 +4945,7 @@ export class GameState {
   }
 
   buyResidence(id: ResidenceId, count: number = 1): boolean {
+    this.ensureDailyPlan()
     const res = RESIDENCES.find((r) => r.id === id)
     if (!res || count < 1) return false
     const totalCost = res.buyCost * count
@@ -4953,6 +4965,7 @@ export class GameState {
           rentalMonthlyIncome: defaultRentalIncome(id),
         })
       }
+      this.recordDailyEvent('life_item_bought')
     }
     return true
   }
@@ -4998,6 +5011,7 @@ export class GameState {
   }
 
   buyVehicle(id: VehicleId, count: number = 1): boolean {
+    this.ensureDailyPlan()
     const veh = VEHICLES.find((v) => v.id === id)
     if (!veh || count < 1) return false
     const totalCost = veh.buyCost * count
@@ -5017,6 +5031,7 @@ export class GameState {
           rentalMonthlyIncome: defaultVehicleRentalIncome(id),
         })
       }
+      this.recordDailyEvent('life_item_bought')
     }
     return true
   }
@@ -5058,6 +5073,7 @@ export class GameState {
   }
 
   buyPet(id: PetId): boolean {
+    this.ensureDailyPlan()
     const pet = PETS.find((p) => p.id === id)
     if (!pet) return false
     if (!this.canAfford(pet.buyCost)) return false
@@ -5072,10 +5088,12 @@ export class GameState {
     }
     if (!this.lifestyle.ownedPets) this.lifestyle.ownedPets = []
     this.lifestyle.ownedPets.push(entry)
+    this.recordDailyEvent('life_item_bought')
     return true
   }
 
   buyWellbeing(id: WellbeingActivityId): boolean {
+    this.ensureDailyPlan()
     const act = WELLBEING_ACTIVITIES.find((a) => a.id === id)
     if (!act) return false
     if (!this.canAfford(act.cost)) return false
@@ -5088,6 +5106,7 @@ export class GameState {
     } else {
       this.lifestyle.vacationActiveUntilDay = currentDay + act.durationDays
     }
+    this.recordDailyEvent('wellbeing_completed')
     return true
   }
 
@@ -5492,6 +5511,7 @@ export class GameState {
   }
 
   unlockCity(id: CityId): boolean {
+    this.ensureDailyPlan()
     const check = canUnlockCity(id, this.cities, this.money, this.reputation, this.ipoCount)
     if (!check.ok) return false
     const def = cityDef(id)
@@ -5500,6 +5520,7 @@ export class GameState {
     this.cities.cityReputation[id] = Math.max(def.repReq, 40)
     this.addGazette(`${this.playerName.trim() || 'Baron'} ${def.label}'yi fethetti`, 'player')
     this.emit({ type: 'money_changed' })
+    this.recordDailyEvent('city_unlocked')
     return true
   }
 
@@ -5637,7 +5658,12 @@ export class GameState {
   // ── Kariyer metodları ──────────────────────────────────────────────────────
 
   setCareerJob(jobId: CareerJobId | null): void {
+    this.ensureDailyPlan()
+    const prevJobId = this.career.jobId
     this.career.jobId = jobId
+    if (prevJobId == null && jobId != null && !this.career.isEntrepreneur) {
+      this.recordDailyEvent('job_chosen')
+    }
   }
 
   setCharacterBackground(backgroundId: CharacterBackgroundId | null): void {
@@ -5645,6 +5671,7 @@ export class GameState {
   }
 
   doCareerAction(actionId: CareerActionId): { money: number; xp: number; stressDelta: number; levelUp: boolean } {
+    this.ensureDailyPlan()
     if (actionId === 'isten_ayril') {
       this.career.isEntrepreneur = true
       this.emit({ type: 'career_phase_changed', isEntrepreneur: true })
@@ -5658,6 +5685,7 @@ export class GameState {
     }
     this.emit({ type: 'career_action', actionId, money: result.money, levelUp: result.levelUp })
     if (result.money > 0) this.emit({ type: 'money_changed' })
+    if (result.money > 0 || result.xp > 0) this.recordDailyEvent('career_action_completed')
     return result
   }
 
@@ -5673,6 +5701,7 @@ export class GameState {
   }
 
   levelUpFirm(def: ProducerDef): boolean {
+    this.ensureDailyPlan()
     const level = this.producerLevel(def.id)
     if (level >= FIRM_MAX_LEVEL) return false
     const cost = this.firmLevelUpCostFor(def)
@@ -5681,6 +5710,7 @@ export class GameState {
     this.producerLevels[def.id] = level + 1
     this.emit({ type: 'purchase' })
     this.emit({ type: 'money_changed' })
+    this.recordDailyEvent('firm_level_upgraded')
     return true
   }
 
@@ -5716,12 +5746,103 @@ export class GameState {
   }
 
   upgradeDepartment(id: DepartmentId): boolean {
+    this.ensureDailyPlan()
     const cost = this.departmentUpgradeCostFor(id)
     if (!isFinite(cost) || this.money < cost) return false
     this.money -= cost
     this.departments[id] = (this.departments[id] ?? 0) + 1
     this.emit({ type: 'purchase' })
     this.emit({ type: 'money_changed' })
+    this.recordDailyEvent('department_upgraded')
+    return true
+  }
+
+  // ── Günlük Plan (DailyPlan) ──────────────────────────────────────────────
+
+  private buildDailyEligibilitySnapshot(): EligibilitySnapshot {
+    const canAffordAnyFirm = PRODUCERS.some(
+      p => isProducerUnlocked(p, this.totalEarned, this.forcedUnlocks, this.ipoCount)
+        && this.money >= producerCost(p, this.producers[p.id] ?? 0, 1) * AFFORDABILITY_BUFFER
+    )
+    const upgradeableFirms = PRODUCERS.filter(p => {
+      const owned = this.producers[p.id] ?? 0
+      return owned > 0 && (this.producerLevels[p.id] ?? 1) < FIRM_MAX_LEVEL
+    })
+    const hasUpgradeableFirm = upgradeableFirms.length > 0
+    const canAffordAnyUpgrade = upgradeableFirms.some(
+      p => this.money >= this.firmLevelUpCostFor(p) * AFFORDABILITY_BUFFER
+    )
+    const canUnlockAnyCity = EXPANSION_CITIES.some(
+      c => canUnlockCity(c.id, this.cities, this.money, this.reputation, this.ipoCount).ok
+    )
+    const hasDeptToUpgrade = DEPARTMENTS.some(d => {
+      const level = this.departments[d.id] ?? 0
+      if (level >= DEPARTMENT_MAX_LEVEL) return false
+      return this.money >= departmentUpgradeCost(d.id, level) * AFFORDABILITY_BUFFER
+    })
+    return {
+      hasJob: this.career.jobId != null && !this.career.isEntrepreneur,
+      isEntrepreneur: this.career.isEntrepreneur,
+      firmCount: Object.values(this.producers).filter(c => c > 0).length,
+      canAffordAnyFirm,
+      hasUpgradeableFirm,
+      canAffordAnyUpgrade,
+      canUnlockAnyCity,
+      hasDeptToUpgrade,
+      affordableWellbeing: this.money >= 12000 * AFFORDABILITY_BUFFER,
+      affordableLifeItem:  this.money >= 4000 * AFFORDABILITY_BUFFER,
+    }
+  }
+
+  ensureDailyPlan(): boolean {
+    const dayKey = localDayKey()
+    if (this.dailyPlan?.version === 1 && this.dailyPlan.dayKey === dayKey) return false
+    const snap = this.buildDailyEligibilitySnapshot()
+    this.dailyPlan = createDailyPlanState(dayKey, selectDailyTasks(snap, dayKey))
+    this.emit({ type: 'daily_plan_updated' })
+    return true
+  }
+
+  recordDailyEvent(event: DailyEvent): void {
+    this.ensureDailyPlan()
+    const plan = this.dailyPlan!
+    let changed = false
+    for (const taskId of plan.taskIds) {
+      const def = TASK_DEFS.find(d => d.id === taskId)
+      if (!def || def.event !== event) continue
+      if (plan.claimed.includes(taskId)) continue
+      const prev = plan.progress[taskId] ?? 0
+      if (prev < def.target) {
+        plan.progress[taskId] = Math.min(def.target, prev + 1)
+        changed = true
+      }
+    }
+    if (changed) this.emit({ type: 'daily_plan_updated' })
+  }
+
+  claimDailyTask(taskId: DailyTaskId): boolean {
+    this.ensureDailyPlan()
+    const plan = this.dailyPlan!
+    if (!plan.taskIds.includes(taskId)) return false
+    if (plan.claimed.includes(taskId)) return false
+    const def = TASK_DEFS.find(d => d.id === taskId)
+    if (!def || (plan.progress[taskId] ?? 0) < def.target) return false
+    plan.claimed.push(taskId)
+    this.addMoney(def.reward, false)
+    this.emit({ type: 'daily_plan_updated' })
+    return true
+  }
+
+  claimDailyCompletionBonus(): boolean {
+    this.ensureDailyPlan()
+    const plan = this.dailyPlan!
+    if (plan.completionBonusClaimed) return false
+    if (plan.taskIds.length !== 4) return false
+    if (!plan.taskIds.every(id => plan.claimed.includes(id))) return false
+    plan.completionBonusClaimed = true
+    this.addMoney(DAILY_BONUS_AMOUNT, false)
+    this.addReputation(DAILY_BONUS_REPUTATION)
+    this.emit({ type: 'daily_plan_updated' })
     return true
   }
 
@@ -5920,6 +6041,7 @@ export class GameState {
       dynastyPassiveIncome: this.dynastyPassiveIncome,
       peakIncomePerDay: this.peakIncomePerDay,
       prestigeShopPurchased: [...this.prestigeShopPurchased],
+      dailyPlan: this.dailyPlan ?? null,
     }
   }
 
@@ -6256,10 +6378,12 @@ export class GameState {
     this.prestigeShopPurchased = data.prestigeShopPurchased ?? []
     this.lastSaveTime = data.lastSaveTime
     this.isNight = isGameNight(this.gameTimeMs)
+    this.dailyPlan = sanitizeDailyPlanState(data.dailyPlan ?? null)
     this.ensureDailyGoal()
     this.ensureMissions()
     this.ensureWeekly()
     this.ensureSeason()
+    this.ensureDailyPlan()
   }
 }
 
