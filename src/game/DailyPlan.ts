@@ -14,6 +14,8 @@ export type DailyTaskId =
   | 'upgrade_department'
   | 'wellbeing'
   | 'life_item'
+  | 'market_action'
+  | 'hire_manager'
 
 export type DailyEvent =
   | 'job_chosen'
@@ -29,6 +31,8 @@ export type DailyEvent =
   | 'department_upgraded'
   | 'wellbeing_completed'
   | 'life_item_bought'
+  | 'market_action_completed'
+  | 'manager_hired'
 
 export interface DailyTaskDef {
   id: DailyTaskId
@@ -60,6 +64,8 @@ export interface EligibilitySnapshot {
   hasDeptToUpgrade: boolean
   affordableWellbeing: boolean
   affordableLifeItem: boolean
+  canDoMarketAction: boolean
+  canHireManager: boolean
   // Tab accessibility — all currently always true (no page-level lock exists).
   // Kept explicit so a future access guard only needs to update GameState, not the algorithm.
   canVisitCareer: boolean
@@ -96,6 +102,8 @@ export const TASK_DEFS: DailyTaskDef[] = [
   { id: 'upgrade_department', label: 'Departman Geliştir',  desc: 'Bir departmanı geliştir',           icon: '🏗️', target: 1, event: 'department_upgraded',    reward: 150 },
   { id: 'wellbeing',          label: 'İyi Hissettir',       desc: 'Bir wellbeing aktivitesi satın al', icon: '🧘', target: 1, event: 'wellbeing_completed',     reward: 150 },
   { id: 'life_item',          label: 'Yaşam Alışverişi',    desc: 'Konut, araç veya evcil hayvan al',  icon: '🏠', target: 1, event: 'life_item_bought',        reward: 150 },
+  { id: 'market_action',      label: 'Piyasada İşlem Yap',  desc: 'Borsada bir alım veya satım işlemi gerçekleştir', icon: '📊', target: 1, event: 'market_action_completed', reward: 100 },
+  { id: 'hire_manager',       label: 'Manager Ata',          desc: 'Bir firmaya manager atayarak otomasyonu güçlendir', icon: '🧑‍💼', target: 1, event: 'manager_hired', reward: 150 },
 ]
 
 export const TASK_SEQUENTIAL_DEPS: Partial<Record<DailyTaskId, DailyTaskId>> = {
@@ -104,10 +112,11 @@ export const TASK_SEQUENTIAL_DEPS: Partial<Record<DailyTaskId, DailyTaskId>> = {
 
 // Action-only slot candidates — visit tasks intentionally absent (Phase 4 fallback only)
 export const SLOT_ACTION_CANDIDATES = {
-  career_business: ['pick_job', 'career_action', 'buy_firm', 'upgrade_firm'    ] as DailyTaskId[],
-  business_growth: ['buy_firm', 'upgrade_firm',  'upgrade_department'           ] as DailyTaskId[],
-  strategy:        ['unlock_city', 'upgrade_department'                          ] as DailyTaskId[],
-  life:            ['life_item',  'wellbeing'                                    ] as DailyTaskId[],
+  career_business: ['pick_job', 'career_action', 'buy_firm', 'upgrade_firm'              ] as DailyTaskId[],
+  business_growth: ['buy_firm', 'upgrade_firm',  'upgrade_department', 'hire_manager'    ] as DailyTaskId[],
+  strategy:        ['unlock_city', 'upgrade_department'                                   ] as DailyTaskId[],
+  life:            ['life_item',  'wellbeing'                                             ] as DailyTaskId[],
+  market:          ['market_action'                                                        ] as DailyTaskId[],
 } as const
 
 function hashDayKey(dayKey: string): number {
@@ -159,6 +168,7 @@ function isSequentiallyAvailable(
 // Tasks that require significant spending — at most 1 per plan to avoid impossible daily lists.
 const COSTLY_TASK_IDS = new Set<DailyTaskId>([
   'buy_firm', 'upgrade_firm', 'unlock_city', 'upgrade_department', 'wellbeing', 'life_item',
+  'hire_manager',
 ])
 
 export function selectDailyTasks(snap: EligibilitySnapshot, dayKey: string): DailyTaskId[] {
@@ -189,20 +199,41 @@ export function selectDailyTasks(snap: EligibilitySnapshot, dayKey: string): Dai
     if (taskId === 'upgrade_department') return snap.hasDeptToUpgrade
     if (taskId === 'wellbeing')          return snap.affordableWellbeing
     if (taskId === 'life_item')          return snap.affordableLifeItem
+    if (taskId === 'market_action')      return snap.canDoMarketAction
+    if (taskId === 'hire_manager')       return snap.canHireManager
     return false  // visit tasks are Phase 4 only
   }
 
-  // Phase 1: Semantic slot — each slot contributes at most one action task
-  const SLOTS = [
+  // Phase 1: Core slots always run; only 2 of 3 rotating categories are active each day.
+  // Rotating by seed → each of market/strategy/life is active ~2 days, idle ~1 day in a
+  // 3-day cycle. The idle category is excluded from BOTH Phase 1 and Phase 3 so it cannot
+  // sneak back via backfill; remaining slots fall through to the safe visit fallback.
+  const coreSlots = [
     seededShuffle(SLOT_ACTION_CANDIDATES.career_business, seed),
     seededShuffle(SLOT_ACTION_CANDIDATES.business_growth, seed + 1),
-    seededShuffle(SLOT_ACTION_CANDIDATES.strategy,        seed + 2),
-    seededShuffle(SLOT_ACTION_CANDIDATES.life,            seed + 3),
-  ] as const
-  for (const slot of SLOTS) {
+  ]
+  const rotatingSlotDefs = [
+    { candidates: SLOT_ACTION_CANDIDATES.market,   salt: seed + 2 },
+    { candidates: SLOT_ACTION_CANDIDATES.strategy, salt: seed + 3 },
+    { candidates: SLOT_ACTION_CANDIDATES.life,     salt: seed + 4 },
+  ]
+  const rotation =
+    ((seed % rotatingSlotDefs.length) + rotatingSlotDefs.length) % rotatingSlotDefs.length
+  const rotatedSlotDefs = [
+    ...rotatingSlotDefs.slice(rotation),
+    ...rotatingSlotDefs.slice(0, rotation),
+  ]
+  // Only the first 2 rotating categories are active today; the 3rd is idle this day.
+  const activeRotatingSlotDefs = rotatedSlotDefs.slice(0, 2)
+  const rotatingSlots = activeRotatingSlotDefs.map(({ candidates, salt }) =>
+    seededShuffle(candidates, salt)
+  )
+  const slots = [...coreSlots, ...rotatingSlots]
+  for (const slot of slots) {
     for (const taskId of slot) {
       if (isAvailableNow(taskId) && tryAdd(taskId)) break
     }
+    if (selected.length >= 4) break
   }
 
   // Phase 2: Sequential tasks (career_action requires pick_job selected in Phase 1)
@@ -213,12 +244,15 @@ export function selectDailyTasks(snap: EligibilitySnapshot, dayKey: string): Dai
     }
   }
 
-  // Phase 3: Global backfill — any remaining eligible action tasks
+  // Phase 3: Backfill — limited to today's active pool (core + active rotating only).
+  // The idle rotating category is intentionally excluded so it cannot return via backfill.
   if (selected.length < 4) {
-    const allActionIds = [...new Set(
-      Object.values(SLOT_ACTION_CANDIDATES).flat()
-    )] as DailyTaskId[]
-    for (const taskId of seededShuffle(allActionIds, seed + 5)) {
+    const backfillPool = [...new Set([
+      ...SLOT_ACTION_CANDIDATES.career_business,
+      ...SLOT_ACTION_CANDIDATES.business_growth,
+      ...activeRotatingSlotDefs.flatMap(s => s.candidates),
+    ])] as DailyTaskId[]
+    for (const taskId of seededShuffle(backfillPool, seed + 5)) {
       if (selected.length >= 4) break
       if (isAvailableNow(taskId)) tryAdd(taskId)
     }

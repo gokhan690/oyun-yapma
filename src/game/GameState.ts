@@ -3605,6 +3605,7 @@ export class GameState {
     this.emit({ type: 'manager_hired', producerId })
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
+    this.recordDailyEvent('manager_hired')
     return true
   }
 
@@ -3620,6 +3621,7 @@ export class GameState {
     this.emit({ type: 'money_changed' })
     this.updateMissionProgress('stock_trade', 1)
     this.checkAchievements()
+    this.recordDailyEvent('market_action_completed')
     return true
   }
 
@@ -3629,6 +3631,7 @@ export class GameState {
     this.addMoney(revenue)
     this.emit({ type: 'stock_trade', action: 'sell', amount: sold })
     this.updateMissionProgress('stock_trade', 1)
+    this.recordDailyEvent('market_action_completed')
     return true
   }
 
@@ -5796,6 +5799,16 @@ export class GameState {
       ...VEHICLES.filter(v => v.buyCost > 0).map(v => v.buyCost),
       ...PETS.map(p => p.buyCost),
     )
+    const canDoMarketAction =
+      Object.values(this.stock.tickers).some(t => this.money >= t.price) ||
+      Object.values(this.stock.tickers).some(t => t.shares > 0)
+    const canHireManager = PRODUCERS.some(p => {
+      const owned = this.producers[p.id] ?? 0
+      if (owned <= 0) return false
+      if (hasManager(this.managers, p.id)) return false
+      const cost = managerCost(p.baseIncome, owned)
+      return this.money >= cost * DAILY_TASK_SPEND_BUFFER
+    })
     return {
       hasJob: this.career.jobId != null && !this.career.isEntrepreneur,
       isEntrepreneur: this.career.isEntrepreneur,
@@ -5807,6 +5820,8 @@ export class GameState {
       hasDeptToUpgrade,
       affordableWellbeing: this.money >= minWellbeingCost * DAILY_TASK_SPEND_BUFFER,
       affordableLifeItem:  this.money >= minLifeItemCost * DAILY_TASK_SPEND_BUFFER,
+      canDoMarketAction,
+      canHireManager,
       // Audit (2026-06): all five tabs open without any page-level gate.
       canVisitCareer: true,
       canVisitFirms:  true,

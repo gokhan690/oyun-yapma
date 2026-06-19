@@ -20,6 +20,8 @@ const DAILY_TASK_NAV_TARGETS: Record<DailyTaskId, RefNavTab> = {
   visit_empire: 'empire', visit_life: 'life',
   unlock_city: 'empire', upgrade_department: 'empire',
   wellbeing: 'life', life_item: 'life',
+  market_action: 'market',
+  hire_manager: 'firms',
 }
 
 /** Gerçek veri yoksa kullanılan fallback (mock) dashboard. */
