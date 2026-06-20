@@ -677,7 +677,6 @@ export interface SerializableState {
   characterBackground?: CharacterBackgroundId | null
   departmentTasksClaimed?: DepartmentId[]
   netWorthHistory?: number[]
-  saveVersion?: number
 }
 
 export interface ProducerBreakdown {
@@ -6229,7 +6228,6 @@ export class GameState {
       departments: { ...this.departments },
       departmentTasksClaimed: [...this.departmentTasksClaimed],
       netWorthHistory: [...this.netWorthHistory],
-      saveVersion: 2,
       difficulty: this.difficulty,
       difficultyChosen: this.difficultyChosen,
       playerName: this.playerName,

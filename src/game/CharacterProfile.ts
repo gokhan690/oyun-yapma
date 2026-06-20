@@ -1,6 +1,7 @@
 import type { GameState } from './GameState'
 import { backgroundDef, type CharacterBackgroundId } from './Career'
 import { startingMoneyForBackground } from './CharacterCreation'
+import { REPUTATION_START } from './Reputation'
 
 export type JobId = 'calisan' | 'serbest' | 'girisimci' | 'sanatci' | 'akademisyen' | 'sporcu'
 export type EducationLevel = 'ilkokul' | 'lise' | 'universite' | 'yukseklisans' | 'doktora'
@@ -77,10 +78,10 @@ export function applyProfileToState(profile: CharacterProfile, state: GameState)
   state.totalEarned = state.money
 
   // ── Background itibar bonusu (master) ──
+  // Idempotent: taban REPUTATION_START üzerinden mutlak set (state.reputation +=
+  // değil) — applyProfileToState ikinci kez çağrılırsa bonus üst üste binmez.
   const bg = backgroundDef(identity.backgroundId)
-  if (bg?.startingReputationBonus) {
-    state.reputation = Math.min(100, state.reputation + bg.startingReputationBonus)
-  }
+  state.reputation = Math.min(100, REPUTATION_START + (bg?.startingReputationBonus ?? 0))
 
   // ── Profil (integration) ──
   state.characterIncomeDailyBonus = job.incomeDailyBonus
