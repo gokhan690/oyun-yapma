@@ -351,6 +351,56 @@ export const HOME_ROOMS: HomeRoomDef[] = [
   { id: 'guest_room', name: 'Misafir Odası', emoji: '🛏️', cost: 60_000, bonusLabel: 'Arkadaş ilişki bonusu +%25', friendshipBonus: 0.25 },
 ]
 
+export interface OwnedPetEntry {
+  id: PetId
+  name: string
+  adoptedDay: number
+  lifespanDays: number
+}
+
+const PET_NAMES: Record<PetId, string[]> = {
+  kopek:    ['Karabaş', 'Pamuk', 'Zeus', 'Boncuk'],
+  kedi:     ['Minnoş', 'Pati', 'Tekir', 'Şeker'],
+  kus:      ['Sarı', 'Cıvıl', 'Tüy', 'Peri'],
+  akvaryum: ['Nemo', 'Dori', 'Balık'],
+  at:       ['Rüzgar', 'Yıldırım', 'Fırtına'],
+  kaplan:   ['Khan', 'Şah', 'Sultan'],
+}
+
+export const PET_LIFESPAN_DAYS: Record<PetId, number> = {
+  kopek:    3650,
+  kedi:     4380,
+  kus:      2190,
+  akvaryum: 1095,
+  at:       7300,
+  kaplan:   5475,
+}
+
+export function randomPetName(id: PetId): string {
+  const names = PET_NAMES[id] ?? ['Dostum']
+  return names[Math.floor(Math.random() * names.length)]!
+}
+
+export function petLifespanDays(id: PetId): number {
+  const base = PET_LIFESPAN_DAYS[id] ?? 1825
+  const variance = Math.floor(base * 0.15)
+  return base + Math.floor(Math.random() * variance * 2) - variance
+}
+
+export function expirePets(ls: LifestyleState, currentDay: number): PetId[] {
+  const died: PetId[] = []
+  if (!ls.ownedPets) return died
+  ls.ownedPets = ls.ownedPets.filter((entry) => {
+    if (currentDay - entry.adoptedDay >= entry.lifespanDays) {
+      died.push(entry.id)
+      ls.pets = ls.pets.filter((p) => p !== entry.id)
+      return false
+    }
+    return true
+  })
+  return died
+}
+
 export interface LifestyleState {
   residence: ResidenceId
   vehicle: VehicleId
@@ -362,8 +412,8 @@ export interface LifestyleState {
   vacationActiveUntilDay: number
   ownedResidences: OwnedPropertyEntry[]
   ownedVehicles: OwnedPropertyEntry[]
-  /** Ev odaları */
   homeRooms?: HomeRoomId[]
+  ownedPets?: OwnedPetEntry[]
 }
 
 export function createLifestyleState(): LifestyleState {
@@ -378,6 +428,7 @@ export function createLifestyleState(): LifestyleState {
     vacationActiveUntilDay: 0,
     ownedResidences: [],
     ownedVehicles: [],
+    ownedPets: [],
   }
 }
 

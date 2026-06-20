@@ -7,28 +7,24 @@ import type { ProducerDef } from './Economy'
  */
 
 export type FirmTrack =
-  | 'general'   // gıda/hizmet/genel
-  | 'tech'      // teknoloji/bilim
-  | 'finance'   // finans
-  | 'luxury'    // lüks/turizm
-  | 'sport'     // spor
-  | 'politics'  // siyaset
-  | 'illegal'   // yeraltı
+  | 'general'
+  | 'tech'
+  | 'finance'
+  | 'luxury'
+  | 'sport'
+  | 'politics'
+  | 'illegal'
 
 export interface FirmUpgradeDef {
   id: string
   name: string
   emoji: string
   description: string
-  /** Gelir bonusu (ek, kümülatif) */
   incomeBonus: number
-  /** Maliyet = işletme baz maliyeti × bu katsayı × adet */
   costMult: number
-  /** Illegal yükseltmeler ek heat getirir */
   heatBonus?: number
 }
 
-/** Her sektörün kendi geliştirme listesi */
 export const FIRM_UPGRADE_TRACKS: Record<FirmTrack, FirmUpgradeDef[]> = {
   general: [
     { id: 'kalite', name: 'Kalite Artır', emoji: '⭐', description: 'Ürün/hizmet kalitesini yükselt', incomeBonus: 0.15, costMult: 6 },
@@ -62,7 +58,6 @@ export const FIRM_UPGRADE_TRACKS: Record<FirmTrack, FirmUpgradeDef[]> = {
   ],
 }
 
-/** Bir işletmenin geliştirme sektörünü belirle */
 export function firmTrack(def: ProducerDef): FirmTrack {
   if (def.illegal) return 'illegal'
   switch (def.category) {
@@ -75,7 +70,6 @@ export function firmTrack(def: ProducerDef): FirmTrack {
   }
 }
 
-/** İşletme için mevcut geliştirme türleri */
 export function firmUpgradesForProducer(def: ProducerDef): FirmUpgradeDef[] {
   return FIRM_UPGRADE_TRACKS[firmTrack(def)]
 }
@@ -84,7 +78,6 @@ export function firmUpgradeDef(def: ProducerDef, upgradeId: string): FirmUpgrade
   return firmUpgradesForProducer(def).find((u) => u.id === upgradeId) ?? null
 }
 
-/** Satın alınmış geliştirmelerin toplam gelir bonusu */
 export function firmUpgradeIncomeBonus(def: ProducerDef, purchased: string[]): number {
   if (!purchased || purchased.length === 0) return 0
   const list = firmUpgradesForProducer(def)
@@ -95,7 +88,6 @@ export function firmUpgradeIncomeBonus(def: ProducerDef, purchased: string[]): n
   return bonus
 }
 
-/** Satın alınmış illegal geliştirmelerin ek heat'i */
 export function firmUpgradeHeatBonus(def: ProducerDef, purchased: string[]): number {
   if (!def.illegal || !purchased || purchased.length === 0) return 0
   const list = firmUpgradesForProducer(def)
@@ -106,7 +98,6 @@ export function firmUpgradeHeatBonus(def: ProducerDef, purchased: string[]): num
   return heat
 }
 
-/** Geliştirme maliyeti */
 export function firmUpgradeCost(def: ProducerDef, upgrade: FirmUpgradeDef, owned: number): number {
   return Math.floor(def.baseCost * upgrade.costMult * Math.max(1, owned))
 }

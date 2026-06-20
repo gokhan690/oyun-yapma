@@ -1,21 +1,50 @@
+import { assetUrl } from '../../utils/assetUrl'
+import { getBusinessIcon, getBusinessHero } from './refAssetsV2Generic'
+
 export type FirmStatus   = 'Karlı' | 'Büyüyor' | 'Riskli'
-export type FirmCategory = 'gida' | 'hizmet' | 'teknoloji' | 'finans' | 'turizm' | 'medya' | 'illegal'
+/** Filtre/renk sektörü (üst kategori sekmeleri için). */
+export type FirmSector = 'gida' | 'hizmet' | 'teknoloji' | 'finans' | 'turizm' | 'medya' | 'illegal'
 
 export interface FirmData {
   id: string
   name: string
+  /** Opsiyonel; firma adının altında gösterilir, asset'e gömülü DEĞİL. */
+  slogan?: string
+  /**
+   * İş türü (bakery / barber / coffee / ecommerce / software / logistics ...).
+   * Görsel SADECE buradan gelir; firma adına bağlı değildir.
+   */
+  category: string
+  /** Üst sektör — yalnızca filtre/renk için (asset ile ilgisi yok). */
+  sector?: FirmSector
+  /** Açık asset yolunu zorlamak için; yoksa category'den türetilir. */
+  iconAsset?: string
+  heroAsset?: string
   emoji: string
   level: number
   stars: number
   maxStars?: number
   status: FirmStatus
-  category: FirmCategory
   income: number
   expense: number
   growth: number
   city: string
   performance: number
   riskLevel?: number
+}
+
+function resolveAsset(p: string): string {
+  return assetUrl(p.startsWith('/') ? p.slice(1) : p)
+}
+
+/** Kart ikonu: kategori bazlı asset. Firma adı asla asset'ten gelmez. */
+export function firmIconSrc(f: FirmData): string {
+  return resolveAsset(f.iconAsset ?? getBusinessIcon(f.category))
+}
+
+/** Detay sayfası hero görseli. */
+export function firmHeroSrc(f: FirmData): string {
+  return resolveAsset(f.heroAsset ?? getBusinessHero(f.category))
 }
 
 function fmtMoney(n: number): string {
@@ -47,6 +76,7 @@ export class RefCard {
     this.el.className = 'ref-firm-card'
     this.el.dataset.id = firm.id
     this.el.dataset.category = firm.category
+    this.el.dataset.sector = firm.sector ?? ''
     this.render()
   }
 
@@ -63,7 +93,10 @@ export class RefCard {
 
           <!-- Name row -->
           <div class="ref-firm-top">
-            <div class="ref-firm-icon ${f.category}">${f.emoji}</div>
+            <div class="ref-firm-icon ${f.sector ?? ''}">
+              <img src="${firmIconSrc(f)}" alt="" class="ref-firm-icon-img">
+              <span class="ref-firm-icon-emoji" hidden>${f.emoji}</span>
+            </div>
             <div class="ref-firm-head">
               <div class="ref-firm-namebar">
                 <span class="ref-firm-name">${f.name}</span>
@@ -115,13 +148,23 @@ export class RefCard {
           </div>
         </div>
 
-        <!-- Right: action buttons -->
+        <!-- Right: action buttons (ÖNİZLEME — işlem yapmaz, view-only/disabled) -->
         <div class="ref-firm-card__btns">
-          <button class="ref-btn develop">📈 GELİŞTİR</button>
-          <button class="ref-btn modernize">⚙️ MODERNİZE ET</button>
-          <button class="ref-btn manager">👤 MANAGER ATA</button>
+          <button class="ref-btn develop" type="button" disabled>📈 GELİŞTİR</button>
+          <button class="ref-btn modernize" type="button" disabled>⚙️ MODERNİZE ET</button>
+          <button class="ref-btn manager" type="button" disabled>👤 MANAGER ATA</button>
         </div>
       </div>
     `
+
+    // Asset bulunamazsa emoji fallback (master'dan port; CSP nedeniyle inline onerror yerine JS)
+    const iconImg = this.el.querySelector<HTMLImageElement>('.ref-firm-icon-img')
+    const iconEmoji = this.el.querySelector<HTMLElement>('.ref-firm-icon-emoji')
+    if (iconImg && iconEmoji) {
+      iconImg.onerror = () => {
+        iconImg.style.display = 'none'
+        iconEmoji.hidden = false
+      }
+    }
   }
 }

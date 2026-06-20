@@ -37,7 +37,6 @@ export function firmLevelBonusLabel(nextLevel: number): string {
 export function firmLevelUpCost(def: ProducerDef, currentLevel: number, owned: number): number {
   const nextLevel = currentLevel + 1
   if (nextLevel > FIRM_MAX_LEVEL) return Infinity
-  // Temel: işletmenin baz maliyetinin katı, adet ve seviyeyle artar
   const base = def.baseCost * Math.max(1, owned) * 0.8
   const levelScale = Math.pow(2.4, currentLevel)
   return Math.floor(base * levelScale)

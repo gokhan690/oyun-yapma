@@ -61,8 +61,10 @@ export interface CareerState {
   xp: number
   /** Kariyer XP eşiği (bir sonraki seviye) */
   xpToNext: number
-  /** Bugünkü maaş geliri (oyun günü bazlı) */
+  /** Bugünkü mesai/aksiyon geliri (günlük maaş deposit değil) */
   wageEarnedToday: number
+  /** Bugün yatırılan normal günlük maaş (opsiyonel — eski save default 0) */
+  dailyWagePaidToday?: number
   /** Toplam kariyer geliri */
   totalWageEarned: number
   /** Stres seviyesi (0-100) */
@@ -215,6 +217,7 @@ export function createCareerState(): CareerState {
     xp: 0,
     xpToNext: 100,
     wageEarnedToday: 0,
+    dailyWagePaidToday: 0,
     totalWageEarned: 0,
     stress: 20,
     isEntrepreneur: false,
@@ -296,6 +299,20 @@ const ACTION_WAGE_MULT: Record<CareerActionId, number> = {
   isten_ayril: 0,
 }
 
+/** UI tahmini — mesai/ek mesai gelir önizlemesi (prim hariç). */
+export function estimatedCareerActionPay(career: CareerState, actionId: CareerActionId): number {
+  if (!career.jobId || career.isEntrepreneur) return 0
+  return Math.floor(dailyCareerWage(career) * ACTION_WAGE_MULT[actionId])
+}
+
+/** RefApp C4-lite: bağlanan günlük aksiyonlar. */
+export const BINDABLE_CAREER_ACTION_IDS: CareerActionId[] = [
+  'mesai',
+  'ek_mesai',
+  'egitim_al',
+  'networking',
+]
+
 export function applyCareerAction(
   career: CareerState,
   actionId: CareerActionId,
@@ -306,6 +323,8 @@ export function applyCareerAction(
   if (career.lastActionDay !== currentDay) {
     career.actionsUsedToday = []
     career.lastActionDay = currentDay
+    // Otomatik maaş tick'i kaldırıldı; "bugünkü mesai geliri" sayacı burada sıfırlanır.
+    career.wageEarnedToday = 0
   }
   // Karar 18: Her aksiyon (eğitim dahil) günde 1 kez
   if (career.actionsUsedToday.includes(actionId)) {
@@ -354,8 +373,9 @@ export function applyDailyWage(career: CareerState, currentDay: number): number 
   const job = careerJobDef(career.jobId)
   if (!job) return 0
   career.lastWageDay = currentDay
-  career.wageEarnedToday = 0
   const wage = dailyCareerWage(career)
+  if (wage <= 0) return 0
+  career.dailyWagePaidToday = wage
   career.totalWageEarned += wage
   career.stress = Math.max(0, Math.min(100, career.stress + job.stressDelta))
   career.stress = Math.max(0, career.stress - 2)

@@ -1,3 +1,8 @@
+import {
+  type DailyPlanState, type DailyTaskId, type DailyEvent, type EligibilitySnapshot,
+  TASK_DEFS, DAILY_TASK_SPEND_BUFFER, DAILY_BONUS_REPUTATION, dailyCompletionBonusAmount,
+  selectDailyTasks, createDailyPlanState, sanitizeDailyPlanState,
+} from './DailyPlan'
 import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, producerName, type ProducerDef, type UpgradeDef } from './Economy'
 import { PRESTIGE_SHOP_ITEMS } from './PrestigeShop'
 import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, ipoThreshold, prestigeMultiplier } from './Prestige'
@@ -95,7 +100,11 @@ import {
   hasNode,
 } from './PrestigeTree'
 import { localDayKey, yesterdayLocalKey, calendarWeekKey } from './dateUtils'
-import { gameDay, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSecondsToGameMs, gameCalendarDate, lifeGameDay, LIFE_TIME_SCALE } from './GameClock'
+import { gameDay, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSecondsToGameMs, gameCalendarDate } from './GameClock'
+import { createCareerState, applyCareerAction, applyDailyWage, FIRST_GOAL_TARGET, backgroundDef, careerStressPenalty, dailyCareerWage, type CareerState, type CareerActionId, type CareerJobId, type CharacterBackgroundId } from './Career'
+import { firmLevelIncomeMult, firmLevelUpCost, FIRM_MAX_LEVEL } from './FirmLevels'
+import { firmUpgradeDef, firmUpgradeIncomeBonus, firmUpgradeCost } from './FirmUpgrades'
+import { createDepartmentState, departmentUpgradeCost, departmentDef, isDepartmentTaskComplete, DEPARTMENTS, DEPARTMENT_MAX_LEVEL, operasyonLegalBonus, finansProducerBonus, pazarlamaGlobalBonus, hukukRaidReduction, argeBonus, aileOfisiInheritanceBonus, lojistikCostReduction, guvenlikRivalReduction, type DepartmentId } from './EmpireDepartments'
 import {
   createEmpireState,
   syncEmpireFromProducers,
@@ -125,26 +134,26 @@ import {
   traitCostMult,
   traitIllegalMult,
   traitPassiveMult,
+  educationXpPerGameDay,
   playerGameAge,
   SUCCESSION_START_AGE,
   PLAYER_START_AGE,
   CHILD_EDUCATION_MAX,
+  CHILD_EDUCATION_PATHS,
+  heirRoleDef,
+  calculateInheritance,
+  dynastyGenerationBonus,
   type DynastyState,
   type PlayerGender,
   type ParentingStyle,
   type ChildCareer,
+  type ChildEducationPath,
+  type HeirRoleId,
   childCareerDef,
   spouseSatisfactionMult,
   heirCareerPassiveBonus,
-  dynastyGenerationBonus,
-  childAgeYearsExact,
   pickChildRiskProfile,
   migrateChildRecord,
-  heirRoleDef,
-  calculateInheritance,
-  CHILD_EDUCATION_PATHS,
-  type ChildEducationPath,
-  type HeirRoleId,
 } from './Dynasty'
 import {
   rollDailyMortality,
@@ -300,6 +309,32 @@ import { rollAdvisorTip, ADVISOR_FEE, type AdvisorTip } from './AdvisorNPC'
 import type { RivalAllianceOffer, RivalEvent } from './Rivals'
 import { generateRivalEvent } from './Rivals'
 import {
+  type ActiveDisease,
+  type DiseaseId,
+  diseasesDailyDamage,
+  eligibleDiseases,
+  dailyDiagnosisChance,
+  pickRandomDisease,
+  diseaseDef,
+} from './Diseases'
+import {
+  type Sibling,
+  generateSiblings,
+  tickSiblingYear,
+  visitSibling as doVisitSibling,
+  siblingInheritance,
+  VISIT_SIBLING_COST,
+} from './Siblings'
+import {
+  type FameState,
+  type FameCareerType,
+  createFameState,
+  fameDailyIncome,
+  applyFameAction,
+  tickFameDecay,
+} from './Fame'
+import type { CharacterProfile } from './CharacterProfile'
+import {
   createLifestyleState,
   lifestyleMonthlyExpense,
   lifestyleRentalIncome,
@@ -318,6 +353,10 @@ import {
   VEHICLES,
   PETS,
   WELLBEING_ACTIVITIES,
+  randomPetName,
+  petLifespanDays,
+  expirePets,
+  type OwnedPetEntry,
   type LifestyleState,
   type ResidenceId,
   type VehicleId,
@@ -334,6 +373,7 @@ import {
   type LifeEventId,
   type LifeEventDef,
   type EventChoiceRecord,
+  type ChoiceRiskOutcome,
 } from './LifeEvents'
 import {
   createHealthState,
@@ -428,6 +468,7 @@ import {
   canUnlockCity,
   cityDef,
   cityProducerBonus,
+  EXPANSION_CITIES,
   type CityState,
   type CityId,
 } from './ExpansionMap'
@@ -445,43 +486,6 @@ import {
 import { obsolescenceMult, modernizeCost } from './TechObsolescence'
 import { pickDisaster, disasterDamage } from './NaturalDisasters'
 import { progressPathSnapshot, type ProgressPathSnapshot } from './ProgressPath'
-import { firmLevelIncomeMult, firmLevelUpCost, FIRM_MAX_LEVEL } from './FirmLevels'
-import {
-  firmUpgradeDef,
-  firmUpgradeIncomeBonus,
-  firmUpgradeHeatBonus,
-  firmUpgradeCost,
-} from './FirmUpgrades'
-import {
-  createDepartmentState,
-  departmentUpgradeCost,
-  departmentDef,
-  isDepartmentTaskComplete,
-  operasyonLegalBonus,
-  finansProducerBonus,
-  pazarlamaGlobalBonus,
-  hukukRaidReduction,
-  argeBonus,
-  lojistikCostReduction,
-  guvenlikRivalReduction,
-  aileOfisiInheritanceBonus,
-  DEPARTMENT_MAX_LEVEL,
-  type DepartmentId,
-} from './EmpireDepartments'
-import {
-  createCareerState,
-  applyCareerAction,
-  applyDailyWage,
-  backgroundDef,
-  careerStressPenalty,
-  dailyCareerWage,
-  FIRST_GOAL_TARGET,
-  type CareerState,
-  type CareerActionId,
-  type CharacterBackgroundId,
-} from './Career'
-import type { CharacterCreationResult } from './CharacterCreation'
-import { startingMoneyForBackground } from './CharacterCreation'
 
 export interface PendingUndo {
   id: string
@@ -659,13 +663,21 @@ export interface SerializableState {
   hobby?: HobbyState
   ageMilestonesShown?: number[]
   travel?: TravelState
-  career?: import('./Career').CareerState
-  characterBackground?: import('./Career').CharacterBackgroundId | null
-  netWorthHistory?: number[]
+  diseases?: ActiveDisease[]
+  siblings?: Sibling[]
+  fameState?: FameState
+  karma?: number
+  characterProfile?: CharacterProfile | null
+  characterIncomeDailyBonus?: number
+  career?: CareerState
   producerLevels?: Record<string, number>
   producerUpgrades?: Record<string, string[]>
   departments?: Record<string, number>
-  departmentTasksClaimed?: import('./EmpireDepartments').DepartmentId[]
+  dailyPlan?: DailyPlanState | null
+  characterBackground?: CharacterBackgroundId | null
+  departmentTasksClaimed?: DepartmentId[]
+  netWorthHistory?: number[]
+  saveVersion?: number
 }
 
 export interface ProducerBreakdown {
@@ -764,8 +776,21 @@ export type GameEvent =
   | { type: 'baron_legacy_card'; peakNetWorth: number; generation: number; ipoCount: number; reputation: number; legacyScore: number; publicTitle: string; publicEmoji: string }
   | { type: 'age_milestone'; age: number; question: string }
   | { type: 'social_status_changed'; score: number; title: string }
+  | { type: 'disease_diagnosed'; diseaseId: DiseaseId; name: string; emoji: string }
+  | { type: 'disease_treated'; diseaseId: DiseaseId; name: string }
+  | { type: 'pet_died'; petId: PetId; petName: string; petEmoji: string }
+  | { type: 'sibling_died'; siblingName: string; inheritance: number }
+  | { type: 'fame_action'; careerName: string; fameDelta: number; newLevel: number }
+  | { type: 'fame_changed'; fameLevel: number; label: string }
+  | { type: 'life_event_risk_outcome'; headline: string; won: boolean }
+  | { type: 'career_action'; actionId: CareerActionId; money: number; levelUp: boolean }
+  | { type: 'career_wage'; amount: number }
+  | { type: 'career_phase_changed'; isEntrepreneur: boolean }
+  | { type: 'daily_plan_updated' }
 
 const MILESTONE_THRESHOLDS = [1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000]
+const CRIT_CHANCE = 0.1
+const CRIT_MULT = 5
 const BASE_CLICK = 6
 const BASE_OFFLINE_CAP_GAME_DAYS = 365
 const BASE_OFFLINE_CAP_MS = BASE_OFFLINE_CAP_GAME_DAYS * MS_PER_GAME_DAY
@@ -855,6 +880,23 @@ export class GameState {
   lastAnnualSummaryYear = -1
   personality: PersonalityId | null = null
   playerSkills = createPlayerSkillsState()
+  diseases: ActiveDisease[] = []
+  siblings: Sibling[] = generateSiblings()
+  fameState: FameState = createFameState()
+  karma = 0
+  characterProfile: CharacterProfile | null = null
+  characterIncomeDailyBonus = 0
+  career: CareerState = createCareerState()
+  producerLevels: Record<string, number> = {}
+  producerUpgrades: Record<string, string[]> = {}
+  departments: Record<DepartmentId, number> = createDepartmentState()
+  dailyPlan: DailyPlanState | null = null
+  characterBackground: CharacterBackgroundId | null = null
+  departmentTasksClaimed: DepartmentId[] = []
+  netWorthHistory: number[] = []
+  private lastNetWorthSample = 0
+  private lastDiseaseTickDay = 0
+  private lastSiblingTickYear = 0
   dailyRoutineDay = 0
   dailyRoutineUsed: string[] = []
   difficulty: 'easy' | 'normal' | 'hard' = 'normal'
@@ -936,19 +978,6 @@ export class GameState {
   baronLifeRaidsUninsured = 0
   baronLifeChildCrises = 0
   baronLifeFactoryRaidDamage = 0
-  career: CareerState = createCareerState()
-  characterBackground: CharacterBackgroundId | null = null
-  /** Firma seviyeleri (Karar 9) — varsayılan 1 */
-  producerLevels: Record<string, number> = {}
-  /** Kategoriye özel firma geliştirmeleri (Karar 8-10) — producerId → upgradeId[] */
-  producerUpgrades: Record<string, string[]> = {}
-  /** İmparatorluk departman seviyeleri (Karar 11-12) */
-  departments: Record<DepartmentId, number> = createDepartmentState()
-  /** Tamamlanıp ödülü alınmış departman görevleri (Karar 13) */
-  departmentTasksClaimed: DepartmentId[] = []
-  /** Net değer geçmişi (grafik için) — son 60 örnek, ~her 10sn */
-  netWorthHistory: number[] = []
-  private lastNetWorthSample = 0
   cities = createCityState()
   torpil = createTorpilState()
   producerModernized: Record<string, boolean> = {}
@@ -987,6 +1016,7 @@ export class GameState {
   private eventScheduleRemainingMs = 0
   private eventExpireRemainingMs = 0
   private eventPreviewTimer: number | null = null
+  private _checkingAchievements = false
   private lastNearMissToastAt = 0
   private lastStockTick = Date.now()
   private lastAutoBuyTick = 0
@@ -1008,201 +1038,6 @@ export class GameState {
     for (const p of PRODUCERS) this.managerAutoBuy[p.id] = false
     this.ensureMissions()
     this.applyOwnerFlags(loadOwnerFlags())
-  }
-
-  /** Karakter oluşturma ekranından gelen sonucu uygula */
-  applyCharacterCreation(result: CharacterCreationResult): void {
-    this.playerName = result.name || 'Baron'
-    this.playerGender = result.gender
-    this.difficulty = result.difficulty
-    this.difficultyChosen = true
-    this.characterBackground = result.backgroundId
-    this.career.jobId = result.startingJobId
-    this.career.backgroundId = result.backgroundId
-
-    const startMoney = startingMoneyForBackground(result.backgroundId, result.difficulty)
-    this.money = startMoney
-    this.totalEarned = startMoney
-
-    const bg = backgroundDef(result.backgroundId)
-    if (bg?.startingReputationBonus) {
-      this.reputation = Math.min(100, this.reputation + bg.startingReputationBonus)
-    }
-
-    // Düzeltme 1: Karakter+iş seçimi bitince oyun KESİN başlamalı.
-    // Tutorial'a bel bağlamadan zamanı akıt.
-    this.onboardingComplete = true
-    this.tutorialDone = true
-    this.gamePaused = false
-  }
-
-  /** İlk işi seç (Kariyer ekranı fallback — Düzeltme 3) */
-  setCareerJob(jobId: import('./Career').CareerJobId): void {
-    this.career.jobId = jobId
-    this.career.isEntrepreneur = false
-    this.emit({ type: 'money_changed' })
-  }
-
-  /** Oyuncunun aktif bir işi var mı? (jobless fallback için) */
-  hasCareerJob(): boolean {
-    return this.career.isEntrepreneur || this.career.jobId !== null
-  }
-
-  /** Firma seviye atlatma maliyeti (Karar 9) */
-  firmLevelUpCostFor(def: ProducerDef): number {
-    const owned = this.producers[def.id] ?? 0
-    return firmLevelUpCost(def, this.producerLevel(def.id), owned)
-  }
-
-  /** Firmayı bir seviye yükselt (Karar 9) */
-  levelUpFirm(producerId: string): boolean {
-    const def = PRODUCERS.find((p) => p.id === producerId)
-    if (!def) return false
-    const owned = this.producers[producerId] ?? 0
-    if (owned <= 0) return false
-    const level = this.producerLevel(producerId)
-    if (level >= FIRM_MAX_LEVEL) return false
-    const cost = this.firmLevelUpCostFor(def)
-    if (!this.canAfford(cost)) return false
-    this.money -= cost
-    this.producerLevels[producerId] = level + 1
-    this.addGazette(`⬆️ ${producerName(def)} Lv.${level + 1}'e yükseltildi`, 'player')
-    this.emit({ type: 'money_changed' })
-    this.emit({ type: 'purchase' })
-    return true
-  }
-
-  /** İşletmenin satın alınmış geliştirmeleri (Karar 8-10) */
-  firmUpgradesPurchased(producerId: string): string[] {
-    return this.producerUpgrades[producerId] ?? []
-  }
-
-  /** Bir firma geliştirmesi satın al (Karar 8-10) */
-  buyFirmUpgrade(producerId: string, upgradeId: string): boolean {
-    const def = PRODUCERS.find((p) => p.id === producerId)
-    if (!def) return false
-    const owned = this.producers[producerId] ?? 0
-    if (owned <= 0) return false
-    const purchased = this.producerUpgrades[producerId] ?? []
-    if (purchased.includes(upgradeId)) return false
-    const up = firmUpgradeDef(def, upgradeId)
-    if (!up) return false
-    const cost = firmUpgradeCost(def, up, owned)
-    if (!this.canAfford(cost)) return false
-    this.money -= cost
-    this.producerUpgrades[producerId] = [...purchased, upgradeId]
-    this.addGazette(`${up.emoji} ${producerName(def)}: ${up.name} geliştirmesi yapıldı`, 'player')
-    this.emit({ type: 'money_changed' })
-    this.emit({ type: 'purchase' })
-    return true
-  }
-
-  /** İşletme için geliştirme maliyeti */
-  firmUpgradeCostFor(def: ProducerDef, upgradeId: string): number {
-    const up = firmUpgradeDef(def, upgradeId)
-    if (!up) return Infinity
-    return firmUpgradeCost(def, up, this.producers[def.id] ?? 0)
-  }
-
-  // ——— İmparatorluk departmanları (Karar 11-13) ———
-
-  departmentLevel(id: DepartmentId): number {
-    return this.departments[id] ?? 0
-  }
-
-  departmentUpgradeCostFor(id: DepartmentId): number {
-    return departmentUpgradeCost(id, this.departmentLevel(id))
-  }
-
-  /** Departmanı bir seviye yükselt */
-  upgradeDepartment(id: DepartmentId): boolean {
-    const level = this.departmentLevel(id)
-    if (level >= DEPARTMENT_MAX_LEVEL) return false
-    const def = departmentDef(id)
-    if (this.totalEarned < def.unlockAt) return false
-    const cost = this.departmentUpgradeCostFor(id)
-    if (!this.canAfford(cost)) return false
-    this.money -= cost
-    this.departments[id] = level + 1
-    this.addGazette(`🏛️ ${def.name} departmanı Lv.${level + 1}'e yükseltildi`, 'player')
-    this.emit({ type: 'money_changed' })
-    return true
-  }
-
-  /** Departman açık mı? */
-  isDepartmentUnlocked(id: DepartmentId): boolean {
-    return this.totalEarned >= departmentDef(id).unlockAt
-  }
-
-  /** Departman görevi tamamlandı mı? (henüz ödül alınmamış) */
-  departmentTaskReady(id: DepartmentId): boolean {
-    if (this.departmentTasksClaimed.includes(id)) return false
-    return isDepartmentTaskComplete(id, this.departmentTaskContext())
-  }
-
-  private departmentTaskContext() {
-    const leveledFirms = Object.values(this.producerLevels).filter((l) => l >= 2).length
-    const ownedBusinesses = Object.values(this.producers).filter((n) => n > 0).length
-    const researchNodes = Object.values(this.research).filter((l) => l > 0).length
-    const rivalDeals = this.rivals.filter((r) => r.relation === 'allied' || r.relation === 'merged').length
-    return {
-      leveledFirms,
-      netWorth: this.financeNetWorth(),
-      ownedBusinesses,
-      heat: this.illegalHeat,
-      researchNodes,
-      rivalDeals,
-      hasWill: !!this.dynasty.hasWill,
-    }
-  }
-
-  /** Departman görev ödülünü al (Karar 13) — departman seviye + para */
-  claimDepartmentTask(id: DepartmentId): boolean {
-    if (!this.departmentTaskReady(id)) return false
-    this.departmentTasksClaimed.push(id)
-    // Ödül: bedava 1 seviye + küçük itibar
-    const level = this.departmentLevel(id)
-    if (level < DEPARTMENT_MAX_LEVEL) this.departments[id] = level + 1
-    this.addReputation(5)
-    const def = departmentDef(id)
-    this.addGazette(`✅ ${def.name} görevi tamamlandı — bedava seviye + itibar`, 'player')
-    this.emit({ type: 'money_changed' })
-    return true
-  }
-
-  /** Piyasa açık mı? (Karar 14 — net değer / geçmiş / banka kariyeri) */
-  isMarketUnlocked(): boolean {
-    if (this.financeNetWorth() >= 50_000) return true
-    if (this.characterBackground === 'finansci') return true
-    if (this.career.jobId === 'banka_calisani' && this.career.level >= 3) return true
-    return false
-  }
-
-  /** Piyasa kilit gerekçesi (kilit ekranında gösterilir) */
-  marketLockReason(): string | null {
-    if (this.isMarketUnlocked()) return null
-    return 'Açmak için: 50.000₺ net değer · veya Finansçı geçmiş · veya Banka Çalışanı (Seviye 3)'
-  }
-
-  /** Kariyer aksiyonu yap */
-  doCareerAction(actionId: CareerActionId): { money: number; levelUp: boolean } {
-    const day = Math.floor(this.gameTimeMs / (12 * 1000)) + 1
-    const result = applyCareerAction(this.career, actionId, day)
-    if (result.money > 0) {
-      this.addMoney(result.money, false)
-    }
-    if (!this.career.firstGoalComplete && this.money >= FIRST_GOAL_TARGET) {
-      this.career.firstGoalComplete = true
-    }
-    this.emit({ type: 'money_changed' })
-    return { money: result.money, levelUp: result.levelUp }
-  }
-
-  /** Girişimci ol — Karar 19: 10.000₺ net değer gerekir */
-  becomeEntrepreneur(): void {
-    if (this.financeNetWorth() < FIRST_GOAL_TARGET) return
-    this.career.isEntrepreneur = true
-    this.career.firstGoalComplete = true
   }
 
   applyOwnerFlags(flags: OwnerFlags): void {
@@ -1289,10 +1124,6 @@ export class GameState {
       && this.playTimeMs >= DAILY_REWARD_MIN_PLAY_MS
   }
 
-  isTicking(): boolean {
-    return this.tickHandle !== null
-  }
-
   startTick(): void {
     if (this.tickHandle !== null) return
     let last = performance.now()
@@ -1318,6 +1149,11 @@ export class GameState {
           if (currentIpd > this.peakIncomePerDay) this.peakIncomePerDay = currentIpd
           const income = this.incomePerDay() * passiveDays
           if (income > 0) this.addMoney(income, true)
+          const wage = applyDailyWage(this.career, currentPassiveGameDay)
+          if (wage > 0) {
+            this.addMoney(wage, false)
+            this.emit({ type: 'career_wage', amount: wage })
+          }
         }
       }
       this.updateComboDecay(now)
@@ -1328,7 +1164,6 @@ export class GameState {
         this.tickIllegalRisk(now)
         this.tickIllegalHeat(now)
         this.tickNearMiss(now)
-        this.sampleNetWorth(now)
       }
       if (flowReady && !this.gamePaused && now - this.lastGameClockEmit > 1000) {
         this.lastGameClockEmit = now
@@ -1358,6 +1193,10 @@ export class GameState {
       this.tickHandle = null
     }
     this.freezeEventTimers()
+  }
+
+  isTicking(): boolean {
+    return this.tickHandle !== null
   }
 
   isPaused(): boolean {
@@ -1741,16 +1580,8 @@ export class GameState {
     heat *= heatGainReduction(this.undergroundTree)
     heat *= 1 - empirePoliticsHeatReduction(this.empire.politics)
     heat += this.empire.darkIndustry.heatBonus
-    // Gölge Varis heat ekler, Karanlık Çevre geçmişi de (Aşama 14 + 1)
     const heirRole = this.activeHeirRole()
     if (heirRole?.heatBonus) heat += heirRole.heatBonus
-    const bg = backgroundDef(this.characterBackground)
-    if (bg?.heatBonus) heat += bg.heatBonus
-    // Illegal firma geliştirmelerinin ek heat'i (Karar 10)
-    for (const p of PRODUCERS) {
-      if (!p.illegal || (this.producers[p.id] ?? 0) <= 0) continue
-      heat += firmUpgradeHeatBonus(p, this.producerUpgrades[p.id] ?? [])
-    }
     return Math.max(0, heat)
   }
 
@@ -1809,11 +1640,9 @@ export class GameState {
       if (Math.random() > chance) continue
       let finePct = (p.riskFinePct ?? 0.15) * (0.8 + this.illegalHeat / 200)
       finePct *= 1 - raidFineReduction(this.undergroundTree)
-      // Hukukçu Varis baskın cezasını azaltır (Aşama 14)
       const heirRaidReduction = this.activeHeirRole()?.raidPenaltyReduction ?? 0
       if (heirRaidReduction > 0) finePct *= 1 - heirRaidReduction
-      // Hukuk departmanı baskın cezasını azaltır (Karar 12)
-      const hukukReduction = hukukRaidReduction(this.departmentLevel('hukuk'))
+      const hukukReduction = hukukRaidReduction(this.departments['hukuk'] ?? 0)
       if (hukukReduction > 0) finePct *= 1 - hukukReduction
       if (hasRaidInsurance(this.prestigeTree) && this.raidsToday === 0) finePct *= 0.5
       if (this.insurance.illegal && this.raidsToday === 0) {
@@ -1983,13 +1812,9 @@ export class GameState {
     const pathMax = Math.max(temiz, acımasız, gölge)
     if (pathMax >= 6) mult *= 1.05
     if (pathMax >= 12) mult *= 1.05
-    // Kariyer stresi cezası (Aşama 7 — bonus sınırları)
     mult *= 1 - careerStressPenalty(this.career.stress)
-    // Hanedan nesil bonusu (Aşama 19 — küçük kalıcı kazanım)
     mult *= 1 + dynastyGenerationBonus(this.dynasty.generation)
-    // Pazarlama departmanı — tüm gelir (Karar 12)
-    mult *= 1 + pazarlamaGlobalBonus(this.departmentLevel('pazarlama'))
-    // Soft cap: çok fazla bonus üst üste binemesin
+    mult *= 1 + pazarlamaGlobalBonus(this.departments['pazarlama'] ?? 0)
     const softCap = Math.max(8, 8 + this.ipoCount * 4)
     if (mult > softCap) mult = softCap + (mult - softCap) * 0.25
     return mult
@@ -2000,11 +1825,9 @@ export class GameState {
     const hobResearch = hobbyResearchBonus(this.hobby)
     const travelRes = travelResearchBonus(this.travel, gameDay(this.gameTimeMs))
     const homeRes = homeRoomResearchBonus(this.lifestyle)
-    // Üniversiteli geçmişi + Teknoloji Varisi araştırma bonusu (Aşama 1 + 14)
     const bgResearch = backgroundDef(this.characterBackground)?.researchBonus ?? 0
     const heirResearch = this.activeHeirRole()?.researchBonus ?? 0
-    // Ar-Ge departmanı (Karar 12)
-    const argeRes = argeBonus(this.departmentLevel('arge'))
+    const argeRes = argeBonus(this.departments['arge'] ?? 0)
     return this.globalMultiplier() * researchPassiveBonus(this.research) * (1 + this.dayNightPassiveBonus()) * (1 + eduResearch + hobResearch + travelRes + homeRes + bgResearch + heirResearch + argeRes)
   }
 
@@ -2025,28 +1848,7 @@ export class GameState {
     mult *= calendarClickMult()
     mult *= skillClickMult(this.playerSkills)
     mult *= mentorClickMult(this.mentorEnemy)
-    // Karakter geçmişi aktif gelir bonusu (Satışçı — Aşama 1)
-    const bg = backgroundDef(this.characterBackground)
-    if (bg?.clickBonus) mult *= 1 + bg.clickBonus
     return mult
-  }
-
-  /** Aktif varisin rol tanımı (Aşama 14 — varis bonusları) */
-  activeHeirRole() {
-    const heir = this.dynasty.dynastyBonusId
-      ? this.dynasty.children.find((c) => c.id === this.dynasty.dynastyBonusId)
-      : null
-    return heirRoleDef(heir?.heirRole)
-  }
-
-  /** Aktif varisin illegal gelir bonusu (Gölge Varis) */
-  private heirIllegalBonus(): number {
-    return this.activeHeirRole()?.illegalBonus ?? 0
-  }
-
-  /** Firma seviyesi (Karar 9) — varsayılan 1 */
-  producerLevel(id: string): number {
-    return this.producerLevels[id] ?? 1
   }
 
   producerIncome(def: ProducerDef): number {
@@ -2057,10 +1859,6 @@ export class GameState {
       const u = UPGRADES.find((x) => x.id === id)
       if (u?.effect === 'producer_mult' && u.producerId === def.id) mult *= u.value
     }
-    // Firma seviye bonusu (Karar 9)
-    mult *= firmLevelIncomeMult(this.producerLevel(def.id))
-    // Kategoriye özel geliştirme bonusu (Karar 8-10)
-    mult *= 1 + firmUpgradeIncomeBonus(def, this.producerUpgrades[def.id] ?? [])
     mult *= 1 + producerSynergyBonus(def.id, this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
     mult *= managerMultiplier(this.managers, def.id)
     mult *= this.weeklyProducerBonus(def.id)
@@ -2090,9 +1888,12 @@ export class GameState {
     if (hobbyBonus > 0) mult *= 1 + hobbyBonus
     const cityBonus = this.cities ? (cityProducerBonus(this.cities, def.category) ?? 0) : 0
     if (cityBonus > 0) mult *= (1 + cityBonus)
-    // İmparatorluk departman bonusları (Karar 12)
-    if (!def.illegal) mult *= 1 + operasyonLegalBonus(this.departmentLevel('operasyon'))
-    if (def.category === 'finance') mult *= 1 + finansProducerBonus(this.departmentLevel('finans'))
+    const firmLv = this.producerLevels[def.id] ?? 1
+    if (firmLv > 1) mult *= firmLevelIncomeMult(firmLv)
+    const firmPurchased = this.producerUpgrades[def.id] ?? []
+    if (firmPurchased.length > 0) mult *= 1 + firmUpgradeIncomeBonus(def, firmPurchased)
+    if (!def.illegal) mult *= 1 + operasyonLegalBonus(this.departments['operasyon'] ?? 0)
+    if (def.category === 'finance') mult *= 1 + finansProducerBonus(this.departments['finans'] ?? 0)
     return scaledBaseIncome(def.baseIncome, def) * owned * mult * this.passiveMultiplier()
   }
 
@@ -2202,7 +2003,6 @@ export class GameState {
     const day = gameDay(this.gameTimeMs)
     if (day === this.lastDynastyGameDay) return
     this.lastDynastyGameDay = day
-    this.tickCareerDailyWage(day)
     const metaReady = this.isMetaSystemsReady()
     syncEmpireFromProducers(this.empire, this.producers)
     const { matchBonus, election, matches } = tickEmpireDaily(this.empire, this.producers, this.gameTimeMs, gameYear(this.gameTimeMs))
@@ -2221,24 +2021,15 @@ export class GameState {
       this.triggerStoryBeat('year_2027')
     }
     if (metaReady) this.tickMortality()
-    // Düzeltme 4-5: Çocuk doğumu HAYAT zamanıyla ve doğal aralıklarla
     if (!this.dynasty.spouseName || this.dynasty.children.length >= 3) return
-    const lifeDay = lifeGameDay(this.gameTimeMs)
-    const marriedLifeDay = this.dynasty.marriedLifeDay ?? lifeDay
-    // Evlilikten sonra min 1 hayat yılı geçmeli
-    if (lifeDay - marriedLifeDay < 365) return
-    // En küçük çocukla min 2 hayat yılı ara olmalı
-    if (this.dynasty.children.length > 0) {
-      const youngest = this.dynasty.children[this.dynasty.children.length - 1]!
-      if (childAgeYearsExact(this.gameTimeMs, youngest.bornGameDay) < 2) return
-    }
-    // Düşük ihtimal — sert aralık kapıları zaten kümelenmeyi önler
-    if (Math.random() > 0.04) return
+    const married = this.dynasty.marriedGameDay ?? day
+    if (day - married < 5) return
+    if (Math.random() > 0.4) return
     const child = {
       id: `c${day}_${this.dynasty.children.length}`,
       name: pickChildName(this.dynasty.children),
       trait: randomChildTrait(),
-      bornGameDay: lifeDay, // hayat-günü olarak sakla (oyuncu yaşıyla tutarlı)
+      bornGameDay: day,
       educationXp: 0,
       ...pickChildRiskProfile(),
     }
@@ -2249,11 +2040,9 @@ export class GameState {
 
   private tickChildEducation(gameMsDelta: number): void {
     if (this.dynasty.children.length === 0) return
-    // Eğitim de HAYAT zamanıyla ilerler (çocuk yaşıyla uyumlu — Düzeltme 5)
-    // Düşük oran: ~0.02/hayat-günü → 100 XP ≈ 14 hayat yılında dolar (18 yaşta rol için hazır)
-    const lifeDays = (gameMsDelta * LIFE_TIME_SCALE) / MS_PER_GAME_DAY
+    const days = gameMsDelta / MS_PER_GAME_DAY
     const academyMult = this.dynastyAcademyActive() ? 2 : 1
-    const gain = 0.02 * lifeDays * academyMult
+    const gain = educationXpPerGameDay() * days * academyMult
     if (gain <= 0) return
     for (const child of this.dynasty.children) {
       if (child.educationXp >= CHILD_EDUCATION_MAX) continue
@@ -2272,7 +2061,6 @@ export class GameState {
     this.dynasty.spouseName = s.name
     this.dynasty.spouseTrait = s.trait
     this.dynasty.marriedGameDay = gameDay(this.gameTimeMs)
-    this.dynasty.marriedLifeDay = lifeGameDay(this.gameTimeMs)
     this.emit({ type: 'dynasty_update', kind: 'married', name: s.name })
     this.emit({ type: 'money_changed' })
     return true
@@ -2282,36 +2070,18 @@ export class GameState {
     const child = this.dynasty.children.find((c) => c.id === childId)
     if (!child) return false
     const prevName = this.playerName
-
-    // Karar 25: Miras GERÇEKTEN servete uygulanır
-    const preview = this.inheritancePreview()
-    const keep = preview.transferPct
-    const moneyBefore = this.money
-    const depositBefore = this.bank.deposit ?? 0
-    this.money = Math.floor(this.money * keep)
-    if (depositBefore > 0) this.bank.deposit = Math.floor(depositBefore * keep)
-    const lostCash = (moneyBefore - this.money) + (depositBefore - (this.bank.deposit ?? 0))
-    if (lostCash > 0) {
-      this.addGazette(`⚖️ Miras devri: servetin %${Math.round(keep * 100)}'i korundu — ${formatMoney(lostCash)} vergi/kayıp`, 'player')
-    }
-
     this.playerName = child.name
     this.dynasty.activeHeirId = child.id
     this.dynasty.dynastyBonusId = child.id
     this.dynasty.generation++
-    this.dynasty.playerBornGameDay = lifeGameDay(this.gameTimeMs) // hayat-günü (Düzeltme)
+    this.dynasty.playerBornGameDay = gameDay(this.gameTimeMs)
     this.dynasty.playerStartAge = SUCCESSION_START_AGE
     this.dynasty.lifespanNotified = false
     this.dynasty.pendingDeath = null
-    // Yeni nesil: vasiyet/trust durumu sıfırlanır (yeni baron yeniden planlamalı)
-    this.dynasty.hasWill = false
-    this.dynasty.hasTrust = false
-    this.dynasty.hasFamilyConstitution = false
     this.recordChronicle('dynasty', '👑', `${child.name} imparatorluğu devraldı — ${this.dynasty.generation}. nesil`)
     this.triggerStoryBeat('succession')
     this.resetBaronLifeTracking()
     this.emit({ type: 'dynasty_update', kind: 'succession', name: child.name })
-    this.emit({ type: 'money_changed' })
     this.emit({ type: 'story_beat', beatId: 'succession', text: `${prevName} emekli oldu. ${child.name} (${SUCCESSION_START_AGE} yaş) imparatorluğu devraldı.` })
     return true
   }
@@ -2448,7 +2218,7 @@ export class GameState {
   }
 
   incomePerDay(): number {
-    return PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0) + this.dynastyPassiveIncome
+    return PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0) + this.dynastyPassiveIncome + this.characterIncomeDailyBonus
   }
 
   /** Oyun günü bazlı pasif gelir; gerçek saniyeye çevrim GameClock üzerinden yapılır. */
@@ -2471,7 +2241,6 @@ export class GameState {
     mult *= this.weeklyProducerBonus(def.id)
     if (def.illegal) mult *= traitIllegalMult(activeDynastyTrait(this.dynasty))
     if (def.illegal) mult *= personalityIllegalMult(this.personality)
-    if (def.illegal) mult *= 1 + this.heirIllegalBonus()
     mult *= this.marketNewsProducerMult(def.id)
     mult *= spouseProducerBonus(this.dynasty, def.id, hasNode(this.prestigeTree, 'dynasty_1'))
     if (def.illegal) mult *= illegalIncomeBonus(this.undergroundTree)
@@ -2703,13 +2472,28 @@ export class GameState {
     this.emit({ type: 'weekly_updated', progress: this.weekly.progress, target: this.weekly.target })
   }
 
-  /**
-   * Tıklama artık PARA ÜRETMEZ (Karar 1-2: oyun clicker değil).
-   * Sadece UI etkileşimi olarak kalır — combo/critical/click income kaldırıldı.
-   */
-  click(_x: number, _y: number): void {
-    // Para kazanma kariyer, işletme, imparatorluk, piyasa vb. sistemlerden gelir.
-    // Tıklama görsel geri bildirimden ibaret; ekonomiye dokunmaz.
+  click(x: number, y: number): void {
+    const now = performance.now()
+    if (now - this.lastClickTime < COMBO_WINDOW_MS) {
+      this.comboCount++
+    } else {
+      this.comboCount = 1
+    }
+    this.lastClickTime = now
+    this.comboMultiplier = this.comboMultFromCount(this.comboCount)
+    if (this.comboCount > this.comboBest) this.comboBest = this.comboCount
+
+    this.totalClicks++
+    this.updateMissionProgress('clicks', 1)
+
+    const critical = Math.random() < CRIT_CHANCE
+    const amount = BASE_CLICK * this.clickMultiplier() * (critical ? CRIT_MULT : 1)
+    this.addMoney(amount)
+    this.emit({ type: 'click', amount, critical, x, y, combo: this.comboCount })
+    this.emit({ type: 'combo_changed', combo: this.comboCount, multiplier: this.comboMultiplier })
+
+    if (Math.random() < 0.002) this.luckyChestReady = true
+    this.checkAchievements()
   }
 
   canAfford(cost: number): boolean {
@@ -2724,10 +2508,8 @@ export class GameState {
   producerCostFor(def: ProducerDef, owned: number, count = 1): number {
     const raw = producerCost(def, owned, count)
     const efficiencyDiscount = researchEfficiencyBonus(this.research)
-    // Aile Şirketi geçmişi işletme maliyetini düşürür (Aşama 1)
     const bgCostDiscount = backgroundDef(this.characterBackground)?.costDiscount ?? 0
-    // Lojistik departmanı maliyet indirimi (Karar 12)
-    const lojistikDiscount = lojistikCostReduction(this.departmentLevel('lojistik'))
+    const lojistikDiscount = lojistikCostReduction(this.departments['lojistik'] ?? 0)
     let cost = Math.floor(
       raw
         * (1 - producerCostDiscount(this.prestigeTree))
@@ -2759,6 +2541,7 @@ export class GameState {
   }
 
   buyProducer(id: string, count = 1): boolean {
+    this.ensureDailyPlan()
     const def = PRODUCERS.find((p) => p.id === id)
     if (!def || !isProducerUnlocked(def, this.totalEarned, this.forcedUnlocks, this.ipoCount)) return false
     const owned = this.producers[id] ?? 0
@@ -2810,6 +2593,7 @@ export class GameState {
     this.syncCampaignProgress()
     this.checkVictoryConditions()
     this.checkWorldStage()
+    this.recordDailyEvent('firm_bought')
     return true
   }
 
@@ -2874,8 +2658,6 @@ export class GameState {
 
   availableUpgrades(): UpgradeDef[] {
     return UPGRADES.filter((u) => {
-      // Karar 6: tıklama yükseltmeleri kaldırıldı (tıklama para üretmiyor)
-      if (u.effect === 'click_mult') return false
       if (this.purchasedUpgrades.has(u.id)) return false
       if (u.requiresTotalEarned != null && this.totalEarned < u.requiresTotalEarned) return false
       if (u.requiresProducer != null && (this.producers[u.requiresProducer] ?? 0) <= 0) return false
@@ -3169,49 +2951,6 @@ export class GameState {
 
   financeNetWorth(): number {
     return netWorth(this.money, portfolioValue(this.stock), this.bank)
-  }
-
-  /** Net değer örneği al (grafik geçmişi için) — periyodik çağrılır */
-  sampleNetWorth(now: number): void {
-    if (now - this.lastNetWorthSample < 10_000) return
-    this.lastNetWorthSample = now
-    this.netWorthHistory.push(Math.round(this.financeNetWorth()))
-    if (this.netWorthHistory.length > 60) this.netWorthHistory.shift()
-  }
-
-  /** Net değeri grafik için elle kaydet (IPO, miras gibi anlarda) */
-  pushNetWorthSample(): void {
-    this.netWorthHistory.push(Math.round(this.financeNetWorth()))
-    if (this.netWorthHistory.length > 60) this.netWorthHistory.shift()
-  }
-
-  /** Gelir kaynakları dökümü (halka grafik için) — Karar 4: detaylı ayrım */
-  incomeBreakdown(): { label: string; value: number; color: 'green' | 'blue' | 'cyan' | 'gold' | 'red' | 'purple' }[] {
-    const legalTotal = this.legalIncomePerDay()
-    const illegal = this.illegalIncomePerDay()
-    const stockYield = portfolioValue(this.stock) * 0.002
-    const rentalIncome = lifestyleRentalIncome(this.lifestyle)
-    const careerWage = this.career.isEntrepreneur ? 0 : dailyCareerWage(this.career)
-    // Şehir/franchise payını legal işletmelerden ayır
-    const franchiseShare = franchiseIncomeBonus(this.franchises)
-    const franchiseIncome = legalTotal * (franchiseShare / (1 + franchiseShare))
-    const legalCore = Math.max(0, legalTotal - franchiseIncome)
-    const out: { label: string; value: number; color: 'green' | 'blue' | 'cyan' | 'gold' | 'red' | 'purple' }[] = []
-    if (legalCore > 0) out.push({ label: 'Legal İşletmeler', value: legalCore, color: 'green' })
-    if (franchiseIncome > 0) out.push({ label: 'Şehir/Franchise', value: franchiseIncome, color: 'purple' })
-    if (stockYield > 0) out.push({ label: 'Borsa/Piyasa', value: stockYield, color: 'blue' })
-    if (rentalIncome > 0) out.push({ label: 'Kira/Yaşam', value: rentalIncome, color: 'cyan' })
-    if (careerWage > 0) out.push({ label: 'Kariyer/Maaş', value: careerWage, color: 'gold' })
-    if (illegal > 0) out.push({ label: 'Illegal', value: illegal, color: 'red' })
-    return out
-  }
-
-  /** Aylık gider tahmini (gelir/gider barı için) */
-  estimatedMonthlyExpense(): number {
-    const lifestyleExp = lifestyleMonthlyExpense(this.lifestyle)
-    const loanInterest = this.bank.loan * (this.stock.centralBankRate ?? 0.02) / 12
-    const insuranceExp = insuranceDailyCost(this.insurance) * 30
-    return Math.floor(lifestyleExp + loanInterest + insuranceExp)
   }
 
   maxAvailableLoan(): number {
@@ -3670,41 +3409,25 @@ export class GameState {
   }
 
   /** Offline kazancı hesapla — otomatik verilmez */
-  /**
-   * Offline gelir cap (Aşama 17 — offline sistem).
-   * Real saat cinsinden offline süre → max gelir süresi (real dakika):
-   * 1s=15dk | 6s=30dk | 24s=60dk | 72s=120dk | 168s+=240dk
-   */
-  private offlineRealCapMs(awayMs: number): number {
-    const awayHours = awayMs / (60 * 60 * 1000)
-    const capMinutes = awayHours <= 1 ? 15
-      : awayHours <= 6 ? 30
-      : awayHours <= 24 ? 60
-      : awayHours <= 72 ? 120
-      : 240
-    return capMinutes * 60 * 1000
-  }
-
   applyOfflineEarnings(lastSaveTime: number): number {
     const awayMs = Date.now() - lastSaveTime
     this.lastActiveAt = Date.now()
     this.pendingOfflineEarnings = 0
 
     if (awayMs >= COMEBACK_MIN_AWAY_MS && this.comebackClaimedDay !== todayKey()) {
-      const capMs = this.offlineRealCapMs(awayMs)
-      const gameDaysAway = capMs / MS_PER_GAME_DAY
+      const elapsed = Math.min(awayMs, this.offlineCapMs())
+      const gameDaysAway = elapsed / MS_PER_GAME_DAY
       let base = 0
       for (const p of PRODUCERS) {
         base += this.producerIncome(p) * gameDaysAway
       }
-      const mult = awayMs >= 72 * 60 * 60 * 1000 ? 1.5 : 1.2
+      const mult = awayMs >= 72 * 60 * 60 * 1000 ? 3 : awayMs >= 48 * 60 * 60 * 1000 ? 2 : 1.5
       this.comebackPending = Math.floor(base * mult)
       this.triggerStoryBeat('comeback')
       this.emit({ type: 'comeback_ready', amount: this.comebackPending })
     }
 
-    const capMs = this.offlineRealCapMs(awayMs)
-    const elapsed = Math.min(awayMs, capMs)
+    const elapsed = Math.min(awayMs, this.offlineCapMs())
     if (elapsed < MS_PER_GAME_DAY) return 0
     const gameDaysAway = elapsed / MS_PER_GAME_DAY
     let amount = 0
@@ -3921,6 +3644,7 @@ export class GameState {
     this.emit({ type: 'manager_hired', producerId })
     this.emit({ type: 'money_changed' })
     this.checkAchievements()
+    this.recordDailyEvent('manager_hired')
     return true
   }
 
@@ -3936,6 +3660,7 @@ export class GameState {
     this.emit({ type: 'money_changed' })
     this.updateMissionProgress('stock_trade', 1)
     this.checkAchievements()
+    this.recordDailyEvent('market_action_completed')
     return true
   }
 
@@ -3945,6 +3670,7 @@ export class GameState {
     this.addMoney(revenue)
     this.emit({ type: 'stock_trade', action: 'sell', amount: sold })
     this.updateMissionProgress('stock_trade', 1)
+    this.recordDailyEvent('market_action_completed')
     return true
   }
 
@@ -4099,18 +3825,223 @@ export class GameState {
     this.presidentSinceSeasonKey = null
     this.lastWorldStageId = 'local'
     this.childCrises = []
+    this.diseases = []
+    this.siblings = generateSiblings()
+    this.fameState = createFameState()
+    this.karma = 0
     this.emit({ type: 'money_changed' })
+  }
+
+  /** Onboarding'de seçilen karakter profilini uygula (yalnız yeni oyunda bir kez). */
+  setCharacterProfile(profile: CharacterProfile): void {
+    this.characterProfile = { ...profile }
+    this.emit({ type: 'money_changed' })
+  }
+
+  /** Aktif varisin rol tanımı (varis bonusları) */
+  activeHeirRole() {
+    const heir = this.dynasty.dynastyBonusId
+      ? this.dynasty.children.find((c) => c.id === this.dynasty.dynastyBonusId)
+      : null
+    return heirRoleDef(heir?.heirRole)
+  }
+
+  private heirIllegalBonus(): number {
+    return this.activeHeirRole()?.illegalBonus ?? 0
+  }
+
+  heirReputationBonus(): number {
+    return this.activeHeirRole()?.reputationBonus ?? 0
+  }
+
+  setHeirRole(childId: string, role: HeirRoleId): void {
+    const child = this.dynasty.children.find((c) => c.id === childId)
+    if (!child) return
+    child.heirRole = role
+    const def = heirRoleDef(role)
+    this.addGazette(`👔 ${child.name} şirkette rol aldı: ${def?.name ?? role}`, 'player')
+    this.emit({ type: 'dynasty_update', kind: 'heir_role', name: child.name })
+  }
+
+  inheritancePreview(): { transferPct: number; reason: string[] } {
+    const heir = this.dynasty.dynastyBonusId
+      ? this.dynasty.children.find((c) => c.id === this.dynasty.dynastyBonusId)
+      : null
+    const hasLawyerHeir = heir?.heirRole === 'hukukcu'
+    const base = calculateInheritance(
+      !!this.dynasty.hasWill,
+      !!this.dynasty.hasTrust,
+      !!this.dynasty.dynastyBonusId,
+      this.illegalHeat,
+      hasLawyerHeir,
+      this.dynasty.children.length,
+    )
+    const role = heirRoleDef(heir?.heirRole)
+    if (role?.inheritanceBonus) {
+      base.transferPct = Math.min(0.95, base.transferPct + role.inheritanceBonus)
+      base.reason.push(`${role.name}: +%${Math.round(role.inheritanceBonus * 100)}`)
+    }
+    if (this.dynasty.hasFamilyConstitution && this.dynasty.children.length > 1) {
+      base.transferPct = Math.min(0.95, base.transferPct + 0.05)
+      base.reason.push('Aile anayasası: +%5')
+    }
+    const aileOfisi = aileOfisiInheritanceBonus(this.departments['aile_ofisi'] ?? 0)
+    if (aileOfisi > 0) {
+      base.transferPct = Math.min(0.95, base.transferPct + aileOfisi)
+      base.reason.push(`Aile Ofisi: +%${Math.round(aileOfisi * 100)}`)
+    }
+    return base
+  }
+
+  prepareWill(): boolean {
+    const cost = 100_000
+    if (this.dynasty.hasWill) return false
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.dynasty.hasWill = true
+    this.addGazette('📜 Vasiyet hazırlandı — miras kaybı azalacak', 'player')
+    this.emit({ type: 'money_changed' })
+    this.emit({ type: 'dynasty_update', kind: 'will' })
+    return true
+  }
+
+  createFamilyTrust(): boolean {
+    const cost = 500_000
+    if (this.dynasty.hasTrust) return false
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.dynasty.hasTrust = true
+    this.addGazette('🏛️ Aile vakfı kuruldu — servet koruması arttı', 'player')
+    this.emit({ type: 'money_changed' })
+    this.emit({ type: 'dynasty_update', kind: 'trust' })
+    return true
+  }
+
+  writeFamilyConstitution(): boolean {
+    const cost = 250_000
+    if (this.dynasty.hasFamilyConstitution) return false
+    if (!this.canAfford(cost)) return false
+    this.money -= cost
+    this.dynasty.hasFamilyConstitution = true
+    this.addGazette('📋 Aile anayasası yazıldı — kardeş kavgası azalacak', 'player')
+    this.emit({ type: 'money_changed' })
+    this.emit({ type: 'dynasty_update', kind: 'constitution' })
+    return true
+  }
+
+  sampleNetWorth(now: number): void {
+    if (now - this.lastNetWorthSample < 10_000) return
+    this.lastNetWorthSample = now
+    this.netWorthHistory.push(Math.round(this.financeNetWorth()))
+    if (this.netWorthHistory.length > 60) this.netWorthHistory.shift()
+  }
+
+  pushNetWorthSample(): void {
+    this.netWorthHistory.push(Math.round(this.financeNetWorth()))
+    if (this.netWorthHistory.length > 60) this.netWorthHistory.shift()
+  }
+
+  private departmentTaskContext() {
+    const leveledFirms = Object.values(this.producerLevels).filter((l) => l >= 2).length
+    const ownedBusinesses = Object.values(this.producers).filter((n) => n > 0).length
+    const researchNodes = Object.values(this.research).filter((l) => l > 0).length
+    const rivalDeals = this.rivals.filter((r) => r.relation === 'allied' || r.relation === 'merged').length
+    return {
+      leveledFirms,
+      netWorth: this.financeNetWorth(),
+      ownedBusinesses,
+      heat: this.illegalHeat,
+      researchNodes,
+      rivalDeals,
+      hasWill: !!this.dynasty.hasWill,
+    }
+  }
+
+  departmentTaskReady(id: DepartmentId): boolean {
+    if (this.departmentTasksClaimed.includes(id)) return false
+    return isDepartmentTaskComplete(id, this.departmentTaskContext())
+  }
+
+  claimDepartmentTask(id: DepartmentId): boolean {
+    if (!this.departmentTaskReady(id)) return false
+    this.departmentTasksClaimed.push(id)
+    const level = this.departments[id] ?? 0
+    if (level < DEPARTMENT_MAX_LEVEL) this.departments[id] = level + 1
+    this.addReputation(5)
+    const def = departmentDef(id)
+    this.addGazette(`✅ ${def.name} görevi tamamlandı — bedava seviye + itibar`, 'player')
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  departmentLevel(id: DepartmentId): number {
+    return this.departments[id] ?? 0
+  }
+
+  isDepartmentUnlocked(id: DepartmentId): boolean {
+    return this.totalEarned >= departmentDef(id).unlockAt
+  }
+
+  isMarketUnlocked(): boolean {
+    if (this.financeNetWorth() >= 50_000) return true
+    if (this.characterBackground === 'finansci') return true
+    if (this.career.jobId === 'banka_calisani' && this.career.level >= 3) return true
+    return false
+  }
+
+  marketLockReason(): string | null {
+    if (this.isMarketUnlocked()) return null
+    return 'Açmak için: 50.000₺ net değer · veya Finansçı geçmiş · veya Banka Çalışanı (Seviye 3)'
+  }
+
+  becomeEntrepreneur(): void {
+    if (this.financeNetWorth() < FIRST_GOAL_TARGET) return
+    this.career.isEntrepreneur = true
+    this.career.firstGoalComplete = true
+  }
+
+  setChildEducationPath(childId: string, path: ChildEducationPath): void {
+    const child = this.dynasty.children.find((c) => c.id === childId)
+    if (!child) return
+    child.educationPath = path
+    const pathDef = CHILD_EDUCATION_PATHS.find((p) => p.id === path)
+    this.addGazette(`📚 ${child.name} eğitim yolunu seçti: ${pathDef?.name ?? path}`, 'player')
+    this.emit({ type: 'dynasty_update', kind: 'child_education', name: child.name })
+  }
+
+  incomeBreakdown(): { label: string; value: number; color: 'green' | 'blue' | 'cyan' | 'gold' | 'red' | 'purple' }[] {
+    const legalTotal = this.legalIncomePerDay()
+    const illegal = this.illegalIncomePerDay()
+    const stockYield = portfolioValue(this.stock) * 0.002
+    const rentalIncome = lifestyleRentalIncome(this.lifestyle)
+    const careerWage = this.career.isEntrepreneur ? 0 : dailyCareerWage(this.career)
+    const franchiseShare = franchiseIncomeBonus(this.franchises)
+    const franchiseIncome = legalTotal * (franchiseShare / (1 + franchiseShare))
+    const legalCore = Math.max(0, legalTotal - franchiseIncome)
+    const out: { label: string; value: number; color: 'green' | 'blue' | 'cyan' | 'gold' | 'red' | 'purple' }[] = []
+    if (legalCore > 0) out.push({ label: 'Legal İşletmeler', value: legalCore, color: 'green' })
+    if (franchiseIncome > 0) out.push({ label: 'Şehir/Franchise', value: franchiseIncome, color: 'purple' })
+    if (stockYield > 0) out.push({ label: 'Borsa/Piyasa', value: stockYield, color: 'blue' })
+    if (rentalIncome > 0) out.push({ label: 'Kira/Yaşam', value: rentalIncome, color: 'cyan' })
+    if (careerWage > 0) out.push({ label: 'Kariyer/Maaş', value: careerWage, color: 'gold' })
+    if (illegal > 0) out.push({ label: 'Illegal', value: illegal, color: 'red' })
+    return out
+  }
+
+  estimatedMonthlyExpense(): number {
+    const lifestyleExp = lifestyleMonthlyExpense(this.lifestyle)
+    const loanInterest = this.bank.loan * (this.stock.centralBankRate ?? 0.02) / 12
+    const insuranceExp = insuranceDailyCost(this.insurance) * 30
+    return Math.floor(lifestyleExp + loanInterest + insuranceExp)
   }
 
   addReputation(delta: number): void {
     if (delta === 0) return
     // Diplomat kişiliği pozitif itibar kazancını güçlendirir
     if (delta > 0) delta = delta * personalityReputationMult(this.personality)
-    // Siyasi Varis + Sıfırdan Gelen geçmişi pozitif itibarı artırır (Aşama 14 + 1)
     if (delta > 0) {
       delta *= 1 + this.heirReputationBonus()
-      const bg = backgroundDef(this.characterBackground)
-      if (bg?.id === 'sifirdan_gelen') delta *= 1.1
+      if (backgroundDef(this.characterBackground)?.id === 'sifirdan_gelen') delta *= 1.1
     }
     const prev = this.reputation
     this.reputation = clampReputation(this.reputation + delta)
@@ -4296,8 +4227,7 @@ export class GameState {
     const response = ev.responses.find((r) => r.id === responseId)
     if (!response) return
 
-    // Güvenlik departmanı rakip hasarını azaltır (Karar 12)
-    const guvenlikRed = guvenlikRivalReduction(this.departmentLevel('guvenlik'))
+    const guvenlikRed = guvenlikRivalReduction(this.departments['guvenlik'] ?? 0)
     if (ev.reputationDamage > 0) {
       this.reputation = Math.max(0, this.reputation - ev.reputationDamage * (1 - guvenlikRed))
     }
@@ -4465,16 +4395,6 @@ export class GameState {
     })
   }
 
-  private tickCareerDailyWage(day: number): void {
-    const wage = applyDailyWage(this.career, day)
-    if (wage > 0) {
-      this.addMoney(wage, true)
-      if (!this.career.firstGoalComplete && this.money >= FIRST_GOAL_TARGET) {
-        this.career.firstGoalComplete = true
-      }
-    }
-  }
-
   private tickMetaSystems(): void {
     if (!this.isMetaSystemsReady()) {
       this.tickCommodities()
@@ -4485,6 +4405,10 @@ export class GameState {
     this.tickCalendarEvents()
     this.tickLifestyle(day)
     this.tickHealth(day)
+    this.tickDiseases(day)
+    this.tickPets(day)
+    this.tickSiblings(day)
+    this.tickFame(day)
     this.tickSpouseSatisfaction(day)
     this.tickAnnualSummary(day)
     this.tickAgeMilestones(day)
@@ -4580,11 +4504,76 @@ export class GameState {
       : 30
     const delta = dailyHealthDelta(age, this.lifestyle.stress, this.health)
     const gymBonus = hasHomeRoom(this.lifestyle, 'gym') ? 3 : 0
-    this.health.health = Math.max(0, Math.min(100, this.health.health + delta + gymBonus))
+    const diseaseDmg = diseasesDailyDamage(this.diseases)
+    this.health.health = Math.max(0, Math.min(100, this.health.health + delta + gymBonus - diseaseDmg))
     if (this.health.exerciseDaysActive > 0) {
       this.health.exerciseDaysActive--
     }
     this.emit({ type: 'health_changed', health: this.health.health })
+  }
+
+  private tickDiseases(day: number): void {
+    if (day === this.lastDiseaseTickDay) return
+    this.lastDiseaseTickDay = day
+    const age = this.playerAge()
+    const diagChance = dailyDiagnosisChance(age, this.health.health)
+    const eligible = eligibleDiseases(age, this.diseases)
+    if (eligible.length > 0) {
+      const totalBaseChance = eligible.reduce((s, d) => s + d.baseChance, 0)
+      if (Math.random() < totalBaseChance * diagChance) {
+        const picked = pickRandomDisease(eligible)
+        if (picked) {
+          this.diseases.push({ id: picked.id, diagnosedDay: day })
+          this.emit({ type: 'disease_diagnosed', diseaseId: picked.id, name: picked.name, emoji: picked.emoji })
+        }
+      }
+    }
+  }
+
+  private lastPetTickDay = 0
+  private tickPets(day: number): void {
+    if (day === this.lastPetTickDay) return
+    this.lastPetTickDay = day
+    if (!this.lifestyle.ownedPets || this.lifestyle.ownedPets.length === 0) return
+    const died = expirePets(this.lifestyle, day)
+    for (const petId of died) {
+      const pet = PETS.find((p) => p.id === petId)
+      this.emit({ type: 'pet_died', petId, petName: pet?.name ?? petId, petEmoji: pet?.emoji ?? '🐾' })
+    }
+  }
+
+  private lastFameTickDay = 0
+  private tickFame(day: number): void {
+    if (day === this.lastFameTickDay) return
+    this.lastFameTickDay = day
+    if (!this.fameState.isActive) return
+    const prevLevel = Math.floor(this.fameState.fameLevel)
+    tickFameDecay(this.fameState)
+    const newLevel = Math.floor(this.fameState.fameLevel)
+    if (newLevel !== prevLevel) {
+      this.emit({ type: 'fame_changed', fameLevel: newLevel, label: '' })
+    }
+    const income = fameDailyIncome(this.fameState)
+    if (income > 0) {
+      this.money += income
+      this.fameState.totalEarned += income
+      this.emit({ type: 'money_changed' })
+    }
+  }
+
+  private tickSiblings(day: number): void {
+    const year = Math.floor(day / 365)
+    if (year === this.lastSiblingTickYear) return
+    this.lastSiblingTickYear = year
+    const died = tickSiblingYear(this.siblings)
+    if (died) {
+      const inheritance = siblingInheritance(died)
+      if (inheritance > 0) {
+        this.money += inheritance
+        this.emit({ type: 'money_changed' })
+      }
+      this.emit({ type: 'sibling_died', siblingName: died.name, inheritance })
+    }
   }
 
   private lastSpouseTickDay = 0
@@ -4936,6 +4925,81 @@ export class GameState {
         consequenceId: choice.consequenceId,
       })
     }
+    // 2nd-layer risk outcome (dice roll applied immediately)
+    if (choice.riskOutcome) {
+      this.resolveRiskOutcome(choice.riskOutcome)
+    }
+    // Karma tracking
+    this.applyChoiceKarma(choiceId)
+  }
+
+  private resolveRiskOutcome(risk: ChoiceRiskOutcome): void {
+    const won = Math.random() < risk.winChance
+    const moneyDelta = won ? risk.winMoneyDelta : risk.lossMoneyDelta
+    const repDelta = won ? risk.winReputationDelta : risk.lossReputationDelta
+    const headline = won ? risk.winHeadline : risk.lossHeadline
+    if (moneyDelta !== 0) {
+      this.money += moneyDelta
+      this.emit({ type: 'money_changed' })
+    }
+    if (repDelta !== 0) {
+      this.reputation = Math.max(0, Math.min(100, this.reputation + repDelta))
+    }
+    this.emit({ type: 'life_event_risk_outcome', headline, won })
+  }
+
+  private applyChoiceKarma(choiceId: string): void {
+    const positiveIds = ['police', 'protect_workers', 'donate_charity', 'report_corruption', 'turn_down', 'legal', 'help_friend', 'honest_answer', 'refuse', 'pay_fine', 'support', 'donate_big', 'donate_small', 'settle_lawsuit', 'skip_gambling']
+    const negativeIds = ['bribe', 'keep', 'pay_protection', 'cover_up', 'bribe_fix', 'go_all_in', 'fire_workers', 'bribe_official']
+    if (positiveIds.includes(choiceId)) this.karma = Math.min(100, this.karma + 3)
+    else if (negativeIds.includes(choiceId)) this.karma = Math.max(-100, this.karma - 5)
+  }
+
+  treatDisease(id: DiseaseId): boolean {
+    const def = diseaseDef(id)
+    if (!this.canAfford(def.treatCost)) return false
+    this.money -= def.treatCost
+    this.emit({ type: 'money_changed' })
+    this.diseases = this.diseases.filter((d) => d.id !== id)
+    this.emit({ type: 'disease_treated', diseaseId: id, name: def.name })
+    return true
+  }
+
+  visitSiblingById(id: string): boolean {
+    const sibling = this.siblings.find((s) => s.id === id && s.isAlive)
+    if (!sibling) return false
+    if (!this.canAfford(VISIT_SIBLING_COST)) return false
+    this.money -= VISIT_SIBLING_COST
+    this.emit({ type: 'money_changed' })
+    doVisitSibling(sibling)
+    return true
+  }
+
+  startFameCareer(type: FameCareerType): boolean {
+    if (this.fameState.isActive) return false
+    this.fameState = { ...createFameState(), careerType: type, isActive: true }
+    return true
+  }
+
+  quitFameCareer(): void {
+    this.fameState.isActive = false
+  }
+
+  doFameAction(actionId: string): boolean {
+    const prevLevel = this.fameState.fameLevel
+    const result = applyFameAction(this.fameState, actionId)
+    if (!result) return false
+    if (result.cost > 0 && !this.canAfford(result.cost)) {
+      this.fameState.fameLevel = prevLevel
+      return false
+    }
+    if (result.cost > 0) {
+      this.money -= result.cost
+      this.emit({ type: 'money_changed' })
+    }
+    this.lifestyle.stress = Math.min(100, this.lifestyle.stress + result.stressDelta)
+    this.emit({ type: 'fame_action', careerName: this.fameState.careerType ?? '', fameDelta: this.fameState.fameLevel - prevLevel, newLevel: Math.floor(this.fameState.fameLevel) })
+    return true
   }
 
   private scoreAlignment(eventId: string, choiceId: string): void {
@@ -5100,104 +5164,6 @@ export class GameState {
     this.emit({ type: 'dynasty_update', kind: 'child_career', name: child.name })
   }
 
-  /** Çocuk eğitim yolu seç (10 yaş — Aşama 13) */
-  setChildEducationPath(childId: string, path: ChildEducationPath): void {
-    const child = this.dynasty.children.find((c) => c.id === childId)
-    if (!child) return
-    child.educationPath = path
-    const def = CHILD_EDUCATION_PATHS.find((p) => p.id === path)
-    this.addGazette(`📚 ${child.name} eğitim yolunu seçti: ${def?.name ?? path}`, 'player')
-    this.emit({ type: 'dynasty_update', kind: 'child_education', name: child.name })
-  }
-
-  /** Varis rolü ata (18 yaş sonrası — Aşama 14) */
-  setHeirRole(childId: string, role: HeirRoleId): void {
-    const child = this.dynasty.children.find((c) => c.id === childId)
-    if (!child) return
-    child.heirRole = role
-    const def = heirRoleDef(role)
-    this.addGazette(`👔 ${child.name} şirkette rol aldı: ${def?.name ?? role}`, 'player')
-    this.emit({ type: 'dynasty_update', kind: 'heir_role', name: child.name })
-  }
-
-  /** Vasiyet hazırla (Aşama 15) */
-  prepareWill(): boolean {
-    const cost = 100_000
-    if (this.dynasty.hasWill) return false
-    if (!this.canAfford(cost)) return false
-    this.money -= cost
-    this.dynasty.hasWill = true
-    this.addGazette('📜 Vasiyet hazırlandı — miras kaybı azalacak', 'player')
-    this.emit({ type: 'money_changed' })
-    this.emit({ type: 'dynasty_update', kind: 'will' })
-    return true
-  }
-
-  /** Aile vakfı / trust kur (Aşama 15) */
-  createFamilyTrust(): boolean {
-    const cost = 500_000
-    if (this.dynasty.hasTrust) return false
-    if (!this.canAfford(cost)) return false
-    this.money -= cost
-    this.dynasty.hasTrust = true
-    this.addGazette('🏛️ Aile vakfı kuruldu — servet koruması arttı', 'player')
-    this.emit({ type: 'money_changed' })
-    this.emit({ type: 'dynasty_update', kind: 'trust' })
-    return true
-  }
-
-  /** Aile anayasası yaz (Aşama 15) */
-  writeFamilyConstitution(): boolean {
-    const cost = 250_000
-    if (this.dynasty.hasFamilyConstitution) return false
-    if (!this.canAfford(cost)) return false
-    this.money -= cost
-    this.dynasty.hasFamilyConstitution = true
-    this.addGazette('📋 Aile anayasası yazıldı — kardeş kavgası azalacak', 'player')
-    this.emit({ type: 'money_changed' })
-    this.emit({ type: 'dynasty_update', kind: 'constitution' })
-    return true
-  }
-
-  /** Mevcut miras aktarım oranı (Aşama 16) */
-  inheritancePreview(): { transferPct: number; reason: string[] } {
-    const heir = this.dynasty.dynastyBonusId
-      ? this.dynasty.children.find((c) => c.id === this.dynasty.dynastyBonusId)
-      : null
-    const hasLawyerHeir = heir?.heirRole === 'hukukcu'
-    const base = calculateInheritance(
-      !!this.dynasty.hasWill,
-      !!this.dynasty.hasTrust,
-      !!this.dynasty.dynastyBonusId,
-      this.illegalHeat,
-      hasLawyerHeir,
-      this.dynasty.children.length,
-    )
-    // Aileci Varis miras aktarımını artırır (Aşama 14)
-    const role = heirRoleDef(heir?.heirRole)
-    if (role?.inheritanceBonus) {
-      base.transferPct = Math.min(0.95, base.transferPct + role.inheritanceBonus)
-      base.reason.push(`${role.name}: +%${Math.round(role.inheritanceBonus * 100)}`)
-    }
-    // Aile anayasası kardeş kavgasını yumuşatır
-    if (this.dynasty.hasFamilyConstitution && this.dynasty.children.length > 1) {
-      base.transferPct = Math.min(0.95, base.transferPct + 0.05)
-      base.reason.push('Aile anayasası: +%5')
-    }
-    // Aile Ofisi departmanı miras korumasını artırır (Karar 12)
-    const aileOfisi = aileOfisiInheritanceBonus(this.departmentLevel('aile_ofisi'))
-    if (aileOfisi > 0) {
-      base.transferPct = Math.min(0.95, base.transferPct + aileOfisi)
-      base.reason.push(`Aile Ofisi: +%${Math.round(aileOfisi * 100)}`)
-    }
-    return base
-  }
-
-  /** Siyasi Varis itibar kazancı bonusu (Aşama 14) */
-  heirReputationBonus(): number {
-    return this.activeHeirRole()?.reputationBonus ?? 0
-  }
-
   annualFocusBonus: string | null = null
   annualFocusBonusUntilDay = 0
 
@@ -5223,6 +5189,7 @@ export class GameState {
   }
 
   buyResidence(id: ResidenceId, count: number = 1): boolean {
+    this.ensureDailyPlan()
     const res = RESIDENCES.find((r) => r.id === id)
     if (!res || count < 1) return false
     const totalCost = res.buyCost * count
@@ -5242,6 +5209,7 @@ export class GameState {
           rentalMonthlyIncome: defaultRentalIncome(id),
         })
       }
+      this.recordDailyEvent('life_item_bought')
     }
     return true
   }
@@ -5287,6 +5255,7 @@ export class GameState {
   }
 
   buyVehicle(id: VehicleId, count: number = 1): boolean {
+    this.ensureDailyPlan()
     const veh = VEHICLES.find((v) => v.id === id)
     if (!veh || count < 1) return false
     const totalCost = veh.buyCost * count
@@ -5306,6 +5275,7 @@ export class GameState {
           rentalMonthlyIncome: defaultVehicleRentalIncome(id),
         })
       }
+      this.recordDailyEvent('life_item_bought')
     }
     return true
   }
@@ -5347,16 +5317,27 @@ export class GameState {
   }
 
   buyPet(id: PetId): boolean {
+    this.ensureDailyPlan()
     const pet = PETS.find((p) => p.id === id)
     if (!pet) return false
     if (!this.canAfford(pet.buyCost)) return false
     this.money -= pet.buyCost
     this.emit({ type: 'money_changed' })
     if (!this.lifestyle.pets.includes(id)) this.lifestyle.pets.push(id)
+    const entry: OwnedPetEntry = {
+      id,
+      name: randomPetName(id),
+      adoptedDay: gameDay(this.gameTimeMs),
+      lifespanDays: petLifespanDays(id),
+    }
+    if (!this.lifestyle.ownedPets) this.lifestyle.ownedPets = []
+    this.lifestyle.ownedPets.push(entry)
+    this.recordDailyEvent('life_item_bought')
     return true
   }
 
   buyWellbeing(id: WellbeingActivityId): boolean {
+    this.ensureDailyPlan()
     const act = WELLBEING_ACTIVITIES.find((a) => a.id === id)
     if (!act) return false
     if (!this.canAfford(act.cost)) return false
@@ -5369,6 +5350,7 @@ export class GameState {
     } else {
       this.lifestyle.vacationActiveUntilDay = currentDay + act.durationDays
     }
+    this.recordDailyEvent('wellbeing_completed')
     return true
   }
 
@@ -5773,6 +5755,7 @@ export class GameState {
   }
 
   unlockCity(id: CityId): boolean {
+    this.ensureDailyPlan()
     const check = canUnlockCity(id, this.cities, this.money, this.reputation, this.ipoCount)
     if (!check.ok) return false
     const def = cityDef(id)
@@ -5781,6 +5764,7 @@ export class GameState {
     this.cities.cityReputation[id] = Math.max(def.repReq, 40)
     this.addGazette(`${this.playerName.trim() || 'Baron'} ${def.label}'yi fethetti`, 'player')
     this.emit({ type: 'money_changed' })
+    this.recordDailyEvent('city_unlocked')
     return true
   }
 
@@ -5874,58 +5858,282 @@ export class GameState {
     return this.activeCrisis !== null && !this.activeCrisis.resolved
   }
 
-  /**
-   * Başarı ödülünü günlük gelire göre ölçekle (Karar 21).
-   * Erken oyunda dev para vermez; def.reward üst sınır olarak kalır.
-   */
-  private scaledAchievementReward(baseReward: number): number {
-    const dailyIncome = Math.max(0, this.incomePerDay())
-    const cap = Math.round(dailyIncome * 3) + 200
-    return Math.min(baseReward, cap)
+  private checkAchievements(): void {
+    if (this._checkingAchievements) return
+    this._checkingAchievements = true
+    try {
+      const ctx = {
+        totalEarned: this.totalEarned,
+        totalClicks: this.totalClicks,
+        comboBest: this.comboBest,
+        prestigePoints: this.prestigePoints,
+        producers: this.producers,
+        achievements: this.achievements,
+        lifetimePrestige: this.lifetimePrestige,
+        lifetimeTotalEarned: this.lifetimeTotalEarned,
+        ipoCount: this.ipoCount,
+        managers: this.managers,
+        stockShares: totalShares(this.stock),
+        weeklyClaimed: this.weekly.claimed,
+        seasonTier: currentTier(this.season.xp),
+        prestigeTreeCount: ownedNodeCount(this.prestigeTree),
+        stockTickerCount: ownedTickerCount(this.stock),
+        nightEarnings: this.nightEarningsSession,
+        managerAutoBuyCount: this.managerAutoBuyCount(),
+        dailyStreak: this.dailyStreak,
+        comebackClaimed: this.comebackClaimed,
+        heatSurvived: this.heatSurvived,
+        unlockedThemes: [...this.unlockedThemes],
+        undergroundLawyerUsed: this.undergroundLawyerUsed,
+        dynastyMarried: !!this.dynasty.spouseName,
+        advisorBuys: this.advisorBuys,
+      }
+      const newOnes = checkNewAchievements(ctx)
+      for (const a of newOnes) {
+        this.achievements.add(a.id)
+        this.money += a.reward
+        this.emit({ type: 'achievement', def: a })
+      }
+    } finally {
+      this._checkingAchievements = false
+    }
   }
 
-  private checkAchievements(): void {
-    const ctx = {
-      totalEarned: this.totalEarned,
-      totalClicks: this.totalClicks,
-      comboBest: this.comboBest,
-      prestigePoints: this.prestigePoints,
-      producers: this.producers,
-      achievements: this.achievements,
-      lifetimePrestige: this.lifetimePrestige,
-      lifetimeTotalEarned: this.lifetimeTotalEarned,
-      ipoCount: this.ipoCount,
-      managers: this.managers,
-      stockShares: totalShares(this.stock),
-      weeklyClaimed: this.weekly.claimed,
-      seasonTier: currentTier(this.season.xp),
-      prestigeTreeCount: ownedNodeCount(this.prestigeTree),
-      stockTickerCount: ownedTickerCount(this.stock),
-      nightEarnings: this.nightEarningsSession,
-      managerAutoBuyCount: this.managerAutoBuyCount(),
-      dailyStreak: this.dailyStreak,
-      comebackClaimed: this.comebackClaimed,
-      heatSurvived: this.heatSurvived,
-      unlockedThemes: [...this.unlockedThemes],
-      undergroundLawyerUsed: this.undergroundLawyerUsed,
-      dynastyMarried: !!this.dynasty.spouseName,
-      advisorBuys: this.advisorBuys,
-      hasJob: this.hasCareerJob(),
-      careerLevel: this.career.level,
-      isEntrepreneur: this.career.isEntrepreneur,
+  // ── Kariyer metodları ──────────────────────────────────────────────────────
+
+  setCareerJob(jobId: CareerJobId | null): void {
+    this.ensureDailyPlan()
+    const prevJobId = this.career.jobId
+    this.career.jobId = jobId
+    if (prevJobId == null && jobId != null && !this.career.isEntrepreneur) {
+      this.recordDailyEvent('job_chosen')
     }
-    const newOnes = checkNewAchievements(ctx)
-    for (const a of newOnes) {
-      this.achievements.add(a.id)
-      // Karar 21: para ödülü günlük gelire göre ölçeklenir (sabit büyük para yok)
-      if (a.reward > 0) this.addMoney(this.scaledAchievementReward(a.reward))
-      // Karar 22: para dışı ödüller (itibar / kariyer XP)
-      if (a.rewardReputation) this.addReputation(a.rewardReputation)
-      if (a.rewardCareerXp && !this.career.isEntrepreneur) {
-        this.career.xp += a.rewardCareerXp
+  }
+
+  setCharacterBackground(backgroundId: CharacterBackgroundId | null): void {
+    this.career.backgroundId = backgroundId
+  }
+
+  doCareerAction(actionId: CareerActionId): { money: number; xp: number; stressDelta: number; levelUp: boolean } {
+    this.ensureDailyPlan()
+    if (actionId === 'isten_ayril') {
+      // Only a player who is actually employed can quit. Otherwise no-op:
+      // no event, no daily progress, no state change.
+      if (this.career.jobId === null || this.career.isEntrepreneur) {
+        return { money: 0, xp: 0, stressDelta: 0, levelUp: false }
       }
-      this.emit({ type: 'achievement', def: a })
+      this.recordDailyEvent('career_action_completed')
+      this.career.isEntrepreneur = true
+      this.emit({ type: 'career_phase_changed', isEntrepreneur: true })
+      return { money: 0, xp: 0, stressDelta: 0, levelUp: false }
     }
+    const currentDay = gameDay(this.gameTimeMs)
+    const result = applyCareerAction(this.career, actionId, currentDay)
+    if (result.money > 0) this.addMoney(result.money, false)
+    if (!this.career.firstGoalComplete && this.totalEarned >= FIRST_GOAL_TARGET) {
+      this.career.firstGoalComplete = true
+    }
+    this.emit({ type: 'career_action', actionId, money: result.money, levelUp: result.levelUp })
+    if (result.money > 0) this.emit({ type: 'money_changed' })
+    if (result.money > 0 || result.xp > 0) this.recordDailyEvent('career_action_completed')
+    return result
+  }
+
+  // ── Firma seviyesi metodları ───────────────────────────────────────────────
+
+  producerLevel(id: string): number {
+    return this.producerLevels[id] ?? 1
+  }
+
+  firmLevelUpCostFor(def: ProducerDef): number {
+    const owned = this.producers[def.id] ?? 0
+    return firmLevelUpCost(def, this.producerLevel(def.id), owned)
+  }
+
+  levelUpFirm(producerId: string): boolean {
+    this.ensureDailyPlan()
+    const def = PRODUCERS.find((p) => p.id === producerId)
+    if (!def) return false
+    const owned = this.producers[producerId] ?? 0
+    if (owned <= 0) return false
+    const level = this.producerLevel(producerId)
+    if (level >= FIRM_MAX_LEVEL) return false
+    const cost = this.firmLevelUpCostFor(def)
+    if (this.money < cost) return false
+    this.money -= cost
+    this.producerLevels[producerId] = level + 1
+    this.addGazette(`⬆️ ${producerName(def)} Lv.${level + 1}'e yükseltildi`, 'player')
+    this.emit({ type: 'purchase' })
+    this.emit({ type: 'money_changed' })
+    this.recordDailyEvent('firm_level_upgraded')
+    return true
+  }
+
+  // ── Firma geliştirme metodları ─────────────────────────────────────────────
+
+  firmUpgradesPurchased(producerId: string): string[] {
+    return this.producerUpgrades[producerId] ?? []
+  }
+
+  firmUpgradeCostFor(def: ProducerDef, upgradeId: string): number {
+    const up = firmUpgradeDef(def, upgradeId)
+    if (!up) return Infinity
+    const owned = this.producers[def.id] ?? 0
+    return firmUpgradeCost(def, up, owned)
+  }
+
+  buyFirmUpgrade(producerId: string, upgradeId: string): boolean {
+    const def = PRODUCERS.find((p) => p.id === producerId)
+    if (!def) return false
+    const owned = this.producers[producerId] ?? 0
+    if (owned <= 0) return false
+    const purchased = this.firmUpgradesPurchased(producerId)
+    if (purchased.includes(upgradeId)) return false
+    const up = firmUpgradeDef(def, upgradeId)
+    if (!up) return false
+    const cost = firmUpgradeCost(def, up, owned)
+    if (!isFinite(cost) || this.money < cost) return false
+    this.money -= cost
+    this.producerUpgrades[producerId] = [...purchased, upgradeId]
+    this.addGazette(`${up.emoji} ${producerName(def)}: ${up.name} geliştirmesi yapıldı`, 'player')
+    this.emit({ type: 'purchase' })
+    this.emit({ type: 'money_changed' })
+    return true
+  }
+
+  // ── Departman metodları ────────────────────────────────────────────────────
+
+  departmentUpgradeCostFor(id: DepartmentId): number {
+    return departmentUpgradeCost(id, this.departments[id] ?? 0)
+  }
+
+  upgradeDepartment(id: DepartmentId): boolean {
+    this.ensureDailyPlan()
+    const cost = this.departmentUpgradeCostFor(id)
+    if (!isFinite(cost) || this.money < cost) return false
+    this.money -= cost
+    this.departments[id] = (this.departments[id] ?? 0) + 1
+    this.emit({ type: 'purchase' })
+    this.emit({ type: 'money_changed' })
+    this.recordDailyEvent('department_upgraded')
+    return true
+  }
+
+  // ── Günlük Plan (DailyPlan) ──────────────────────────────────────────────
+
+  private buildDailyEligibilitySnapshot(): EligibilitySnapshot {
+    const canAffordAnyFirm = PRODUCERS.some(p => {
+      if (!isProducerUnlocked(p, this.totalEarned, this.forcedUnlocks, this.ipoCount)) return false
+      const owned = this.producers[p.id] ?? 0
+      return this.money >= this.producerCostFor(p, owned, 1) * DAILY_TASK_SPEND_BUFFER
+    })
+    const upgradeableFirms = PRODUCERS.filter(p => {
+      const owned = this.producers[p.id] ?? 0
+      return owned > 0 && (this.producerLevels[p.id] ?? 1) < FIRM_MAX_LEVEL
+    })
+    const hasUpgradeableFirm = upgradeableFirms.length > 0
+    const canAffordAnyUpgrade = upgradeableFirms.some(
+      p => this.money >= this.firmLevelUpCostFor(p) * DAILY_TASK_SPEND_BUFFER
+    )
+    // Pass money/BUFFER so canUnlockCity's money check becomes: money >= cost*BUFFER.
+    // Rep and IPO checks inside canUnlockCity remain exact (no buffer applied).
+    const canUnlockAnyCity = EXPANSION_CITIES.some(
+      c => canUnlockCity(c.id, this.cities, this.money / DAILY_TASK_SPEND_BUFFER, this.reputation, this.ipoCount).ok
+    )
+    const hasDeptToUpgrade = DEPARTMENTS.some(d => {
+      const level = this.departments[d.id] ?? 0
+      if (level >= DEPARTMENT_MAX_LEVEL) return false
+      return this.money >= departmentUpgradeCost(d.id, level) * DAILY_TASK_SPEND_BUFFER
+    })
+    const minWellbeingCost = Math.min(...WELLBEING_ACTIVITIES.map(a => a.cost))
+    // HOME_ROOMS omitted: buyHomeRoom does not emit life_item_bought.
+    const minLifeItemCost = Math.min(
+      ...RESIDENCES.filter(r => r.buyCost > 0).map(r => r.buyCost),
+      ...VEHICLES.filter(v => v.buyCost > 0).map(v => v.buyCost),
+      ...PETS.map(p => p.buyCost),
+    )
+    const canDoMarketAction =
+      Object.values(this.stock.tickers).some(t => this.money >= t.price) ||
+      Object.values(this.stock.tickers).some(t => t.shares > 0)
+    const canHireManager = PRODUCERS.some(p => {
+      const owned = this.producers[p.id] ?? 0
+      if (owned <= 0) return false
+      if (hasManager(this.managers, p.id)) return false
+      const cost = managerCost(p.baseIncome, owned)
+      return this.money >= cost * DAILY_TASK_SPEND_BUFFER
+    })
+    return {
+      hasJob: this.career.jobId != null && !this.career.isEntrepreneur,
+      isEntrepreneur: this.career.isEntrepreneur,
+      firmCount: Object.values(this.producers).filter(c => c > 0).length,
+      canAffordAnyFirm,
+      hasUpgradeableFirm,
+      canAffordAnyUpgrade,
+      canUnlockAnyCity,
+      hasDeptToUpgrade,
+      affordableWellbeing: this.money >= minWellbeingCost * DAILY_TASK_SPEND_BUFFER,
+      affordableLifeItem:  this.money >= minLifeItemCost * DAILY_TASK_SPEND_BUFFER,
+      canDoMarketAction,
+      canHireManager,
+      // Audit (2026-06): all five tabs open without any page-level gate.
+      canVisitCareer: true,
+      canVisitFirms:  true,
+      canVisitMarket: true,
+      canVisitEmpire: true,
+      canVisitLife:   true,
+    }
+  }
+
+  ensureDailyPlan(): boolean {
+    const dayKey = localDayKey()
+    if (this.dailyPlan?.version === 1 && this.dailyPlan.dayKey === dayKey) return false
+    const snap = this.buildDailyEligibilitySnapshot()
+    this.dailyPlan = createDailyPlanState(dayKey, selectDailyTasks(snap, dayKey))
+    this.emit({ type: 'daily_plan_updated' })
+    return true
+  }
+
+  recordDailyEvent(event: DailyEvent): void {
+    this.ensureDailyPlan()
+    const plan = this.dailyPlan!
+    let changed = false
+    for (const taskId of plan.taskIds) {
+      const def = TASK_DEFS.find(d => d.id === taskId)
+      if (!def || def.event !== event) continue
+      if (plan.claimed.includes(taskId)) continue
+      const prev = plan.progress[taskId] ?? 0
+      if (prev < def.target) {
+        plan.progress[taskId] = Math.min(def.target, prev + 1)
+        changed = true
+      }
+    }
+    if (changed) this.emit({ type: 'daily_plan_updated' })
+  }
+
+  claimDailyTask(taskId: DailyTaskId): boolean {
+    this.ensureDailyPlan()
+    const plan = this.dailyPlan!
+    if (!plan.taskIds.includes(taskId)) return false
+    if (plan.claimed.includes(taskId)) return false
+    const def = TASK_DEFS.find(d => d.id === taskId)
+    if (!def || (plan.progress[taskId] ?? 0) < def.target) return false
+    plan.claimed.push(taskId)
+    this.addMoney(def.reward, false)
+    this.emit({ type: 'daily_plan_updated' })
+    return true
+  }
+
+  claimDailyCompletionBonus(): boolean {
+    this.ensureDailyPlan()
+    const plan = this.dailyPlan!
+    if (plan.completionBonusClaimed) return false
+    if (plan.taskIds.length !== 4) return false
+    if (!plan.taskIds.every(id => plan.claimed.includes(id))) return false
+    plan.completionBonusClaimed = true
+    this.addMoney(dailyCompletionBonusAmount(plan.taskIds), false)
+    this.addReputation(DAILY_BONUS_REPUTATION)
+    this.emit({ type: 'daily_plan_updated' })
+    return true
   }
 
   toJSON(): SerializableState {
@@ -5986,7 +6194,7 @@ export class GameState {
       reducedMotion: this.reducedMotion,
       removeAdsOwned: this.removeAdsOwned,
       vipPassActive: this.vipPassActive,
-      lifestyle: { ...this.lifestyle, pets: [...this.lifestyle.pets] },
+      lifestyle: { ...this.lifestyle, pets: [...this.lifestyle.pets], ownedPets: this.lifestyle.ownedPets ? this.lifestyle.ownedPets.map((p) => ({ ...p })) : [] },
       lifeEvents: this.lifeEvents.map((e) => ({ ...e })),
       pendingConsequences: this.pendingConsequences.map((c) => ({ ...c })),
       eventChoiceHistory: this.eventChoiceHistory.map((r) => ({ ...r })),
@@ -6006,6 +6214,22 @@ export class GameState {
       hobby: { ...this.hobby },
       ageMilestonesShown: [...this.ageMilestonesShown],
       travel: { ...this.travel },
+      diseases: this.diseases.map((d) => ({ ...d })),
+      siblings: this.siblings.map((s) => ({ ...s })),
+      fameState: { ...this.fameState },
+      karma: this.karma,
+      characterProfile: this.characterProfile ? { ...this.characterProfile } : null,
+      characterIncomeDailyBonus: this.characterIncomeDailyBonus,
+      characterBackground: this.characterBackground,
+      career: { ...this.career, actionsUsedToday: [...this.career.actionsUsedToday] },
+      producerLevels: { ...this.producerLevels },
+      producerUpgrades: Object.fromEntries(
+        Object.entries(this.producerUpgrades).map(([k, v]) => [k, [...v]])
+      ),
+      departments: { ...this.departments },
+      departmentTasksClaimed: [...this.departmentTasksClaimed],
+      netWorthHistory: [...this.netWorthHistory],
+      saveVersion: 2,
       difficulty: this.difficulty,
       difficultyChosen: this.difficultyChosen,
       playerName: this.playerName,
@@ -6111,13 +6335,7 @@ export class GameState {
       dynastyPassiveIncome: this.dynastyPassiveIncome,
       peakIncomePerDay: this.peakIncomePerDay,
       prestigeShopPurchased: [...this.prestigeShopPurchased],
-      career: { ...this.career, actionsUsedToday: [...this.career.actionsUsedToday] },
-      characterBackground: this.characterBackground,
-      netWorthHistory: [...this.netWorthHistory],
-      producerLevels: { ...this.producerLevels },
-      producerUpgrades: Object.fromEntries(Object.entries(this.producerUpgrades).map(([k, v]) => [k, [...v]])),
-      departments: { ...this.departments },
-      departmentTasksClaimed: [...this.departmentTasksClaimed],
+      dailyPlan: this.dailyPlan ?? null,
     }
   }
 
@@ -6216,6 +6434,7 @@ export class GameState {
         pets: [...(data.lifestyle.pets ?? [])],
         ownedResidences: [...(data.lifestyle.ownedResidences ?? [])],
         ownedVehicles: [...(data.lifestyle.ownedVehicles ?? [])],
+        ownedPets: [...((data.lifestyle as { ownedPets?: OwnedPetEntry[] }).ownedPets ?? [])],
       }
       // Migrate: if old save has residence != 'kira' and no ownedResidences, backfill
       if (this.lifestyle.ownedResidences.length === 0 && this.lifestyle.residence !== 'kira') {
@@ -6269,31 +6488,31 @@ export class GameState {
       this.hobby = { ...createHobbyState(), ...data.hobby }
     }
     this.ageMilestonesShown = data.ageMilestonesShown ?? []
-    if (data.travel) {
-      this.travel = { ...createTravelState(), ...data.travel }
+    this.diseases = data.diseases ?? []
+    this.siblings = data.siblings ?? generateSiblings()
+    this.fameState = data.fameState ? { ...createFameState(), ...data.fameState } : createFameState()
+    this.karma = data.karma ?? 0
+    this.characterProfile = data.characterProfile ? { ...data.characterProfile } : null
+    this.characterIncomeDailyBonus = data.characterIncomeDailyBonus ?? 0
+    this.characterBackground = data.characterBackground ?? null
+    if (!this.characterBackground && this.characterProfile?.backgroundId) {
+      this.characterBackground = this.characterProfile.backgroundId
     }
-    if (data.career) {
-      this.career = { ...createCareerState(), ...data.career, actionsUsedToday: [...(data.career.actionsUsedToday ?? [])] }
-    }
-    if (data.characterBackground !== undefined) {
-      this.characterBackground = data.characterBackground ?? null
-    }
+    this.career = data.career ? { ...createCareerState(), ...data.career } : createCareerState()
+    if (!Array.isArray(this.career.actionsUsedToday)) this.career.actionsUsedToday = []
+    this.producerLevels = data.producerLevels ? { ...data.producerLevels } : {}
+    this.producerUpgrades = data.producerUpgrades
+      ? Object.fromEntries(Object.entries(data.producerUpgrades).map(([k, v]) => [k, [...(v as string[])]]))
+      : {}
+    this.departments = data.departments
+      ? { ...createDepartmentState(), ...(data.departments as Record<DepartmentId, number>) }
+      : createDepartmentState()
+    this.departmentTasksClaimed = Array.isArray(data.departmentTasksClaimed) ? [...data.departmentTasksClaimed] : []
     if (Array.isArray(data.netWorthHistory)) {
       this.netWorthHistory = data.netWorthHistory.slice(-60)
     }
-    if (data.producerLevels) {
-      this.producerLevels = { ...data.producerLevels }
-    }
-    if (data.producerUpgrades) {
-      this.producerUpgrades = Object.fromEntries(
-        Object.entries(data.producerUpgrades).map(([k, v]) => [k, [...(v as string[])]]),
-      )
-    }
-    if (data.departments) {
-      this.departments = { ...createDepartmentState(), ...data.departments }
-    }
-    if (Array.isArray(data.departmentTasksClaimed)) {
-      this.departmentTasksClaimed = [...data.departmentTasksClaimed]
+    if (data.travel) {
+      this.travel = { ...createTravelState(), ...data.travel }
     }
     this.difficulty = (['easy', 'normal', 'hard'] as const).includes(data.difficulty as 'easy' | 'normal' | 'hard')
       ? (data.difficulty as 'easy' | 'normal' | 'hard')
@@ -6462,10 +6681,12 @@ export class GameState {
     this.prestigeShopPurchased = data.prestigeShopPurchased ?? []
     this.lastSaveTime = data.lastSaveTime
     this.isNight = isGameNight(this.gameTimeMs)
+    this.dailyPlan = sanitizeDailyPlanState(data.dailyPlan ?? null)
     this.ensureDailyGoal()
     this.ensureMissions()
     this.ensureWeekly()
     this.ensureSeason()
+    this.ensureDailyPlan()
   }
 }
 

@@ -29,6 +29,19 @@ export type LifeEventId =
   | 'mentor_call'
   | 'stock_market_crash'
   | 'city_expansion_offer'
+  | 'street_lawsuit'
+  | 'gambling_night'
+
+export interface ChoiceRiskOutcome {
+  /** 0-1 probability that the positive (win) outcome fires. */
+  winChance: number
+  winMoneyDelta: number
+  winReputationDelta: number
+  winHeadline: string
+  lossMoneyDelta: number
+  lossReputationDelta: number
+  lossHeadline: string
+}
 
 export interface LifeEventChoice {
   id: string
@@ -40,6 +53,8 @@ export interface LifeEventChoice {
   healthDelta?: number
   consequenceId?: string
   consequenceDelayDays?: number
+  /** 2nd-layer dice roll resolved immediately after choice effects. */
+  riskOutcome?: ChoiceRiskOutcome
 }
 
 export interface LifeEventDef {
@@ -280,6 +295,11 @@ export const LIFE_EVENTS: LifeEventDef[] = [
         moneyDelta: -8_000,
         reputationDelta: -5,
         stressDelta: 8,
+        riskOutcome: {
+          winChance: 0.70,
+          winMoneyDelta: 0, winReputationDelta: 0, winHeadline: '🤫 Torpil tuttu — kayıt silindirildi',
+          lossMoneyDelta: -20_000, lossReputationDelta: -15, lossHeadline: '🚔 Torpil işe yaramadı — ek ceza kesildi!',
+        },
       },
     ],
   },
@@ -392,6 +412,11 @@ export const LIFE_EVENTS: LifeEventDef[] = [
         moneyDelta: -100_000,
         reputationDelta: 10,
         stressDelta: 10,
+        riskOutcome: {
+          winChance: 0.55,
+          winMoneyDelta: 300_000, winReputationDelta: 10, winHeadline: '📈 Pazar savaşı kazanıldı — pazar payı arttı!',
+          lossMoneyDelta: -200_000, lossReputationDelta: -5, lossHeadline: '📉 Rakip direndi — fiyat savaşı kayıpla bitti',
+        },
       },
     ],
   },
@@ -467,6 +492,11 @@ export const LIFE_EVENTS: LifeEventDef[] = [
         moneyDelta: -200_000,
         reputationDelta: -15,
         stressDelta: 20,
+        riskOutcome: {
+          winChance: 0.65,
+          winMoneyDelta: 0, winReputationDelta: 0, winHeadline: '🤝 Rüşvet kabul edildi — dosya kapandı',
+          lossMoneyDelta: -150_000, lossReputationDelta: -20, lossHeadline: '🚨 Rüşvet deşifre oldu — skandal büyüdü!',
+        },
       },
       {
         id: 'legal_route',
@@ -735,6 +765,11 @@ export const LIFE_EVENTS: LifeEventDef[] = [
         moneyDelta: 0,
         reputationDelta: 20,
         stressDelta: 15,
+        riskOutcome: {
+          winChance: 0.70,
+          winMoneyDelta: 0, winReputationDelta: 15, winHeadline: '🛡️ Savunma başarılı — holding geri çekildi',
+          lossMoneyDelta: -500_000, lossReputationDelta: -10, lossHeadline: '⚠️ Holding baskı uyguladı — hukuki masraf arttı',
+        },
       },
     ],
   },
@@ -790,6 +825,11 @@ export const LIFE_EVENTS: LifeEventDef[] = [
         moneyDelta: -300_000,
         reputationDelta: 5,
         stressDelta: -5,
+        riskOutcome: {
+          winChance: 0.60,
+          winMoneyDelta: 0, winReputationDelta: 8, winHeadline: '💑 Hediye işe yaradı — ilişki güçlendi',
+          lossMoneyDelta: 0, lossReputationDelta: -5, lossHeadline: '💔 Hediye yetmedi — eş hâlâ mutsuz',
+        },
       },
     ],
   },
@@ -905,6 +945,70 @@ export const LIFE_EVENTS: LifeEventDef[] = [
         moneyDelta: 0,
         reputationDelta: 5,
         stressDelta: 0,
+      },
+    ],
+  },
+  {
+    id: 'street_lawsuit',
+    title: 'Anlık Dava Tehdidi',
+    description: 'Bir iş ortağın geçmiş anlaşmazlık nedeniyle dava açmakla tehdit ediyor. Uzlaşır mısın?',
+    emoji: '⚖️',
+    minTotalEarned: 2_000_000,
+    cooldownDays: 90,
+    choices: [
+      {
+        id: 'settle_lawsuit',
+        label: 'Uzlaş — ₺250K',
+        emoji: '🤝',
+        moneyDelta: -250_000,
+        reputationDelta: -5,
+        stressDelta: 10,
+        riskOutcome: {
+          winChance: 0.80,
+          winMoneyDelta: 0, winReputationDelta: 5, winHeadline: '✅ Uzlaşma kabul edildi — dava kapandı',
+          lossMoneyDelta: -100_000, lossReputationDelta: -10, lossHeadline: '⚖️ Uzlaşma reddedildi — dava devam ediyor',
+        },
+      },
+      {
+        id: 'fight_lawsuit',
+        label: 'Avukat tut — mahkemeye git',
+        emoji: '⚖️',
+        moneyDelta: -120_000,
+        reputationDelta: 0,
+        stressDelta: 30,
+        consequenceId: 'lawsuit_verdict',
+        consequenceDelayDays: 45,
+      },
+    ],
+  },
+  {
+    id: 'gambling_night',
+    title: 'Kumar Gecesi',
+    description: 'İş ortakların seni özel bir casino gecesine davet etti. Yüksek riskli ama kazanç büyük olabilir.',
+    emoji: '🎰',
+    minTotalEarned: 500_000,
+    cooldownDays: 120,
+    choices: [
+      {
+        id: 'go_all_in',
+        label: 'Her şeyi masaya koy — ₺500K',
+        emoji: '🎲',
+        moneyDelta: -500_000,
+        reputationDelta: -5,
+        stressDelta: 20,
+        riskOutcome: {
+          winChance: 0.40,
+          winMoneyDelta: 1_500_000, winReputationDelta: 10, winHeadline: '🎉 Büyük kazanç! Masa senindi',
+          lossMoneyDelta: 0, lossReputationDelta: -10, lossHeadline: '😞 Kumar gecesi çok pahalıya patladı',
+        },
+      },
+      {
+        id: 'skip_gambling',
+        label: 'Katılma — riski alma',
+        emoji: '🙅',
+        moneyDelta: 0,
+        reputationDelta: 3,
+        stressDelta: -5,
       },
     ],
   },

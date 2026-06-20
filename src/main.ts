@@ -10,8 +10,10 @@ import { scheduleDailyReminder, registerServiceWorker } from './notifications/No
 import { applyDocumentTheme } from './utils/themeApply'
 import { applyCountry } from './game/Countries'
 import { OnboardingOverlay } from './ui/components/OnboardingOverlay'
+import { applyProfileToState } from './game/CharacterProfile'
 import { i18n } from './i18n'
 import { installGlobalCrashHandlers, reportCrash } from './utils/crashReport'
+import { installRefTestLauncher } from './ui/ref/RefTestLauncher'
 
 installGlobalCrashHandlers()
 
@@ -66,12 +68,18 @@ async function bootstrap(): Promise<void> {
 
     const hud = new HUD(state, ads, sound, saveManager, app)
 
+    // İzole görsel test modu: yeni arayüz (RefApp). Adapter GameState'i SALT
+    // OKUR (yazmaz/aksiyon tetiklemez); veri yoksa mock fallback kullanır.
+    installRefTestLauncher(state)
+
     const setupDone = localStorage.getItem('baron_setup_done') === '1'
     if (!saveLoaded && !setupDone) {
-      const onboarding = new OnboardingOverlay((country, character) => {
+      const onboarding = new OnboardingOverlay((country, profile) => {
         state.country = country
         applyCountry(country)
-        state.applyCharacterCreation(character)
+        // Birleşik karakter modeli: profil saklanır + TEK noktadan uygulanır
+        state.setCharacterProfile(profile)
+        applyProfileToState(profile, state)
         localStorage.setItem('baron_setup_done', '1')
         saveManager.save(state)
         // Düzeltme 1: Onboarding bitince zamanı KESİN başlat (tutorial'a bağlı kalma)
