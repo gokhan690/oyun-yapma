@@ -1,4 +1,5 @@
 import { sectionTitle, ua, fmtMoney, demoBanner, refToast } from './refShared'
+import { i18n } from '../../i18n'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import { RefSubTabs } from './RefSubTabs'
 import type { RefPage } from './RefApp'
@@ -78,7 +79,7 @@ function deptLevelsFromState(s: GameState): Dept[] {
  */
 export class RefEmpirePage implements RefPage {
   readonly el: HTMLElement
-  readonly title = 'İMPARATORLUK'
+  readonly title = i18n.t('ref_empire_title')
   private state?: GameState
   private tabs: RefSubTabs
   private lastManageSig = ''

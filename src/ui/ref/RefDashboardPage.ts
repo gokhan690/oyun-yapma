@@ -2,6 +2,7 @@ import { RefKpiStrip, type KpiItem } from './RefKpiStrip'
 import { sectionTitle, ua, areaChartSvg, donutSvg, fmtMoney } from './refShared'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import { reputationLabel } from '../../game/Reputation'
+import { i18n } from '../../i18n'
 import type { RefDashboardVM } from './refAppDataAdapter'
 import type { RefPage } from './RefApp'
 import type { RefNavTab } from './RefBottomNav'
@@ -63,7 +64,7 @@ const FEED = [
 
 export class RefDashboardPage implements RefPage {
   readonly el: HTMLElement
-  readonly title = 'ANA PANEL'
+  readonly title = i18n.t('ref_dash_title')
 
   onOpenAchievements?: () => void
   onNavigate?: (tab: RefNavTab) => void

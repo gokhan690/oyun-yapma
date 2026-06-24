@@ -1,6 +1,7 @@
 import { RefKpiStrip, type KpiItem } from './RefKpiStrip'
 import { RefSubTabs } from './RefSubTabs'
 import { sectionTitle, fmtMoney, gaugeSvg, demoBanner, refToast } from './refShared'
+import { i18n } from '../../i18n'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
 import { portfolioValue, type StockTicker } from '../../game/StockMarket'
@@ -36,7 +37,7 @@ function spark(up: boolean): string {
 
 export class RefMarketPage implements RefPage {
   readonly el: HTMLElement
-  readonly title = 'PİYASA'
+  readonly title = i18n.t('ref_market_title')
 
   private state?: GameState
   private kpiStrip?: RefKpiStrip
@@ -70,9 +71,9 @@ export class RefMarketPage implements RefPage {
     this.el.appendChild(this.kpiStrip.el)
 
     this.tabs = new RefSubTabs([
-      { id: 'stocks', label: 'Borsa',         icon: '📈' },
-      { id: 'bank',   label: 'Banka',         icon: '🏦' },
-      { id: 'ins',    label: 'Sigorta & IPO', icon: '🛡️' },
+      { id: 'stocks', label: i18n.t('ref_market_tab_stocks'),    icon: '📈' },
+      { id: 'bank',   label: i18n.t('ref_market_tab_bank'),      icon: '🏦' },
+      { id: 'ins',    label: i18n.t('ref_market_tab_insurance'), icon: '🛡️' },
     ])
     this.el.appendChild(this.tabs.tabsEl)
     const secStocks = this.tabs.section('stocks')

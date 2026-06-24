@@ -1,4 +1,5 @@
 import { sectionTitle, fmtMoney, refToast } from './refShared'
+import { i18n } from '../../i18n'
 import { RefSubTabs } from './RefSubTabs'
 import type { RefCareerVM } from './refAppDataAdapter'
 import type { RefPage } from './RefApp'
@@ -42,7 +43,7 @@ const MOCK_CAREER: RefCareerVM = {
 
 export class RefCareerPage implements RefPage {
   readonly el: HTMLElement
-  readonly title = 'KARİYER'
+  readonly title = i18n.t('ref_career_title')
 
   private tabs: RefSubTabs
   private jobCard!: HTMLElement

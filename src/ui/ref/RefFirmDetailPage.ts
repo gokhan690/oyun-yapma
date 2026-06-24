@@ -3,6 +3,7 @@ import { type FirmData, firmHeroSrc } from './RefCard'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import { assetUrl } from '../../utils/assetUrl'
 import { areaChartSvg, gaugeSvg, donutSvg, refToast } from './refShared'
+import { i18n } from '../../i18n'
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, type ProducerDef } from '../../game/Economy'
 import { FIRM_MAX_LEVEL, firmLevelIncomeMult, isFirmMaxLevel } from '../../game/FirmLevels'
@@ -190,7 +191,7 @@ export class RefFirmDetailPage {
 
         <!-- Net daily strip (GERÇEK gelir - tahmini gider) -->
         <div class="ref-detail-net">
-          <span class="ref-detail-net__lbl">Net Günlük</span>
+          <span class="ref-detail-net__lbl">${i18n.t('ref_detail_net_daily')}</span>
           <span class="ref-detail-net__val">${fmtMoney(net)}</span>
           <span class="ref-detail-net__growth">▲ ${f.growth.toFixed(1)}%</span>
         </div>
@@ -198,11 +199,11 @@ export class RefFirmDetailPage {
         <!-- Stats grid -->
         <div class="ref-detail-stats">
           <div class="ref-detail-stat">
-            <span class="ref-stat-lbl">Günlük Gelir</span>
+            <span class="ref-stat-lbl">${i18n.t('ref_detail_daily_income')}</span>
             <span class="ref-stat-val income">${fmtMoney(f.income)}</span>
           </div>
           <div class="ref-detail-stat">
-            <span class="ref-stat-lbl">Günlük Gider <span class="ref-est-tag">tahmini</span></span>
+            <span class="ref-stat-lbl">${i18n.t('ref_detail_daily_expense')} <span class="ref-est-tag">tahmini</span></span>
             <span class="ref-stat-val expense">${fmtMoney(f.expense)}</span>
           </div>
           <div class="ref-detail-stat">
@@ -357,7 +358,7 @@ export class RefFirmDetailPage {
         <div class="ref-detail-ib-row"><span>Şube / Temel Potansiyel (${owned}×)</span><b>${fmtMoney(baseIncome)}</b></div>
         <div class="ref-detail-ib-row"><span>Level Çarpanı (Lv.${lv})</span><b>×${lvMult.toFixed(2)}</b></div>
         ${managerHired ? `<div class="ref-detail-ib-row"><span>Yönetici Bonusu</span><b>✓</b></div>` : ''}
-        <div class="ref-detail-ib-row ref-detail-ib-row--total"><span>Gerçek Günlük Katkı</span><b>${fmtMoney(actualIncome)}</b></div>
+        <div class="ref-detail-ib-row ref-detail-ib-row--total"><span>${i18n.t('ref_detail_true_daily')}</span><b>${fmtMoney(actualIncome)}</b></div>
       </div>` : ''
 
     return `

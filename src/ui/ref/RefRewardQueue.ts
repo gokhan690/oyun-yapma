@@ -1,6 +1,7 @@
 import type { GameState } from '../../game/GameState'
 import type { AdManager, RewardedAdType } from '../../ads/AdManager'
 import { fmtMoney, refToast } from './refShared'
+import { i18n } from '../../i18n'
 
 /**
  * RefApp reward kuyruğu — legacy HUD'un offline/comeback/daily/bankruptcy claim
@@ -95,44 +96,44 @@ export class RefRewardQueue {
     switch (id) {
       case 'offline':
         return {
-          id, emoji: '💰', title: 'Birikmiş Kazanç',
+          id, emoji: '💰', title: i18n.t('ref_reward_offline_title'),
           amount: s.pendingOfflineEarnings,
-          desc: 'Sen yokken işletmelerin çalışmaya devam etti.',
-          primaryLabel: '📺 Reklam İzle & Topla',
+          desc: i18n.t('ref_reward_offline_desc'),
+          primaryLabel: i18n.t('ref_reward_offline_btn'),
           ad: 'offline_bonus',
           claim: () => s.claimOfflineViaAd(1),
         }
       case 'comeback':
         return {
-          id, emoji: '🎁', title: 'Seni Özledik, Baron!',
+          id, emoji: '🎁', title: i18n.t('ref_reward_comeback_title'),
           amount: s.comebackPending,
-          desc: 'Geri dönüş bonusun hazır.',
-          primaryLabel: '📺 İzle & Al',
+          desc: i18n.t('ref_reward_comeback_desc'),
+          primaryLabel: i18n.t('ref_reward_comeback_btn'),
           ad: 'offline_bonus',
           claim: () => s.claimComebackViaAd(1),
         }
       case 'daily': {
         const warn = s.peekDailyStreakReset()
-          ? 'Seri sıfırlandı — bugünden yeniden başlıyor.'
+          ? i18n.t('ref_reward_daily_streak_reset')
           : undefined
         return {
-          id, emoji: '🗓️', title: 'Günlük Giriş Ödülü',
+          id, emoji: '🗓️', title: i18n.t('ref_reward_daily_title'),
           amount: s.dailyLoginRewardPreview(),
-          desc: 'Her gün giriş yap, serini büyüt.',
+          desc: i18n.t('ref_reward_daily_desc'),
           warn,
-          primaryLabel: '🎁 Topla',
+          primaryLabel: i18n.t('ref_reward_daily_btn'),
           claim: () => s.claimDailyReward(),
         }
       }
       case 'bankruptcy':
         return {
-          id, emoji: '⚠️', title: 'İflas Kurtarma',
+          id, emoji: '⚠️', title: i18n.t('ref_reward_bankruptcy_title'),
           amount: s.bankruptcyRecoveryPreview(1),
-          desc: 'Kaybettiğin varlıkların bir kısmını geri alabilirsin.',
-          primaryLabel: '📺 İzle & Kurtar',
+          desc: i18n.t('ref_reward_bankruptcy_desc'),
+          primaryLabel: i18n.t('ref_reward_bankruptcy_btn'),
           ad: 'bankruptcy_recovery',
           claim: () => s.claimBankruptcyRecovery(1),
-          discard: { label: 'Vazgeç', run: () => s.discardBankruptcyRecovery() },
+          discard: { label: i18n.t('ref_reward_discard'), run: () => s.discardBankruptcyRecovery() },
         }
     }
   }
@@ -142,7 +143,7 @@ export class RefRewardQueue {
     overlay.className = 'ref-reward-overlay'
     overlay.innerHTML = `
       <div class="ref-reward-card" role="dialog" aria-modal="true">
-        <button class="ref-reward-close" type="button" aria-label="Kapat">✕</button>
+        <button class="ref-reward-close" type="button" aria-label="${i18n.t('ref_reward_close')}">✕</button>
         <div class="ref-reward-emoji">${spec.emoji}</div>
         <h2 class="ref-reward-title">${spec.title}</h2>
         <div class="ref-reward-amount">${fmtMoney(spec.amount)}</div>
@@ -182,12 +183,12 @@ export class RefRewardQueue {
     btn.disabled = true
 
     if (spec.ad) {
-      btn.textContent = 'Reklam yükleniyor…'
+      btn.textContent = i18n.t('ref_reward_ad_loading')
       const res = await this.ads.showRewarded(spec.ad)
       if (this.destroyed) return
       if (!res.success) {
         // Sahte başarı üretme — reklam tamamlanmadıysa para verme.
-        refToast(res.reason ?? 'Reklam tamamlanmadı', 'err')
+        refToast(res.reason ?? i18n.t('ref_reward_ad_failed'), 'err')
         this.busy = false
         btn.disabled = false
         btn.textContent = restore
@@ -201,7 +202,7 @@ export class RefRewardQueue {
       this.onClaimed()
     } else {
       // Guard: zaten alınmış (çift claim) — para uygulanmaz.
-      refToast('Ödül zaten alınmış', 'err')
+      refToast(i18n.t('ref_reward_already_claimed'), 'err')
     }
     this.busy = false
     this.close()

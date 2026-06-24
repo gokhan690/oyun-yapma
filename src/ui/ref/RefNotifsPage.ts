@@ -1,4 +1,5 @@
 import { backRow, sectionTitle, demoBanner } from './refShared'
+import { i18n } from '../../i18n'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
 import type { GazetteCategory } from '../../game/BaronGazette'
@@ -15,7 +16,7 @@ const CATEGORY_EMOJI: Record<GazetteCategory, string> = {
 /** BİLDİRİMLER — gazette akışı, salt okunur (son ~50 girdi, yeniden eskiye). */
 export class RefNotifsPage implements RefPage {
   readonly el: HTMLElement
-  readonly title = 'BİLDİRİMLER'
+  readonly title = i18n.t('ref_notifs_title')
   readonly titleDeco = '🔔'
 
   onBack?: () => void
@@ -49,12 +50,12 @@ export class RefNotifsPage implements RefPage {
   private render(): void {
     const s = this.state
     if (!s) {
-      this.listEl.innerHTML = '<div class="ref-notif-empty">Henüz bildirim yok.</div>'
+      this.listEl.innerHTML = `<div class="ref-notif-empty">${i18n.t('ref_notifs_empty')}</div>`
       return
     }
     const entries = s.gazetteEntries.slice(-50).reverse()
     if (!entries.length) {
-      this.listEl.innerHTML = '<div class="ref-notif-empty">Henüz bildirim yok — oyun ilerledikçe manşetler burada birikir.</div>'
+      this.listEl.innerHTML = `<div class="ref-notif-empty">${i18n.t('ref_notifs_empty')}</div>`
       return
     }
     this.listEl.innerHTML = entries.map(e => `

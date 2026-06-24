@@ -1,4 +1,5 @@
 import { assetUrl } from '../../utils/assetUrl'
+import { i18n } from '../../i18n'
 
 export interface HeaderData {
   name: string
@@ -46,12 +47,12 @@ export class RefHeader {
           ${data.onProfile ? '<span class="ref-header__profile-chevron">›</span>' : ''}
         </div>
         <div class="ref-header__actions">
-          <button class="ref-hdr-btn" data-hdr="ach" title="Başarımlar">🏆</button>
-          <button class="ref-hdr-btn" data-hdr="notifs" title="Bildirimler">
+          <button class="ref-hdr-btn" data-hdr="ach" title="${i18n.t('ref_achievements_title')}">🏆</button>
+          <button class="ref-hdr-btn" data-hdr="notifs" title="${i18n.t('ref_header_notifs')}">
             🔔
             ${(data.notifCount ?? 0) > 0 ? '<span class="ref-hdr-btn__dot"></span>' : ''}
           </button>
-          ${data.onClose ? '<button class="ref-hdr-close" title="Test modundan çık" aria-label="Kapat">✕</button>' : ''}
+          ${data.onClose ? `<button class="ref-hdr-close" title="Test modundan çık" aria-label="${i18n.t('ref_reward_close')}">✕</button>` : ''}
         </div>
       </div>
     `

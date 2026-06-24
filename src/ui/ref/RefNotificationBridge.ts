@@ -3,6 +3,7 @@ import { crisisDef } from '../../game/CrisisEvents'
 import { LIFE_EVENTS } from '../../game/LifeEvents'
 import type { LifeEventChoice } from '../../game/LifeEvents'
 import { fmtMoney, refToast } from './refShared'
+import { i18n } from '../../i18n'
 
 /**
  * RefApp bildirim köprüsü — legacy HUD'un pasif toast bildirimlerini VE bloklayan
@@ -301,7 +302,7 @@ export class RefNotificationBridge {
     overlay.className = 'ref-decision-overlay'
     overlay.innerHTML = `
       <div class="ref-decision-card" role="dialog" aria-modal="true">
-        ${spec.dismissable ? '<button class="ref-decision-close" type="button" aria-label="Kapat">✕</button>' : ''}
+        ${spec.dismissable ? `<button class="ref-decision-close" type="button" aria-label="${i18n.t('ref_decision_close')}">✕</button>` : ''}
         <div class="ref-decision-emoji">${spec.emoji}</div>
         <h2 class="ref-decision-title">${spec.title}</h2>
         <p class="ref-decision-body">${spec.body}</p>

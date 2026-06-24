@@ -1,4 +1,5 @@
 import { ua, ringSvg, demoBanner, fmtMoney } from './refShared'
+import { i18n } from '../../i18n'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
@@ -12,7 +13,7 @@ type TabKey = 'gorevler' | 'hedefler' | 'basarilar' | 'rozetler'
 const TABS: { id: TabKey; label: string }[] = [
   { id: 'gorevler',  label: 'Görevler' },
   { id: 'hedefler',  label: 'Hedefler' },
-  { id: 'basarilar', label: 'Başarılar' },
+  { id: 'basarilar', label: i18n.t('ref_achievements_tab') },
   { id: 'rozetler',  label: 'Rozetler' },
 ]
 
@@ -85,7 +86,7 @@ function mockRowHtml(t: MockRow): string {
 
 export class RefAchievementsPage implements RefPage {
   readonly el: HTMLElement
-  readonly title = 'BAŞARILAR'
+  readonly title = i18n.t('ref_achievements_title')
 
   onBack?: () => void
 

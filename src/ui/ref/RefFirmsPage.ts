@@ -1,6 +1,7 @@
 import { RefKpiStrip, type KpiItem }  from './RefKpiStrip'
 import { RefCard, type FirmData } from './RefCard'
 import { fmtMoney, refToast } from './refShared'
+import { i18n } from '../../i18n'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, isProducerUnlocked, type ProducerDef } from '../../game/Economy'
@@ -72,7 +73,7 @@ type MainTab = 'normal' | 'empire'
 
 export class RefFirmsPage implements RefPage {
   readonly el: HTMLElement
-  readonly title = 'FİRMALAR'
+  readonly title = i18n.t('ref_firms_title')
 
   onOpenFirm?: (firm: FirmData, live?: { state: GameState; producerId: string; rebuild?: () => FirmData }) => void
 
@@ -164,8 +165,8 @@ export class RefFirmsPage implements RefPage {
     const wrap = document.createElement('div')
     wrap.className = 'ref-main-tabs'
     const tabs: { id: MainTab; label: string; icon: string }[] = [
-      { id: 'normal', label: 'Normal Firmalar', icon: '🏪' },
-      { id: 'empire', label: 'İmparatorluk Yatırımları', icon: '👑' },
+      { id: 'normal', label: i18n.t('ref_firms_tab_normal'), icon: '🏪' },
+      { id: 'empire', label: i18n.t('ref_firms_tab_empire'), icon: '👑' },
     ]
     for (const tab of tabs) {
       const btn = document.createElement('button')

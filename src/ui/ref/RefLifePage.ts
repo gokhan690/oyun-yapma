@@ -1,4 +1,5 @@
 import { sectionTitle, ua, starsHtml, demoBanner, fmtMoney, refToast } from './refShared'
+import { i18n } from '../../i18n'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import { RefSubTabs } from './RefSubTabs'
 import { RefKpiStrip, type KpiItem } from './RefKpiStrip'
@@ -35,7 +36,7 @@ const TRAIT_LABELS: Record<string, string> = {
  */
 export class RefLifePage implements RefPage {
   readonly el: HTMLElement
-  readonly title = 'AİLE'
+  readonly title = i18n.t('ref_life_title')
   readonly titleDeco = '👨‍👩‍👧'
 
   private state?: GameState
@@ -585,7 +586,7 @@ export class RefLifePage implements RefPage {
           <span class="ref-sibling-emoji">${sib.relation === 'brother' ? '👦' : '👧'}</span>
           <div class="ref-sibling-main">
             <div class="ref-sibling-name">${sib.name}</div>
-            <div class="ref-sibling-meta">${sib.age} yaş · İlişki ${sib.relationshipScore}%</div>
+            <div class="ref-sibling-meta">${sib.age} ${i18n.t('ref_age_suffix')} · İlişki ${sib.relationshipScore}%</div>
             ${relBar}
           </div>
           ${sib.isAlive ? `<button class="ref-sibling-visit-btn" type="button" data-action="visit_sibling:${sib.id}">Ziyaret · ${fmtMoney(VISIT_SIBLING_COST)}</button>` : ''}
