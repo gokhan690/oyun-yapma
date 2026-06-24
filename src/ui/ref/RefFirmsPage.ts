@@ -74,7 +74,7 @@ export class RefFirmsPage implements RefPage {
   readonly el: HTMLElement
   readonly title = 'FİRMALAR'
 
-  onOpenFirm?: (firm: FirmData, live?: { state: GameState; producerId: string }) => void
+  onOpenFirm?: (firm: FirmData, live?: { state: GameState; producerId: string; rebuild?: () => FirmData }) => void
 
   private activeCategory: CategoryKey = 'tumu'
   private cardEls = new Map<string, RefCard>()
@@ -425,7 +425,11 @@ export class RefFirmsPage implements RefPage {
         head.addEventListener('click', () => {
           const s2 = this.state
           if (!s2) return
-          this.onOpenFirm?.(this.producerToFirmData(def, s2), { state: s2, producerId: def.id })
+          this.onOpenFirm?.(this.producerToFirmData(def, s2), {
+            state: s2,
+            producerId: def.id,
+            rebuild: () => this.producerToFirmData(def, s2),
+          })
         })
       }
     }

@@ -644,6 +644,7 @@ function applyV9Defaults(state: SerializableState): SerializableState {
     producerModernized: state.producerModernized ?? {},
     pendingUndo: state.pendingUndo ?? null,
     lastDisasterGameDay: state.lastDisasterGameDay ?? 0,
+    pendingDecisions: state.pendingDecisions ?? [],
   }
 }
 

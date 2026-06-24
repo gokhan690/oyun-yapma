@@ -5,7 +5,6 @@ import { GameState } from './game/GameState'
 import { SaveManager } from './security/SaveManager'
 import { AdManager } from './ads/AdManager'
 import { SoundManager } from './audio/SoundManager'
-import { HUD } from './ui/HUD'
 import { scheduleDailyReminder, registerServiceWorker } from './notifications/NotificationManager'
 import { applyDocumentTheme } from './utils/themeApply'
 import { applyCountry } from './game/Countries'
@@ -13,7 +12,8 @@ import { OnboardingOverlay } from './ui/components/OnboardingOverlay'
 import { applyProfileToState } from './game/CharacterProfile'
 import { i18n } from './i18n'
 import { installGlobalCrashHandlers, reportCrash } from './utils/crashReport'
-import { installRefTestLauncher } from './ui/ref/RefTestLauncher'
+import { RefApp } from './ui/ref/RefApp'
+import { buildRefViewModel } from './ui/ref/refAppDataAdapter'
 
 installGlobalCrashHandlers()
 
@@ -34,6 +34,40 @@ function showBootFailure(message: string, resetSave = true): void {
     bootErr.style.display = 'block'
     bootErr.textContent = message
   }
+}
+
+/**
+ * Üretim arayüzü: integration RefApp shell'i. Canlı GameState'e bağlanır
+ * (zaman çubuğu, KPI, Bugünün Hamleleri, 6 sekmeli alt menü). onExit YOK →
+ * standalone üretim modu (kapat butonu gösterilmez, eski HUD'a dönüş yok).
+ */
+function mountProductionShell(
+  app: HTMLElement,
+  state: GameState,
+  ads: AdManager,
+  saveManager: SaveManager,
+): RefApp {
+  if (state.isIntroFlowReady() && !state.isTicking()) {
+    state.startTick()
+    state.startEventLoop()
+  }
+  let data
+  try {
+    data = buildRefViewModel(state)
+  } catch (e) {
+    console.warn('RefApp data adapter hatası, mock fallback:', e)
+  }
+  const refApp = new RefApp({
+    initial: 'home',
+    data,
+    state,
+    ads,
+    onPersist: () => saveManager.save(state),
+  })
+  document.body.style.background = 'var(--r-sky-top, #3a8fd4)'
+  app.replaceChildren()
+  refApp.mount(app)
+  return refApp
 }
 
 async function bootstrap(): Promise<void> {
@@ -66,64 +100,34 @@ async function bootstrap(): Promise<void> {
     applyDocumentTheme(state.activeTheme)
     applyCountry(state.country)
 
-    const hud = new HUD(state, ads, sound, saveManager, app)
-
-    // İzole görsel test modu: yeni arayüz (RefApp). Adapter GameState'i SALT
-    // OKUR (yazmaz/aksiyon tetiklemez); veri yoksa mock fallback kullanır.
-    installRefTestLauncher(state)
-
     const setupDone = localStorage.getItem('baron_setup_done') === '1'
     if (!saveLoaded && !setupDone) {
       const onboarding = new OnboardingOverlay((country, profile) => {
         state.country = country
         applyCountry(country)
-        // Birleşik karakter modeli: profil saklanır + TEK noktadan uygulanır
         state.setCharacterProfile(profile)
         applyProfileToState(profile, state)
         localStorage.setItem('baron_setup_done', '1')
         saveManager.save(state)
-        // Düzeltme 1: Onboarding bitince zamanı KESİN başlat (tutorial'a bağlı kalma)
         if (!state.isTicking()) {
           state.startTick()
           state.startEventLoop()
         }
-        hud.renderAll()
-        hud.startTutorial(300)
+        mountProductionShell(app, state, ads, saveManager)
+        saveManager.startAutoSave(state)
       })
       onboarding.show()
     } else {
-      hud.startTutorial()
-    }
-
-    if (saveLoaded) {
-      if (loaded.source === 'backup') {
-        window.setTimeout(() => hud.toast('Yedek kayıttan geri yüklendi ✓'), 400)
+      if (saveLoaded) {
+        state.applyOfflineEarnings(lastSaveTime)
       }
-      const pendingOffline = state.applyOfflineEarnings(lastSaveTime)
-      if (pendingOffline > 0) {
-        hud.showOfflinePopup(pendingOffline)
+      if (state.isIntroFlowReady()) {
+        state.startTick()
+        state.startEventLoop()
       }
-      if (state.hasPendingComeback()) {
-        window.setTimeout(() => hud.showComebackPopup(), 1200)
-      }
-      window.setTimeout(() => hud.showDailyRewardIfAvailable(), 900)
-      saveManager.startAutoSave(state)
-    } else {
-      window.setTimeout(() => {
-        if (saveManager.hasBackup()) {
-          hud.toast('Kayıt açılamadı — Profil → Ayarlar → “Yedekten geri yükle” dene')
-        } else {
-          hud.toast('Yeni oyun başladı')
-        }
-      }, 600)
+      mountProductionShell(app, state, ads, saveManager)
       saveManager.startAutoSave(state)
     }
-
-    if (state.isIntroFlowReady()) {
-      state.startTick()
-      state.startEventLoop()
-    }
-    hud.renderAll()
 
     document.addEventListener('click', () => sound.resume(), { once: true })
     void scheduleDailyReminder(state.notificationPrefs)

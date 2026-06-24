@@ -8714,6 +8714,20 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
 .btn-danger { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.4); border-radius: 8px; cursor: pointer; font-family: inherit; font-weight: 600; }
 .lifestyle-expense-chip { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.82rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; margin-bottom: 4px; }
 
+/* ── Onboarding colour tokens ── */
+:root {
+  --ob-sky-top: #3f98d5;
+  --ob-sky-bottom: #d9f2fb;
+  --ob-panel: rgba(255,255,255,0.96);
+  --ob-card: #f4fbfe;
+  --ob-card-border: #b8ddea;
+  --ob-title: #174766;
+  --ob-text: #173f59;
+  --ob-accent: #11b7a6;
+  --ob-accent-dark: #079889;
+  --ob-progress: #337a9c;
+}
+
 /* ── First-run onboarding (language + country) ─────────────────── */
 .onboarding-overlay {
   position: fixed;
@@ -8723,28 +8737,28 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: radial-gradient(circle at 50% 0%, #1a1407 0%, #060503 70%);
+  background: linear-gradient(180deg, var(--ob-sky-top) 0%, #76c8ec 42%, var(--ob-sky-bottom) 100%);
   overflow-y: auto;
 }
 .onboarding-card {
   width: 100%;
   max-width: 460px;
-  background: var(--surface, #14110a);
-  border: 1px solid var(--accent, #d4af37);
+  background: var(--ob-panel);
+  border: none;
   border-radius: 18px;
   padding: 26px 22px 22px;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 8px 32px rgba(23,71,102,0.14);
   text-align: center;
 }
 .onboarding-title {
   margin: 0 0 6px;
   font-size: 1.4rem;
-  color: var(--accent, #d4af37);
+  color: var(--ob-title);
 }
 .onboarding-sub {
   margin: 0 0 18px;
   font-size: 0.88rem;
-  color: var(--text-dim, #b9ad8c);
+  color: #66879a;
 }
 .onboarding-lang-grid {
   display: grid;
@@ -8758,20 +8772,22 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
   align-items: center;
   gap: 2px;
   padding: 10px 8px;
-  background: var(--surface2, #1f1a10);
-  border: 1px solid var(--border, #3a3220);
+  background: var(--ob-card);
+  border: 1.5px solid var(--ob-card-border);
   border-radius: 10px;
-  color: var(--text, #efe6cf);
+  color: var(--ob-text);
   font-family: inherit;
   cursor: pointer;
   transition: border-color 0.15s, transform 0.1s;
 }
 .onboarding-lang-btn.active {
-  border-color: var(--accent, #d4af37);
-  box-shadow: 0 0 0 1px var(--accent, #d4af37) inset;
+  border-width: 2px;
+  border-color: var(--ob-accent);
+  background: linear-gradient(180deg, #dff8f4 0%, #c9f1eb 100%);
+  box-shadow: 0 4px 12px rgba(17,183,166,0.18);
 }
 .ob-lang-native { font-size: 0.95rem; font-weight: 600; }
-.ob-lang-label { font-size: 0.7rem; color: var(--text-dim, #b9ad8c); }
+.ob-lang-label { font-size: 0.7rem; color: #66879a; }
 .onboarding-country-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -8779,38 +8795,51 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
   margin-bottom: 18px;
 }
 .onboarding-country-btn {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 3px;
   padding: 12px 8px;
-  background: var(--surface2, #1f1a10);
-  border: 1px solid var(--border, #3a3220);
+  background: var(--ob-card);
+  border: 1.5px solid var(--ob-card-border);
   border-radius: 10px;
-  color: var(--text, #efe6cf);
+  color: var(--ob-text);
   font-family: inherit;
   cursor: pointer;
   transition: border-color 0.15s, transform 0.1s;
 }
 .onboarding-country-btn.active {
-  border-color: var(--accent, #d4af37);
-  box-shadow: 0 0 0 1px var(--accent, #d4af37) inset;
+  border-width: 2px;
+  border-color: var(--ob-accent);
+  background: linear-gradient(180deg, #dff8f4 0%, #c9f1eb 100%);
+  box-shadow: 0 4px 12px rgba(17,183,166,0.18);
+}
+.onboarding-country-btn.active::after {
+  content: '✓';
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  color: var(--ob-accent-dark);
+  font-size: 11px;
+  font-weight: 700;
 }
 .ob-flag { font-size: 1.6rem; line-height: 1; }
 .ob-country-name { font-size: 0.86rem; font-weight: 600; }
-.ob-country-capital { font-size: 0.72rem; color: var(--text-dim, #b9ad8c); }
+.ob-country-capital { font-size: 0.72rem; color: #66879a; }
 .onboarding-next-btn,
 .onboarding-start-btn {
   width: 100%;
   padding: 13px;
-  background: var(--accent, #d4af37);
-  color: #1a1407;
+  background: linear-gradient(180deg, #22c7ba 0%, #09a99d 100%);
+  color: #fff;
   border: none;
   border-radius: 12px;
   font-size: 1rem;
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
+  box-shadow: 0 5px 0 #087f78, 0 9px 18px rgba(8,127,120,0.20);
 }
 .onboarding-next-btn { font-size: 1.3rem; }
 
@@ -9205,33 +9234,38 @@ html.theme-light .lifestyle-qty-btn.qty-active { background: rgba(37,99,235,0.1)
 /* ====================== ONBOARDING GENİŞLETİLMİŞ ====================== */
 .onboarding-card-wide { max-width: 520px; width: 96vw; }
 .ob-section { margin-bottom: 16px; }
-.ob-label { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; display: block; }
-.ob-name-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface2); color: var(--text); font-size: 16px; outline: none; }
-.ob-name-input:focus { border-color: var(--accent); }
+.ob-label { font-size: 13px; font-weight: 600; color: #66879a; margin-bottom: 6px; display: block; }
+.ob-name-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--ob-card-border); border-radius: 10px; background: var(--ob-card); color: var(--ob-text); font-size: 16px; outline: none; }
+.ob-name-input:focus { border-color: var(--ob-accent); }
 .ob-gender-row { display: flex; gap: 10px; }
-.ob-gender-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 8px; border: 2px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
-.ob-gender-btn.active { border-color: var(--accent); background: rgba(201,127,0,0.08); }
+.ob-gender-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 8px; border: 2px solid var(--ob-card-border); border-radius: 12px; background: var(--ob-card); color: var(--ob-text); font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.ob-gender-btn.active { border-color: var(--ob-accent); background: linear-gradient(180deg, #dff8f4 0%, #c9f1eb 100%); box-shadow: 0 4px 12px rgba(17,183,166,0.18); }
 .ob-background-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; max-height: 60vh; overflow-y: auto; }
-.ob-background-btn { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; padding: 10px 12px; border: 2px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--text); cursor: pointer; transition: all 0.15s; }
-.ob-background-btn.active { border-color: var(--accent); background: rgba(201,127,0,0.1); }
+.ob-background-btn { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; padding: 10px 12px; border: 1.5px solid var(--ob-card-border); border-radius: 12px; background: var(--ob-card); color: var(--ob-text); cursor: pointer; transition: all 0.15s; }
+.ob-background-btn.active { border-width: 2px; border-color: var(--ob-accent); background: linear-gradient(180deg, #dff8f4 0%, #c9f1eb 100%); box-shadow: 0 4px 12px rgba(17,183,166,0.18); }
 .ob-bg-emoji { font-size: 24px; }
 .ob-bg-name { font-size: 13px; font-weight: 700; }
-.ob-bg-bonus { font-size: 11px; font-weight: 600; color: var(--green); }
-.ob-bg-desc { font-size: 10px; color: var(--muted); line-height: 1.3; }
+.ob-bg-bonus { font-size: 11px; font-weight: 600; color: var(--ob-accent-dark); }
+.ob-bg-desc { font-size: 10px; color: #66879a; line-height: 1.3; }
 .ob-job-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; max-height: 60vh; overflow-y: auto; }
-.ob-job-btn { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; padding: 10px 12px; border: 2px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--text); cursor: pointer; transition: all 0.15s; }
-.ob-job-btn.active { border-color: var(--accent); background: rgba(201,127,0,0.1); }
+.ob-job-btn { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; padding: 10px 12px; border: 1.5px solid var(--ob-card-border); border-radius: 12px; background: var(--ob-card); color: var(--ob-text); cursor: pointer; transition: all 0.15s; }
+.ob-job-btn.active { border-width: 2px; border-color: var(--ob-accent); background: linear-gradient(180deg, #dff8f4 0%, #c9f1eb 100%); box-shadow: 0 4px 12px rgba(17,183,166,0.18); }
 .ob-job-emoji { font-size: 24px; }
 .ob-job-name { font-size: 13px; font-weight: 700; }
-.ob-job-wage { font-size: 11px; font-weight: 600; color: var(--accent); }
-.ob-job-desc { font-size: 10px; color: var(--muted); line-height: 1.3; }
+.ob-job-wage { font-size: 11px; font-weight: 600; color: var(--ob-accent-dark); }
+.ob-job-desc { font-size: 10px; color: #66879a; line-height: 1.3; }
 .ob-difficulty-grid { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-.ob-difficulty-btn { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 2px solid var(--border); border-radius: 12px; background: var(--surface2); color: var(--text); cursor: pointer; transition: all 0.15s; text-align: left; }
-.ob-difficulty-btn.active { border-color: var(--accent); background: rgba(201,127,0,0.1); }
+.ob-difficulty-btn { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1.5px solid var(--ob-card-border); border-radius: 12px; background: var(--ob-card); color: var(--ob-text); cursor: pointer; transition: all 0.15s; text-align: left; }
+.ob-difficulty-btn.active { border-width: 2px; border-color: var(--ob-accent); background: linear-gradient(180deg, #dff8f4 0%, #c9f1eb 100%); box-shadow: 0 4px 12px rgba(17,183,166,0.18); }
 .ob-diff-emoji { font-size: 28px; flex-shrink: 0; }
 .ob-diff-name { font-size: 14px; font-weight: 700; display: block; }
-.ob-diff-desc { font-size: 12px; color: var(--muted); }
-.onboarding-back-btn { background: none; border: 1.5px solid var(--border); border-radius: 10px; color: var(--muted); padding: 8px 16px; font-size: 13px; cursor: pointer; margin-right: 8px; }
+.ob-diff-desc { font-size: 12px; color: #66879a; }
+.onboarding-back-btn { background: rgba(255,255,255,0.70); border: 1px solid #a8d3e5; border-radius: 10px; color: #376d8a; padding: 6px 14px; font-size: 12px; cursor: pointer; }
+.ob-top-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; min-height: 32px; }
+.ob-top-spacer { flex: 1; }
+.ob-progress { font-size: 12px; font-weight: 600; color: var(--ob-progress); letter-spacing: 0.5px; }
+.onboarding-character-grid { max-height: 52vh; overflow-y: auto; }
+.ob-grid--center-last > .onboarding-country-btn:last-child:nth-child(odd) { grid-column: 1 / -1; max-width: calc(50% - 4px); margin-inline: auto; }
 
 /* ====================== KARİYER PANELİ ====================== */
 .career-panel { padding: 12px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
@@ -9713,7 +9747,6 @@ html.theme-light .biz-hero-buy,
 html.theme-light .dept-upgrade-btn,
 html.theme-light .biz-levelup-btn,
 html.theme-light .career-entrepreneur-btn:not(.locked),
-html.theme-light .onboarding-start-btn,
 html.theme-light .btn-prestige,
 html.theme-light .ipo-celebration-btn {
   background: linear-gradient(180deg, #ffb352 0%, #ff8d1e 100%) !important;
@@ -9728,7 +9761,8 @@ html.theme-light .ipo-celebration-btn {
 html.theme-light .btn-secondary,
 html.theme-light .btn-sm.btn-secondary,
 html.theme-light .career-action-btn:not(.used),
-html.theme-light .onboarding-next-btn {
+html.theme-light .onboarding-next-btn,
+html.theme-light .onboarding-start-btn {
   background: linear-gradient(180deg, #2fd0c0 0%, #0fa99b 100%) !important;
   color: #fff !important;
   border: 2px solid rgba(255,255,255,0.5) !important;

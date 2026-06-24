@@ -130,7 +130,11 @@ export class RefEmpirePage implements RefPage {
   }
 
   private rivalsSig(s: GameState): string {
-    const rivals = s.rivals.map(r => `${r.id}:${Math.round(r.netWorth / 1000)}:${r.attitude}:${r.relation}`).join(',')
+    const rivals = s.rivals.map(r => {
+      const base = `${r.id}:${Math.round(r.netWorth / 1000)}:${r.attitude}:${r.relation}`
+      // For bankrupt rivals include exact canAcquire so button enables immediately when affordable
+      return r.relation === 'bankrupt' ? `${base}:${s.canAcquireBankruptRival(r.id) ? 1 : 0}` : base
+    }).join(',')
     const offer = s.pendingRivalOffer ? s.pendingRivalOffer.rivalId : '-'
     const events = s.activeRivalEvents.map(e => e.id).join(',')
     return `${rivals}|${offer}|${events}|${Math.floor(s.totalEarned / 1000)}`
@@ -216,6 +220,11 @@ export class RefEmpirePage implements RefPage {
       case 'rival_merge': {
         const ok = s.rivalMerge(id)
         refToast(ok ? '🛒 Rakip satın alındı!' : 'Satın alma başarısız', ok ? 'ok' : 'err')
+        break
+      }
+      case 'rival_acquire': {
+        const ok = s.acquireBankruptRival(id)
+        refToast(ok ? '🏦 İflas eden rakibin varlıkları alındı! İtibar +10' : 'Yetersiz bakiye', ok ? 'ok' : 'err')
         break
       }
       case 'offer_accept': {
@@ -649,7 +658,21 @@ export class RefEmpirePage implements RefPage {
             <small>${gone ? (rival.relation === 'merged' ? 'satın alındı' : 'iflas') : ahead ? '⚠️ önde' : 'geride'}</small>
           </div>
         </div>
-        ${gone ? '' : `
+        ${gone
+          ? rival.relation === 'bankrupt'
+            ? (() => {
+                const acquireCost = s.bankruptRivalAcquireCost(rival.id)
+                const canAcquire = s.canAcquireBankruptRival(rival.id)
+                return `<div class="ref-rival-card__actions">
+                  <button class="ref-world-btn sm acquire" type="button" data-action="rival_acquire:${rival.id}" ${canAcquire ? '' : 'disabled'}>
+                    ${canAcquire
+                      ? `🏦 Varlıkları Al · ${fmtMoney(acquireCost)} · İtibar +10`
+                      : `🔒 Yetersiz bakiye · ${fmtMoney(acquireCost)}`}
+                  </button>
+                </div>`
+              })()
+            : ''
+          : `
           <div class="ref-rival-relation">
             <span class="ref-rival-relation__lbl">${attitudeLabel(att)}</span>
             <div class="ref-perf-track sm"><div class="ref-perf-fill ${att >= 20 ? 'high' : att >= -20 ? 'medium' : 'low'}" style="width:${attPct}%"></div></div>

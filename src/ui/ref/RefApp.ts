@@ -16,7 +16,10 @@ import { RefNotifsPage } from './RefNotifsPage'
 import type { RefViewModel } from './refAppDataAdapter'
 import { playerVMFromState } from './refAppDataAdapter'
 import type { GameState } from '../../game/GameState'
+import type { AdManager } from '../../ads/AdManager'
 import type { DailyEvent } from '../../game/DailyPlan'
+import { RefRewardQueue } from './RefRewardQueue'
+import { RefNotificationBridge } from './RefNotificationBridge'
 
 // Tab → DailyEvent map (here so DailyPlan.ts stays UI-free)
 const DAILY_VISIT_EVENTS: Partial<Record<RefNavTab, DailyEvent>> = {
@@ -63,6 +66,10 @@ export interface RefAppOptions {
   data?: RefViewModel
   /** Canlı GameState — zaman kontrolü ve işletme satın alma için gerekli. */
   state?: GameState
+  /** Ödüllü reklam yöneticisi — reward kuyruğu (offline/comeback/bankruptcy) için. */
+  ads?: AdManager
+  /** Başarılı claim sonrası anlık kayıt (reload çift-ödeme koruması). */
+  onPersist?: () => void
 }
 
 export class RefApp {
@@ -87,6 +94,10 @@ export class RefApp {
   /** Tek GameState aboneliği (canlı para/KPI refresh) + throttle timer. */
   private unsub?: () => void
   private refreshTimer: number | null = null
+  /** Reward kuyruğu (offline/comeback/daily/bankruptcy) — canlı state + ads varsa. */
+  private rewardQueue?: RefRewardQueue
+  /** Bildirim köprüsü (toast/aktivite) — tek abonelikten beslenir. */
+  private notifBridge?: RefNotificationBridge
   private readonly handleVisibilityChange = (): void => {
     if (document.hidden || !this.gameState) return
     this.gameState.ensureDailyPlan()
@@ -148,7 +159,14 @@ export class RefApp {
     // money_changed/passive_income → throttle; purchase → anında.
     const st = this.gameState
     if (st) {
+      // Bildirim köprüsü — tek abonelik içinden beslenir (ayrı listener AÇMAZ).
+      const onPersistNotif = opts.onPersist
+      this.notifBridge = new RefNotificationBridge(st, () => {
+        this.refreshActive(st)
+        onPersistNotif?.()
+      })
       this.unsub = st.subscribe((ev) => {
+        this.notifBridge?.handle(ev)
         if (ev.type === 'purchase') this.refreshActive(st)
         else if (ev.type === 'health_changed' || ev.type === 'fame_changed') this.refreshActive(st)
         else if (ev.type === 'money_changed' || ev.type === 'passive_income') this.scheduleRefresh(st)
@@ -160,6 +178,25 @@ export class RefApp {
         }
       })
       document.addEventListener('visibilitychange', this.handleVisibilityChange)
+    }
+
+    // ── Reward kuyruğu: pending offline/comeback/daily/bankruptcy ödülleri ──
+    // Canlı state + AdManager varsa kur. Shell mount edildikten sonra (ilk
+    // paint) göster ki modal görünür shell üzerine binsin.
+    if (st && opts.ads) {
+      const onPersist = opts.onPersist
+      this.rewardQueue = new RefRewardQueue(
+        st,
+        opts.ads,
+        () => { this.refreshActive(st); onPersist?.() },
+        // Reward kuyruğu boşalınca karar modalı on-load kontrolünü çalıştır
+        // (aynı anda tek modal kuralı: önce ödüller, sonra kritik durumlar).
+        () => this.notifBridge?.start(),
+      )
+      requestAnimationFrame(() => this.rewardQueue?.start())
+    } else if (st) {
+      // ads yoksa reward kuyruğu kurulmaz; karar modalı on-load kontrolünü yine çalıştır.
+      requestAnimationFrame(() => this.notifBridge?.start())
     }
   }
 
@@ -285,6 +322,10 @@ export class RefApp {
   /** Overlay kapanınca çağrılır: tüm GameState aboneliklerini bırak (sızıntı önleme). */
   destroy(): void {
     document.removeEventListener('visibilitychange', this.handleVisibilityChange)
+    this.rewardQueue?.destroy()
+    this.rewardQueue = undefined
+    this.notifBridge?.destroy()
+    this.notifBridge = undefined
     this.unsub?.()
     this.unsub = undefined
     if (this.refreshTimer !== null) {

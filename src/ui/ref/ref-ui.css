@@ -2228,6 +2228,19 @@
 .ref-world-btn.danger { background: linear-gradient(180deg, #EA5455, #C23637); box-shadow: 0 2px 6px rgba(234,84,85,0.3); }
 .ref-world-btn.warn { background: linear-gradient(180deg, #FFB02E, #DB8B07); box-shadow: 0 2px 6px rgba(255,176,46,0.3); }
 .ref-world-btn.gold { background: linear-gradient(180deg, var(--r-gold), var(--r-gold-dk)); box-shadow: 0 2px 6px rgba(246,200,76,0.35); }
+/* İflas rakip devralma — enabled: belirgin yeşil birincil aksiyon (yüksek
+   kontrastlı beyaz yazı, hover/pressed). disabled: nötr gri pasif, not-allowed. */
+.ref-world-btn.acquire {
+  background: linear-gradient(180deg, #22B765, #138A4B);
+  color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,0.18);
+  box-shadow: 0 2px 8px rgba(19,138,75,0.40);
+}
+.ref-world-btn.acquire:hover:not(:disabled) { filter: brightness(1.06); }
+.ref-world-btn.acquire:active:not(:disabled) { transform: translateY(1px); filter: brightness(0.93); box-shadow: 0 1px 4px rgba(19,138,75,0.38); }
+.ref-world-btn.acquire:disabled {
+  background: #DBE2E6; color: var(--r-muted);
+  text-shadow: none; box-shadow: none; opacity: 1; cursor: not-allowed;
+}
 
 /* ===== Torpil paneli ===== */
 .ref-torpil-panel { display: flex; flex-direction: column; gap: 7px; padding: 8px 14px 0; }
@@ -2259,7 +2272,12 @@
   background: var(--r-card, #fff); border-radius: var(--r-md); padding: 12px;
   box-shadow: var(--r-shadow-sm);
 }
-.ref-rival-card.gone { opacity: 0.55; filter: grayscale(0.5); }
+.ref-rival-card.gone { opacity: 0.72; filter: grayscale(0.35); }
+/* İflas eden rakip = devralma fırsatı: kartı bütünüyle soluklaştırma, yalnız
+   çöküşü işaretle; aktif "Varlıkları Al" butonu net görünür kalsın. */
+.ref-rival-card.gone.bankrupt { opacity: 1; filter: none; border-left: 3px solid var(--r-warning); }
+/* "satın alındı" etiketi muted merged kartta da rahat okunsun. */
+.ref-rival-card.merged .ref-rival-card__worth small { color: var(--r-success); font-weight: 800; }
 .ref-rival-card.allied { border-left: 3px solid var(--r-success); }
 .ref-rival-card.hostile { border-left: 3px solid var(--r-danger); }
 .ref-rival-card.locked-next { opacity: 0.65; margin: 8px 14px 0; }
@@ -2803,3 +2821,150 @@
   .ref-daily-task-name { font-size: 11.5px; }
   .ref-daily-btn { min-width: 64px; padding: 5px 8px; font-size: 10px; }
 }
+
+/* ───────── Reward kuyruğu modalı (offline/comeback/daily/bankruptcy) ───────── */
+.ref-reward-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(13, 48, 71, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: ref-reward-fade 0.18s ease;
+}
+@keyframes ref-reward-fade { from { opacity: 0; } to { opacity: 1; } }
+.ref-reward-card {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 26px 22px 20px;
+  text-align: center;
+  box-shadow: 0 18px 48px rgba(8, 48, 72, 0.35);
+  animation: ref-reward-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@keyframes ref-reward-pop { from { transform: scale(0.88); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.ref-reward-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(18, 58, 82, 0.07);
+  color: var(--r-muted);
+  font-size: 15px;
+  cursor: pointer;
+  line-height: 1;
+}
+.ref-reward-close:active { background: rgba(18, 58, 82, 0.14); }
+.ref-reward-emoji { font-size: 46px; line-height: 1; margin-bottom: 6px; }
+.ref-reward-title { margin: 0 0 10px; font-size: 18px; font-weight: 800; color: var(--r-text); }
+.ref-reward-amount {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--r-teal-dk);
+  letter-spacing: 0.3px;
+  margin-bottom: 8px;
+}
+.ref-reward-desc { margin: 0 0 4px; font-size: 13px; color: var(--r-muted); line-height: 1.4; }
+.ref-reward-warn { margin: 6px 0 0; font-size: 12px; font-weight: 600; color: var(--r-orange-dk); }
+.ref-reward-primary {
+  width: 100%;
+  margin-top: 16px;
+  padding: 14px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #22c7ba 0%, #09a99d 100%);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 5px 0 #087f78, 0 9px 18px rgba(8, 127, 120, 0.22);
+}
+.ref-reward-primary:disabled { opacity: 0.65; cursor: default; box-shadow: 0 2px 0 #087f78; }
+.ref-reward-discard {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--r-border-lt, #cde0ea);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--r-muted);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* ───────── Kritik / karar modalı (crisis, life event, rival, vb.) ───────── */
+.ref-decision-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(13, 48, 71, 0.62);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: ref-reward-fade 0.18s ease;
+}
+.ref-decision-card {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  max-height: 86vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 22px 20px 18px;
+  box-shadow: 0 18px 48px rgba(8, 48, 72, 0.38);
+  animation: ref-reward-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.ref-decision-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(18, 58, 82, 0.07);
+  color: var(--r-muted);
+  font-size: 15px;
+  cursor: pointer;
+  line-height: 1;
+}
+.ref-decision-emoji { font-size: 38px; line-height: 1; text-align: center; margin-bottom: 4px; }
+.ref-decision-title { margin: 0 0 8px; font-size: 17px; font-weight: 800; color: var(--r-text); text-align: center; }
+.ref-decision-body { margin: 0 0 14px; font-size: 13.5px; color: var(--r-muted); line-height: 1.45; text-align: center; }
+.ref-decision-options { display: flex; flex-direction: column; gap: 9px; }
+.ref-decision-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid var(--r-card-border, #cfe6ef);
+  border-radius: 13px;
+  background: #f4fbfe;
+  color: var(--r-text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.ref-decision-opt:active { background: #e3f4fa; border-color: var(--r-teal); }
+.ref-decision-opt__sub { font-size: 11.5px; font-weight: 600; color: var(--r-muted); }

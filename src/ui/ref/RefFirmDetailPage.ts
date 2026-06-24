@@ -12,6 +12,9 @@ import { hasManager } from '../../game/Managers'
 export interface FirmDetailLiveCtx {
   state: GameState
   producerId: string
+  /** Canlı aksiyon (level-up/manager/modernize) sonrası FirmData'yı güncel
+   *  state'ten yeniden üretir → açık detay ekranı stale snapshot göstermez. */
+  rebuild?: () => FirmData
 }
 
 /*
@@ -131,6 +134,12 @@ export class RefFirmDetailPage {
   private liveDef(): ProducerDef | undefined {
     if (!this.live) return undefined
     return PRODUCERS.find((p) => p.id === this.live!.producerId)
+  }
+
+  /** Canlı aksiyon sonrası: snapshot'ı güncel state'ten tazele, sonra render. */
+  private refreshLive(): void {
+    if (this.live?.rebuild) this.firm = this.live.rebuild()
+    this.render()
   }
 
   hide(): void { this.el.hidden = true }
@@ -371,17 +380,17 @@ export class RefFirmDetailPage {
 
     this.el.querySelector<HTMLButtonElement>('[data-act="level"]')?.addEventListener('click', () => {
       const ok = s.levelUpFirm(def.id)
-      if (ok) { refToast(`📈 ${def.name} Lv.${s.producerLevel(def.id)}`, 'ok'); this.render() }
+      if (ok) { refToast(`📈 ${def.name} Lv.${s.producerLevel(def.id)}`, 'ok'); this.refreshLive() }
       else refToast('Geliştirilemedi', 'err')
     })
     this.el.querySelector<HTMLButtonElement>('[data-act="modern"]')?.addEventListener('click', () => {
       const ok = s.modernizeProducer(def.id)
-      if (ok) { refToast(`⚙️ ${def.name} modernize edildi`, 'ok'); this.render() }
+      if (ok) { refToast(`⚙️ ${def.name} modernize edildi`, 'ok'); this.refreshLive() }
       else refToast('Modernize edilemedi', 'err')
     })
     this.el.querySelector<HTMLButtonElement>('[data-act="manager"]')?.addEventListener('click', () => {
       const ok = s.hireManager(def.id)
-      if (ok) { refToast(`👤 ${def.name} yöneticisi atandı`, 'ok'); this.render() }
+      if (ok) { refToast(`👤 ${def.name} yöneticisi atandı`, 'ok'); this.refreshLive() }
       else refToast('Yönetici atanamadı', 'err')
     })
   }

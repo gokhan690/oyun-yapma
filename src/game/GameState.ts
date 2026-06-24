@@ -677,6 +677,11 @@ export interface SerializableState {
   characterBackground?: CharacterBackgroundId | null
   departmentTasksClaimed?: DepartmentId[]
   netWorthHistory?: number[]
+  pendingDecisions?: Array<
+    | { type: 'marriage_crisis'; spouseId: string }
+    | { type: 'annual_summary'; year: number; playerAge: number; totalEarned: number; businessCount: number; incomePerDay: number }
+    | { type: 'age_milestone'; age: number; question: string }
+  >
 }
 
 export interface ProducerBreakdown {
@@ -864,6 +869,11 @@ export class GameState {
   lifeEvents: ActiveLifeEvent[] = []
   pendingConsequences: PendingConsequence[] = []
   eventChoiceHistory: EventChoiceRecord[] = []
+  pendingDecisions: Array<
+    | { type: 'marriage_crisis'; spouseId: string }
+    | { type: 'annual_summary'; year: number; playerAge: number; totalEarned: number; businessCount: number; incomePerDay: number }
+    | { type: 'age_milestone'; age: number; question: string }
+  > = []
   characterAlignment: { temiz: number; acımasız: number; gölge: number } = { temiz: 0, acımasız: 0, gölge: 0 }
   abilityCooldowns: Record<string, number> = {}
   activeRivalEvents: RivalEvent[] = []
@@ -1016,6 +1026,7 @@ export class GameState {
   private eventExpireRemainingMs = 0
   private eventPreviewTimer: number | null = null
   private _checkingAchievements = false
+  private _ensuringWeekly = false
   private lastNearMissToastAt = 0
   private lastStockTick = Date.now()
   private lastAutoBuyTick = 0
@@ -1062,13 +1073,25 @@ export class GameState {
   }
 
   ensureWeekly(): void {
-    const key = calendarWeekKey()
-    if (this.weekly.weekKey !== key || isLegacyGameWeekKey(this.weekly.weekKey)) {
-      this.weekly = createWeeklyState(this.incomePerDay())
-      return
-    }
-    if (this.weekly.rewardCash === undefined || this.weekly.rewardCash <= 0) {
-      this.weekly.rewardCash = weeklyRewardCash(this.incomePerDay())
+    // Re-entrancy guard: createWeeklyState(this.incomePerDay()) below calls
+    // incomePerDay() → weeklySynergyMult() → ensureWeekly() again. With a stale
+    // weekKey and an owned producer, that re-entry recursed forever (stack
+    // overflow). The guard makes any re-entrant call a no-op (it reads the
+    // current weekly def for the in-flight income calc) so regeneration runs
+    // exactly once. Income formula and weekly multiplier are unchanged.
+    if (this._ensuringWeekly) return
+    this._ensuringWeekly = true
+    try {
+      const key = calendarWeekKey()
+      if (this.weekly.weekKey !== key || isLegacyGameWeekKey(this.weekly.weekKey)) {
+        this.weekly = createWeeklyState(this.incomePerDay())
+        return
+      }
+      if (this.weekly.rewardCash === undefined || this.weekly.rewardCash <= 0) {
+        this.weekly.rewardCash = weeklyRewardCash(this.incomePerDay())
+      }
+    } finally {
+      this._ensuringWeekly = false
     }
   }
 
@@ -4251,6 +4274,35 @@ export class GameState {
     this.addGazette(`✅ ${ev.headline} — çözüldü`, 'player')
   }
 
+  /** İflas etmiş rakibi satın alma maliyeti. Infinity → satın alınamaz. */
+  bankruptRivalAcquireCost(rivalId: string): number {
+    const rv = this.rivals.find((r) => r.id === rivalId)
+    if (!rv || rv.relation !== 'bankrupt') return Infinity
+    return Math.max(50_000, Math.floor(rv.netWorth * 0.4))
+  }
+
+  /** Rakip satın alınabilir mi? (iflas durumunda ve para yeterliyse) */
+  canAcquireBankruptRival(rivalId: string): boolean {
+    return this.money >= this.bankruptRivalAcquireCost(rivalId)
+  }
+
+  /**
+   * İflas etmiş rakibin varlıklarını satın al. Eski HUD'daki inline `rival-acquire`
+   * mutasyonunun birebir, test edilebilir GameState karşılığı (guard + maliyet +
+   * sonuç aynı). UI yalnız bu metodu çağırır; etki burada uygulanır.
+   */
+  acquireBankruptRival(rivalId: string): boolean {
+    const rv = this.rivals.find((r) => r.id === rivalId)
+    if (!rv || rv.relation !== 'bankrupt') return false
+    const cost = this.bankruptRivalAcquireCost(rivalId)
+    if (!this.canAfford(cost)) return false
+    this.spendMoney(cost) // money_changed emit eder
+    this.reputation = Math.min(100, this.reputation + 10)
+    rv.relation = 'merged'
+    this.emit({ type: 'reputation_changed', reputation: this.reputation, delta: 10 })
+    return true
+  }
+
   private maybeSpawnChildCrisis(): void {
     if (this.dynasty.children.length === 0) return
     if (Math.random() > 0.06) return
@@ -4593,6 +4645,8 @@ export class GameState {
     const lastCrisis = this.dynasty.lastMarriageCrisisDay ?? 0
     if (sat < 30 && day - lastCrisis > 60) {
       this.dynasty.lastMarriageCrisisDay = day
+      this.pendingDecisions = this.pendingDecisions.filter(d => d.type !== 'marriage_crisis')
+      this.pendingDecisions.push({ type: 'marriage_crisis', spouseId: this.dynasty.spouseId! })
       this.emit({ type: 'marriage_crisis' })
     }
   }
@@ -4607,14 +4661,17 @@ export class GameState {
       const playerAge = this.dynasty.playerBornGameDay > 0
         ? Math.floor((day - this.dynasty.playerBornGameDay) / 365) + (this.dynasty.playerStartAge ?? 25)
         : 25 + currentYear
-      this.emit({
-        type: 'annual_summary',
+      const summaryEvent = {
+        type: 'annual_summary' as const,
         year: currentYear,
         playerAge,
         totalEarned: this.totalEarned,
         businessCount: Object.values(this.producers).filter((c) => c > 0).length,
         incomePerDay: this.incomePerDay(),
-      })
+      }
+      this.pendingDecisions = this.pendingDecisions.filter(d => d.type !== 'annual_summary')
+      this.pendingDecisions.push(summaryEvent)
+      this.emit(summaryEvent)
     }
   }
 
@@ -4634,7 +4691,10 @@ export class GameState {
     for (const milestone of milestones) {
       if (age >= milestone && !this.ageMilestonesShown.includes(milestone)) {
         this.ageMilestonesShown.push(milestone)
-        this.emit({ type: 'age_milestone', age: milestone, question: questions[milestone] ?? `${milestone} yaşına girdin!` })
+        const msEvent = { type: 'age_milestone' as const, age: milestone, question: questions[milestone] ?? `${milestone} yaşına girdin!` }
+        this.pendingDecisions = this.pendingDecisions.filter(d => d.type !== 'age_milestone')
+        this.pendingDecisions.push(msEvent)
+        this.emit(msEvent)
         break // Bir seferinde biri
       }
     }
@@ -5120,7 +5180,7 @@ export class GameState {
   }
 
   resolveMarriageCrisis(spendMoney: boolean): void {
-    if (!this.dynasty.spouseId) return
+    if (!this.dynasty.spouseId) return // guard: pending preserved when no spouse
     if (spendMoney) {
       const cost = 100_000
       if (this.canAfford(cost)) {
@@ -5132,6 +5192,8 @@ export class GameState {
       this.dynasty.spouseSatisfaction = Math.min(100, (this.dynasty.spouseSatisfaction ?? 0) + 25)
       this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 10)
     }
+    // Clear AFTER all effects applied — if guard failed above, pending is preserved
+    this.pendingDecisions = this.pendingDecisions.filter(d => d.type !== 'marriage_crisis')
     this.emit({ type: 'dynasty_update', kind: 'crisis_resolved', name: this.dynasty.spouseName ?? '' })
   }
 
@@ -5184,6 +5246,8 @@ export class GameState {
     } else if (focus === 'work') {
       this.addGazette('💼 İşe odaklandın — gelir bu ay %10 arttı', 'player')
     }
+    // Clear AFTER all effects applied — this method has no failure path, clear is always safe here
+    this.pendingDecisions = this.pendingDecisions.filter(d => d.type !== 'annual_summary' && d.type !== 'age_milestone')
     this.emit({ type: 'money_changed' })
   }
 
@@ -6334,6 +6398,7 @@ export class GameState {
       peakIncomePerDay: this.peakIncomePerDay,
       prestigeShopPurchased: [...this.prestigeShopPurchased],
       dailyPlan: this.dailyPlan ?? null,
+      pendingDecisions: this.pendingDecisions.length > 0 ? [...this.pendingDecisions] : undefined,
     }
   }
 
@@ -6680,6 +6745,7 @@ export class GameState {
     this.lastSaveTime = data.lastSaveTime
     this.isNight = isGameNight(this.gameTimeMs)
     this.dailyPlan = sanitizeDailyPlanState(data.dailyPlan ?? null)
+    this.pendingDecisions = data.pendingDecisions ?? []
     this.ensureDailyGoal()
     this.ensureMissions()
     this.ensureWeekly()
