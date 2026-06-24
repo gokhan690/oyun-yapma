@@ -55,6 +55,8 @@ export type LoadResult = { ok: boolean; lastSaveTime: number; source?: string; r
 export class SaveManager {
   private autoSaveInterval: number | null = null
   private saveEnabled = true
+  private boundBeforeUnload: (() => void) | null = null
+  private boundVisibilityChange: (() => void) | null = null
 
   save(state: GameState): void {
     if (!this.saveEnabled) return
@@ -82,6 +84,10 @@ export class SaveManager {
       || localStorage.getItem(SAVE_KEY_V7)
       || localStorage.getItem(SAVE_KEY_V6)
       || localStorage.getItem(SAVE_KEY_V5)
+      || localStorage.getItem(SAVE_KEY_V4)
+      || localStorage.getItem(SAVE_KEY_V3)
+      || localStorage.getItem(SAVE_KEY_V2)
+      || localStorage.getItem(SAVE_KEY_V1)
     )
   }
 
@@ -181,18 +187,28 @@ export class SaveManager {
   }
 
   startAutoSave(state: GameState, intervalMs = 15_000): void {
-    this.stopAutoSave()
+    this.stopAutoSave() // always clean up previous listeners first (idempotent)
     this.autoSaveInterval = window.setInterval(() => this.save(state), intervalMs)
-    window.addEventListener('beforeunload', () => this.save(state))
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') this.save(state)
-    })
+    this.boundBeforeUnload = () => { if (this.saveEnabled) this.save(state) }
+    this.boundVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && this.saveEnabled) this.save(state)
+    }
+    window.addEventListener('beforeunload', this.boundBeforeUnload)
+    document.addEventListener('visibilitychange', this.boundVisibilityChange)
   }
 
   stopAutoSave(): void {
     if (this.autoSaveInterval !== null) {
       clearInterval(this.autoSaveInterval)
       this.autoSaveInterval = null
+    }
+    if (this.boundBeforeUnload) {
+      window.removeEventListener('beforeunload', this.boundBeforeUnload)
+      this.boundBeforeUnload = null
+    }
+    if (this.boundVisibilityChange) {
+      document.removeEventListener('visibilitychange', this.boundVisibilityChange)
+      this.boundVisibilityChange = null
     }
   }
 

@@ -16,6 +16,7 @@
           localStorage.removeItem(k)
         }
       }
+      localStorage.removeItem('baron_setup_done') // baron_lang is intentionally kept
     } catch (e) {
       console.warn('Kayıt temizlenemedi', e)
     }

@@ -2362,6 +2362,10 @@ export class GameState {
     return PRODUCERS.filter((p) => (this.producers[p.id] ?? 0) > 0).length
   }
 
+  anyProducerOwned(): boolean {
+    return PRODUCERS.some((p) => (this.producers[p.id] ?? 0) > 0)
+  }
+
   addMoney(amount: number, countTotal = true): void {
     if (amount <= 0) return
     const prevLifetime = this.lifetimeTotalEarned
@@ -6435,7 +6439,7 @@ export class GameState {
     this.playTimeMs = data.playTimeMs ?? 0
     this.firstBusinessPlayTimeMs = data.firstBusinessPlayTimeMs ?? null
     this.gameTimeMs = data.gameTimeMs ?? 0
-    this.gamePaused = data.gamePaused ?? false
+    this.gamePaused = false // session-only: paused state never carries over to new sessions
     this.tutorialDone = data.tutorialDone ?? false
     this.onboardingComplete = data.onboardingComplete ?? data.tutorialDone ?? false
     this.country = data.country ?? 'tr'

@@ -1,5 +1,6 @@
 import { assetUrl } from '../../utils/assetUrl'
 import { formatMoney } from '../../game/Economy'
+import { i18n } from '../../i18n'
 
 /** Base-path uyumlu asset yolu (baştaki / opsiyonel). */
 export function ua(p: string): string {
@@ -48,7 +49,7 @@ export function backRow(onBack: () => void, rightText?: string): HTMLElement {
   const top = document.createElement('div')
   top.className = 'ref-ach-top ref-page-topbar'
   top.innerHTML = `
-    <button class="ref-back-btn" type="button">‹ Geri</button>
+    <button class="ref-back-btn" type="button">${i18n.t('ref_back')}</button>
     ${rightText ? `<span class="ref-ach-count">${rightText}</span>` : ''}
   `
   top.querySelector('.ref-back-btn')!.addEventListener('click', onBack)

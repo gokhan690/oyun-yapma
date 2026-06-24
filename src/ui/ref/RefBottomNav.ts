@@ -1,18 +1,20 @@
+import { i18n } from '../../i18n'
+
 export type RefNavTab = 'home' | 'career' | 'market' | 'firms' | 'empire' | 'life'
 
 interface TabDef {
   id: RefNavTab
-  label: string
   icon: string
+  key: 'ref_nav_home' | 'ref_nav_career' | 'ref_nav_firms' | 'ref_nav_market' | 'ref_nav_empire' | 'ref_nav_life'
 }
 
 const TABS: TabDef[] = [
-  { id: 'home',   label: 'Ana Sayfa',    icon: '🏠' },
-  { id: 'career', label: 'Kariyer',      icon: '💼' },
-  { id: 'firms',  label: 'Firmalar',     icon: '🏢' },
-  { id: 'market', label: 'Piyasa',       icon: '📊' },
-  { id: 'empire', label: 'İmparatorluk', icon: '👑' },
-  { id: 'life',   label: 'Aile',         icon: '👨‍👩‍👧' },
+  { id: 'home',   icon: '🏠', key: 'ref_nav_home'   },
+  { id: 'career', icon: '💼', key: 'ref_nav_career'  },
+  { id: 'firms',  icon: '🏢', key: 'ref_nav_firms'   },
+  { id: 'market', icon: '📊', key: 'ref_nav_market'  },
+  { id: 'empire', icon: '👑', key: 'ref_nav_empire'  },
+  { id: 'life',   icon: '👨‍👩‍👧', key: 'ref_nav_life' },
 ]
 
 export class RefBottomNav {
@@ -29,7 +31,7 @@ export class RefBottomNav {
       btn.className = 'ref-nav-btn' + (tab.id === active ? ' active' : '')
       btn.innerHTML = `
         <span class="ref-nav-btn__ico">${tab.icon}</span>
-        <span class="ref-nav-btn__lbl">${tab.label}</span>
+        <span class="ref-nav-btn__lbl">${i18n.t(tab.key)}</span>
       `
       btn.addEventListener('click', () => {
         this.setActive(tab.id)

@@ -1149,4 +1149,188 @@ export interface Translations {
   tut_profile_text: string
   tut_daily_title: string
   tut_daily_text: string
+
+  // RefApp navigation
+  ref_nav_home: string
+  ref_nav_career: string
+  ref_nav_firms: string
+  ref_nav_market: string
+  ref_nav_empire: string
+  ref_nav_life: string
+
+  // RefApp time card
+  ref_time_running: string
+  ref_time_paused: string
+  ref_time_stopped: string
+  ref_time_next_day: string
+  ref_time_resume: string
+  ref_time_pause: string
+  ref_time_no_state: string
+
+  // RefApp profile
+  ref_profile_title: string
+  ref_profile_status: string
+  ref_profile_health: string
+  ref_profile_stress: string
+  ref_profile_karma: string
+  ref_profile_career: string
+  ref_profile_cash: string
+  ref_profile_daily_income: string
+  ref_profile_net_worth: string
+  ref_profile_reputation: string
+  ref_profile_empire: string
+  ref_profile_firms: string
+  ref_profile_cities: string
+  ref_profile_achievements: string
+  ref_profile_entrepreneur: string
+  ref_profile_jobless: string
+
+  // RefApp settings button (on profile page)
+  ref_settings_btn: string
+  ref_settings_subtitle: string
+
+  // Settings page
+  ref_settings_title: string
+  ref_settings_lang_title: string
+  ref_settings_appearance_title: string
+  ref_settings_reduced_motion: string
+  ref_settings_haptic: string
+  ref_settings_notif_title: string
+  ref_settings_notif_daily: string
+  ref_settings_notif_income: string
+  ref_settings_notif_goal: string
+  ref_settings_theme_title: string
+  ref_settings_data_title: string
+  ref_settings_export: string
+  ref_settings_export_copied: string
+  ref_settings_export_copy_btn: string
+  ref_settings_import: string
+  ref_settings_import_placeholder: string
+  ref_settings_import_btn: string
+  ref_settings_import_ok: string
+  ref_settings_restore_backup: string
+  ref_settings_no_backup: string
+  ref_settings_restore_ok: string
+  ref_settings_restore_fail: string
+  ref_settings_version: string
+  ref_settings_reset_btn: string
+  ref_settings_reset_title: string
+  ref_settings_reset_body: string
+  ref_settings_reset_confirm: string
+  ref_settings_reset_cancel: string
+  ref_settings_no_audio: string
+
+  // Recovery screen (corrupt save)
+  ref_recovery_title: string
+  ref_recovery_body: string
+  ref_recovery_retry: string
+  ref_recovery_restore: string
+  ref_recovery_reset: string
+  ref_recovery_reset_confirm: string
+  ref_recovery_restore_fail: string
+
+  // Common RefApp
+  ref_back: string
+  ref_daily_income: string
+  ref_daily_expense: string
+  ref_daily_net: string
+  ref_total: string
+  ref_per_day: string
+  ref_age_suffix: string
+  ref_no_data: string
+  ref_time_engine_status: string
+
+  // RefApp Dashboard
+  ref_dash_title: string
+  ref_dash_empire_value: string
+  ref_dash_income_trend: string
+  ref_dash_achievements: string
+  ref_dash_notifications: string
+  ref_dash_goals: string
+  ref_dash_activity: string
+  ref_dash_no_activity: string
+  ref_dash_income_none: string
+
+  // RefApp Firms
+  ref_firms_title: string
+  ref_firms_income: string
+  ref_firms_illegal_income: string
+  ref_firms_legal_income: string
+  ref_firms_none: string
+  ref_firms_cat_all: string
+  ref_firms_tab_normal: string
+  ref_firms_tab_empire: string
+  ref_firms_total_per_day: string
+
+  // RefApp Market
+  ref_market_title: string
+  ref_market_tab_stocks: string
+  ref_market_tab_bank: string
+  ref_market_tab_insurance: string
+  ref_market_daily_pnl: string
+
+  // RefApp Empire
+  ref_empire_title: string
+  ref_empire_investments: string
+  ref_empire_daily: string
+
+  // RefApp Career
+  ref_career_title: string
+  ref_career_profile: string
+  ref_career_daily_actions: string
+  ref_career_health_life: string
+  ref_career_level: string
+  ref_career_entrepreneur: string
+  ref_career_jobless: string
+  ref_career_no_job_selected: string
+  ref_career_seniority_years: string
+
+  // RefApp Life/Family
+  ref_life_title: string
+  ref_life_expense: string
+  ref_life_rep_bonus: string
+  ref_life_expenses_section: string
+
+  // RefApp Achievements
+  ref_achievements_title: string
+  ref_achievements_tab: string
+
+  // RefApp Notifications
+  ref_notifs_title: string
+  ref_notifs_empty: string
+
+  // RefApp Reward modals
+  ref_reward_offline_title: string
+  ref_reward_offline_desc: string
+  ref_reward_offline_btn: string
+  ref_reward_comeback_title: string
+  ref_reward_comeback_desc: string
+  ref_reward_comeback_btn: string
+  ref_reward_daily_title: string
+  ref_reward_daily_desc: string
+  ref_reward_daily_btn: string
+  ref_reward_daily_streak_reset: string
+  ref_reward_bankruptcy_title: string
+  ref_reward_bankruptcy_desc: string
+  ref_reward_bankruptcy_btn: string
+  ref_reward_discard: string
+  ref_reward_ad_loading: string
+  ref_reward_ad_failed: string
+  ref_reward_already_claimed: string
+  ref_reward_close: string
+
+  // RefApp Decision modals (NotificationBridge)
+  ref_decision_close: string
+  ref_decision_annual_body: string
+  ref_decision_marriage_body: string
+
+  // Firm detail
+  ref_detail_net_daily: string
+  ref_detail_daily_income: string
+  ref_detail_daily_expense: string
+  ref_detail_true_daily: string
+  ref_detail_modernize: string
+
+  // Header
+  ref_header_notifs: string
 }

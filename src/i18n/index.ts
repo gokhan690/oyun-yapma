@@ -101,3 +101,18 @@ class I18nManager {
 export const i18n = new I18nManager()
 export const t = (key: keyof Translations): string => i18n.t(key)
 export const tRaw = (key: string): string | undefined => i18n.tRaw(key)
+
+/** Languages available in production UI (Onboarding + Settings language selector). */
+export const PRODUCTION_LANGS: readonly LangCode[] = ['tr', 'en']
+
+/**
+ * Normalize the stored language to a production-supported one.
+ * Call once after i18n.init() if the user had a non-production lang saved.
+ * Avoids infinite reload: setLang only writes localStorage, no reload triggered here.
+ */
+export async function normalizeToProductionLang(): Promise<void> {
+  const current = i18n.getLang()
+  if (!PRODUCTION_LANGS.includes(current)) {
+    await i18n.setLang('en')
+  }
+}

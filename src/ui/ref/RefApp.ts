@@ -13,13 +13,16 @@ import { RefLifePage } from './RefLifePage'
 import { RefAchievementsPage } from './RefAchievementsPage'
 import { RefProfilePage } from './RefProfilePage'
 import { RefNotifsPage } from './RefNotifsPage'
+import { RefSettingsPage } from './RefSettingsPage'
 import type { RefViewModel } from './refAppDataAdapter'
 import { playerVMFromState } from './refAppDataAdapter'
 import type { GameState } from '../../game/GameState'
 import type { AdManager } from '../../ads/AdManager'
+import type { SaveManager } from '../../security/SaveManager'
 import type { DailyEvent } from '../../game/DailyPlan'
 import { RefRewardQueue } from './RefRewardQueue'
 import { RefNotificationBridge } from './RefNotificationBridge'
+import { refToast } from './refShared'
 
 // Tab → DailyEvent map (here so DailyPlan.ts stays UI-free)
 const DAILY_VISIT_EVENTS: Partial<Record<RefNavTab, DailyEvent>> = {
@@ -70,6 +73,10 @@ export interface RefAppOptions {
   ads?: AdManager
   /** Başarılı claim sonrası anlık kayıt (reload çift-ödeme koruması). */
   onPersist?: () => void
+  /** SaveManager — settings sayfasında kayıt işlemleri için. */
+  saveManager?: SaveManager
+  /** Oyun sıfırlama onayı: main.ts tarafından sağlanır, reset sequansını yönetir. */
+  onResetConfirmed?: () => void
 }
 
 export class RefApp {
@@ -98,10 +105,17 @@ export class RefApp {
   private rewardQueue?: RefRewardQueue
   /** Bildirim köprüsü (toast/aktivite) — tek abonelikten beslenir. */
   private notifBridge?: RefNotificationBridge
+  private settings?: RefSettingsPage
+  private saveManager?: SaveManager
+  private onResetConfirmed?: () => void
   private readonly handleVisibilityChange = (): void => {
     if (document.hidden || !this.gameState) return
     this.gameState.ensureDailyPlan()
     // daily_plan_updated emitted → subscription calls refreshActive automatically
+    // Self-heal: if tick stopped (e.g. after long background) restart it
+    if (this.gameState.isIntroFlowReady() && !this.gameState.isTicking() && !this.gameState.isPaused()) {
+      this.gameState.startTick()
+    }
   }
 
   /** Ana oyuna bağlandığında geri/çıkış için (standalone'da kullanılmaz). */
@@ -113,6 +127,8 @@ export class RefApp {
     this.active = initial
     this.vm = opts.data
     this.gameState = opts.state
+    this.saveManager = opts.saveManager
+    this.onResetConfirmed = opts.onResetConfirmed
 
     // ── Shell ──
     this.el = document.createElement('div')
@@ -280,8 +296,34 @@ export class RefApp {
       this.profile = new RefProfilePage(this.vm, this.gameState)
       this.profile.onBack = () => this.show(this.active)
       this.profile.onOpenAchievements = () => this.showAchievements()
+      this.profile.onSettings = () => this.showSettings()
     }
     this.mountBody(this.profile)
+  }
+
+  private showSettings(): void {
+    if (!this.settings) {
+      const st = this.gameState
+      const sm = this.saveManager
+      if (!st || !sm) return
+      this.settings = new RefSettingsPage({
+        state: st,
+        saveManager: sm,
+        onBack: () => {
+          this.settings?.destroy()
+          this.settings = undefined
+          this.showProfile()
+        },
+        onPersist: () => sm.save(st),
+        onResetConfirmed: this.onResetConfirmed ?? (() => location.reload()),
+      })
+    }
+    this.mountBody(this.settings)
+  }
+
+  /** Toast mesajı göster. */
+  showToast(message: string, kind: 'ok' | 'err' = 'ok'): void {
+    refToast(message, kind)
   }
 
   private showNotifs(): void {
@@ -297,7 +339,7 @@ export class RefApp {
   private mountBody(page: RefPage): void {
     this.mounted = page
     // Utility ekranlarda (Profil/Başarımlar/Bildirimler) bottom nav gizlenir.
-    const isUtility = page === this.profile || page === this.achievements || page === this.notifs
+    const isUtility = page === this.profile || page === this.achievements || page === this.notifs || page === this.settings
     this.el.classList.toggle('ref-shell--utility', isUtility)
     // Sayfa değişiminde açık firma detay overlay'ini kapat
     this.detail.hide()
@@ -339,6 +381,8 @@ export class RefApp {
     ;(this.profile as { destroy?: () => void } | undefined)?.destroy?.()
     ;(this.achievements as { destroy?: () => void } | undefined)?.destroy?.()
     ;(this.notifs as { destroy?: () => void } | undefined)?.destroy?.()
+    this.settings?.destroy()
+    this.settings = undefined
     this.el.remove()
   }
 }
