@@ -3,7 +3,7 @@ import { crisisDef } from '../../game/CrisisEvents'
 import { LIFE_EVENTS } from '../../game/LifeEvents'
 import type { LifeEventChoice } from '../../game/LifeEvents'
 import { fmtMoney, refToast } from './refShared'
-import { i18n } from '../../i18n'
+import { i18n, fmt } from '../../i18n'
 
 /**
  * RefApp bildirim köprüsü — legacy HUD'un pasif toast bildirimlerini VE bloklayan
@@ -135,19 +135,19 @@ export class RefNotificationBridge {
       case 'achievement':
         return { msg: `${ev.def.emoji} ${ev.def.name}`, kind: 'ok', key: `ach:${ev.def.id}` }
       case 'milestone_reached':
-        return { msg: `🏆 Kilometre taşı: ${fmtMoney(ev.amount)}`, kind: 'ok', key: `ms:${ev.amount}` }
+        return { msg: fmt('ref_toast_milestone', { amount: fmtMoney(ev.amount) }), kind: 'ok', key: `ms:${ev.amount}` }
       case 'reputation_changed':
-        if (ev.delta <= -5) return { msg: `📉 İtibar ${ev.delta}`, kind: 'err' }
-        if (ev.delta >= 5) return { msg: `📈 İtibar +${ev.delta}`, kind: 'ok' }
+        if (ev.delta <= -5) return { msg: fmt('ref_toast_rep_down', { delta: ev.delta }), kind: 'err' }
+        if (ev.delta >= 5) return { msg: fmt('ref_toast_rep_up', { delta: ev.delta }), kind: 'ok' }
         return null
       case 'illegal_raid':
-        return { msg: `🚔 Baskın! Ceza ${fmtMoney(ev.fine)}`, kind: 'err' }
+        return { msg: fmt('ref_toast_raid', { fine: fmtMoney(ev.fine) }), kind: 'err' }
       case 'disease_diagnosed':
-        return { msg: `${ev.emoji} Teşhis: ${ev.name}`, kind: 'err', key: `dis:${ev.name}` }
+        return { msg: fmt('ref_toast_disease_diag', { emoji: ev.emoji, name: ev.name }), kind: 'err', key: `dis:${ev.name}` }
       case 'disease_treated':
-        return { msg: `💊 ${ev.name} tedavi edildi`, kind: 'ok', key: `cured:${ev.name}` }
+        return { msg: fmt('ref_toast_disease_treated', { name: ev.name }), kind: 'ok', key: `cured:${ev.name}` }
       case 'dynasty_update':
-        return ev.name ? { msg: `👨‍👩‍👧 Hanedan: ${ev.name}`, kind: 'ok' } : null
+        return ev.name ? { msg: fmt('ref_toast_dynasty', { name: ev.name }), kind: 'ok' } : null
       default:
         return null
     }
@@ -197,9 +197,9 @@ export class RefNotificationBridge {
   private lifePreview(c: LifeEventChoice): string {
     const parts: string[] = []
     if (c.moneyDelta) parts.push(fmtMoney(c.moneyDelta))
-    if (c.reputationDelta) parts.push(`İtibar ${c.reputationDelta > 0 ? '+' : ''}${c.reputationDelta}`)
-    if (c.stressDelta) parts.push(`Stres ${c.stressDelta > 0 ? '+' : ''}${c.stressDelta}`)
-    if (c.healthDelta) parts.push(`Sağlık ${c.healthDelta > 0 ? '+' : ''}${c.healthDelta}`)
+    if (c.reputationDelta) parts.push(`${i18n.t('ref_preview_rep')} ${c.reputationDelta > 0 ? '+' : ''}${c.reputationDelta}`)
+    if (c.stressDelta) parts.push(`${i18n.t('ref_preview_stress')} ${c.stressDelta > 0 ? '+' : ''}${c.stressDelta}`)
+    if (c.healthDelta) parts.push(`${i18n.t('ref_preview_health')} ${c.healthDelta > 0 ? '+' : ''}${c.healthDelta}`)
     return parts.join(' · ')
   }
 
@@ -207,10 +207,10 @@ export class RefNotificationBridge {
   private focusOptions(): DecisionOption[] {
     const s = this.state
     return [
-      { label: '💼 İşe odaklan', sub: 'Gelir +%10 (30 gün)', resolve: () => { s.applyAnnualFocus('work'); return true } },
-      { label: '👨‍👩‍👧 Aileye vakit ayır', sub: 'Stres −15 · Sağlık +5', resolve: () => { s.applyAnnualFocus('family'); return true } },
-      { label: '🏃 Sağlığa yatırım yap', sub: 'Sağlık +20', resolve: () => { s.applyAnnualFocus('health'); return true } },
-      { label: '🤝 Sosyal ağ kur', sub: 'İtibar +15', resolve: () => { s.applyAnnualFocus('social'); return true } },
+      { label: i18n.t('ref_focus_work_label'), sub: i18n.t('ref_focus_work_sub'), resolve: () => { s.applyAnnualFocus('work'); return true } },
+      { label: i18n.t('ref_focus_family_label'), sub: i18n.t('ref_focus_family_sub'), resolve: () => { s.applyAnnualFocus('family'); return true } },
+      { label: i18n.t('ref_focus_health_label'), sub: i18n.t('ref_focus_health_sub'), resolve: () => { s.applyAnnualFocus('health'); return true } },
+      { label: i18n.t('ref_focus_social_label'), sub: i18n.t('ref_focus_social_sub'), resolve: () => { s.applyAnnualFocus('social'); return true } },
     ]
   }
 
@@ -255,30 +255,30 @@ export class RefNotificationBridge {
         if (!s.dynasty.spouseId) return null
         const name = s.dynasty.spouseName ?? 'eşin'
         return {
-          emoji: '💔', title: 'Evlilik Krizi', body: `${name} ile aran bozuldu. Ne yaparsın?`, dismissable: false,
+          emoji: '💔', title: i18n.t('ref_marriage_crisis_title'), body: fmt('ref_marriage_crisis_body', { name }), dismissable: false,
           options: [
-            { label: '💍 Lüks hediye + tatil', sub: `${fmtMoney(100000)} · Memnuniyet +40`, resolve: () => { s.resolveMarriageCrisis(true); return true } },
-            { label: '🌹 Zaman ayır, işi azalt', sub: 'Memnuniyet +25 · Stres −10', resolve: () => { s.resolveMarriageCrisis(false); return true } },
+            { label: i18n.t('ref_marriage_crisis_gift_label'), sub: i18n.t('ref_marriage_crisis_gift_sub'), resolve: () => { s.resolveMarriageCrisis(true); return true } },
+            { label: i18n.t('ref_marriage_crisis_time_label'), sub: i18n.t('ref_marriage_crisis_time_sub'), resolve: () => { s.resolveMarriageCrisis(false); return true } },
           ],
         }
       }
       case 'annual_summary':
         return {
-          emoji: '📅', title: `${ev.year} Yıl Sonu`,
-          body: `${ev.playerAge} yaşındasın · ${ev.businessCount} işletme · Günlük ${fmtMoney(ev.incomePerDay)} gelir. Yeni yıl odağın ne?`,
+          emoji: '📅', title: fmt('ref_annual_title', { year: ev.year }),
+          body: fmt('ref_annual_body', { age: ev.playerAge, biz: ev.businessCount, income: fmtMoney(ev.incomePerDay) }),
           dismissable: false, options: this.focusOptions(),
         }
       case 'age_milestone':
-        return { emoji: '🎂', title: `${ev.age} Yaş`, body: ev.question, dismissable: false, options: this.focusOptions() }
+        return { emoji: '🎂', title: `${ev.age} ${i18n.t('ref_age_suffix')}`, body: ev.question, dismissable: false, options: this.focusOptions() }
       case 'rival_event': {
         const e = ev.event
         return {
           emoji: '⚔️', title: e.rivalName,
-          body: `${e.headline} — ${e.description}<br><b>Risk:</b> İtibar −${e.reputationDamage} · ${fmtMoney(e.moneyDamage)}`,
+          body: `${e.headline} — ${e.description}<br><b>${i18n.t('ref_rival_risk_label')}</b> ${fmt('ref_rival_rep_damage', { amount: e.reputationDamage })} · ${fmtMoney(e.moneyDamage)}`,
           dismissable: false,
           options: e.responses.map((r) => ({
             label: `${r.emoji} ${r.label}`,
-            sub: [r.cost > 0 ? fmtMoney(r.cost) : null, r.reputationDelta !== 0 ? `İtibar ${r.reputationDelta > 0 ? '+' : ''}${r.reputationDelta}` : null].filter(Boolean).join(' · '),
+            sub: [r.cost > 0 ? fmtMoney(r.cost) : null, r.reputationDelta !== 0 ? `${i18n.t('ref_preview_rep')} ${r.reputationDelta > 0 ? '+' : ''}${r.reputationDelta}` : null].filter(Boolean).join(' · '),
             resolve: () => { s.resolveRivalEvent(e.id, r.id); return true },
           })),
         }
@@ -286,10 +286,10 @@ export class RefNotificationBridge {
       case 'undo_available': {
         if (!s.pendingUndo || Date.now() > s.pendingUndo.expiresAt) return null
         return {
-          emoji: '↩️', title: 'Geri Al?', body: ev.label, dismissable: false,
+          emoji: '↩️', title: i18n.t('ref_undo_modal_title'), body: ev.label, dismissable: false,
           options: [
-            { label: `Geri Al — ${fmtMoney(ev.cost)}`, resolve: () => s.executeUndo() },
-            { label: 'Kabul Et (vazgeç)', resolve: () => { s.dismissUndo(); return true } },
+            { label: `${i18n.t('ref_undo_confirm_label')} — ${fmtMoney(ev.cost)}`, resolve: () => s.executeUndo() },
+            { label: i18n.t('ref_undo_dismiss_label'), resolve: () => { s.dismissUndo(); return true } },
           ],
         }
       }

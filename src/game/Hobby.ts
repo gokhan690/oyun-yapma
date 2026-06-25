@@ -1,3 +1,5 @@
+import { tRaw } from '../i18n'
+
 /** Hobi sistemi — 1 hobi seçimi, özel bonuslar */
 
 export type HobbyId = 'golfer' | 'football_fan' | 'art_collector' | 'sailor' | 'tech_enthusiast'
@@ -105,4 +107,14 @@ export function tickHobbyMonth(state: HobbyState): void {
   if (!state.hobbyId) return
   state.monthsActive++
   if (state.monthsActive >= 3) state.bonusActive = true
+}
+
+export function hobbyName(h: HobbyDef): string {
+  return tRaw(`hobby_${h.id}_name`) ?? h.name
+}
+export function hobbyDesc(h: HobbyDef): string {
+  return tRaw(`hobby_${h.id}_desc`) ?? h.description
+}
+export function hobbyBonus(h: HobbyDef): string {
+  return tRaw(`hobby_${h.id}_bonus`) ?? h.bonusLabel
 }

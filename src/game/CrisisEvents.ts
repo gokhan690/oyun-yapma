@@ -1,3 +1,5 @@
+import { tRaw } from '../i18n'
+
 export type CrisisId = 'economic' | 'scandal' | 'rival_attack'
 
 export interface CrisisChoice {
@@ -68,4 +70,17 @@ export function crisisDef(id: CrisisId): CrisisDef {
 export function pickRandomCrisis(): CrisisId {
   const ids: CrisisId[] = ['economic', 'scandal', 'rival_attack']
   return ids[Math.floor(Math.random() * ids.length)]!
+}
+
+export function crisisTitle(c: CrisisDef): string {
+  return tRaw(`crisis_${c.id}_title`) ?? c.title
+}
+export function crisisDesc(c: CrisisDef): string {
+  return tRaw(`crisis_${c.id}_desc`) ?? c.description
+}
+export function crisisChoiceLabel(crisisId: CrisisId, choice: CrisisChoice): string {
+  return tRaw(`crisis_${crisisId}_choice_${choice.id}_label`) ?? choice.label
+}
+export function crisisChoiceDesc(crisisId: CrisisId, choice: CrisisChoice): string {
+  return tRaw(`crisis_${crisisId}_choice_${choice.id}_desc`) ?? choice.description
 }

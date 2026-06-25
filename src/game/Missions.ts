@@ -1,3 +1,5 @@
+import { tRaw } from '../i18n'
+
 export type MissionType = 'clicks' | 'buy_business' | 'buy_upgrade' | 'earn_money' | 'season_xp' | 'autobuy_enable' | 'use_underground' | 'claim_daily' | 'season_tier' | 'stock_trade' | 'reach_heat'
 
 export type MissionTier = 'easy' | 'strategic' | 'risky'
@@ -74,6 +76,10 @@ export function generateDailyMissions(seed: string): MissionProgress[] {
   missions.push(pickFrom(STRATEGIC_POOL, 's'))
   missions.push(pickFrom(RISKY_POOL, 'r'))
   return missions
+}
+
+export function missionLabel(def: MissionDef): string {
+  return tRaw(`mission_${def.type}_${def.tier}_label`) ?? def.label
 }
 
 function seededRandom(seed: string): () => number {

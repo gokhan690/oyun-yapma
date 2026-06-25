@@ -1,3 +1,5 @@
+import { tRaw } from '../i18n'
+
 export interface PlayerRankDef {
   id: string
   name: string
@@ -41,4 +43,8 @@ export function rankProgress(totalEarned: number): { pct: number; next: PlayerRa
   const span = next.minEarned - prev
   const pct = span > 0 ? Math.min(100, ((totalEarned - prev) / span) * 100) : 100
   return { pct, next, current }
+}
+
+export function rankName(r: PlayerRankDef): string {
+  return tRaw(`rank_${r.id}_name`) ?? r.name
 }

@@ -315,7 +315,7 @@ export class RefApp {
           this.showProfile()
         },
         onPersist: () => sm.save(st),
-        onResetConfirmed: this.onResetConfirmed ?? (() => location.reload()),
+        onResetConfirmed: this.onResetConfirmed,
       })
     }
     this.mountBody(this.settings)

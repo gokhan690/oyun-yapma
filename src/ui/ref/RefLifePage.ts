@@ -36,7 +36,7 @@ const TRAIT_LABELS: Record<string, string> = {
  */
 export class RefLifePage implements RefPage {
   readonly el: HTMLElement
-  readonly title = i18n.t('ref_life_title')
+  get title() { return i18n.t('ref_life_title') }
   readonly titleDeco = '👨‍👩‍👧'
 
   private state?: GameState

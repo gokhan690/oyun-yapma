@@ -1,4 +1,4 @@
-// Zero imports — pure logic layer. No GameState, Economy, Career, or UI dependencies.
+import { tRaw } from '../i18n'
 
 export type DailyTaskId =
   | 'pick_job'
@@ -323,4 +323,11 @@ export function sanitizeDailyPlanState(data: unknown): DailyPlanState | null {
   const completionBonusClaimed = d.completionBonusClaimed === true && allClaimed
 
   return { version: 1, dayKey: d.dayKey as string, taskIds, progress, claimed, completionBonusClaimed }
+}
+
+export function taskLabel(task: DailyTaskDef): string {
+  return tRaw(`task_${task.id}_label`) ?? task.label
+}
+export function taskDesc(task: DailyTaskDef): string {
+  return tRaw(`task_${task.id}_desc`) ?? task.desc
 }

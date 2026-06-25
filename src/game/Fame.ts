@@ -1,3 +1,5 @@
+import { tRaw } from '../i18n'
+
 export type FameCareerType = 'muzisyen' | 'oyuncu' | 'sosyal_medya'
 
 export interface FameActionDef {
@@ -77,12 +79,21 @@ export function fameDailyIncome(state: FameState): number {
 }
 
 export function fameLevelLabel(fame: number): string {
-  if (fame >= 90) return 'Mega Star'
-  if (fame >= 70) return 'Süper Star'
-  if (fame >= 50) return 'Ünlü'
-  if (fame >= 30) return 'Tanınan'
-  if (fame >= 10) return 'Yükselen'
-  return 'Yeni Başlayan'
+  let idx = 0
+  if (fame >= 90) idx = 5
+  else if (fame >= 70) idx = 4
+  else if (fame >= 50) idx = 3
+  else if (fame >= 30) idx = 2
+  else if (fame >= 10) idx = 1
+  const labels = ['Yeni Başlayan', 'Yükselen', 'Tanınan', 'Ünlü', 'Süper Star', 'Mega Star']
+  return tRaw(`fame_level_${idx}`) ?? labels[idx]!
+}
+
+export function fameCareerName(career: FameCareerDef): string {
+  return tRaw(`fame_${career.id}_name`) ?? career.name
+}
+export function fameActionLabel(careerId: FameCareerType, action: FameActionDef): string {
+  return tRaw(`fame_${careerId}_action_${action.id}_label`) ?? action.label
 }
 
 export function applyFameAction(state: FameState, actionId: string): { cost: number; stressDelta: number } | null {

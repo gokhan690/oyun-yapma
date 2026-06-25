@@ -1,3 +1,5 @@
+import { tRaw } from '../i18n'
+
 /** Toplumda görünürlük — heat'ten bağımsız sosyal stat */
 export const REPUTATION_MIN = 0
 export const REPUTATION_MAX = 100
@@ -23,12 +25,14 @@ export function reputationPoliticsBlocked(reputation: number): boolean {
 
 export function reputationLabel(reputation: number): string {
   const r = clampReputation(reputation)
-  if (r >= 85) return 'Efsanevi'
-  if (r >= 70) return 'Saygın'
-  if (r >= 55) return 'Güvenilir'
-  if (r >= 40) return 'Şüpheli'
-  if (r >= 25) return 'Skandal'
-  return 'Pariah'
+  let idx = 0
+  if (r >= 85) idx = 5
+  else if (r >= 70) idx = 4
+  else if (r >= 55) idx = 3
+  else if (r >= 40) idx = 2
+  else if (r >= 25) idx = 1
+  const defaults = ['Pariah', 'Skandal', 'Şüpheli', 'Güvenilir', 'Saygın', 'Efsanevi']
+  return tRaw(`rep_label_${idx}`) ?? defaults[idx]!
 }
 
 export function reputationFromLegalBusiness(): number {

@@ -37,7 +37,7 @@ function spark(up: boolean): string {
 
 export class RefMarketPage implements RefPage {
   readonly el: HTMLElement
-  readonly title = i18n.t('ref_market_title')
+  get title() { return i18n.t('ref_market_title') }
 
   private state?: GameState
   private kpiStrip?: RefKpiStrip

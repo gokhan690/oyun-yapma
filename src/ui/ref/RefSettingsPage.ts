@@ -6,14 +6,14 @@ import { i18n, PRODUCTION_LANGS, type LangCode } from '../../i18n'
 import { LANG_META } from '../../i18n'
 import { applyDocumentTheme } from '../../utils/themeApply'
 import { THEMES } from '../../game/Themes'
-import { scheduleDailyReminder } from '../../notifications/NotificationManager'
+import { rescheduleFromPrefs } from '../../notifications/NotificationManager'
 
 interface RefSettingsPageOpts {
   state: GameState
   saveManager: SaveManager
   onBack: () => void
   onPersist: () => void
-  onResetConfirmed: () => void
+  onResetConfirmed?: () => void
 }
 
 export class RefSettingsPage implements RefPage {
@@ -52,8 +52,10 @@ export class RefSettingsPage implements RefPage {
     // ── Section 4: Game Data ──
     this.el.appendChild(this.buildSection(i18n.t('ref_settings_data_title'), this.buildDataSection(state, saveManager)))
 
-    // ── Reset (danger zone) ──
-    this.el.appendChild(this.buildResetSection())
+    // ── Reset (danger zone) — only when callback is provided ──
+    if (this.opts.onResetConfirmed) {
+      this.el.appendChild(this.buildResetSection())
+    }
 
     // ── Version ──
     const ver = document.createElement('p')
@@ -160,8 +162,8 @@ export class RefSettingsPage implements RefPage {
       prefs.dailyReward,
       (val) => {
         state.notificationPrefs.dailyReward = val
-        void scheduleDailyReminder(state.notificationPrefs)
         this.opts.onPersist()
+        void rescheduleFromPrefs(state.notificationPrefs)
       },
     ))
     wrap.appendChild(this.buildToggle(
@@ -170,6 +172,7 @@ export class RefSettingsPage implements RefPage {
       (val) => {
         state.notificationPrefs.passiveIncome = val
         this.opts.onPersist()
+        void rescheduleFromPrefs(state.notificationPrefs)
       },
     ))
     wrap.appendChild(this.buildToggle(
@@ -178,6 +181,7 @@ export class RefSettingsPage implements RefPage {
       (val) => {
         state.notificationPrefs.goalNear = val
         this.opts.onPersist()
+        void rescheduleFromPrefs(state.notificationPrefs)
       },
     ))
 
@@ -330,7 +334,7 @@ export class RefSettingsPage implements RefPage {
     })
     modal.querySelector('.ref-reset-modal-confirm')!.addEventListener('click', () => {
       modal.style.display = 'none'
-      this.opts.onResetConfirmed()
+      this.opts.onResetConfirmed?.()
     })
 
     wrap.appendChild(resetBtn)

@@ -79,7 +79,7 @@ function deptLevelsFromState(s: GameState): Dept[] {
  */
 export class RefEmpirePage implements RefPage {
   readonly el: HTMLElement
-  readonly title = i18n.t('ref_empire_title')
+  get title() { return i18n.t('ref_empire_title') }
   private state?: GameState
   private tabs: RefSubTabs
   private lastManageSig = ''

@@ -2,6 +2,7 @@ import type { GameState } from './GameState'
 import { backgroundDef, type CharacterBackgroundId } from './Career'
 import { startingMoneyForBackground } from './CharacterCreation'
 import { REPUTATION_START } from './Reputation'
+import { tRaw } from '../i18n'
 
 export type JobId = 'calisan' | 'serbest' | 'girisimci' | 'sanatci' | 'akademisyen' | 'sporcu'
 export type EducationLevel = 'ilkokul' | 'lise' | 'universite' | 'yukseklisans' | 'doktora'
@@ -91,4 +92,23 @@ export function applyProfileToState(profile: CharacterProfile, state: GameState)
   // Kimlik kuruldu. tutorial/pause/tick akışı main.ts'e bırakılır (integration
   // startTutorial + master isTicking guard) — burada tutorialDone'a dokunma.
   state.onboardingComplete = true
+}
+
+export function profileJobLabel(id: JobId): string {
+  return tRaw(`profile_job_${id}_label`) ?? JOB_DEFS[id].label
+}
+export function profileJobDesc(id: JobId): string {
+  return tRaw(`profile_job_${id}_desc`) ?? JOB_DEFS[id].desc
+}
+export function educationLabel(id: EducationLevel): string {
+  return tRaw(`profile_edu_${id}_label`) ?? EDUCATION_DEFS[id].label
+}
+export function educationDesc(id: EducationLevel): string {
+  return tRaw(`profile_edu_${id}_desc`) ?? EDUCATION_DEFS[id].desc
+}
+export function lifestyleLabel(id: LifestyleType): string {
+  return tRaw(`profile_life_${id}_label`) ?? LIFESTYLE_DEFS[id].label
+}
+export function lifestyleDesc(id: LifestyleType): string {
+  return tRaw(`profile_life_${id}_desc`) ?? LIFESTYLE_DEFS[id].desc
 }

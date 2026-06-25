@@ -1333,4 +1333,522 @@ export interface Translations {
 
   // Header
   ref_header_notifs: string
+
+  // Boot
+  ref_boot_error: string
+
+  // Dashboard — section titles and KPIs
+  ref_dash_total_empire_value: string
+  ref_dash_chart_caption: string
+  ref_dash_income_sources: string
+  ref_dash_per_day_unit: string
+  ref_dash_next_goals: string
+  ref_dash_daily_income_label: string
+  ref_dash_active_firms_label: string
+  ref_dash_cities_label: string
+  ref_dash_net_worth_label: string
+  ref_dash_cash_label: string
+  ref_dash_total_daily_income_label: string
+  ref_dash_reputation_label: string
+  ref_dash_raid_risk_label: string
+  ref_dash_liquidity_risk_label: string
+  ref_dash_risk_panel_title: string
+  ref_dash_low_risk_badge: string
+  ref_dash_medium_risk_badge: string
+  ref_dash_high_risk_badge: string
+  ref_dash_quick_actions_title: string
+  ref_dash_new_firm_button: string
+  ref_dash_open_city_button: string
+  ref_dash_market_button: string
+  ref_dash_achievements_button: string
+  ref_dash_recent_activities_title: string
+  ref_dash_loading_ellipsis: string
+  ref_daily_btn_claimed: string
+  ref_daily_btn_go_arrow: string
+  ref_daily_panel_title: string
+  ref_daily_bonus_prefix: string
+  ref_daily_bonus_claimed: string
+  ref_daily_bonus_button: string
+  ref_est_tag_estimated: string
+
+  // Firm Detail — labels and actions
+  ref_detail_back_button: string
+  ref_detail_level_prefix: string
+  ref_detail_risk_level_title: string
+  ref_detail_growth_label: string
+  ref_detail_performance_label: string
+  ref_detail_operational_performance: string
+  ref_detail_income_trend_title: string
+  ref_detail_est_tag: string
+  ref_detail_customer_satisfaction_title: string
+  ref_detail_expense_distribution_title: string
+  ref_detail_expense_staff: string
+  ref_detail_expense_supply: string
+  ref_detail_expense_rent: string
+  ref_detail_expense_other: string
+  ref_detail_upgrades_section: string
+  ref_detail_est_price_tag: string
+  ref_detail_branch_main: string
+  ref_detail_branch_2nd: string
+  ref_detail_branch_3rd: string
+  ref_detail_branches_section: string
+  ref_detail_upgrade_failed: string
+  ref_detail_modernize_failed: string
+  ref_detail_manager_failed: string
+
+  // Market — labels, toasts
+  ref_market_sentiment_title: string
+  ref_market_sentiment_optimistic: string
+  ref_market_sentiment_neutral: string
+  ref_market_sentiment_fearful: string
+  ref_market_central_bank_rate_label: string
+  ref_market_stock_exchange_title: string
+  ref_market_bank_title: string
+  ref_market_insurance_title: string
+  ref_market_ipo_title: string
+  ref_market_deposit_label: string
+  ref_market_bonds_label: string
+  ref_market_loan_debt_label: string
+  ref_market_credit_score_label: string
+  ref_market_deposit_button: string
+  ref_market_withdraw_button: string
+  ref_market_take_loan_button: string
+  ref_market_repay_loan_button: string
+  ref_market_insurance_business: string
+  ref_market_insurance_illegal: string
+  ref_market_insurance_dynasty: string
+  ref_market_prestige_points_label: string
+  ref_market_ipo_gain_label: string
+  ref_market_ipo_next_threshold: string
+  ref_market_ipo_ready_status: string
+  ref_market_ipo_earnings_suffix: string
+  ref_market_ipo_start_button: string
+  ref_market_ipo_confirm_label: string
+  ref_market_stock_buy_success: string
+  ref_market_insufficient_cash: string
+  ref_market_stock_sell_success: string
+  ref_market_stock_not_found: string
+  ref_market_insurance_activated: string
+  ref_market_insurance_deactivated: string
+
+  // Empire — department badges, tabs, toasts
+  ref_empire_tab_manage: string
+  ref_empire_tab_city: string
+  ref_empire_tab_rivals: string
+  ref_empire_city_unlocked: string
+  ref_empire_city_failed: string
+  ref_empire_active_city_updated: string
+  ref_empire_insufficient_funds: string
+  ref_empire_rival_acquired: string
+  ref_empire_acquisition_failed: string
+  ref_empire_bankrupt_rival_claimed: string
+  ref_empire_alliance_accepted: string
+  ref_empire_offer_not_found: string
+  ref_empire_offer_declined: string
+  ref_empire_rival_event_resolved: string
+  ref_empire_summary_cities_label: string
+  ref_empire_summary_firms_label: string
+  ref_empire_summary_departments_label: string
+  ref_empire_summary_empire_income: string
+  ref_empire_summary_net_worth: string
+  ref_empire_investments_title: string
+  ref_empire_investments_subtitle: string
+  ref_empire_assets_label: string
+  ref_empire_per_day_suffix: string
+  ref_empire_no_investments: string
+  ref_empire_departments_title: string
+  ref_empire_dept_max_level_button: string
+  ref_empire_dept_upgrade_prefix: string
+  ref_empire_dept_badge_max: string
+  ref_empire_dept_badge_strong: string
+  ref_empire_dept_badge_weak: string
+  ref_empire_dept_badge_critical: string
+  ref_empire_research_tree_title: string
+  ref_empire_research_nodes_label: string
+  ref_empire_upgrades_title: string
+  ref_empire_upgrades_count_label: string
+  ref_empire_torpil_joined: string
+  ref_empire_gift_given: string
+  ref_empire_gift_failed: string
+  ref_empire_bribe_success: string
+  ref_empire_bribe_failed: string
+  ref_empire_lawyer_hired: string
+  ref_empire_lawyer_failed: string
+  ref_empire_lobby_success: string
+  ref_empire_lobby_failed: string
+  ref_empire_cooperation_success: string
+  ref_empire_cooperation_failed: string
+
+  // Career — tabs, labels, toasts
+  ref_career_tab_job: string
+  ref_career_tab_health: string
+  ref_career_tab_fame: string
+  ref_career_level_label: string
+  ref_career_seniority_label: string
+  ref_career_entrepreneur_title: string
+  ref_career_entrepreneur_income: string
+  ref_career_unemployed_title: string
+  ref_career_no_job_subtitle: string
+  ref_career_daily_salary_label: string
+  ref_career_monthly_estimate_label: string
+  ref_career_next_rank_label: string
+  ref_career_progress_label: string
+  ref_career_stress_label: string
+  ref_career_stress_warning_tip: string
+  ref_career_promotion_soon_tip: string
+  ref_career_profile_section_title: string
+  ref_career_no_firms_message: string
+  ref_career_entrepreneur_panel_title: string
+  ref_career_firms_count_label: string
+  ref_career_best_earner_label: string
+  ref_career_entrepreneur_info: string
+  ref_career_goto_firms_button: string
+  ref_career_manage_firms_tip: string
+  ref_career_pick_job_title: string
+  ref_career_wage_per_day_unit: string
+  ref_career_action_completed_today: string
+  ref_career_daily_actions_section: string
+  ref_career_action_xp_focused: string
+
+  // Life — tabs, sections, labels, toasts
+  ref_life_tab_dynasty: string
+  ref_life_tab_home: string
+  ref_life_tab_travel: string
+  ref_life_tab_pets: string
+  ref_life_tab_shop: string
+  ref_life_stress_label: string
+  ref_life_expense_label: string
+  ref_life_monthly_label: string
+  ref_life_rental_income_label: string
+  ref_life_reputation_bonus_label: string
+  ref_life_single_status: string
+  ref_life_marriage_candidates_info: string
+  ref_life_spouse_tag: string
+  ref_life_satisfaction_label: string
+  ref_life_children_section_title: string
+  ref_life_child_count_label: string
+  ref_life_heir_tag: string
+  ref_life_career_pending: string
+  ref_life_in_education: string
+  ref_life_education_label: string
+  ref_life_no_children_title: string
+  ref_life_no_children_married_info: string
+  ref_life_no_children_single_info: string
+  ref_life_legacy_preparation_title: string
+  ref_life_selected_label: string
+  ref_life_legacy_active: string
+  ref_life_legacy_inactive: string
+  ref_life_residences_title: string
+  ref_life_no_property_hint: string
+  ref_life_owned_badge: string
+  ref_life_renting_state: string
+  ref_life_set_rental: string
+  ref_life_sell_action: string
+  ref_life_buy_button_prefix: string
+  ref_life_rooms_title: string
+  ref_life_vehicles_title: string
+  ref_life_income_multiplier_label: string
+  ref_life_maintenance_label: string
+  ref_life_monthly_unit: string
+  ref_life_travel_section_title: string
+  ref_life_trips_made_label: string
+  ref_life_bonus_active_label: string
+  ref_life_days_remaining: string
+  ref_life_active_hobby_label: string
+  ref_life_hobby_not_selected: string
+  ref_life_wellbeing_health_title: string
+  ref_life_adopt_title: string
+  ref_life_types_count_label: string
+  ref_life_pet_stress_label: string
+  ref_life_pet_cost_label: string
+  ref_life_adopt_button_prefix: string
+  ref_life_siblings_title: string
+  ref_life_active_count_label: string
+  ref_life_deceased_label: string
+  ref_life_relationship_label: string
+  ref_life_visit_button_prefix: string
+  ref_life_expenses_title: string
+  ref_life_monthly_expense_label: string
+  ref_life_property_label: string
+  ref_life_vehicle_label: string
+  ref_life_pet_label: string
+  ref_life_hobby_label: string
+  ref_life_categories_title: string
+  ref_life_category_home_desc: string
+  ref_life_category_travel_desc: string
+  ref_life_category_pet_desc: string
+  ref_life_category_family_desc: string
+  ref_life_sibling_age: string
+
+  // Shared / Header
+  ref_test_mode_exit: string
+  ref_demo_banner_prefix: string
+
+  // Sector labels (refAppDataAdapter)
+  ref_sector_food: string
+  ref_sector_service: string
+  ref_sector_tech: string
+  ref_sector_finance: string
+  ref_sector_tourism: string
+  ref_sector_media: string
+  ref_sector_illegal: string
+
+  // Wealth ranks (refAppDataAdapter)
+  ref_wealth_rank_0: string
+  ref_wealth_rank_1: string
+  ref_wealth_rank_2: string
+  ref_wealth_rank_3: string
+  ref_wealth_rank_4: string
+  ref_wealth_rank_5: string
+  ref_wealth_rank_6: string
+  ref_wealth_rank_7: string
+  ref_wealth_rank_8: string
+  ref_wealth_rank_9: string
+  ref_wealth_rank_10: string
+  ref_wealth_rank_11: string
+  ref_wealth_rank_12: string
+  ref_rank_at_apex: string
+
+  // Income sources / health labels
+  ref_income_career: string
+  ref_income_none: string
+  ref_health_good: string
+  ref_health_medium: string
+  ref_health_bad: string
+  ref_health_critical: string
+
+  // Goal labels
+  ref_goal_city_unlock: string
+  ref_goal_cities_meta: string
+
+  // Toast messages (RefNotificationBridge)
+  ref_toast_milestone: string
+  ref_toast_rep_down: string
+  ref_toast_rep_up: string
+  ref_toast_raid: string
+  ref_toast_disease_diag: string
+  ref_toast_disease_treated: string
+  ref_toast_dynasty: string
+
+  // Life event preview labels
+  ref_preview_rep: string
+  ref_preview_stress: string
+  ref_preview_health: string
+
+  // Annual focus options
+  ref_focus_work_label: string
+  ref_focus_work_sub: string
+  ref_focus_family_label: string
+  ref_focus_family_sub: string
+  ref_focus_health_label: string
+  ref_focus_health_sub: string
+  ref_focus_social_label: string
+  ref_focus_social_sub: string
+
+  // Decision modals
+  ref_marriage_crisis_title: string
+  ref_marriage_crisis_body: string
+  ref_marriage_crisis_gift_label: string
+  ref_marriage_crisis_gift_sub: string
+  ref_marriage_crisis_time_label: string
+  ref_marriage_crisis_time_sub: string
+  ref_annual_title: string
+  ref_annual_body: string
+  ref_undo_modal_title: string
+  ref_undo_confirm_label: string
+  ref_undo_dismiss_label: string
+  ref_rival_risk_label: string
+  ref_rival_rep_damage: string
+
+  // Career jobs
+  career_job_kurye_name: string
+  career_job_kurye_desc: string
+  career_job_kurye_hint: string
+  career_job_garson_name: string
+  career_job_garson_desc: string
+  career_job_garson_hint: string
+  career_job_satis_temsilcisi_name: string
+  career_job_satis_temsilcisi_desc: string
+  career_job_satis_temsilcisi_hint: string
+  career_job_yazilim_stajyeri_name: string
+  career_job_yazilim_stajyeri_desc: string
+  career_job_yazilim_stajyeri_hint: string
+  career_job_banka_calisani_name: string
+  career_job_banka_calisani_desc: string
+  career_job_banka_calisani_hint: string
+  career_job_belediye_asistani_name: string
+  career_job_belediye_asistani_desc: string
+  career_job_belediye_asistani_hint: string
+
+  // Career backgrounds
+  career_bg_sifirdan_gelen_name: string
+  career_bg_sifirdan_gelen_desc: string
+  career_bg_sifirdan_gelen_bonus: string
+  career_bg_universiteli_name: string
+  career_bg_universiteli_desc: string
+  career_bg_universiteli_bonus: string
+  career_bg_satisci_name: string
+  career_bg_satisci_desc: string
+  career_bg_satisci_bonus: string
+  career_bg_finansci_name: string
+  career_bg_finansci_desc: string
+  career_bg_finansci_bonus: string
+  career_bg_aile_sirketi_name: string
+  career_bg_aile_sirketi_desc: string
+  career_bg_aile_sirketi_bonus: string
+  career_bg_karanlik_cevre_name: string
+  career_bg_karanlik_cevre_desc: string
+  career_bg_karanlik_cevre_bonus: string
+
+  // Profile jobs
+  profile_job_calisan_label: string
+  profile_job_calisan_desc: string
+  profile_job_serbest_label: string
+  profile_job_serbest_desc: string
+  profile_job_girisimci_label: string
+  profile_job_girisimci_desc: string
+  profile_job_sanatci_label: string
+  profile_job_sanatci_desc: string
+  profile_job_akademisyen_label: string
+  profile_job_akademisyen_desc: string
+  profile_job_sporcu_label: string
+  profile_job_sporcu_desc: string
+
+  // Education levels
+  profile_edu_ilkokul_label: string
+  profile_edu_ilkokul_desc: string
+  profile_edu_lise_label: string
+  profile_edu_lise_desc: string
+  profile_edu_universite_label: string
+  profile_edu_universite_desc: string
+  profile_edu_yukseklisans_label: string
+  profile_edu_yukseklisans_desc: string
+  profile_edu_doktora_label: string
+  profile_edu_doktora_desc: string
+
+  // Lifestyle types
+  profile_life_mutevazi_label: string
+  profile_life_mutevazi_desc: string
+  profile_life_orta_label: string
+  profile_life_orta_desc: string
+  profile_life_luks_label: string
+  profile_life_luks_desc: string
+
+  // Daily tasks
+  task_pick_job_label: string
+  task_pick_job_desc: string
+  task_career_action_label: string
+  task_career_action_desc: string
+  task_buy_firm_label: string
+  task_buy_firm_desc: string
+  task_upgrade_firm_label: string
+  task_upgrade_firm_desc: string
+  task_visit_career_label: string
+  task_visit_career_desc: string
+  task_visit_firms_label: string
+  task_visit_firms_desc: string
+  task_visit_market_label: string
+  task_visit_market_desc: string
+  task_visit_empire_label: string
+  task_visit_empire_desc: string
+  task_visit_life_label: string
+  task_visit_life_desc: string
+  task_unlock_city_label: string
+  task_unlock_city_desc: string
+  task_upgrade_department_label: string
+  task_upgrade_department_desc: string
+  task_wellbeing_label: string
+  task_wellbeing_desc: string
+  task_life_item_label: string
+  task_life_item_desc: string
+  task_market_action_label: string
+  task_market_action_desc: string
+  task_hire_manager_label: string
+  task_hire_manager_desc: string
+
+  // Diseases
+  disease_astim_name: string
+  disease_migren_name: string
+  disease_diyabet_name: string
+  disease_tansiyon_name: string
+  disease_kalp_name: string
+  disease_kanser_name: string
+
+  // Fame careers
+  fame_muzisyen_name: string
+  fame_oyuncu_name: string
+  fame_sosyal_medya_name: string
+
+  // Fame actions
+  fame_muzisyen_action_studio_session_label: string
+  fame_muzisyen_action_concert_label: string
+  fame_muzisyen_action_collab_label: string
+  fame_oyuncu_action_audition_label: string
+  fame_oyuncu_action_film_role_label: string
+  fame_oyuncu_action_red_carpet_label: string
+  fame_sosyal_medya_action_post_content_label: string
+  fame_sosyal_medya_action_brand_deal_label: string
+  fame_sosyal_medya_action_viral_video_label: string
+
+  // Fame level labels (index 0=lowest)
+  fame_level_0: string
+  fame_level_1: string
+  fame_level_2: string
+  fame_level_3: string
+  fame_level_4: string
+  fame_level_5: string
+
+  // Player ranks
+  rank_cirak_name: string
+  rank_stajyer_name: string
+  rank_girisimci_name: string
+  rank_isletmeci_name: string
+  rank_patron_name: string
+  rank_milyoner_name: string
+  rank_holding_name: string
+  rank_imparator_name: string
+  rank_trilyoner_name: string
+  rank_galaktik_name: string
+
+  // Hobbies
+  hobby_golfer_name: string
+  hobby_golfer_desc: string
+  hobby_golfer_bonus: string
+  hobby_football_fan_name: string
+  hobby_football_fan_desc: string
+  hobby_football_fan_bonus: string
+  hobby_art_collector_name: string
+  hobby_art_collector_desc: string
+  hobby_art_collector_bonus: string
+  hobby_sailor_name: string
+  hobby_sailor_desc: string
+  hobby_sailor_bonus: string
+  hobby_tech_enthusiast_name: string
+  hobby_tech_enthusiast_desc: string
+  hobby_tech_enthusiast_bonus: string
+
+  // Travel destinations
+  travel_kapadokya_name: string
+  travel_kapadokya_desc: string
+  travel_kapadokya_bonus: string
+  travel_maldivler_name: string
+  travel_maldivler_desc: string
+  travel_maldivler_bonus: string
+  travel_japonya_name: string
+  travel_japonya_desc: string
+  travel_japonya_bonus: string
+  travel_new_york_name: string
+  travel_new_york_desc: string
+  travel_new_york_bonus: string
+  travel_mars_name: string
+  travel_mars_desc: string
+  travel_mars_bonus: string
+
+  // Reputation labels (index 0=lowest)
+  rep_label_0: string
+  rep_label_1: string
+  rep_label_2: string
+  rep_label_3: string
+  rep_label_4: string
+  rep_label_5: string
 }

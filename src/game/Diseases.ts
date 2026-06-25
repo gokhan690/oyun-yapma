@@ -1,3 +1,5 @@
+import { tRaw } from '../i18n'
+
 export type DiseaseId = 'astim' | 'migren' | 'diyabet' | 'tansiyon' | 'kalp' | 'kanser'
 
 export interface DiseaseDef {
@@ -52,4 +54,8 @@ export function pickRandomDisease(eligible: DiseaseDef[]): DiseaseDef | null {
     if (r <= 0) return d
   }
   return eligible[eligible.length - 1]!
+}
+
+export function diseaseName(d: DiseaseDef): string {
+  return tRaw(`disease_${d.id}_name`) ?? d.name
 }

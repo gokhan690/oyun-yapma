@@ -96,19 +96,47 @@ class I18nManager {
     return (this.dict as unknown as Record<string, string>)[key]
       ?? (tr as unknown as Record<string, string>)[key]
   }
+
+  /** Looks up key in the ACTIVE locale only — no Turkish fallback. */
+  tExactRaw(key: string): string | undefined {
+    const val = (this.dict as unknown as Record<string, string>)[key]
+    return val !== undefined && val.trim() !== '' ? val : undefined
+  }
 }
 
 export const i18n = new I18nManager()
 export const t = (key: keyof Translations): string => i18n.t(key)
 export const tRaw = (key: string): string | undefined => i18n.tRaw(key)
+export const tExactRaw = (key: string): string | undefined => i18n.tExactRaw(key)
 
-/** Languages available in production UI (Onboarding + Settings language selector). */
-export const PRODUCTION_LANGS: readonly LangCode[] = ['tr', 'en']
+/**
+ * Resolve a domain key from the active locale only — no silent fallback.
+ * Returns a visible sentinel when key is missing, so QA catches it.
+ */
+export function requiredDomainText(key: string): string {
+  const val = i18n.tExactRaw(key)
+  return val !== undefined ? val : `[missing:${key}]`
+}
+
+/**
+ * Format a translation key with named {placeholder} tokens.
+ * Replaces all occurrences (regex-based).
+ */
+export function fmt(key: keyof Translations, params: Record<string, string | number>): string {
+  return i18n.t(key).replace(/\{([a-zA-Z0-9_]+)\}/g, (match, name) =>
+    Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : match,
+  )
+}
+
+/** All 10 languages available in the production UI. */
+export const PRODUCTION_LANGS: readonly LangCode[] = [
+  'tr', 'en', 'de', 'zh', 'es', 'ru', 'pt', 'ja', 'ar', 'fr',
+]
 
 /**
  * Normalize the stored language to a production-supported one.
- * Call once after i18n.init() if the user had a non-production lang saved.
- * Avoids infinite reload: setLang only writes localStorage, no reload triggered here.
+ * With all 10 langs in PRODUCTION_LANGS this is a no-op for any supported code.
+ * Retained as a safety net for unknown codes in old saves.
  */
 export async function normalizeToProductionLang(): Promise<void> {
   const current = i18n.getLang()

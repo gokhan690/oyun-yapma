@@ -1,3 +1,5 @@
+import { tRaw } from '../i18n'
+
 export type LifeEventId =
   | 'found_wallet'
   | 'old_partner_offer'
@@ -1094,4 +1096,14 @@ export function resolveConsequence(
     talent_productivity: { moneyDelta: 500_000, reputationDelta: 8, headline: '👔 İşe aldığın direktör şirketi büyüttü — verimlilik arttı' },
   }
   return map[consequenceId] ?? { moneyDelta: 0, reputationDelta: 0, headline: `${eventId} sonucu` }
+}
+
+export function lifeEventTitle(def: LifeEventDef): string {
+  return tRaw(`life_${def.id}_title`) ?? def.title
+}
+export function lifeEventDesc(def: LifeEventDef): string {
+  return tRaw(`life_${def.id}_desc`) ?? def.description
+}
+export function lifeChoiceLabel(eventId: string, choice: LifeEventChoice): string {
+  return tRaw(`life_${eventId}_choice_${choice.id}_label`) ?? choice.label
 }

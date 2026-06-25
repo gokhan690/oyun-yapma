@@ -3105,3 +3105,17 @@
   background: transparent; color: var(--r-text);
   font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
 }
+
+/* ── RTL overrides (Arabic) ─────────────────────────────────────── */
+[dir="rtl"] .ref-back-btn { direction: rtl; }
+[dir="rtl"] .ref-torpil-row.active { border-left: none; border-right: 3px solid var(--r-success); }
+[dir="rtl"] .ref-torpil-row.gift-due { border-left: none; border-right: 3px solid var(--r-warning); }
+[dir="rtl"] .ref-rival-card.gone.bankrupt { border-left: none; border-right: 3px solid var(--r-warning); }
+[dir="rtl"] .ref-rival-card.allied { border-left: none; border-right: 3px solid var(--r-success); }
+[dir="rtl"] .ref-rival-card.hostile { border-left: none; border-right: 3px solid var(--r-danger); }
+[dir="rtl"] .ref-life-item-row.owned { border-left: none; border-right: 3px solid var(--r-success); }
+[dir="rtl"] .ref-notif-row.cat-crisis { border-left: none; border-right: 3px solid var(--r-danger); }
+[dir="rtl"] .ref-main-tab { border-right: none; border-left: 1px solid rgba(255,255,255,0.6); }
+[dir="rtl"] .ref-main-tab:last-child { border-left: none; }
+[dir="rtl"] .ref-decision-options { direction: rtl; }
+[dir="rtl"] .ref-header__profile-chevron { margin-left: 0; margin-right: 4px; transform: scaleX(-1); }

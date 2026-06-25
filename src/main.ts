@@ -184,6 +184,13 @@ async function bootstrap(): Promise<void> {
     const ads = new AdManager()
     const sound = new SoundManager()
 
+    const finalizeBoot = (s: GameState): void => {
+      document.addEventListener('click', () => sound.resume(), { once: true })
+      void scheduleDailyReminder(s.notificationPrefs)
+      void registerServiceWorker()
+      window.__II_MARK_BOOTED__?.()
+    }
+
     let loaded
     try {
       loaded = saveManager.load(state)
@@ -222,6 +229,7 @@ async function bootstrap(): Promise<void> {
           saveManager.startAutoSave(freshState)
         })
         onboarding.show()
+        finalizeBoot(freshState)
         return
       }
 
@@ -272,15 +280,12 @@ async function bootstrap(): Promise<void> {
       showRecoveryScreen(app, state, saveManager)
     }
 
-    document.addEventListener('click', () => sound.resume(), { once: true })
-    void scheduleDailyReminder(state.notificationPrefs)
-    void registerServiceWorker()
-    window.__II_MARK_BOOTED__?.()
+    finalizeBoot(state)
   } catch (err) {
     console.error('Bootstrap hatası:', err)
     reportCrash(err, 'bootstrap')
     showBootFailure(
-      'Oyun başlatılamadı. Sayfayı yenile; sorun sürerse kaydı sıfırlayıp tekrar dene.',
+      i18n.isReady() ? i18n.t('ref_boot_error') : 'Game failed to start. Please reload the page.',
       true,
     )
   }
@@ -290,7 +295,7 @@ void bootstrap().catch((err) => {
   console.error('Bootstrap failed:', err)
   reportCrash(err, 'bootstrap.catch')
   showBootFailure(
-    'Oyun başlatılamadı. Sayfayı yenile; sorun sürerse kaydı sıfırlayıp tekrar dene.',
+    i18n.isReady() ? i18n.t('ref_boot_error') : 'Game failed to start. Please reload the page.',
     true,
   )
 })

@@ -1,3 +1,5 @@
+import { tRaw } from '../i18n'
+
 /** Seyahat & Tatil — 5 destinasyon, farklı bonuslar */
 
 export type TravelDestinationId = 'kapadokya' | 'maldivler' | 'japonya' | 'new_york' | 'mars'
@@ -143,4 +145,14 @@ export function travelPrestigeBonus(state: TravelState, currentDay: number): num
   if (!state.travelBonusType || currentDay > state.travelBonusUntilDay) return 0
   if (state.travelBonusType === 'prestige') return state.travelBonusValue
   return 0
+}
+
+export function travelName(dest: TravelDestination): string {
+  return tRaw(`travel_${dest.id}_name`) ?? dest.name
+}
+export function travelDesc(dest: TravelDestination): string {
+  return tRaw(`travel_${dest.id}_desc`) ?? dest.description
+}
+export function travelBonus(dest: TravelDestination): string {
+  return tRaw(`travel_${dest.id}_bonus`) ?? dest.bonusLabel
 }

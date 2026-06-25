@@ -1,3 +1,5 @@
+import { tRaw } from '../i18n'
+
 export type CareerJobId =
   | 'kurye'
   | 'garson'
@@ -236,6 +238,25 @@ export function careerJobDef(id: CareerJobId | null): CareerJobDef | null {
 export function backgroundDef(id: CharacterBackgroundId | null): CharacterBackgroundDef | null {
   if (!id) return null
   return CHARACTER_BACKGROUNDS.find((b) => b.id === id) ?? null
+}
+
+export function careerJobName(job: CareerJobDef): string {
+  return tRaw(`career_job_${job.id}_name`) ?? job.name
+}
+export function careerJobDesc(job: CareerJobDef): string {
+  return tRaw(`career_job_${job.id}_desc`) ?? job.description
+}
+export function careerJobHint(job: CareerJobDef): string {
+  return tRaw(`career_job_${job.id}_hint`) ?? job.unlockHint
+}
+export function careerBgName(bg: CharacterBackgroundDef): string {
+  return tRaw(`career_bg_${bg.id}_name`) ?? bg.name
+}
+export function careerBgDesc(bg: CharacterBackgroundDef): string {
+  return tRaw(`career_bg_${bg.id}_desc`) ?? bg.description
+}
+export function careerBgBonus(bg: CharacterBackgroundDef): string {
+  return tRaw(`career_bg_${bg.id}_bonus`) ?? bg.bonusLabel
 }
 
 /** Kariyer seviyesi × maaş çarpanı */

@@ -1,7 +1,7 @@
 import { RefKpiStrip, type KpiItem }  from './RefKpiStrip'
 import { RefCard, type FirmData } from './RefCard'
 import { fmtMoney, refToast } from './refShared'
-import { i18n } from '../../i18n'
+import { i18n, requiredDomainText } from '../../i18n'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, isProducerUnlocked, type ProducerDef } from '../../game/Economy'
@@ -30,26 +30,26 @@ const NORMAL_PRODUCERS = PRODUCERS.filter(p => !EMPIRE_PRODUCER_IDS.has(p.id))
 
 /* ── Önizleme kategori filtreleri (mock mod) ───────────────────────────── */
 type CategoryKey = 'tumu' | 'gida' | 'hizmet' | 'teknoloji' | 'finans' | 'turizm' | 'medya' | 'illegal'
-const CATEGORIES: { id: CategoryKey; label: string; icon: string }[] = [
-  { id: 'tumu', label: 'Tümü', icon: '' },
-  { id: 'gida', label: 'Gıda', icon: '🍔' },
-  { id: 'hizmet', label: 'Hizmet', icon: '🤝' },
-  { id: 'teknoloji', label: 'Teknoloji', icon: '🚀' },
-  { id: 'finans', label: 'Finans', icon: '💰' },
-  { id: 'turizm', label: 'Turizm', icon: '✈️' },
-  { id: 'medya', label: 'Medya', icon: '🎬' },
-  { id: 'illegal', label: 'Illegal', icon: '🚫' },
+const CATEGORIES: { id: CategoryKey; labelKey: string; icon: string }[] = [
+  { id: 'tumu', labelKey: 'firms_cat_tumu', icon: '' },
+  { id: 'gida', labelKey: 'firms_cat_gida', icon: '🍔' },
+  { id: 'hizmet', labelKey: 'firms_cat_hizmet', icon: '🤝' },
+  { id: 'teknoloji', labelKey: 'firms_cat_teknoloji', icon: '🚀' },
+  { id: 'finans', labelKey: 'firms_cat_finans', icon: '💰' },
+  { id: 'turizm', labelKey: 'firms_cat_turizm', icon: '✈️' },
+  { id: 'medya', labelKey: 'firms_cat_medya', icon: '🎬' },
+  { id: 'illegal', labelKey: 'firms_cat_illegal', icon: '🚫' },
 ]
 
 /* ── İmparatorluk alt sekmeleri ──────────────────────────────────────── */
 type EmpireTab = 'futbol' | 'siyaset' | 'yeralti' | 'luks' | 'bilim' | 'finans'
-const EMPIRE_TABS: { id: EmpireTab; label: string; icon: string }[] = [
-  { id: 'futbol', label: 'Futbol', icon: '⚽' },
-  { id: 'siyaset', label: 'Siyaset', icon: '🏛️' },
-  { id: 'yeralti', label: 'Yeraltı', icon: '🔥' },
-  { id: 'luks', label: 'Lüks', icon: '💎' },
-  { id: 'bilim', label: 'Bilim', icon: '🔬' },
-  { id: 'finans', label: 'Finans', icon: '📊' },
+const EMPIRE_TABS: { id: EmpireTab; labelKey: string; icon: string }[] = [
+  { id: 'futbol', labelKey: 'firms_empire_tab_futbol', icon: '⚽' },
+  { id: 'siyaset', labelKey: 'firms_empire_tab_siyaset', icon: '🏛️' },
+  { id: 'yeralti', labelKey: 'firms_empire_tab_yeralti', icon: '🔥' },
+  { id: 'luks', labelKey: 'firms_empire_tab_luks', icon: '💎' },
+  { id: 'bilim', labelKey: 'firms_empire_tab_bilim', icon: '🔬' },
+  { id: 'finans', labelKey: 'firms_empire_tab_finans', icon: '📊' },
 ]
 const EMPIRE_PRODUCER_FILTER: Record<EmpireTab, (p: ProducerDef) => boolean> = {
   futbol:  p => p.category === 'sport',
@@ -73,7 +73,7 @@ type MainTab = 'normal' | 'empire'
 
 export class RefFirmsPage implements RefPage {
   readonly el: HTMLElement
-  readonly title = i18n.t('ref_firms_title')
+  get title() { return i18n.t('ref_firms_title') }
 
   onOpenFirm?: (firm: FirmData, live?: { state: GameState; producerId: string; rebuild?: () => FirmData }) => void
 
@@ -568,7 +568,8 @@ export class RefFirmsPage implements RefPage {
     for (const cat of CATEGORIES) {
       const btn = document.createElement('button')
       btn.className = 'ref-cat-tab' + (cat.id === 'tumu' ? ' active' : '')
-      btn.innerHTML = cat.icon ? `<span class="tab-ico">${cat.icon}</span>${cat.label}` : cat.label
+      const catLabel = requiredDomainText(cat.labelKey)
+      btn.innerHTML = cat.icon ? `<span class="tab-ico">${cat.icon}</span>${catLabel}` : catLabel
       btn.addEventListener('click', () => this.setCategory(cat.id))
       this.catBtns.set(cat.id, btn)
       wrap.appendChild(btn)
@@ -605,7 +606,7 @@ export class RefFirmsPage implements RefPage {
     for (const tab of EMPIRE_TABS) {
       const btn = document.createElement('button')
       btn.className = 'ref-empire-tab' + (tab.id === this.activeEmpireTab ? ' active' : '')
-      btn.innerHTML = `<span>${tab.icon}</span><span>${tab.label}</span>`
+      btn.innerHTML = `<span>${tab.icon}</span><span>${requiredDomainText(tab.labelKey)}</span>`
       btn.addEventListener('click', () => this.switchEmpireTab(tab.id, tabBar, content))
       tabBar.appendChild(btn)
     }

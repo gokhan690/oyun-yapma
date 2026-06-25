@@ -1,5 +1,5 @@
 import { sectionTitle, fmtMoney, refToast } from './refShared'
-import { i18n } from '../../i18n'
+import { i18n, requiredDomainText } from '../../i18n'
 import { RefSubTabs } from './RefSubTabs'
 import type { RefCareerVM } from './refAppDataAdapter'
 import type { RefPage } from './RefApp'
@@ -26,9 +26,9 @@ const CAREER_ACTION_META: Record<string, { emoji: string; label: string; desc: s
 }
 
 /** Kariyer Sağlık sekmesinde bağlanan günlük rutin aksiyonları. */
-const ROUTINE_META: { id: 'exercise' | 'meditate'; emoji: string; label: string; effect: string }[] = [
-  { id: 'exercise', emoji: '🏃', label: 'Egzersiz',   effect: '+5 sağlık · -5 stres' },
-  { id: 'meditate', emoji: '🧘', label: 'Meditasyon', effect: '-10 stres' },
+const ROUTINE_META: { id: 'exercise' | 'meditate'; emoji: string; labelKey: string; effectKey: string }[] = [
+  { id: 'exercise', emoji: '🏃', labelKey: 'career_routine_exercise_label', effectKey: 'career_routine_exercise_effect' },
+  { id: 'meditate', emoji: '🧘', labelKey: 'career_routine_meditate_label', effectKey: 'career_routine_meditate_effect' },
 ]
 
 /** Kariyer Sağlık sekmesinde gösterilen stres tedavileri (yalnız bu ikisi). */
@@ -43,7 +43,7 @@ const MOCK_CAREER: RefCareerVM = {
 
 export class RefCareerPage implements RefPage {
   readonly el: HTMLElement
-  readonly title = i18n.t('ref_career_title')
+  get title() { return i18n.t('ref_career_title') }
 
   private tabs: RefSubTabs
   private jobCard!: HTMLElement
@@ -381,8 +381,8 @@ export class RefCareerPage implements RefPage {
       return `
         <button class="ref-routine-btn" type="button" data-routine="${r.id}" ${disabled ? 'disabled' : ''}>
           <span class="ref-routine-btn__ico">${r.emoji}</span>
-          <span class="ref-routine-btn__label">${r.label}</span>
-          <span class="ref-routine-btn__effect">${used ? '✓ Yapıldı' : r.effect}</span>
+          <span class="ref-routine-btn__label">${requiredDomainText(r.labelKey)}</span>
+          <span class="ref-routine-btn__effect">${used ? requiredDomainText('career_routine_done') : requiredDomainText(r.effectKey)}</span>
         </button>`
     }).join('')
 

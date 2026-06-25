@@ -7,6 +7,7 @@ import { fameLevelLabel, FAME_CAREERS } from '../../game/Fame'
 import type { DiseaseId } from '../../game/Diseases'
 import { diseaseDef } from '../../game/Diseases'
 import { PLAYER_RANKS, rankProgress } from '../../game/PlayerRank'
+import { i18n } from '../../i18n'
 
 /*
  * RefAppDataAdapter — SALT OKUNUR. GÜVENLİK DENETİMİ:
@@ -166,9 +167,12 @@ function categorySector(cat: string): FirmSector {
   }
 }
 
-const SECTOR_LABEL: Record<FirmSector, string> = {
-  gida: 'Gıda', hizmet: 'Hizmet', teknoloji: 'Teknoloji',
-  finans: 'Finans', turizm: 'Turizm', medya: 'Medya', illegal: 'Yasadışı',
+const SECTOR_KEY: Record<FirmSector, string> = {
+  gida: 'ref_sector_food', hizmet: 'ref_sector_service', teknoloji: 'ref_sector_tech',
+  finans: 'ref_sector_finance', turizm: 'ref_sector_tourism', medya: 'ref_sector_media', illegal: 'ref_sector_illegal',
+}
+function sectorLabel(sector: FirmSector): string {
+  return i18n.tRaw(SECTOR_KEY[sector]) ?? sector
 }
 const SECTOR_COLOR: Record<FirmSector, string> = {
   gida: '#F6A609', hizmet: '#7C3AED', teknoloji: '#13B8A6',
@@ -275,26 +279,30 @@ function deriveNetWorthTrend(netWorth: number): number[] {
 }
 
 const RANKS = [
-  { min: 0,                 title: 'Çırak Girişimci' },
-  { min: 2_500,             title: 'Acemi Esnaf' },
-  { min: 10_000,            title: 'Esnaf' },
-  { min: 50_000,            title: 'Dükkân Sahibi' },
-  { min: 250_000,           title: 'İş Sahibi' },
-  { min: 1_000_000,         title: 'İşletme Sahibi' },
-  { min: 5_000_000,         title: 'Girişimci' },
-  { min: 25_000_000,        title: 'Şirket Patronu' },
-  { min: 100_000_000,       title: 'Holding Sahibi' },
-  { min: 500_000_000,       title: 'Holding Başkanı' },
-  { min: 2_500_000_000,     title: 'Sektör Lideri' },
-  { min: 25_000_000_000,    title: 'Piyasa Devi' },
-  { min: 250_000_000_000,   title: 'İş İmparatoru' },
+  { min: 0 },
+  { min: 2_500 },
+  { min: 10_000 },
+  { min: 50_000 },
+  { min: 250_000 },
+  { min: 1_000_000 },
+  { min: 5_000_000 },
+  { min: 25_000_000 },
+  { min: 100_000_000 },
+  { min: 500_000_000 },
+  { min: 2_500_000_000 },
+  { min: 25_000_000_000 },
+  { min: 250_000_000_000 },
 ]
+
+function rankTitle(idx: number): string {
+  return i18n.tRaw(`ref_wealth_rank_${idx}`) ?? `rank_${idx}`
+}
 
 function rankFor(netWorth: number): { idx: number; title: string; next: string; nextMin: number } {
   let idx = 0
   for (let i = 0; i < RANKS.length; i++) if (netWorth >= RANKS[i].min) idx = i
-  const next = RANKS[Math.min(idx + 1, RANKS.length - 1)]
-  return { idx, title: RANKS[idx].title, next: next.title, nextMin: next.min }
+  const nextIdx = Math.min(idx + 1, RANKS.length - 1)
+  return { idx, title: rankTitle(idx), next: rankTitle(nextIdx), nextMin: RANKS[nextIdx].min }
 }
 
 /** Hafif: yalnızca header player alanını hesaplar (firma/kariyer build'i yok). */
@@ -333,7 +341,7 @@ export function buildRefViewModel(state: GameState): RefViewModel {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([sec, val]) => ({
-      label: SECTOR_LABEL[sec],
+      label: sectorLabel(sec),
       value: Math.round((val / totalSector) * 100),
       color: SECTOR_COLOR[sec],
     }))
@@ -351,9 +359,9 @@ export function buildRefViewModel(state: GameState): RefViewModel {
   }
   if (ownedCities.length < 5) {
     goals.push({
-      ico: '🏙️', name: 'Yeni Şehir Aç',
+      ico: '🏙️', name: i18n.t('ref_goal_city_unlock'),
       pct: Math.min(100, Math.round((ownedCities.length / 5) * 100)),
-      metaA: `${ownedCities.length} / 5 şehir`,
+      metaA: (i18n.tRaw('ref_goal_cities_meta') ?? '{count} / 5').replace('{count}', String(ownedCities.length)),
     })
   }
 
@@ -370,7 +378,7 @@ export function buildRefViewModel(state: GameState): RefViewModel {
     reputationLabel: reputationLabel(state.reputation),
     firmCount: state.ownedBusinessTiers(),
     cityCount: ownedCities.length,
-    incomeSources: incomeSources.length ? incomeSources : dailyIncome > 0 ? [{ label: 'Kariyer Geliri', value: 100, color: '#2563EB' }] : [{ label: 'Henüz yok', value: 100, color: '#94B4C2' }],
+    incomeSources: incomeSources.length ? incomeSources : dailyIncome > 0 ? [{ label: i18n.t('ref_income_career'), value: 100, color: '#2563EB' }] : [{ label: i18n.t('ref_income_none'), value: 100, color: '#94B4C2' }],
     netWorthTrend: deriveNetWorthTrend(netWorth),   // gerçek netWorth'ten türetilmiş tahmini eğri
     goals,
   }
@@ -380,7 +388,7 @@ export function buildRefViewModel(state: GameState): RefViewModel {
   const siblings = (state as unknown as { siblings?: { isAlive: boolean }[] }).siblings ?? []
   const karma = (state as unknown as { karma?: number }).karma ?? 0
   const health = Math.round(state.health?.health ?? 100)
-  const healthLabel = health >= 80 ? 'İyi' : health >= 50 ? 'Orta' : health >= 20 ? 'Kötü' : 'Kritik'
+  const healthLabel = health >= 80 ? i18n.t('ref_health_good') : health >= 50 ? i18n.t('ref_health_medium') : health >= 20 ? i18n.t('ref_health_bad') : i18n.t('ref_health_critical')
 
   const diseaseVMs: RefDiseaseVM[] = diseases.map((d) => {
     const def = diseaseDef(d.id)
@@ -399,8 +407,8 @@ export function buildRefViewModel(state: GameState): RefViewModel {
     salaryDaily: dailyIncome,
     stress: Math.round(state.lifestyle.stress),
     xpPct: Math.round(rp.pct),
-    xpText: `₺${fmt(Math.round(state.totalEarned))} / ${rp.next ? '₺' + fmt(rp.next.minEarned) : 'ZİRVE'}`,
-    nextRank: rp.next ? `${rp.next.emoji} ${rp.next.name}` : '🏆 Zirvede',
+    xpText: `₺${fmt(Math.round(state.totalEarned))} / ${rp.next ? '₺' + fmt(rp.next.minEarned) : i18n.t('ref_rank_at_apex')}`,
+    nextRank: rp.next ? `${rp.next.emoji} ${rp.next.name}` : i18n.t('ref_rank_at_apex'),
     seniorityYears: Math.max(0, age - 18),
     health,
     healthLabel,

@@ -64,7 +64,7 @@ const FEED = [
 
 export class RefDashboardPage implements RefPage {
   readonly el: HTMLElement
-  readonly title = i18n.t('ref_dash_title')
+  get title() { return i18n.t('ref_dash_title') }
 
   onOpenAchievements?: () => void
   onNavigate?: (tab: RefNavTab) => void
