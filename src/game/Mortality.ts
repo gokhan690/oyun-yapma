@@ -1,5 +1,18 @@
 import type { PoliticsLevel } from './Empire'
 import type { ChildTrait, SpouseTrait } from './Dynasty'
+import { requiredDomainText } from '../i18n'
+
+export function deathLabel(id: DeathCauseId): string {
+  return requiredDomainText(`death_${id}_label`)
+}
+
+export function deathMessage(id: DeathCauseId, age: number, name: string): string {
+  let key = `death_${id}_msg`
+  if (id === 'traffic_accident') key = age < 30 ? 'death_traffic_accident_msg_young' : 'death_traffic_accident_msg_old'
+  return requiredDomainText(key)
+    .replace('{name}', name)
+    .replace('{age}', String(age))
+}
 
 export type DeathCauseId =
   | 'traffic_accident'
@@ -60,7 +73,6 @@ interface DeathCauseDef {
   label: string
   minAge?: number
   risk(ctx: MortalityContext): number
-  message(age: number, name: string): string
 }
 
 function traitMult(ctx: MortalityContext): number {
@@ -93,18 +105,12 @@ const DEATH_CAUSES: DeathCauseDef[] = [
     label: 'Trafik Kazası',
     minAge: 18,
     risk: (ctx) => ageBaseRisk(ctx.age) * 0.35 * traitMult(ctx),
-    message: (age, name) =>
-      age < 30
-        ? `${name}, gece yarısı lüks aracıyla dönüşte kaza geçirdi. (${age} yaş)`
-        : `${name}, şehirler arası yolda ani bir kaza sonucu hayatını kaybetti. (${age} yaş)`,
   },
   {
     id: 'sudden_illness',
     emoji: '🤒',
     label: 'Ani Hastalık',
     risk: (ctx) => ageBaseRisk(ctx.age) * 0.5 * traitMult(ctx),
-    message: (age, name) =>
-      `${name}, tedavi edilemeyen ani bir hastalık sonucu vefat etti. (${age} yaş)`,
   },
   {
     id: 'heart_attack',
@@ -117,8 +123,6 @@ const DEATH_CAUSES: DeathCauseDef[] = [
       if (ctx.ownedBusinessCount >= 6) r *= 1.2
       return r * traitMult(ctx)
     },
-    message: (age, name) =>
-      `${name}, yoğun stres ve tempo sonucu kalp krizi geçirdi. (${age} yaş)`,
   },
   {
     id: 'stroke',
@@ -126,8 +130,6 @@ const DEATH_CAUSES: DeathCauseDef[] = [
     label: 'Felç',
     minAge: 48,
     risk: (ctx) => ageBaseRisk(ctx.age) * (ctx.age >= 60 ? 1.5 : 0.4) * traitMult(ctx),
-    message: (age, name) =>
-      `${name}, ani bir felç sonrası kaldırılamadı. (${age} yaş)`,
   },
   {
     id: 'natural_causes',
@@ -139,8 +141,6 @@ const DEATH_CAUSES: DeathCauseDef[] = [
       const extra = (ctx.age - 68) * 0.00004
       return (ageBaseRisk(ctx.age) * 1.2 + extra) * traitMult(ctx)
     },
-    message: (age, name) =>
-      `${name}, uzun ve verimli bir yaşamın ardından huzur içinde vefat etti. (${age} yaş)`,
   },
   {
     id: 'fatal_raid',
@@ -152,8 +152,6 @@ const DEATH_CAUSES: DeathCauseDef[] = [
       if (ctx.illegalHeat >= 70) return 0.00055 * traitMult(ctx)
       return 0.00012 * traitMult(ctx)
     },
-    message: (_age, name) =>
-      `${name}, radar zirvedeyken düzenlenen baskında hayatını kaybetti. Illegal işler bedelini istedi.`,
   },
   {
     id: 'assassination',
@@ -170,8 +168,6 @@ const DEATH_CAUSES: DeathCauseDef[] = [
         default: return ctx.totalEarned > 50_000_000 ? 0.00004 * mult : 0
       }
     },
-    message: (age, name) =>
-      `${name}, siyasi rakiplerinin düzenlediği suikast sonucu öldürüldü. (${age} yaş)`,
   },
   {
     id: 'organized_crime',
@@ -184,8 +180,6 @@ const DEATH_CAUSES: DeathCauseDef[] = [
       if (ctx.illegalHeat >= 45) r *= 1.6
       return r * traitMult(ctx)
     },
-    message: (age, name) =>
-      `${name}, yeraltı dünyasındaki hesaplaşmada hedef alındı. (${age} yaş)`,
   },
   {
     id: 'plane_crash',
@@ -193,8 +187,6 @@ const DEATH_CAUSES: DeathCauseDef[] = [
     label: 'Uçak Kazası',
     minAge: 25,
     risk: (ctx) => (ctx.totalEarned > 500_000_000 ? 0.00008 : ctx.totalEarned > 50_000_000 ? 0.000035 : 0) * traitMult(ctx),
-    message: (age, name) =>
-      `${name}, özel jetinde meydana gelen kaza sonucu vefat etti. (${age} yaş)`,
   },
   {
     id: 'burnout',
@@ -202,8 +194,6 @@ const DEATH_CAUSES: DeathCauseDef[] = [
     label: 'Tükenmişlik',
     minAge: 28,
     risk: (ctx) => (ctx.ownedBusinessCount >= 10 ? 0.00014 : ctx.ownedBusinessCount >= 7 ? 0.00006 : 0) * traitMult(ctx),
-    message: (age, name) =>
-      `${name}, imparatorluğu tek başına taşıyamayıp aşırı yorgunluk sonucu yıkıldı. (${age} yaş)`,
   },
   {
     id: 'stadium_disaster',
@@ -211,8 +201,6 @@ const DEATH_CAUSES: DeathCauseDef[] = [
     label: 'Stadyum Kazası',
     minAge: 22,
     risk: (ctx) => (ctx.hasFootballClub ? 0.000045 : 0) * traitMult(ctx),
-    message: (age, name) =>
-      `${name}, kulüp etkinliğinde meydana gelen kaza sonucu hayatını kaybetti. (${age} yaş)`,
   },
   {
     id: 'coup',
@@ -220,8 +208,6 @@ const DEATH_CAUSES: DeathCauseDef[] = [
     label: 'Darbe Girişimi',
     minAge: 35,
     risk: (ctx) => (ctx.politicsLevel === 'cumhurbaskan' ? 0.00022 : 0) * (ctx.trait === 'diplomat' ? 0.75 : 1),
-    message: (age, name) =>
-      `${name}, başarısız darbe girişiminde hedef alındı. (${age} yaş)`,
   },
   {
     id: 'lab_accident',
@@ -229,8 +215,6 @@ const DEATH_CAUSES: DeathCauseDef[] = [
     label: 'Laboratuvar Kazası',
     minAge: 24,
     risk: (ctx) => (ctx.hasLab ? 0.000038 : 0) * traitMult(ctx),
-    message: (age, name) =>
-      `${name}, Ar-Ge laboratuvarındaki patlamada hayatını kaybetti. (${age} yaş)`,
   },
   {
     id: 'yacht_accident',
@@ -238,8 +222,6 @@ const DEATH_CAUSES: DeathCauseDef[] = [
     label: 'Deniz Kazası',
     minAge: 26,
     risk: (ctx) => (ctx.hasLuxury ? 0.000032 : 0) * traitMult(ctx),
-    message: (age, name) =>
-      `${name}, Akdeniz'deki yat gezisinde meydana gelen kaza sonucu vefat etti. (${age} yaş)`,
   },
 ]
 
@@ -283,7 +265,7 @@ export function mortalityRiskDisplay(ctx: MortalityContext): MortalityRiskDispla
       return {
         id: def.id,
         emoji: def.emoji,
-        label: def.label,
+        label: deathLabel(def.id),
         level,
         dailyPct,
       }
@@ -295,7 +277,7 @@ export function mortalityRiskDisplay(ctx: MortalityContext): MortalityRiskDispla
 
 export function deathCauseLabel(id: DeathCauseId): { emoji: string; label: string } {
   const def = DEATH_CAUSES.find((d) => d.id === id)
-  return def ? { emoji: def.emoji, label: def.label } : { emoji: '💀', label: 'Bilinmeyen' }
+  return def ? { emoji: def.emoji, label: deathLabel(def.id) } : { emoji: '💀', label: requiredDomainText('death_unknown_label') }
 }
 
 export function rollDailyMortality(ctx: MortalityContext): DeathOutcome | null {
@@ -309,23 +291,25 @@ export function rollDailyMortality(ctx: MortalityContext): DeathOutcome | null {
   for (const { def, risk } of entries) {
     roll -= risk
     if (roll <= 0) {
+      const playerName = ctx.playerName.trim() || 'Baron'
       return {
         causeId: def.id,
         emoji: def.emoji,
-        label: def.label,
+        label: deathLabel(def.id),
         age: ctx.age,
-        message: def.message(ctx.age, ctx.playerName.trim() || 'Baron'),
+        message: deathMessage(def.id, ctx.age, playerName),
       }
     }
   }
 
   const last = entries[entries.length - 1]!
   const def = last.def
+  const playerName = ctx.playerName.trim() || 'Baron'
   return {
     causeId: def.id,
     emoji: def.emoji,
-    label: def.label,
+    label: deathLabel(def.id),
     age: ctx.age,
-    message: def.message(ctx.age, ctx.playerName.trim() || 'Baron'),
+    message: deathMessage(def.id, ctx.age, playerName),
   }
 }

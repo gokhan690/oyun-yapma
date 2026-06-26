@@ -1,5 +1,5 @@
 import { sectionTitle, ua, starsHtml, demoBanner, fmtMoney, refToast } from './refShared'
-import { i18n } from '../../i18n'
+import { i18n, fmt } from '../../i18n'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import { RefSubTabs } from './RefSubTabs'
 import { RefKpiStrip, type KpiItem } from './RefKpiStrip'
@@ -11,19 +11,32 @@ import {
   RESIDENCES, VEHICLES, PETS, WELLBEING_ACTIVITIES, HOME_ROOMS,
   lifestyleMonthlyExpense, lifestyleRentalIncome, lifestyleReputationBonus,
   stressLabel, hasHomeRoom,
+  residenceName, residenceDesc, vehicleName, vehicleDesc,
+  homeRoomName, homeRoomBonus, wellbeingName, wellbeingDesc, petName,
   type ResidenceId, type VehicleId, type PetId, type WellbeingActivityId, type HomeRoomId,
 } from '../../game/Lifestyle'
-import { TRAVEL_DESTINATIONS, type TravelDestinationId } from '../../game/Travel'
-import { HOBBIES, type HobbyId } from '../../game/Hobby'
+import { TRAVEL_DESTINATIONS, travelName, travelDesc, travelBonus, type TravelDestinationId } from '../../game/Travel'
+import { HOBBIES, hobbyName, hobbyBonus, type HobbyId } from '../../game/Hobby'
 import { gameDay } from '../../game/GameClock'
 import {
   SPOUSE_OPTIONS, DYNASTY_LEGACY_ITEMS, CHILD_EDUCATION_MAX,
   gameYearsElapsed, childCareerDef,
+  spouseBonusLabel, legacyItemLabel, legacyItemBonusLabel, childCareerName,
   type ChildRecord,
 } from '../../game/Dynasty'
 
-const TRAIT_LABELS: Record<string, string> = {
-  merchant: '💰 Tüccar', diplomat: '🤝 Diplomat', innovator: '💡 Yenilikçi', risk_taker: '🎲 Risk Alıcı',
+const TRAIT_EMOJI: Record<string, string> = {
+  merchant: '💰', diplomat: '🤝', innovator: '💡', risk_taker: '🎲',
+}
+const TRAIT_KEY = {
+  merchant: 'ref_life_trait_merchant', diplomat: 'ref_life_trait_diplomat',
+  innovator: 'ref_life_trait_innovator', risk_taker: 'ref_life_trait_risk_taker',
+} as const
+
+function traitLabel(id: string): string {
+  const key = (TRAIT_KEY as Record<string, keyof import('../../i18n/keys').Translations>)[id]
+  if (!key) return id
+  return `${TRAIT_EMOJI[id]} ${i18n.t(key)}`
 }
 
 /**
@@ -53,7 +66,7 @@ export class RefLifePage implements RefPage {
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-life-page'
 
-    if (!state) this.el.appendChild(demoBanner('yaşam paneli — gerçek oyun verisi yok'))
+    if (!state) this.el.appendChild(demoBanner(i18n.t('ref_life_demo_panel')))
 
     if (state) {
       this.kpiStrip = new RefKpiStrip(this.buildKpis(state))
@@ -61,11 +74,11 @@ export class RefLifePage implements RefPage {
     }
 
     this.tabs = new RefSubTabs([
-      { id: 'dynasty', label: 'Hanedan',  icon: '👨‍👩‍👧' },
-      { id: 'home',    label: 'Ev&Araç',  icon: '🏠' },
-      { id: 'travel',  label: 'Seyahat',  icon: '✈️' },
-      { id: 'pets',    label: 'Evcil',    icon: '🐾' },
-      { id: 'shop',    label: 'Alışveriş', icon: '🛍️' },
+      { id: 'dynasty', label: i18n.t('ref_life_tab_dynasty'), icon: '👨‍👩‍👧' },
+      { id: 'home',    label: i18n.t('ref_life_tab_home'),    icon: '🏠' },
+      { id: 'travel',  label: i18n.t('ref_life_tab_travel'),  icon: '✈️' },
+      { id: 'pets',    label: i18n.t('ref_life_tab_pets'),    icon: '🐾' },
+      { id: 'shop',    label: i18n.t('ref_life_tab_shop'),    icon: '🛍️' },
     ])
     this.el.appendChild(this.tabs.tabsEl)
     for (const id of ['dynasty', 'home', 'travel', 'pets', 'shop']) {
@@ -89,10 +102,10 @@ export class RefLifePage implements RefPage {
     const rental = Math.round(lifestyleRentalIncome(s.lifestyle))
     const repBonus = lifestyleReputationBonus(s.lifestyle)
     return [
-      { icon: '😰', label: 'Stres', value: `${stress}%`, sub: stressLabel(stress), subDir: stress >= 50 ? 'down' : 'muted' },
-      { icon: '💳', label: 'Yaşam Gideri', value: fmtMoney(expense), sub: 'Aylık', subDir: 'muted' },
-      { icon: '🏠', label: 'Kira Geliri', value: rental > 0 ? fmtMoney(rental) : '—', sub: 'Aylık', subDir: rental > 0 ? 'up' : 'muted' },
-      { icon: '⭐', label: 'İtibar Bonusu', value: `+${repBonus}`, sub: 'Yaşam tarzı', subDir: 'muted' },
+      { icon: '😰', label: i18n.t('ref_life_stress_label'), value: `${stress}%`, sub: stressLabel(stress), subDir: stress >= 50 ? 'down' : 'muted' },
+      { icon: '💳', label: i18n.t('ref_life_expense'), value: fmtMoney(expense), sub: i18n.t('ref_life_monthly_label'), subDir: 'muted' },
+      { icon: '🏠', label: i18n.t('ref_life_rental_income_label'), value: rental > 0 ? fmtMoney(rental) : '—', sub: i18n.t('ref_life_monthly_label'), subDir: rental > 0 ? 'up' : 'muted' },
+      { icon: '⭐', label: i18n.t('ref_life_rep_bonus'), value: `+${repBonus}`, sub: i18n.t('ref_life_lifestyle_sub'), subDir: 'muted' },
     ]
   }
 
@@ -164,37 +177,37 @@ export class RefLifePage implements RefPage {
     const s = this.state
 
     let ok = false
-    let okMsg = '✓ Tamamlandı'
+    let okMsg = `✓ ${i18n.t('ref_life_toast_done')}`
     switch (kind) {
-      case 'buy_res':    ok = s.buyResidence(id as ResidenceId);  okMsg = '🏠 Konut alındı'; break
-      case 'sell_res':   ok = s.sellResidence(id as ResidenceId); okMsg = '🏠 Konut satıldı'; break
+      case 'buy_res':    ok = s.buyResidence(id as ResidenceId);  okMsg = `🏠 ${i18n.t('ref_life_toast_residence_bought')}`; break
+      case 'sell_res':   ok = s.sellResidence(id as ResidenceId); okMsg = `🏠 ${i18n.t('ref_life_toast_residence_sold')}`; break
       case 'rent_res': {
         const entry = s.lifestyle.ownedResidences.find(r => r.id === id)
         ok = s.setRentResidence(id as ResidenceId, !(entry?.isRenting))
-        okMsg = entry?.isRenting ? '🔑 Kiradan çekildi' : '🔑 Kiraya verildi'
+        okMsg = entry?.isRenting ? `🔑 ${i18n.t('ref_life_toast_rental_off')}` : `🔑 ${i18n.t('ref_life_toast_rental_on')}`
         break
       }
-      case 'buy_veh':    ok = s.buyVehicle(id as VehicleId);  okMsg = '🚗 Araç alındı'; break
-      case 'sell_veh':   ok = s.sellVehicle(id as VehicleId); okMsg = '🚗 Araç satıldı'; break
+      case 'buy_veh':    ok = s.buyVehicle(id as VehicleId);  okMsg = `🚗 ${i18n.t('ref_life_toast_vehicle_bought')}`; break
+      case 'sell_veh':   ok = s.sellVehicle(id as VehicleId); okMsg = `🚗 ${i18n.t('ref_life_toast_vehicle_sold')}`; break
       case 'rent_veh': {
         const entry = s.lifestyle.ownedVehicles.find(v => v.id === id)
         ok = s.setRentVehicle(id as VehicleId, !(entry?.isRenting))
-        okMsg = entry?.isRenting ? '🔑 Kiradan çekildi' : '🔑 Kiraya verildi'
+        okMsg = entry?.isRenting ? `🔑 ${i18n.t('ref_life_toast_rental_off')}` : `🔑 ${i18n.t('ref_life_toast_rental_on')}`
         break
       }
-      case 'buy_room':   ok = s.buyHomeRoom(id as HomeRoomId); okMsg = '🛋️ Oda eklendi'; break
-      case 'buy_pet':    ok = s.buyPet(id as PetId); okMsg = '🐾 Evcil hayvan sahiplenildi'; break
-      case 'travel':     ok = s.goTravel(id as TravelDestinationId); okMsg = '✈️ Seyahat başladı!'; break
-      case 'hobby':      { s.setHobby(id as HobbyId); ok = true; okMsg = '🎯 Hobi seçildi' } break
-      case 'wellbeing':  ok = s.buyWellbeing(id as WellbeingActivityId); okMsg = '🧘 Aktivite tamamlandı'; break
+      case 'buy_room':   ok = s.buyHomeRoom(id as HomeRoomId); okMsg = `🛋️ ${i18n.t('ref_life_toast_room_added')}`; break
+      case 'buy_pet':    ok = s.buyPet(id as PetId); okMsg = `🐾 ${i18n.t('ref_life_toast_pet_adopted')}`; break
+      case 'travel':     ok = s.goTravel(id as TravelDestinationId); okMsg = `✈️ ${i18n.t('ref_life_toast_travel_started')}`; break
+      case 'hobby':      { s.setHobby(id as HobbyId); ok = true; okMsg = `🎯 ${i18n.t('ref_life_toast_hobby_selected')}` } break
+      case 'wellbeing':  ok = s.buyWellbeing(id as WellbeingActivityId); okMsg = `🧘 ${i18n.t('ref_life_toast_wellbeing_done')}`; break
       case 'visit_sibling': {
         ok = (s as unknown as { visitSiblingById: (sid: string) => boolean }).visitSiblingById(id)
-        okMsg = '💕 Ziyaret tamamlandı!'
+        okMsg = `💕 ${i18n.t('ref_life_toast_visit_done')}`
         break
       }
       default: return
     }
-    refToast(ok ? okMsg : '💸 İşlem yapılamadı (para/koşul)', ok ? 'ok' : 'err')
+    refToast(ok ? okMsg : `💸 ${i18n.t('ref_life_toast_action_failed')}`, ok ? 'ok' : 'err')
     this.refresh(s)
   }
 
@@ -205,7 +218,7 @@ export class RefLifePage implements RefPage {
     wrap.innerHTML = ''
     const s = this.state
     if (!s) {
-      wrap.appendChild(demoBanner('hanedan — gerçek veri yok'))
+      wrap.appendChild(demoBanner(i18n.t('ref_life_demo_dynasty')))
       return
     }
     const d = s.dynasty
@@ -219,13 +232,13 @@ export class RefLifePage implements RefPage {
     crest.innerHTML = `
       <img src="${ua(REF_ASSETS_V2_GENERIC.family.crest)}" alt="" class="ref-dynasty-crest">
       <div class="ref-dynasty-info">
-        <div class="ref-dynasty-name">${s.playerName || 'Baron'} Hanedanı</div>
-        <div class="ref-dynasty-sub">${d.generation}. Nesil · ${memberCount} üye</div>
+        <div class="ref-dynasty-name">${fmt('ref_life_dynasty_name_fmt', { name: s.playerName || i18n.t('ref_life_dynasty_default_name') })}</div>
+        <div class="ref-dynasty-sub">${fmt('ref_life_dynasty_generation_fmt', { gen: String(d.generation), members: String(memberCount) })}</div>
         <div class="ref-dynasty-stars">${starsHtml(famStars)}</div>
       </div>
       <div class="ref-dynasty-score">
         <div class="ref-dynasty-score__n">${s.insurance.dynasty ? 'A+' : '—'}</div>
-        <div class="ref-dynasty-score__l">${s.insurance.dynasty ? 'Sigortalı' : 'Sigortasız'}</div>
+        <div class="ref-dynasty-score__l">${s.insurance.dynasty ? i18n.t('ref_life_insured') : i18n.t('ref_life_uninsured')}</div>
       </div>
     `
     wrap.appendChild(crest)
@@ -237,8 +250,8 @@ export class RefLifePage implements RefPage {
       spouseCard.innerHTML = `
         <span class="ref-spouse-emoji">💍</span>
         <div class="ref-spouse-main">
-          <div class="ref-spouse-name">Bekarsın</div>
-          <div class="ref-spouse-meta">Evlilik adayları ana oyundaki Hanedan panelinde</div>
+          <div class="ref-spouse-name">${i18n.t('ref_life_single_status')}</div>
+          <div class="ref-spouse-meta">${i18n.t('ref_life_marriage_candidates_info')}</div>
         </div>`
     } else {
       const opt = SPOUSE_OPTIONS.find(o => o.id === d.spouseId)
@@ -248,10 +261,10 @@ export class RefLifePage implements RefPage {
       spouseCard.innerHTML = `
         <span class="ref-spouse-emoji">${opt?.emoji ?? '💑'}</span>
         <div class="ref-spouse-main">
-          <div class="ref-spouse-name">${d.spouseName ?? opt?.name ?? 'Eş'} <span class="ref-spouse-tag">EŞ</span></div>
-          <div class="ref-spouse-meta">${TRAIT_LABELS[d.spouseTrait ?? ''] ?? ''} · ${opt?.bonusLabel ?? ''}</div>
+          <div class="ref-spouse-name">${d.spouseName ?? opt?.name ?? i18n.t('ref_life_spouse_tag')} <span class="ref-spouse-tag">${i18n.t('ref_life_spouse_tag')}</span></div>
+          <div class="ref-spouse-meta">${d.spouseTrait ? traitLabel(d.spouseTrait) : ''} · ${opt ? spouseBonusLabel(opt) : ''}</div>
           <div class="ref-spouse-sat">
-            <span>Memnuniyet ${sat}%</span>
+            <span>${i18n.t('ref_life_satisfaction_label')} ${sat}%</span>
             <div class="ref-perf-track sm"><div class="ref-perf-fill ${satClass}" style="width:${sat}%"></div></div>
           </div>
         </div>`
@@ -260,7 +273,7 @@ export class RefLifePage implements RefPage {
 
     // Çocuklar
     if (d.children.length > 0) {
-      wrap.appendChild(sectionTitle('Çocuklar', `${d.children.length} çocuk`))
+      wrap.appendChild(sectionTitle(i18n.t('ref_life_children_section_title'), fmt('ref_life_children_count_fmt', { count: String(d.children.length) })))
       const list = document.createElement('div')
       list.className = 'ref-member-list'
       const heirId = d.activeHeirId ?? d.dynastyBonusId
@@ -274,15 +287,15 @@ export class RefLifePage implements RefPage {
           <div class="ref-member-row">
             <span class="ref-child-avatar">${avatar}</span>
             <div class="ref-member-main">
-              <div class="ref-member-name">${c.name} ${isHeir ? '<span class="ref-heir-tag">VARİS</span>' : ''}</div>
-              <div class="ref-member-role">${careerInfo ? `${careerInfo.emoji} ${careerInfo.name}` : (age >= 18 ? 'Kariyer seçimi bekliyor' : 'Eğitimde')}</div>
+              <div class="ref-member-name">${c.name} ${isHeir ? `<span class="ref-heir-tag">${i18n.t('ref_life_heir_tag')}</span>` : ''}</div>
+              <div class="ref-member-role">${careerInfo ? `${careerInfo.emoji} ${childCareerName(careerInfo)}` : (age >= 18 ? i18n.t('ref_life_career_pending') : i18n.t('ref_life_in_education'))}</div>
               <div class="ref-member-tags">
                 <span class="ref-member-chip">🎂 ${age}</span>
-                <span class="ref-member-chip">${TRAIT_LABELS[c.trait] ?? c.trait}</span>
+                <span class="ref-member-chip">${traitLabel(c.trait)}</span>
                 ${c.happiness !== undefined ? `<span class="ref-member-chip">😊 ${Math.round(c.happiness)}%</span>` : ''}
               </div>
               <div class="ref-child-edu">
-                <span>🎓 Eğitim ${eduPct}%</span>
+                <span>🎓 ${i18n.t('ref_life_education_label')} ${eduPct}%</span>
                 <div class="ref-perf-track sm"><div class="ref-perf-fill ${eduPct >= 70 ? 'high' : 'medium'}" style="width:${eduPct}%"></div></div>
               </div>
             </div>
@@ -290,21 +303,21 @@ export class RefLifePage implements RefPage {
       }).join('')
       wrap.appendChild(list)
     } else {
-      wrap.appendChild(sectionTitle('Çocuklar', '0 çocuk'))
+      wrap.appendChild(sectionTitle(i18n.t('ref_life_children_section_title'), fmt('ref_life_children_count_fmt', { count: '0' })))
       const empty = document.createElement('div')
       empty.className = 'ref-life-empty'
       empty.innerHTML = `
         <span class="ref-life-empty__ico">👶</span>
         <div class="ref-life-empty__main">
-          <div class="ref-life-empty__title">Henüz çocuğun yok</div>
-          <div class="ref-life-empty__desc">${d.spouseId ? 'Hanedanını sürdürecek varisler ana oyundaki Hanedan panelinden doğar.' : 'Önce evlen — sonra hanedanını sürdürecek varisler dünyaya gelir.'}</div>
+          <div class="ref-life-empty__title">${i18n.t('ref_life_no_children_title')}</div>
+          <div class="ref-life-empty__desc">${d.spouseId ? i18n.t('ref_life_no_children_married_info') : i18n.t('ref_life_no_children_single_info')}</div>
         </div>`
       wrap.appendChild(empty)
     }
 
     // Miras
     const selected = new Set(d.legacyItems ?? [])
-    wrap.appendChild(sectionTitle('Miras Hazırlığı', `${selected.size}/${DYNASTY_LEGACY_ITEMS.length} seçili`))
+    wrap.appendChild(sectionTitle(i18n.t('ref_life_legacy_preparation_title'), fmt('ref_life_legacy_selected_fmt', { sel: String(selected.size), total: String(DYNASTY_LEGACY_ITEMS.length) })))
     const legacyList = document.createElement('div')
     legacyList.className = 'ref-legacy-list'
     legacyList.innerHTML = DYNASTY_LEGACY_ITEMS.map(l => {
@@ -313,8 +326,8 @@ export class RefLifePage implements RefPage {
         <div class="ref-legacy-row ${on ? '' : 'off'}">
           <span class="ref-legacy-ico-emoji">${l.emoji}</span>
           <div class="ref-legacy-main">
-            <div class="ref-legacy-head"><span class="ref-legacy-name">${l.label}</span><span class="ref-legacy-pct">${on ? '✓ Aktif' : 'Pasif'}</span></div>
-            <div class="ref-legacy-desc">${l.bonusLabel}</div>
+            <div class="ref-legacy-head"><span class="ref-legacy-name">${legacyItemLabel(l)}</span><span class="ref-legacy-pct">${on ? `✓ ${i18n.t('ref_life_active_short')}` : i18n.t('ref_life_passive_short')}</span></div>
+            <div class="ref-legacy-desc">${legacyItemBonusLabel(l)}</div>
           </div>
         </div>`
     }).join('')
@@ -328,7 +341,7 @@ export class RefLifePage implements RefPage {
     wrap.innerHTML = ''
     const s = this.state
     if (!s) {
-      wrap.appendChild(demoBanner('ev & araç — gerçek veri yok'))
+      wrap.appendChild(demoBanner(i18n.t('ref_life_demo_home')))
       return
     }
     const ls = s.lifestyle
@@ -337,12 +350,12 @@ export class RefLifePage implements RefPage {
     if (ls.ownedResidences.length + ls.ownedVehicles.length === 0) {
       const hint = document.createElement('div')
       hint.className = 'ref-life-tab-hint'
-      hint.textContent = '🏠 Henüz mülk veya araç yok — aşağıdan satın al.'
+      hint.textContent = `🏠 ${i18n.t('ref_life_no_property_vehicle_hint')}`
       wrap.appendChild(hint)
     }
 
     // Konutlar
-    wrap.appendChild(sectionTitle('Konutlar', `${ls.ownedResidences.length} sahip`))
+    wrap.appendChild(sectionTitle(i18n.t('ref_life_residences_title'), fmt('ref_life_owned_count_fmt', { count: String(ls.ownedResidences.length) })))
     const resList = document.createElement('div')
     resList.className = 'ref-life-cat-list'
     resList.innerHTML = RESIDENCES.filter(r => r.buyCost > 0).map(def => {
@@ -353,24 +366,24 @@ export class RefLifePage implements RefPage {
         <div class="ref-life-item-row ${owned ? 'owned' : ''}">
           <span class="ref-life-item-row__ico">${def.emoji}</span>
           <div class="ref-life-item-row__main">
-            <div class="ref-life-item-row__name">${def.name}${owned ? ' <span class="ref-life-owned-tag">SAHİP</span>' : ''}</div>
-            <div class="ref-life-item-row__desc">${def.description}</div>
-            <div class="ref-life-item-row__meta">😊 +${def.happinessBonus} · ⭐ +${def.reputationBonus} · 😌 -${def.stressReduction} stres</div>
+            <div class="ref-life-item-row__name">${residenceName(def)}${owned ? ` <span class="ref-life-owned-tag">${i18n.t('ref_life_owned_badge')}</span>` : ''}</div>
+            <div class="ref-life-item-row__desc">${residenceDesc(def)}</div>
+            <div class="ref-life-item-row__meta">😊 +${def.happinessBonus} · ⭐ +${def.reputationBonus} · 😌 -${def.stressReduction} ${i18n.t('ref_life_stress_unit')}</div>
           </div>
           <div class="ref-life-item-row__actions">
             ${owned
-              ? `<button class="ref-world-btn sm ${entry.isRenting ? 'warn' : ''}" type="button" data-action="rent_res:${def.id}">${entry.isRenting ? '🔑 Kirada' : 'Kiraya Ver'}</button>
-                 <button class="ref-world-btn sm danger" type="button" data-action="sell_res:${def.id}">Sat</button>`
+              ? `<button class="ref-world-btn sm ${entry.isRenting ? 'warn' : ''}" type="button" data-action="rent_res:${def.id}">${entry.isRenting ? `🔑 ${i18n.t('ref_life_renting_state')}` : i18n.t('ref_life_set_rental')}</button>
+                 <button class="ref-world-btn sm danger" type="button" data-action="sell_res:${def.id}">${i18n.t('ref_life_sell_action')}</button>`
               : canBuy
-                ? `<button class="ref-world-btn sm" type="button" data-action="buy_res:${def.id}">AL · ${fmtMoney(def.buyCost)}</button>`
-                : `<button type="button" class="ref-world-btn sm" disabled>AL · ${fmtMoney(def.buyCost)}</button>`}
+                ? `<button class="ref-world-btn sm" type="button" data-action="buy_res:${def.id}">${i18n.t('ref_life_buy_button_prefix')} · ${fmtMoney(def.buyCost)}</button>`
+                : `<button type="button" class="ref-world-btn sm" disabled>${i18n.t('ref_life_buy_button_prefix')} · ${fmtMoney(def.buyCost)}</button>`}
           </div>
         </div>`
     }).join('')
     wrap.appendChild(resList)
 
     // Ev odaları
-    wrap.appendChild(sectionTitle('Ev Odaları', `${(ls.homeRooms ?? []).length}/${HOME_ROOMS.length}`))
+    wrap.appendChild(sectionTitle(i18n.t('ref_life_rooms_title'), `${(ls.homeRooms ?? []).length}/${HOME_ROOMS.length}`))
     const roomGrid = document.createElement('div')
     roomGrid.className = 'ref-life-room-grid'
     roomGrid.innerHTML = HOME_ROOMS.map(room => {
@@ -379,8 +392,8 @@ export class RefLifePage implements RefPage {
       return `
         <div class="ref-life-room-card ${owned ? 'owned' : ''}">
           <span class="ref-life-room-card__ico">${room.emoji}</span>
-          <div class="ref-life-room-card__name">${room.name}</div>
-          <div class="ref-life-room-card__desc">${room.bonusLabel}</div>
+          <div class="ref-life-room-card__name">${homeRoomName(room)}</div>
+          <div class="ref-life-room-card__desc">${homeRoomBonus(room)}</div>
           ${owned
             ? '<span class="ref-life-owned-tag">✓</span>'
             : `<button class="ref-world-btn sm" type="button" data-action="buy_room:${room.id}" ${canBuy ? '' : 'disabled'}>${fmtMoney(room.cost)}</button>`}
@@ -389,7 +402,7 @@ export class RefLifePage implements RefPage {
     wrap.appendChild(roomGrid)
 
     // Araçlar
-    wrap.appendChild(sectionTitle('Araçlar', `${ls.ownedVehicles.length} sahip`))
+    wrap.appendChild(sectionTitle(i18n.t('ref_life_vehicles_title'), fmt('ref_life_owned_count_fmt', { count: String(ls.ownedVehicles.length) })))
     const vehList = document.createElement('div')
     vehList.className = 'ref-life-cat-list'
     vehList.innerHTML = VEHICLES.filter(v => v.buyCost > 0).map(def => {
@@ -400,17 +413,17 @@ export class RefLifePage implements RefPage {
         <div class="ref-life-item-row ${owned ? 'owned' : ''}">
           <span class="ref-life-item-row__ico">${def.emoji}</span>
           <div class="ref-life-item-row__main">
-            <div class="ref-life-item-row__name">${def.name}${owned ? ' <span class="ref-life-owned-tag">SAHİP</span>' : ''}</div>
-            <div class="ref-life-item-row__desc">${def.description}</div>
-            <div class="ref-life-item-row__meta">⭐ +${def.reputationBonus} · gelir ×${def.incomeMult} · bakım ${fmtMoney(def.monthlyUpkeep)}/ay</div>
+            <div class="ref-life-item-row__name">${vehicleName(def)}${owned ? ` <span class="ref-life-owned-tag">${i18n.t('ref_life_owned_badge')}</span>` : ''}</div>
+            <div class="ref-life-item-row__desc">${vehicleDesc(def)}</div>
+            <div class="ref-life-item-row__meta">⭐ +${def.reputationBonus} · ${i18n.t('ref_life_income_multiplier_label')} ×${def.incomeMult} · ${i18n.t('ref_life_maintenance_label')} ${fmtMoney(def.monthlyUpkeep)}${i18n.t('ref_life_monthly_unit')}</div>
           </div>
           <div class="ref-life-item-row__actions">
             ${owned
-              ? `<button class="ref-world-btn sm ${entry.isRenting ? 'warn' : ''}" type="button" data-action="rent_veh:${def.id}">${entry.isRenting ? '🔑 Kirada' : 'Kiraya Ver'}</button>
-                 <button class="ref-world-btn sm danger" type="button" data-action="sell_veh:${def.id}">Sat</button>`
+              ? `<button class="ref-world-btn sm ${entry.isRenting ? 'warn' : ''}" type="button" data-action="rent_veh:${def.id}">${entry.isRenting ? `🔑 ${i18n.t('ref_life_renting_state')}` : i18n.t('ref_life_set_rental')}</button>
+                 <button class="ref-world-btn sm danger" type="button" data-action="sell_veh:${def.id}">${i18n.t('ref_life_sell_action')}</button>`
               : canBuy
-                ? `<button class="ref-world-btn sm" type="button" data-action="buy_veh:${def.id}">AL · ${fmtMoney(def.buyCost)}</button>`
-                : `<button type="button" class="ref-world-btn sm" disabled>AL · ${fmtMoney(def.buyCost)}</button>`}
+                ? `<button class="ref-world-btn sm" type="button" data-action="buy_veh:${def.id}">${i18n.t('ref_life_buy_button_prefix')} · ${fmtMoney(def.buyCost)}</button>`
+                : `<button type="button" class="ref-world-btn sm" disabled>${i18n.t('ref_life_buy_button_prefix')} · ${fmtMoney(def.buyCost)}</button>`}
           </div>
         </div>`
     }).join('')
@@ -424,7 +437,7 @@ export class RefLifePage implements RefPage {
     wrap.innerHTML = ''
     const s = this.state
     if (!s) {
-      wrap.appendChild(demoBanner('seyahat & hobi — gerçek veri yok'))
+      wrap.appendChild(demoBanner(i18n.t('ref_life_demo_travel')))
       return
     }
     const day = gameDay(s.gameTimeMs)
@@ -434,12 +447,12 @@ export class RefLifePage implements RefPage {
       const dest = TRAVEL_DESTINATIONS.find(d => d.id === s.travel.lastDestinationId)
       const banner = document.createElement('div')
       banner.className = 'ref-life-travel-banner'
-      banner.innerHTML = `✨ <b>${dest?.name ?? ''}</b> bonusu aktif — ${dest?.bonusLabel ?? ''} (${s.travel.travelBonusUntilDay - day} gün)`
+      banner.innerHTML = `✨ <b>${dest ? travelName(dest) : ''}</b> ${i18n.t('ref_life_travel_bonus_active')} — ${dest ? travelBonus(dest) : ''} (${fmt('ref_life_days_remaining', { days: String(s.travel.travelBonusUntilDay - day) })})`
       wrap.appendChild(banner)
     }
 
     // Destinasyonlar
-    wrap.appendChild(sectionTitle('Seyahat', `${s.travel.totalTrips} gezi yapıldı`))
+    wrap.appendChild(sectionTitle(i18n.t('ref_life_travel_section_title'), fmt('ref_life_trips_count_fmt', { count: String(s.travel.totalTrips) })))
     const destList = document.createElement('div')
     destList.className = 'ref-life-cat-list'
     destList.innerHTML = TRAVEL_DESTINATIONS.map(dest => {
@@ -449,15 +462,15 @@ export class RefLifePage implements RefPage {
         <div class="ref-life-item-row ${unlocked ? '' : 'locked'}">
           <span class="ref-life-item-row__ico">${dest.emoji}</span>
           <div class="ref-life-item-row__main">
-            <div class="ref-life-item-row__name">${dest.name}</div>
-            <div class="ref-life-item-row__desc">${dest.description}</div>
-            <div class="ref-life-item-row__meta">😌 -${dest.stressReduction} stres · ${dest.durationDays} gün · 🎁 ${dest.bonusLabel}</div>
+            <div class="ref-life-item-row__name">${travelName(dest)}</div>
+            <div class="ref-life-item-row__desc">${travelDesc(dest)}</div>
+            <div class="ref-life-item-row__meta">😌 -${dest.stressReduction} ${i18n.t('ref_life_stress_unit')} · ${dest.durationDays} ${i18n.t('ref_life_days_unit')} · 🎁 ${travelBonus(dest)}</div>
           </div>
           <div class="ref-life-item-row__actions">
             ${!unlocked
-              ? `<span class="ref-world-city-row__reason">🔒 ${fmtMoney(dest.unlockAt)} kazanınca</span>`
+              ? `<span class="ref-world-city-row__reason">🔒 ${fmtMoney(dest.unlockAt)} ${i18n.t('ref_life_earn_to_unlock_suffix')}</span>`
               : canGo
-                ? `<button class="ref-world-btn sm" type="button" data-action="travel:${dest.id}">GİT · ${fmtMoney(dest.cost)}</button>`
+                ? `<button class="ref-world-btn sm" type="button" data-action="travel:${dest.id}">${i18n.t('ref_life_go_button')} · ${fmtMoney(dest.cost)}</button>`
                 : `<span class="ref-world-city-row__reason">${fmtMoney(dest.cost)}</span>`}
           </div>
         </div>`
@@ -466,7 +479,7 @@ export class RefLifePage implements RefPage {
 
     // Hobi
     const activeHobby = s.hobby.hobbyId ? HOBBIES.find(h => h.id === s.hobby.hobbyId) : null
-    wrap.appendChild(sectionTitle('Hobi', activeHobby ? `aktif: ${activeHobby.name}` : 'seçilmedi'))
+    wrap.appendChild(sectionTitle(i18n.t('ref_life_hobby_label'), activeHobby ? `${i18n.t('ref_life_active_hobby_label')}: ${hobbyName(activeHobby)}` : i18n.t('ref_life_hobby_not_selected')))
     const hobbyGrid = document.createElement('div')
     hobbyGrid.className = 'ref-life-room-grid'
     hobbyGrid.innerHTML = HOBBIES.map(h => {
@@ -474,17 +487,17 @@ export class RefLifePage implements RefPage {
       return `
         <div class="ref-life-room-card ${active ? 'owned' : ''}">
           <span class="ref-life-room-card__ico">${h.emoji}</span>
-          <div class="ref-life-room-card__name">${h.name}</div>
-          <div class="ref-life-room-card__desc">${h.bonusLabel} · ${fmtMoney(h.monthlyCost)}/ay</div>
+          <div class="ref-life-room-card__name">${hobbyName(h)}</div>
+          <div class="ref-life-room-card__desc">${hobbyBonus(h)} · ${fmtMoney(h.monthlyCost)}${i18n.t('ref_life_monthly_unit')}</div>
           ${active
-            ? '<span class="ref-life-owned-tag">✓ Aktif</span>'
-            : `<button class="ref-world-btn sm" type="button" data-action="hobby:${h.id}">SEÇ</button>`}
+            ? `<span class="ref-life-owned-tag">✓ ${i18n.t('ref_life_active_short')}</span>`
+            : `<button class="ref-world-btn sm" type="button" data-action="hobby:${h.id}">${i18n.t('ref_life_select_button')}</button>`}
         </div>`
     }).join('')
     wrap.appendChild(hobbyGrid)
 
     // Huzur aktiviteleri
-    wrap.appendChild(sectionTitle('Huzur & Sağlık'))
+    wrap.appendChild(sectionTitle(i18n.t('ref_life_wellbeing_health_title')))
     const wbList = document.createElement('div')
     wbList.className = 'ref-life-cat-list'
     wbList.innerHTML = WELLBEING_ACTIVITIES.map(w => {
@@ -493,9 +506,9 @@ export class RefLifePage implements RefPage {
         <div class="ref-life-item-row">
           <span class="ref-life-item-row__ico">${w.emoji}</span>
           <div class="ref-life-item-row__main">
-            <div class="ref-life-item-row__name">${w.name}</div>
-            <div class="ref-life-item-row__desc">${w.description}</div>
-            <div class="ref-life-item-row__meta">😌 -${w.stressReduction} stres${w.durationDays ? ` · ${w.durationDays} gün` : ''}</div>
+            <div class="ref-life-item-row__name">${wellbeingName(w)}</div>
+            <div class="ref-life-item-row__desc">${wellbeingDesc(w)}</div>
+            <div class="ref-life-item-row__meta">😌 -${w.stressReduction} ${i18n.t('ref_life_stress_unit')}${w.durationDays ? ` · ${w.durationDays} ${i18n.t('ref_life_days_unit')}` : ''}</div>
           </div>
           <div class="ref-life-item-row__actions">
             ${canBuy
@@ -514,7 +527,7 @@ export class RefLifePage implements RefPage {
     wrap.innerHTML = ''
     const s = this.state
     if (!s) {
-      wrap.appendChild(demoBanner('evcil & kardeşler — gerçek veri yok'))
+      wrap.appendChild(demoBanner(i18n.t('ref_life_demo_pets')))
       return
     }
     const day = gameDay(s.gameTimeMs)
@@ -524,13 +537,13 @@ export class RefLifePage implements RefPage {
     if (ownedPets.length === 0) {
       const hint = document.createElement('div')
       hint.className = 'ref-life-tab-hint'
-      hint.textContent = '🐾 Henüz evcil hayvanın yok — aşağıdan birini sahiplen.'
+      hint.textContent = `🐾 ${i18n.t('ref_life_no_pets_hint')}`
       wrap.appendChild(hint)
     }
 
     // Sahip olunan evciller
     if (ownedPets.length > 0) {
-      wrap.appendChild(sectionTitle('Evcil Hayvanların', `${ownedPets.length} adet`))
+      wrap.appendChild(sectionTitle(i18n.t('ref_life_owned_pets_title'), fmt('ref_life_count_pieces_fmt', { count: String(ownedPets.length) })))
       const list = document.createElement('div')
       list.className = 'ref-pet-list'
       for (const pet of ownedPets) {
@@ -543,7 +556,7 @@ export class RefLifePage implements RefPage {
           <span class="ref-pet-emoji">${petDef?.emoji ?? '🐾'}</span>
           <div class="ref-pet-main">
             <div class="ref-pet-name">${pet.name}</div>
-            <div class="ref-pet-meta">${petDef?.name ?? ''} · 😌 -${petDef?.dailyStressReduction ?? 0} stres/gün</div>
+            <div class="ref-pet-meta">${petDef ? petName(petDef) : ''} · 😌 -${petDef?.dailyStressReduction ?? 0} ${i18n.t('ref_life_stress_per_day_unit')}</div>
             <div class="ref-perf-track sm"><div class="ref-pet-life ref-perf-fill ${lifePct > 50 ? 'high' : lifePct > 25 ? 'medium' : 'low'}" style="width:${lifePct}%"></div></div>
           </div>`
         list.appendChild(row)
@@ -552,7 +565,7 @@ export class RefLifePage implements RefPage {
     }
 
     // Pet katalog
-    wrap.appendChild(sectionTitle('Sahiplen', `${PETS.length} tür`))
+    wrap.appendChild(sectionTitle(i18n.t('ref_life_adopt_section_title'), fmt('ref_life_types_count_fmt', { count: String(PETS.length) })))
     const catalog = document.createElement('div')
     catalog.className = 'ref-life-room-grid'
     catalog.innerHTML = PETS.map(p => {
@@ -560,10 +573,10 @@ export class RefLifePage implements RefPage {
       return `
         <div class="ref-life-room-card">
           <span class="ref-life-room-card__ico">${p.emoji}</span>
-          <div class="ref-life-room-card__name">${p.name}</div>
-          <div class="ref-life-room-card__desc">😌 Stres -${p.dailyStressReduction}/gün · Gider ${fmtMoney(p.monthlyUpkeep)}/ay</div>
+          <div class="ref-life-room-card__name">${petName(p)}</div>
+          <div class="ref-life-room-card__desc">😌 -${p.dailyStressReduction} ${i18n.t('ref_life_stress_per_day_unit')} · ${i18n.t('ref_life_maintenance_label')} ${fmtMoney(p.monthlyUpkeep)}${i18n.t('ref_life_monthly_unit')}</div>
           ${canBuy
-            ? `<button class="ref-world-btn sm" type="button" data-action="buy_pet:${p.id}">SAHİPLEN · ${fmtMoney(p.buyCost)}</button>`
+            ? `<button class="ref-world-btn sm" type="button" data-action="buy_pet:${p.id}">${i18n.t('ref_life_buy_button_prefix')} · ${fmtMoney(p.buyCost)}</button>`
             : `<button class="ref-world-btn sm" type="button" disabled>🔒 ${fmtMoney(p.buyCost)}</button>`}
         </div>`
     }).join('')
@@ -573,7 +586,7 @@ export class RefLifePage implements RefPage {
     const siblings = s.siblings ?? []
     if (siblings.length > 0) {
       const alive = siblings.filter(x => x.isAlive)
-      wrap.appendChild(sectionTitle('Kardeşler', `${alive.length} aktif`))
+      wrap.appendChild(sectionTitle(i18n.t('ref_life_siblings_title'), fmt('ref_life_active_count_fmt', { count: String(alive.length) })))
       const list = document.createElement('div')
       list.className = 'ref-sibling-list'
       for (const sib of siblings as Sibling[]) {
@@ -581,15 +594,15 @@ export class RefLifePage implements RefPage {
         row.className = `ref-sibling-row${sib.isAlive ? '' : ' deceased'}`
         const relBar = sib.isAlive
           ? `<div class="ref-perf-track sm"><div class="ref-perf-fill ${sib.relationshipScore >= 70 ? 'high' : 'medium'}" style="width:${sib.relationshipScore}%"></div></div>`
-          : '<span class="ref-sibling-deceased">Vefat etti</span>'
+          : `<span class="ref-sibling-deceased">${i18n.t('ref_life_deceased_label')}</span>`
         row.innerHTML = `
           <span class="ref-sibling-emoji">${sib.relation === 'brother' ? '👦' : '👧'}</span>
           <div class="ref-sibling-main">
             <div class="ref-sibling-name">${sib.name}</div>
-            <div class="ref-sibling-meta">${sib.age} ${i18n.t('ref_age_suffix')} · İlişki ${sib.relationshipScore}%</div>
+            <div class="ref-sibling-meta">${sib.age} ${i18n.t('ref_age_suffix')} · ${i18n.t('ref_life_relationship_label')} ${sib.relationshipScore}%</div>
             ${relBar}
           </div>
-          ${sib.isAlive ? `<button class="ref-sibling-visit-btn" type="button" data-action="visit_sibling:${sib.id}">Ziyaret · ${fmtMoney(VISIT_SIBLING_COST)}</button>` : ''}
+          ${sib.isAlive ? `<button class="ref-sibling-visit-btn" type="button" data-action="visit_sibling:${sib.id}">${i18n.t('ref_life_visit_button_prefix')} · ${fmtMoney(VISIT_SIBLING_COST)}</button>` : ''}
         `
         list.appendChild(row)
       }
@@ -604,37 +617,37 @@ export class RefLifePage implements RefPage {
     wrap.innerHTML = ''
     const s = this.state
     if (!s) {
-      wrap.appendChild(demoBanner('alışveriş — gerçek veri yok'))
+      wrap.appendChild(demoBanner(i18n.t('ref_life_demo_shop')))
       return
     }
     const ls = s.lifestyle
 
     // Harcama özeti
-    wrap.appendChild(sectionTitle('Yaşam Harcamaları'))
+    wrap.appendChild(sectionTitle(i18n.t('ref_life_expenses_section')))
     const summary = document.createElement('div')
     summary.className = 'ref-world-rep-card'
     const expense = Math.round(lifestyleMonthlyExpense(ls))
     const rental = Math.round(lifestyleRentalIncome(ls))
     const activeHobby = s.hobby.hobbyId ? HOBBIES.find(h => h.id === s.hobby.hobbyId) : null
     summary.innerHTML = `
-      <div class="ref-world-rep-row"><span>💳 Aylık yaşam gideri</span><b>${fmtMoney(expense)}</b></div>
-      <div class="ref-world-rep-row"><span>🔑 Kira geliri</span><b>${rental > 0 ? '+' + fmtMoney(rental) : '—'}</b></div>
-      <div class="ref-world-rep-row"><span>🏠 Konut</span><b>${ls.ownedResidences.length} adet</b></div>
-      <div class="ref-world-rep-row"><span>🚗 Araç</span><b>${ls.ownedVehicles.length} adet</b></div>
-      <div class="ref-world-rep-row"><span>🐾 Evcil</span><b>${(ls.ownedPets ?? []).length} adet</b></div>
-      <div class="ref-world-rep-row"><span>🎯 Hobi</span><b>${activeHobby ? `${activeHobby.emoji} ${activeHobby.name}` : 'Yok'}</b></div>
+      <div class="ref-world-rep-row"><span>💳 ${i18n.t('ref_life_monthly_expense_label')}</span><b>${fmtMoney(expense)}</b></div>
+      <div class="ref-world-rep-row"><span>🔑 ${i18n.t('ref_life_rental_income_label')}</span><b>${rental > 0 ? '+' + fmtMoney(rental) : '—'}</b></div>
+      <div class="ref-world-rep-row"><span>🏠 ${i18n.t('ref_life_property_label')}</span><b>${fmt('ref_life_count_pieces_fmt', { count: String(ls.ownedResidences.length) })}</b></div>
+      <div class="ref-world-rep-row"><span>🚗 ${i18n.t('ref_life_vehicle_label')}</span><b>${fmt('ref_life_count_pieces_fmt', { count: String(ls.ownedVehicles.length) })}</b></div>
+      <div class="ref-world-rep-row"><span>🐾 ${i18n.t('ref_life_pet_label')}</span><b>${fmt('ref_life_count_pieces_fmt', { count: String((ls.ownedPets ?? []).length) })}</b></div>
+      <div class="ref-world-rep-row"><span>🎯 ${i18n.t('ref_life_hobby_label')}</span><b>${activeHobby ? `${activeHobby.emoji} ${hobbyName(activeHobby)}` : i18n.t('ref_life_none')}</b></div>
     `
     wrap.appendChild(summary)
 
     // Hızlı yönlendirme kartları
-    wrap.appendChild(sectionTitle('Kategoriler'))
+    wrap.appendChild(sectionTitle(i18n.t('ref_life_categories_title')))
     const nav = document.createElement('div')
     nav.className = 'ref-life-room-grid'
     const cats: { icon: string; name: string; desc: string; tab: string }[] = [
-      { icon: '🏠', name: 'Ev & Araç', desc: 'Konut, araç, ev odaları', tab: 'home' },
-      { icon: '✈️', name: 'Seyahat & Hobi', desc: 'Tatil, hobi, huzur', tab: 'travel' },
-      { icon: '🐾', name: 'Evcil Hayvan', desc: 'Sahiplen, mutlu ol', tab: 'pets' },
-      { icon: '👨‍👩‍👧', name: 'Hanedan', desc: 'Aile, miras, varis', tab: 'dynasty' },
+      { icon: '🏠', name: i18n.t('ref_life_tab_home'), desc: i18n.t('ref_life_category_home_desc'), tab: 'home' },
+      { icon: '✈️', name: i18n.t('ref_life_tab_travel'), desc: i18n.t('ref_life_category_travel_desc'), tab: 'travel' },
+      { icon: '🐾', name: i18n.t('ref_life_tab_pets'), desc: i18n.t('ref_life_category_pet_desc'), tab: 'pets' },
+      { icon: '👨‍👩‍👧', name: i18n.t('ref_life_tab_dynasty'), desc: i18n.t('ref_life_category_family_desc'), tab: 'dynasty' },
     ]
     for (const c of cats) {
       const card = document.createElement('div')

@@ -1,4 +1,5 @@
 import { formatGameClock } from './GameClock'
+import { requiredDomainText, fmt } from '../i18n'
 
 export type GazetteCategory = 'player' | 'rival' | 'market' | 'politics' | 'crisis' | 'calendar'
 
@@ -31,65 +32,54 @@ export function pushGazette(
 }
 
 export function formatGazetteDate(gameTimeMs: number): string {
-  return formatGameClock(gameTimeMs).split(' · ')[0] ?? 'Bugün'
+  return formatGameClock(gameTimeMs).split(' · ')[0] ?? requiredDomainText('gazette_today')
 }
 
 export function headlinePurchase(playerName: string, businessName: string, count: number): string {
   const who = playerName.trim() || 'Baron'
   if (count > 1) {
-    return `${who}, ${businessName} portföyünü ${count} birimle genişletti`
+    return fmt('gazette_purchase_multi', { who, business: businessName, count })
   }
-  return `${who}, yeni ${businessName} yatırımını duyurdu`
+  return fmt('gazette_purchase_single', { who, business: businessName })
 }
 
 export function headlineRivalBehind(_playerName: string, rivalName: string, _amount: string): string {
   const who = _playerName.trim() || 'Baron'
-  return `${rivalName} bu çeyrek geride kaldı — ${who} liderliği sürdürüyor`
+  return fmt('gazette_rival_behind', { who, rival: rivalName })
 }
 
 export function headlineMonthlyIncome(playerName: string, amount: string, rivalName?: string): string {
   const who = playerName.trim() || 'Baron'
   if (rivalName) {
-    return `${who}'un işletmeleri bu ay ${amount} gelir üretti — ${rivalName} geride kaldı`
+    return fmt('gazette_monthly_income_rival', { who, amount, rival: rivalName })
   }
-  return `${who}'un imparatorluğu bu ay ${amount} gelir kaydetti`
+  return fmt('gazette_monthly_income', { who, amount })
 }
 
 export function headlineLoanDenied(playerName: string): string {
   const who = playerName.trim() || 'Baron'
-  return `Bankalar ${who}'un kredi başvurusunu reddetti — itibar endişesi`
+  return fmt('gazette_loan_denied', { who })
 }
 
 export function headlineCrisis(playerName: string, crisisLabel: string): string {
   const who = playerName.trim() || 'Baron'
-  return `⚠️ ${crisisLabel} — ${who} karar vermek zorunda`
+  return fmt('gazette_crisis', { who, crisis: crisisLabel })
 }
 
 export function headlineMarketRandom(playerName: string, netWorth: number): string {
   const who = playerName.trim() || 'Baron'
-  const worth = netWorth
-  const templates = [
-    `Merkez Bankası faiz kararı açıkladı — ${who}'un portföyü izleniyor`,
-    `Dolar kuru dalgalanıyor — ${who} yatırım stratejisini güncelliyor`,
-    `Borsa İstanbul rekor kırdı — yatırımcılar coştu`,
-    `Enflasyon raporu yayımlandı — tüketici harcamaları ${worth > 1_000_000 ? 'yükselişte' : 'baskı altında'}`,
-    `Yabancı yatırımcılar Türkiye'ye ilgisini artırdı — ${who} fırsatı değerlendiriyor`,
-    `Sanayi üretimi arttı — imalat sektörü canlandı`,
-    `Turizm geliri beklentileri aştı — sektör patladı`,
-    `E-ticaret hacmi yıllık %60 büyüdü — lojistik tıkandı`,
-  ]
-  return templates[Math.floor(Date.now() / 86_400_000) % templates.length]
+  const idx = Math.floor(Date.now() / 86_400_000) % 8
+  if (idx === 3) {
+    const trend = netWorth > 1_000_000
+      ? requiredDomainText('gazette_market_3_rising')
+      : requiredDomainText('gazette_market_3_pressure')
+    return fmt('gazette_market_3', { who, trend })
+  }
+  return fmt(`gazette_market_${idx}` as Parameters<typeof fmt>[0], { who })
 }
 
 export function headlinePoliticsRandom(playerName: string): string {
   const who = playerName.trim() || 'Baron'
-  const templates = [
-    `Yeni teşvik paketi açıklandı — ${who} başvurularını hazırlıyor`,
-    `Vergi reformu gündemde — iş dünyası temkinli bekliyor`,
-    `Büyükelçilik ziyareti — ${who}'un uluslararası bağlantıları güçleniyor`,
-    `Belediye ihalesi açıklandı — ${who} teklif hazırlıyor`,
-    `Serbest ticaret anlaşması müzakere masasında`,
-    `Ekonomi bakanı büyüme hedefini revize etti`,
-  ]
-  return templates[Math.floor(Date.now() / 86_400_000 + 3) % templates.length]
+  const idx = Math.floor(Date.now() / 86_400_000 + 3) % 6
+  return fmt(`gazette_politics_${idx}` as Parameters<typeof fmt>[0], { who })
 }

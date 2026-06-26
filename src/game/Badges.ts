@@ -1,3 +1,5 @@
+import { requiredDomainText } from '../i18n'
+
 export interface BadgeDef {
   id: string
   name: string
@@ -25,4 +27,11 @@ export const BADGES: BadgeDef[] = [
 
 export function badgeDef(id: string): BadgeDef | undefined {
   return BADGES.find((b) => b.id === id)
+}
+
+export function badgeName(b: BadgeDef): string {
+  return requiredDomainText(`badge_${b.id}_name`)
+}
+export function badgeDesc(b: BadgeDef): string {
+  return requiredDomainText(`badge_${b.id}_desc`)
 }

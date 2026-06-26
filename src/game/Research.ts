@@ -29,7 +29,7 @@ export function researchPrereqName(nodeId: string): string | null {
   const node = RESEARCH_NODES.find(n => n.id === nodeId)
   if (!node?.prerequisite) return null
   const prereq = RESEARCH_NODES.find(n => n.id === node.prerequisite)
-  return prereq?.name ?? null
+  return prereq ? researchNodeName(prereq) : null
 }
 
 export const RESEARCH_NODES: ResearchNode[] = [

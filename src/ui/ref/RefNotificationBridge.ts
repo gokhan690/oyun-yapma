@@ -1,9 +1,11 @@
 import type { GameState, GameEvent } from '../../game/GameState'
-import { crisisDef } from '../../game/CrisisEvents'
-import { LIFE_EVENTS } from '../../game/LifeEvents'
+import { crisisDef, crisisTitle, crisisDesc, crisisChoiceLabel, crisisChoiceDesc } from '../../game/CrisisEvents'
+import { LIFE_EVENTS, lifeEventTitle, lifeEventDesc, lifeChoiceLabel } from '../../game/LifeEvents'
 import type { LifeEventChoice } from '../../game/LifeEvents'
 import { fmtMoney, refToast } from './refShared'
 import { i18n, fmt } from '../../i18n'
+import { achievementName } from '../../game/Achievements'
+import { diseaseDef, diseaseName } from '../../game/Diseases'
 
 /**
  * RefApp bildirim köprüsü — legacy HUD'un pasif toast bildirimlerini VE bloklayan
@@ -70,7 +72,7 @@ export class RefNotificationBridge {
     const s = this.state
 
     if (s.activeCrisis && !s.activeCrisis.resolved) {
-      this.enqueueCritical({ type: 'crisis_started', crisisId: s.activeCrisis.crisisId, title: crisisDef(s.activeCrisis.crisisId).title })
+      this.enqueueCritical({ type: 'crisis_started', crisisId: s.activeCrisis.crisisId, title: crisisTitle(crisisDef(s.activeCrisis.crisisId)) })
     }
     if (s.activeRivalEvents.length > 0) {
       this.enqueueCritical({ type: 'rival_event', event: s.activeRivalEvents[0]! })
@@ -133,7 +135,7 @@ export class RefNotificationBridge {
   private toastParams(ev: GameEvent): QueuedToast | null {
     switch (ev.type) {
       case 'achievement':
-        return { msg: `${ev.def.emoji} ${ev.def.name}`, kind: 'ok', key: `ach:${ev.def.id}` }
+        return { msg: `${ev.def.emoji} ${achievementName(ev.def)}`, kind: 'ok', key: `ach:${ev.def.id}` }
       case 'milestone_reached':
         return { msg: fmt('ref_toast_milestone', { amount: fmtMoney(ev.amount) }), kind: 'ok', key: `ms:${ev.amount}` }
       case 'reputation_changed':
@@ -142,10 +144,14 @@ export class RefNotificationBridge {
         return null
       case 'illegal_raid':
         return { msg: fmt('ref_toast_raid', { fine: fmtMoney(ev.fine) }), kind: 'err' }
-      case 'disease_diagnosed':
-        return { msg: fmt('ref_toast_disease_diag', { emoji: ev.emoji, name: ev.name }), kind: 'err', key: `dis:${ev.name}` }
-      case 'disease_treated':
-        return { msg: fmt('ref_toast_disease_treated', { name: ev.name }), kind: 'ok', key: `cured:${ev.name}` }
+      case 'disease_diagnosed': {
+        const dname = diseaseName(diseaseDef(ev.diseaseId))
+        return { msg: fmt('ref_toast_disease_diag', { emoji: ev.emoji, name: dname }), kind: 'err', key: `dis:${ev.diseaseId}` }
+      }
+      case 'disease_treated': {
+        const dname = diseaseName(diseaseDef(ev.diseaseId))
+        return { msg: fmt('ref_toast_disease_treated', { name: dname }), kind: 'ok', key: `cured:${ev.diseaseId}` }
+      }
       case 'dynasty_update':
         return ev.name ? { msg: fmt('ref_toast_dynasty', { name: ev.name }), kind: 'ok' } : null
       default:
@@ -228,8 +234,8 @@ export class RefNotificationBridge {
         if (!s.activeCrisis || s.activeCrisis.resolved) return null
         const def = crisisDef(ev.crisisId)
         return {
-          emoji: def.emoji, title: ev.title, body: def.description, dismissable: false,
-          options: def.choices.map((c) => ({ label: c.label, sub: c.description, resolve: () => s.resolveCrisis(c.id) })),
+          emoji: def.emoji, title: crisisTitle(def), body: crisisDesc(def), dismissable: false,
+          options: def.choices.map((c) => ({ label: crisisChoiceLabel(def.id, c), sub: crisisChoiceDesc(def.id, c), resolve: () => s.resolveCrisis(c.id) })),
         }
       }
       case 'life_event_triggered': {
@@ -244,16 +250,16 @@ export class RefNotificationBridge {
           .reduce((max, r) => Math.max(max, r.gameDay), -1)
         if (lastSeen >= 0 && lastChoice >= lastSeen) return null
         return {
-          emoji: def.emoji, title: def.title, body: def.description, dismissable: false,
+          emoji: def.emoji, title: lifeEventTitle(def), body: lifeEventDesc(def), dismissable: false,
           options: def.choices.map((c) => ({
-            label: `${c.emoji} ${c.label}`, sub: this.lifePreview(c),
+            label: `${c.emoji} ${lifeChoiceLabel(def.id, c)}`, sub: this.lifePreview(c),
             resolve: () => { s.resolveLifeEventChoice(def.id, c.id); return true },
           })),
         }
       }
       case 'marriage_crisis': {
         if (!s.dynasty.spouseId) return null
-        const name = s.dynasty.spouseName ?? 'eşin'
+        const name = s.dynasty.spouseName ?? i18n.t('ref_marriage_crisis_spouse_fallback')
         return {
           emoji: '💔', title: i18n.t('ref_marriage_crisis_title'), body: fmt('ref_marriage_crisis_body', { name }), dismissable: false,
           options: [
@@ -321,7 +327,7 @@ export class RefNotificationBridge {
           this.onResolved()
           this.close()
         } else {
-          refToast('İşlem gerçekleştirilemedi', 'err')
+          refToast(i18n.t('ref_action_failed'), 'err')
         }
       })
       optWrap.appendChild(b)

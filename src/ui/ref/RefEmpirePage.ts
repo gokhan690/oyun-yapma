@@ -1,37 +1,38 @@
 import { sectionTitle, ua, fmtMoney, demoBanner, refToast } from './refShared'
-import { i18n } from '../../i18n'
+import { i18n, fmt } from '../../i18n'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import { RefSubTabs } from './RefSubTabs'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, UPGRADES, type UpgradeDef } from '../../game/Economy'
 import { politicsLevelLabel } from '../../game/Empire'
-import { EXPANSION_CITIES, canUnlockCity, cityProducerBonus, type CityId } from '../../game/ExpansionMap'
-import { TORPIL_CONTACTS, type TorpilId } from '../../game/TorpilNetwork'
-import { RESEARCH_NODES, researchCost, researchIsUnlocked, researchPrereqName, type ResearchNode } from '../../game/Research'
+import { EXPANSION_CITIES, canUnlockCity, cityProducerBonus, cityLabel, type CityId } from '../../game/ExpansionMap'
+import { TORPIL_CONTACTS, torpilName, torpilRole, torpilDesc, type TorpilId } from '../../game/TorpilNetwork'
+import { RESEARCH_NODES, researchCost, researchIsUnlocked, researchPrereqName, researchNodeName, researchNodeDesc, type ResearchNode } from '../../game/Research'
 import {
   RIVAL_FAMILY_DEFS, isRivalUnlocked, nextLockedRivalDef,
-  attitudeLabel, mergeRivalCost,
+  attitudeLabel, mergeRivalCost, rivalFamilyName, rivalStageLabel, rivalPersonalityLabel,
 } from '../../game/Rivals'
-import { DEPARTMENTS, DEPARTMENT_MAX_LEVEL, departmentUpgradeCost, type DepartmentId } from '../../game/EmpireDepartments'
+import { DEPARTMENTS, DEPARTMENT_MAX_LEVEL, departmentUpgradeCost, departmentName, departmentBonus, type DepartmentId } from '../../game/EmpireDepartments'
+import { producerName, upgradeName, upgradeDesc } from '../../game/Economy'
 
-const REGIONAL_BONUSES: { id: string; category: string; bonus: string }[] = [
-  { id: 'ankara', category: 'Siyaset',     bonus: '+%20 Siyaset geliri' },
-  { id: 'izmir',  category: 'Turizm/Lüks', bonus: '+%20 Turizm · +%10 Lüks' },
-  { id: 'dubai',  category: 'Finans/Lüks', bonus: '+%25 Lüks · +%15 Finans' },
-  { id: 'london', category: 'Finans/Bilim',bonus: '+%25 Finans · +%15 Bilim' },
+const REGIONAL_BONUSES = [
+  { id: 'ankara', categoryKey: 'ref_empire_regional_ankara_cat' as const, bonusKey: 'ref_empire_regional_ankara_bonus' as const },
+  { id: 'izmir',  categoryKey: 'ref_empire_regional_izmir_cat'  as const, bonusKey: 'ref_empire_regional_izmir_bonus'  as const },
+  { id: 'dubai',  categoryKey: 'ref_empire_regional_dubai_cat'  as const, bonusKey: 'ref_empire_regional_dubai_bonus'  as const },
+  { id: 'london', categoryKey: 'ref_empire_regional_london_cat' as const, bonusKey: 'ref_empire_regional_london_bonus' as const },
 ]
 
-interface Dept { asset: string; name: string; lvl: number }
+interface Dept { asset: string; lvl: number }
 const DEPTS: Dept[] = [
-  { asset: REF_ASSETS_V2_GENERIC.departments.operations,   name: 'Operasyon',  lvl: 5 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.finance,      name: 'Finans',     lvl: 6 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.marketing,    name: 'Pazarlama',  lvl: 4 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.legal,        name: 'Hukuk',      lvl: 3 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.rnd,          name: 'Ar-Ge',      lvl: 5 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.logistics,    name: 'Lojistik',   lvl: 4 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.security,     name: 'Güvenlik',   lvl: 2 },
-  { asset: REF_ASSETS_V2_GENERIC.departments.familyOffice, name: 'Aile Ofisi', lvl: 4 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.operations,   lvl: 5 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.finance,      lvl: 6 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.marketing,    lvl: 4 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.legal,        lvl: 3 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.rnd,          lvl: 5 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.logistics,    lvl: 4 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.security,     lvl: 2 },
+  { asset: REF_ASSETS_V2_GENERIC.departments.familyOffice, lvl: 4 },
 ]
 
 /** Eşik dizisinde değerin kaçıncı basamağı geçtiğini döndürür (0 = henüz yok). */
@@ -56,18 +57,18 @@ function deptLevelsFromState(s: GameState): Dept[] {
   const famSize     = (s.dynasty.spouseId ? 1 : 0) + s.dynasty.children.length
 
   return [
-    { asset: REF_ASSETS_V2_GENERIC.departments.operations,     name: 'Operasyon', lvl: lvlFrom(ownedTypes, [1, 3, 6, 10, 15, 22, 30, 45, 65, 90]) },
-    { asset: REF_ASSETS_V2_GENERIC.departments.finance,        name: 'Finans',    lvl: lvlFrom(bankUsage, [1_000, 10_000, 50_000, 200_000, 1e6, 5e6, 2e7, 1e8, 5e8, 1e9]) },
-    { asset: REF_ASSETS_V2_GENERIC.departments.marketing,      name: 'Pazarlama', lvl: lvlFrom(s.reputation, [5, 15, 25, 35, 45, 55, 65, 75, 85, 95]) },
-    { asset: REF_ASSETS_V2_GENERIC.departments.hr,             name: 'İK',        lvl: lvlFrom(managerCnt, [1, 3, 6, 10, 15, 22, 30, 40, 55, 70]) },
-    { asset: REF_ASSETS_V2_GENERIC.departments.legal,          name: 'Hukuk',     lvl: insuranceCnt * 3 + (s.bank.creditScore >= 80 ? 1 : 0) },
-    { asset: REF_ASSETS_V2_GENERIC.departments.rnd,            name: 'Ar-Ge',     lvl: lvlFrom(researchSum, [1, 3, 6, 10, 15, 21, 28, 36, 45, 55]) },
-    { asset: REF_ASSETS_V2_GENERIC.departments.logistics,      name: 'Lojistik',  lvl: lvlFrom(totalUnits, [5, 20, 60, 150, 350, 700, 1500, 3000, 6000, 12000]) },
-    { asset: REF_ASSETS_V2_GENERIC.departments.security,       name: 'Güvenlik',  lvl: lvlFrom(100 - s.illegalHeat * 100, [10, 25, 40, 55, 70, 80, 88, 93, 97, 99]) },
-    { asset: REF_ASSETS_V2_GENERIC.departments.prMedia,        name: 'PR/Medya',  lvl: mediaOwned * 2 + lvlFrom(s.reputation, [30, 50, 70, 90]) },
-    { asset: REF_ASSETS_V2_GENERIC.departments.familyOffice,   name: 'Aile Ofisi', lvl: famSize * 2 + s.dynasty.generation },
-    { asset: REF_ASSETS_V2_GENERIC.departments.politics,       name: 'Siyaset',   lvl: POLITICS_LVL[s.empire.politics.level] ?? 0 },
-    { asset: REF_ASSETS_V2_GENERIC.departments.globalStrategy, name: 'Strateji',  lvl: Math.min(10, s.ipoCount + s.cities.unlocked.length) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.operations,     lvl: lvlFrom(ownedTypes, [1, 3, 6, 10, 15, 22, 30, 45, 65, 90]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.finance,        lvl: lvlFrom(bankUsage, [1_000, 10_000, 50_000, 200_000, 1e6, 5e6, 2e7, 1e8, 5e8, 1e9]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.marketing,      lvl: lvlFrom(s.reputation, [5, 15, 25, 35, 45, 55, 65, 75, 85, 95]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.hr,             lvl: lvlFrom(managerCnt, [1, 3, 6, 10, 15, 22, 30, 40, 55, 70]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.legal,          lvl: insuranceCnt * 3 + (s.bank.creditScore >= 80 ? 1 : 0) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.rnd,            lvl: lvlFrom(researchSum, [1, 3, 6, 10, 15, 21, 28, 36, 45, 55]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.logistics,      lvl: lvlFrom(totalUnits, [5, 20, 60, 150, 350, 700, 1500, 3000, 6000, 12000]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.security,       lvl: lvlFrom(100 - s.illegalHeat * 100, [10, 25, 40, 55, 70, 80, 88, 93, 97, 99]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.prMedia,        lvl: mediaOwned * 2 + lvlFrom(s.reputation, [30, 50, 70, 90]) },
+    { asset: REF_ASSETS_V2_GENERIC.departments.familyOffice,   lvl: famSize * 2 + s.dynasty.generation },
+    { asset: REF_ASSETS_V2_GENERIC.departments.politics,       lvl: POLITICS_LVL[s.empire.politics.level] ?? 0 },
+    { asset: REF_ASSETS_V2_GENERIC.departments.globalStrategy, lvl: Math.min(10, s.ipoCount + s.cities.unlocked.length) },
   ].map(d => ({ ...d, lvl: Math.max(0, Math.min(10, d.lvl)) }))
 }
 
@@ -92,9 +93,9 @@ export class RefEmpirePage implements RefPage {
     this.el.className = 'ref-page ref-empire-page'
 
     this.tabs = new RefSubTabs([
-      { id: 'manage', label: 'Yönet',    icon: '🏗️' },
-      { id: 'world',  label: 'Şehir',    icon: '🏙️' },
-      { id: 'rivals', label: 'Rakipler', icon: '⚔️' },
+      { id: 'manage', label: i18n.t('ref_empire_tab_manage'), icon: '🏗️' },
+      { id: 'world',  label: i18n.t('ref_empire_tab_city'),   icon: '🏙️' },
+      { id: 'rivals', label: i18n.t('ref_empire_tab_rivals'), icon: '⚔️' },
     ])
     this.el.appendChild(this.tabs.tabsEl)
     this.el.appendChild(this.tabs.section('manage'))
@@ -160,10 +161,10 @@ export class RefEmpirePage implements RefPage {
       const ok = this.state.upgradeDepartment(id)
       if (ok) {
         const def = DEPARTMENTS.find(d => d.id === id)
-        refToast(`${def?.emoji ?? '🏛️'} ${def?.name ?? id} Lv.${this.state.departments[id]}`, 'ok')
+        refToast(`${def?.emoji ?? '🏛️'} ${def ? departmentName(def) : id} Lv.${this.state.departments[id]}`, 'ok')
         this.buildManage()
       } else {
-        refToast('Yetersiz bakiye', 'err')
+        refToast(i18n.t('ref_empire_insufficient_funds'), 'err')
       }
       return
     }
@@ -178,71 +179,71 @@ export class RefEmpirePage implements RefPage {
     switch (kind) {
       case 'unlock_city': {
         const ok = s.unlockCity(id as CityId)
-        refToast(ok ? '🏙️ Yeni şehir açıldı!' : 'Şehir açılamadı', ok ? 'ok' : 'err')
+        refToast(ok ? i18n.t('ref_empire_city_unlocked') : i18n.t('ref_empire_city_failed'), ok ? 'ok' : 'err')
         break
       }
       case 'set_active': {
         if (s.cities.unlocked.includes(id as CityId)) {
           s.cities.activeCity = id as CityId
-          refToast(`🏙️ Aktif şehir güncellendi`, 'ok')
+          refToast(i18n.t('ref_empire_active_city_updated'), 'ok')
         }
         break
       }
       case 'torpil_hire': {
         const ok = s.hireTorpil(id as TorpilId)
-        refToast(ok ? '🤝 Torpil ağına katıldı' : 'Yetersiz para', ok ? 'ok' : 'err')
+        refToast(ok ? i18n.t('ref_empire_torpil_joined') : i18n.t('ref_empire_insufficient_funds'), ok ? 'ok' : 'err')
         break
       }
       case 'torpil_gift': {
         const ok = s.payTorpilGift(id as TorpilId)
-        refToast(ok ? '🎁 Hediye verildi' : 'Hediye verilemedi', ok ? 'ok' : 'err')
+        refToast(ok ? i18n.t('ref_empire_gift_given') : i18n.t('ref_empire_gift_failed'), ok ? 'ok' : 'err')
         break
       }
       case 'bribe': {
         const ok = s.useUndergroundAction('bribe')
-        refToast(ok ? '💸 Rüşvet verildi — ısı düştü' : 'Rüşvet verilemedi (bekleme/para)', ok ? 'ok' : 'err')
+        refToast(ok ? i18n.t('ref_empire_bribe_success') : i18n.t('ref_empire_bribe_failed'), ok ? 'ok' : 'err')
         break
       }
       case 'lawyer': {
         const ok = s.useUndergroundAction('lawyer')
-        refToast(ok ? '⚖️ Avukat tutuldu — koruma aktif' : 'Avukat tutulamadı (bekleme/para)', ok ? 'ok' : 'err')
+        refToast(ok ? i18n.t('ref_empire_lawyer_hired') : i18n.t('ref_empire_lawyer_failed'), ok ? 'ok' : 'err')
         break
       }
       case 'rival_lobby': {
         const ok = s.rivalLobby(id)
-        refToast(ok ? '🏛️ Lobi yapıldı — rakip zayıfladı' : 'Lobi yapılamadı', ok ? 'ok' : 'err')
+        refToast(ok ? i18n.t('ref_empire_lobby_success') : i18n.t('ref_empire_lobby_failed'), ok ? 'ok' : 'err')
         break
       }
       case 'rival_coop': {
         const ok = s.rivalCooperate(id)
-        refToast(ok ? '🤝 İşbirliği anlaşması imzalandı' : 'İşbirliği yapılamadı', ok ? 'ok' : 'err')
+        refToast(ok ? i18n.t('ref_empire_cooperation_success') : i18n.t('ref_empire_cooperation_failed'), ok ? 'ok' : 'err')
         break
       }
       case 'rival_merge': {
         const ok = s.rivalMerge(id)
-        refToast(ok ? '🛒 Rakip satın alındı!' : 'Satın alma başarısız', ok ? 'ok' : 'err')
+        refToast(ok ? i18n.t('ref_empire_rival_acquired') : i18n.t('ref_empire_acquisition_failed'), ok ? 'ok' : 'err')
         break
       }
       case 'rival_acquire': {
         const ok = s.acquireBankruptRival(id)
-        refToast(ok ? '🏦 İflas eden rakibin varlıkları alındı! İtibar +10' : 'Yetersiz bakiye', ok ? 'ok' : 'err')
+        refToast(ok ? i18n.t('ref_empire_bankrupt_rival_claimed') : i18n.t('ref_empire_insufficient_funds'), ok ? 'ok' : 'err')
         break
       }
       case 'offer_accept': {
         const ok = s.acceptRivalAllianceOffer()
-        refToast(ok ? '🤝 İttifak kabul edildi' : 'Teklif bulunamadı', ok ? 'ok' : 'err')
+        refToast(ok ? i18n.t('ref_empire_alliance_accepted') : i18n.t('ref_empire_offer_not_found'), ok ? 'ok' : 'err')
         break
       }
       case 'offer_decline': {
         s.declineRivalAlliance()
-        refToast('Teklif reddedildi', 'ok')
+        refToast(i18n.t('ref_empire_offer_declined'), 'ok')
         break
       }
       case 'rival_event': {
         const [eventId, responseId] = id.split('@')
         if (eventId && responseId) {
           s.resolveRivalEvent(eventId, responseId)
-          refToast('Hamle yapıldı', 'ok')
+          refToast(i18n.t('ref_empire_rival_event_resolved'), 'ok')
         }
         break
       }
@@ -278,23 +279,23 @@ export class RefEmpirePage implements RefPage {
     const summary = document.createElement('div')
     summary.className = 'ref-empire-summary'
     summary.innerHTML = `
-      <div class="ref-empire-summary__item"><span>🏙️</span><b>${cityCount}</b><small>Şehir</small></div>
-      <div class="ref-empire-summary__item"><span>🏢</span><b>${firmCount}</b><small>Firma</small></div>
-      <div class="ref-empire-summary__item"><span>🏛️</span><b>${deptCount}/${DEPARTMENTS.length}</b><small>Departman</small></div>
-      <div class="ref-empire-summary__item"><span>💰</span><b>${empireIncome > 0 ? fmtMoney(Math.round(empireIncome)) : nwDisplay}</b><small>${empireIncome > 0 ? 'İmpGelir' : 'Net Değer'}</small></div>
+      <div class="ref-empire-summary__item"><span>🏙️</span><b>${cityCount}</b><small>${i18n.t('ref_empire_summary_cities_label')}</small></div>
+      <div class="ref-empire-summary__item"><span>🏢</span><b>${firmCount}</b><small>${i18n.t('ref_empire_summary_firms_label')}</small></div>
+      <div class="ref-empire-summary__item"><span>🏛️</span><b>${deptCount}/${DEPARTMENTS.length}</b><small>${i18n.t('ref_empire_summary_departments_label')}</small></div>
+      <div class="ref-empire-summary__item"><span>💰</span><b>${empireIncome > 0 ? fmtMoney(Math.round(empireIncome)) : nwDisplay}</b><small>${empireIncome > 0 ? i18n.t('ref_empire_summary_empire_income') : i18n.t('ref_empire_summary_net_worth')}</small></div>
     `
     wrap.appendChild(summary)
 
     // ── 6 kategori mini kartları ──
     const cats: { icon: string; name: string; owned: typeof sportOwned }[] = [
-      { icon: '⚽', name: 'Futbol',  owned: sportOwned },
-      { icon: '🏛️', name: 'Siyaset', owned: politicsOwned },
-      { icon: '🔥', name: 'Yeraltı', owned: darkOwned },
-      { icon: '💎', name: 'Lüks',    owned: luxOwned },
-      { icon: '🔬', name: 'Bilim',   owned: sciOwned },
-      { icon: '📊', name: 'Finans',  owned: finOwned },
+      { icon: '⚽', name: i18n.t('ref_empire_cat_football'),    owned: sportOwned },
+      { icon: '🏛️', name: i18n.t('ref_empire_cat_politics'),    owned: politicsOwned },
+      { icon: '🔥', name: i18n.t('ref_empire_cat_underground'), owned: darkOwned },
+      { icon: '💎', name: i18n.t('ref_empire_cat_luxury'),      owned: luxOwned },
+      { icon: '🔬', name: i18n.t('ref_empire_cat_science'),     owned: sciOwned },
+      { icon: '📊', name: i18n.t('ref_empire_cat_finance'),     owned: finOwned },
     ]
-    wrap.appendChild(sectionTitle('İmparatorluk Yatırımları', 'Firmalar → İmparatorluk'))
+    wrap.appendChild(sectionTitle(i18n.t('ref_empire_investments_title'), i18n.t('ref_empire_investments_subtitle')))
     const catGrid = document.createElement('div')
     catGrid.className = 'ref-empire-cat-grid'
     catGrid.innerHTML = cats.map(c => {
@@ -304,7 +305,7 @@ export class RefEmpirePage implements RefPage {
         <div class="ref-empire-cat-card ${active ? '' : 'inactive'}">
           <span class="ref-empire-cat-card__ico">${c.icon}</span>
           <div class="ref-empire-cat-card__name">${c.name}</div>
-          <div class="ref-empire-cat-card__meta">${active ? `${c.owned.length} varlık · ${fmtMoney(income)}/g` : 'Yatırım yok'}</div>
+          <div class="ref-empire-cat-card__meta">${active ? `${c.owned.length} ${i18n.t('ref_empire_assets_label')} · ${fmtMoney(income)}${i18n.t('ref_empire_per_day_suffix')}` : i18n.t('ref_empire_no_investments')}</div>
         </div>`
     }).join('')
     wrap.appendChild(catGrid)
@@ -316,7 +317,7 @@ export class RefEmpirePage implements RefPage {
       polCard.innerHTML = `
         <div class="ref-politics-card__level"><span>🏛️</span><b>${politicsLevelLabel(s.empire.politics.level)}</b></div>
         <div class="ref-politics-card__offices">
-          ${politicsOwned.map(p => `<span class="ref-politics-tag">${p.emoji} ${p.name} (${s.producers[p.id]})</span>`).join('')}
+          ${politicsOwned.map(p => `<span class="ref-politics-tag">${p.emoji} ${producerName(p)} (${s.producers[p.id]})</span>`).join('')}
         </div>`
       wrap.appendChild(polCard)
     }
@@ -326,16 +327,16 @@ export class RefEmpirePage implements RefPage {
       const heatCard = document.createElement('div')
       heatCard.className = 'ref-dark-card'
       heatCard.innerHTML = `
-        <div class="ref-dark-card__row"><span>🌡️ Polis Isısı</span><span>${heat}%</span></div>
+        <div class="ref-dark-card__row"><span>${i18n.t('ref_empire_police_heat_label')}</span><span>${heat}%</span></div>
         <div class="ref-perf-track"><div class="ref-perf-fill ${heatFill}" style="width:${heat}%"></div></div>
         <div class="ref-dark-card__ops">
-          ${darkOwned.map(p => `<span class="ref-dark-tag">${p.emoji} ${p.name} (${s.producers[p.id]})</span>`).join('')}
+          ${darkOwned.map(p => `<span class="ref-dark-tag">${p.emoji} ${producerName(p)} (${s.producers[p.id]})</span>`).join('')}
         </div>`
       wrap.appendChild(heatCard)
     }
 
     // ── Departmanlar (yükseltme butonlu gerçek kartlar) ──
-    wrap.appendChild(sectionTitle('Departmanlar', `${DEPARTMENTS.length} birim`))
+    wrap.appendChild(sectionTitle(i18n.t('ref_empire_departments_title'), `${DEPARTMENTS.length}`))
     const deptGrid = document.createElement('div')
     deptGrid.className = 'ref-dept-grid2'
     if (s) {
@@ -350,15 +351,15 @@ export class RefEmpirePage implements RefPage {
         const isLow      = level >= 1
         const isCritical = level === 0
         const badgeCls   = isStrong ? 'ref-dept-badge2--strong' : isMid ? 'ref-dept-badge2--mid' : isLow ? 'ref-dept-badge2--low' : isCritical ? 'ref-dept-badge2--critical' : ''
-        const badgeTxt   = isMaxed ? 'MAKS' : isStrong ? 'GÜÇLÜ' : isMid ? `Lv.${level}` : isLow ? 'ZAYIF' : 'KRİTİK'
-        const btnTxt     = maxed ? '✓ Maks Seviye' : canUp ? `Yükselt · ${fmtMoney(cost)}` : `🔒 ${fmtMoney(cost)}`
+        const badgeTxt   = isMaxed ? i18n.t('ref_empire_dept_badge_max') : isStrong ? i18n.t('ref_empire_dept_badge_strong') : isMid ? `Lv.${level}` : isLow ? i18n.t('ref_empire_dept_badge_weak') : i18n.t('ref_empire_dept_badge_critical')
+        const btnTxt     = maxed ? `✓ ${i18n.t('ref_empire_dept_max_level_button')}` : canUp ? `${i18n.t('ref_empire_dept_upgrade_prefix')} · ${fmtMoney(cost)}` : `🔒 ${fmtMoney(cost)}`
         return `
           <div class="ref-dept-card2 ${isCritical ? 'critical' : isStrong ? 'strong' : ''}">
             <div class="ref-dept-card2__head">
               <span class="ref-dept-card2__icon">${d.emoji}</span>
               <div class="ref-dept-card2__info">
-                <span class="ref-dept-card2__name">${d.name}</span>
-                <span class="ref-dept-card2__bonus">${d.bonusPerLevel}</span>
+                <span class="ref-dept-card2__name">${departmentName(d)}</span>
+                <span class="ref-dept-card2__bonus">${departmentBonus(d)}</span>
               </div>
               <span class="ref-dept-badge2 ${badgeCls}">${badgeTxt}</span>
             </div>
@@ -373,20 +374,23 @@ export class RefEmpirePage implements RefPage {
           </div>`
       }).join('')
     } else {
-      deptGrid.innerHTML = DEPTS.map(d => `
+      deptGrid.innerHTML = DEPARTMENTS.map((dept, i) => {
+        const lvl = DEPTS[i]?.lvl ?? 0
+        return `
         <div class="ref-dept-card2">
           <div class="ref-dept-card2__head">
-            <span class="ref-dept-card2__icon"><img src="${ua(d.asset)}" style="width:28px;height:28px;object-fit:cover;border-radius:6px" alt=""></span>
+            <span class="ref-dept-card2__icon"><img src="${ua(DEPTS[i]?.asset ?? '')}" style="width:28px;height:28px;object-fit:cover;border-radius:6px" alt=""></span>
             <div class="ref-dept-card2__info">
-              <span class="ref-dept-card2__name">${d.name}</span>
+              <span class="ref-dept-card2__name">${departmentName(dept)}</span>
             </div>
-            <span class="ref-dept-badge2">${d.lvl === 0 ? '—' : `Lv.${d.lvl}`}</span>
+            <span class="ref-dept-badge2">${lvl === 0 ? '—' : `Lv.${lvl}`}</span>
           </div>
           <div class="ref-dept-lvl-bar">
-            ${Array.from({ length: 10 }, (_, i) =>
-              `<span class="ref-dept-lvl-pip${i < d.lvl ? ' on' : ''}"></span>`).join('')}
+            ${Array.from({ length: 10 }, (_, j) =>
+              `<span class="ref-dept-lvl-pip${j < lvl ? ' on' : ''}"></span>`).join('')}
           </div>
-        </div>`).join('')
+        </div>`
+      }).join('')
     }
     wrap.appendChild(deptGrid)
 
@@ -394,11 +398,11 @@ export class RefEmpirePage implements RefPage {
     if (!s) {
       const rndNote = document.createElement('div')
       rndNote.className = 'ref-preview-note'
-      rndNote.textContent = '🔬 Ar-Ge & Yükseltmeler · önizleme (gerçek veri yok)'
+      rndNote.textContent = i18n.t('ref_empire_rnd_preview_note')
       wrap.appendChild(rndNote)
     }
 
-    wrap.appendChild(sectionTitle('Araştırma Ağacı', `${RESEARCH_NODES.length} düğüm`))
+    wrap.appendChild(sectionTitle(i18n.t('ref_empire_research_tree_title'), `${RESEARCH_NODES.length}`))
     const resList = document.createElement('div')
     resList.className = 'ref-rnd-list'
     for (const node of RESEARCH_NODES) {
@@ -406,7 +410,7 @@ export class RefEmpirePage implements RefPage {
     }
     wrap.appendChild(resList)
 
-    wrap.appendChild(sectionTitle('Yükseltmeler', `${UPGRADES.length} adet`))
+    wrap.appendChild(sectionTitle(i18n.t('ref_empire_upgrades_title'), `${UPGRADES.length}`))
     const upgList = document.createElement('div')
     upgList.className = 'ref-rnd-list'
     for (const upg of [...UPGRADES].sort((a, b) => a.cost - b.cost)) {
@@ -418,7 +422,7 @@ export class RefEmpirePage implements RefPage {
     const unlockedCnt = s ? s.cities.unlocked.length : 3
     const citiesNote = document.createElement('div')
     citiesNote.className = 'ref-cities-manage-note'
-    citiesNote.textContent = `🏙️ ${unlockedCnt}/${EXPANSION_CITIES.length} şehir açık — detaylar için "Şehir" sekmesine bakın`
+    citiesNote.textContent = `🏙️ ${fmt('ref_empire_cities_manage_note_fmt', { count: String(unlockedCnt), total: String(EXPANSION_CITIES.length) })}`
     wrap.appendChild(citiesNote)
   }
 
@@ -430,7 +434,7 @@ export class RefEmpirePage implements RefPage {
     const s = this.state
 
     if (!s) {
-      wrap.appendChild(demoBanner('Şehir paneli — gerçek oyun verisi yok'))
+      wrap.appendChild(demoBanner(i18n.t('ref_empire_demo_city_panel')))
       return
     }
 
@@ -442,15 +446,15 @@ export class RefEmpirePage implements RefPage {
     const kpi = document.createElement('div')
     kpi.className = 'ref-cities-kpi'
     kpi.innerHTML = `
-      <div class="ref-cities-kpi__item"><span>🌍</span><b>${unlocked.length}/${EXPANSION_CITIES.length}</b><small>Şehir</small></div>
-      <div class="ref-cities-kpi__item"><span>💰</span><b>${fmtMoney(Math.round(s.incomePerDay()))}</b><small>Günlük</small></div>
-      <div class="ref-cities-kpi__item"><span>⭐</span><b>${Math.round(s.reputation)}</b><small>İtibar</small></div>
-      <div class="ref-cities-kpi__item"><span>📊</span><b>${financeBonus > 0 ? `+%${financeBonus}` : '—'}</b><small>Finans B.</small></div>
+      <div class="ref-cities-kpi__item"><span>🌍</span><b>${unlocked.length}/${EXPANSION_CITIES.length}</b><small>${i18n.t('ref_empire_city_kpi_cities')}</small></div>
+      <div class="ref-cities-kpi__item"><span>💰</span><b>${fmtMoney(Math.round(s.incomePerDay()))}</b><small>${i18n.t('ref_empire_city_kpi_daily')}</small></div>
+      <div class="ref-cities-kpi__item"><span>⭐</span><b>${Math.round(s.reputation)}</b><small>${i18n.t('ref_empire_city_kpi_reputation')}</small></div>
+      <div class="ref-cities-kpi__item"><span>📊</span><b>${financeBonus > 0 ? `+%${financeBonus}` : '—'}</b><small>${i18n.t('ref_empire_city_kpi_finance_bonus')}</small></div>
     `
     wrap.appendChild(kpi)
 
     // ── Yolculuk zinciri ──
-    wrap.appendChild(sectionTitle('Yolculuk', `${unlocked.length} şehir fethedildi`))
+    wrap.appendChild(sectionTitle(i18n.t('ref_empire_city_journey_title'), fmt('ref_empire_city_journey_subtitle_fmt', { count: String(unlocked.length) })))
     const journey = document.createElement('div')
     journey.className = 'ref-cities-journey'
     journey.innerHTML = `<div class="ref-cities-journey__inner">${
@@ -460,7 +464,7 @@ export class RefEmpirePage implements RefPage {
         return `
           <div class="ref-journey-stop${isUnlocked ? ' ref-journey-stop--unlocked' : ''}">
             <div class="ref-journey-node">${isUnlocked ? c.emoji : '🔒'}</div>
-            <div class="ref-journey-label">${c.label}</div>
+            <div class="ref-journey-label">${cityLabel(c.id)}</div>
           </div>
           ${!isLast ? `<div class="ref-journey-connector${isUnlocked ? ' on' : ''}"></div>` : ''}`
       }).join('')
@@ -468,8 +472,8 @@ export class RefEmpirePage implements RefPage {
     wrap.appendChild(journey)
 
     // ── Şehir yönetim kartları ──
-    const activeLabel = EXPANSION_CITIES.find(c => c.id === activeCity)?.label ?? activeCity
-    wrap.appendChild(sectionTitle('Şehir Yönetimi', `Aktif: ${activeLabel}`))
+    const activeLabel = cityLabel(activeCity)
+    wrap.appendChild(sectionTitle(i18n.t('ref_empire_city_mgmt_title'), fmt('ref_empire_city_mgmt_subtitle_fmt', { city: activeLabel })))
     const mgmtList = document.createElement('div')
     mgmtList.className = 'ref-city-mgmt-list'
     mgmtList.innerHTML = EXPANSION_CITIES.map(c => {
@@ -479,7 +483,7 @@ export class RefEmpirePage implements RefPage {
         ? Object.entries(c.categoryBonuses).map(([cat, val]) =>
             `<span class="ref-city-bonus-chip">+%${Math.round((val as number) * 100)} ${cat}</span>`
           ).join('')
-        : '<span class="ref-city-bonus-chip">Temel</span>'
+        : `<span class="ref-city-bonus-chip">${i18n.t('ref_empire_city_no_bonuses_label')}</span>`
       const check = canUnlockCity(c.id, s.cities, s.money, s.reputation, s.ipoCount)
 
       if (isUnlocked) {
@@ -488,12 +492,12 @@ export class RefEmpirePage implements RefPage {
             <div class="ref-city-mgmt-card__head">
               <span class="ref-city-mgmt-card__emoji">${c.emoji}</span>
               <div class="ref-city-mgmt-card__info">
-                <div class="ref-city-mgmt-card__name">${c.label}</div>
+                <div class="ref-city-mgmt-card__name">${cityLabel(c.id)}</div>
                 <div class="ref-city-mgmt-card__bonuses">${bonusHtml}</div>
               </div>
-              ${isActive ? '<span class="ref-city-active-badge">AKTİF</span>' : ''}
+              ${isActive ? `<span class="ref-city-active-badge">${i18n.t('ref_empire_city_active_badge')}</span>` : ''}
             </div>
-            ${isActive ? '' : `<button class="ref-city-mgmt-btn" type="button" data-action="set_active:${c.id}">🏙️ Aktif Yap</button>`}
+            ${isActive ? '' : `<button class="ref-city-mgmt-btn" type="button" data-action="set_active:${c.id}">${i18n.t('ref_empire_city_set_active_button')}</button>`}
           </div>`
       }
       return `
@@ -501,22 +505,22 @@ export class RefEmpirePage implements RefPage {
           <div class="ref-city-mgmt-card__head">
             <span class="ref-city-mgmt-card__emoji">🔒</span>
             <div class="ref-city-mgmt-card__info">
-              <div class="ref-city-mgmt-card__name">${c.label}</div>
-              <div class="ref-city-mgmt-card__req">${fmtMoney(c.unlockCost)} · itibar ${c.repReq}${c.ipoReq ? ` · ${c.ipoReq} IPO` : ''}</div>
+              <div class="ref-city-mgmt-card__name">${cityLabel(c.id)}</div>
+              <div class="ref-city-mgmt-card__req">${fmtMoney(c.unlockCost)} · ${i18n.t('ref_empire_city_rep_req_label')} ${c.repReq}${c.ipoReq ? ` · ${c.ipoReq} IPO` : ''}</div>
               ${!check.ok ? `<div class="ref-city-mgmt-card__reason">${check.reason ?? ''}</div>` : ''}
             </div>
             <span class="ref-city-locked-cost">${fmtMoney(c.unlockCost)}</span>
           </div>
           <button class="ref-city-mgmt-btn${check.ok ? ' ref-city-mgmt-btn--unlock' : ' ref-city-mgmt-btn--off'}"
             type="button" data-action="unlock_city:${c.id}" ${check.ok ? '' : 'disabled'}>
-            🔓 Şehir Aç · ${fmtMoney(c.unlockCost)}
+            ${fmt('ref_empire_city_unlock_button_fmt', { cost: fmtMoney(c.unlockCost) })}
           </button>
         </div>`
     }).join('')
     wrap.appendChild(mgmtList)
 
     // ── Bölgesel Bonuslar ──
-    wrap.appendChild(sectionTitle('Bölgesel Bonuslar', 'şehir açınca aktif olur'))
+    wrap.appendChild(sectionTitle(i18n.t('ref_empire_regional_bonuses_title'), i18n.t('ref_empire_regional_bonuses_subtitle')))
     const bonusTable = document.createElement('div')
     bonusTable.className = 'ref-city-bonus-table'
     bonusTable.innerHTML = REGIONAL_BONUSES.map(b => {
@@ -526,16 +530,16 @@ export class RefEmpirePage implements RefPage {
         <div class="ref-city-bonus-row${isOwned ? ' ref-city-bonus-row--owned' : ''}">
           <span class="ref-city-bonus-row__ico">${cityDef?.emoji ?? '🌍'}</span>
           <div class="ref-city-bonus-row__info">
-            <span class="ref-city-bonus-row__city">${cityDef?.label ?? b.id}</span>
-            <span class="ref-city-bonus-row__cat">${b.category}</span>
+            <span class="ref-city-bonus-row__city">${cityDef ? cityLabel(cityDef.id) : b.id}</span>
+            <span class="ref-city-bonus-row__cat">${i18n.t(b.categoryKey)}</span>
           </div>
-          <span class="ref-city-bonus-row__val">${b.bonus}</span>
+          <span class="ref-city-bonus-row__val">${i18n.t(b.bonusKey)}</span>
         </div>`
     }).join('')
     wrap.appendChild(bonusTable)
 
     // ── Torpil Ağı ──
-    wrap.appendChild(sectionTitle('Torpil Ağı', 'tanıdık çevresi'))
+    wrap.appendChild(sectionTitle(i18n.t('ref_empire_torpil_section_title'), i18n.t('ref_empire_torpil_section_subtitle')))
     const torpilList = document.createElement('div')
     torpilList.className = 'ref-torpil-panel'
     torpilList.innerHTML = TORPIL_CONTACTS.map(def => {
@@ -545,19 +549,19 @@ export class RefEmpirePage implements RefPage {
       let right: string
       if (!active) {
         right = s.money >= def.hireCost
-          ? `<button class="ref-world-btn" type="button" data-action="torpil_hire:${def.id}">TANIŞ · ${fmtMoney(def.hireCost)}</button>`
+          ? `<button class="ref-world-btn" type="button" data-action="torpil_hire:${def.id}">${fmt('ref_empire_torpil_meet_fmt', { cost: fmtMoney(def.hireCost) })}</button>`
           : `<span class="ref-world-city-row__reason">${fmtMoney(def.hireCost)}</span>`
       } else if (giftDue) {
-        right = `<button class="ref-world-btn warn" type="button" data-action="torpil_gift:${def.id}">🎁 HEDİYE · ${fmtMoney(def.giftCost)}</button>`
+        right = `<button class="ref-world-btn warn" type="button" data-action="torpil_gift:${def.id}">${fmt('ref_empire_torpil_gift_fmt', { cost: fmtMoney(def.giftCost) })}</button>`
       } else {
-        right = '<span class="ref-torpil-ok">✓ Aktif</span>'
+        right = `<span class="ref-torpil-ok">${i18n.t('ref_empire_torpil_active_label')}</span>`
       }
       return `
         <div class="ref-torpil-row ${active ? 'active' : ''} ${giftDue ? 'gift-due' : ''}">
           <span class="ref-torpil-row__ico">${def.emoji}</span>
           <div class="ref-torpil-row__main">
-            <div class="ref-torpil-row__name">${def.name} <small>· ${def.role}</small></div>
-            <div class="ref-torpil-row__desc">${def.description}</div>
+            <div class="ref-torpil-row__name">${torpilName(def)} <small>· ${torpilRole(def)}</small></div>
+            <div class="ref-torpil-row__desc">${torpilDesc(def)}</div>
           </div>
           ${right}
         </div>`
@@ -565,7 +569,7 @@ export class RefEmpirePage implements RefPage {
     wrap.appendChild(torpilList)
 
     // ── Rüşvet & Koruma ──
-    wrap.appendChild(sectionTitle('Rüşvet & Koruma', 'riskli ama hızlı'))
+    wrap.appendChild(sectionTitle(i18n.t('ref_empire_bribe_section_title'), i18n.t('ref_empire_bribe_section_subtitle')))
     const heat = Math.round(s.illegalHeat * 100)
     const bribeCooldown = s.undergroundCooldownRemaining('bribe') > 0
     const lawyerCooldown = s.undergroundCooldownRemaining('lawyer') > 0
@@ -573,17 +577,17 @@ export class RefEmpirePage implements RefPage {
     const rushvet = document.createElement('div')
     rushvet.className = 'ref-rushvet-panel'
     rushvet.innerHTML = `
-      <div class="ref-dark-card__row"><span>🌡️ Polis Isısı</span><span>${heat}%</span></div>
+      <div class="ref-dark-card__row"><span>${i18n.t('ref_empire_police_heat_label')}</span><span>${heat}%</span></div>
       <div class="ref-perf-track"><div class="ref-perf-fill ${heat < 30 ? 'high' : heat < 60 ? 'medium' : 'low'}" style="width:${heat}%"></div></div>
       <div class="ref-rushvet-actions">
         <button class="ref-world-btn danger" type="button" data-action="bribe" ${bribeCooldown || bribeCost <= 0 ? 'disabled' : ''}>
-          💸 Rüşvet Ver · ${bribeCost > 0 ? fmtMoney(bribeCost) : '—'}${bribeCooldown ? ' (bekleme)' : ''}
+          ${fmt('ref_empire_bribe_button_fmt', { cost: bribeCost > 0 ? fmtMoney(bribeCost) : '—' })}${bribeCooldown ? ` (${i18n.t('ref_empire_action_cooldown_label')})` : ''}
         </button>
         <button class="ref-world-btn" type="button" data-action="lawyer" ${lawyerCooldown ? 'disabled' : ''}>
-          ⚖️ Avukat Tut · ${fmtMoney(Math.round(s.incomePerDay() * 0.5))}${lawyerCooldown ? ' (bekleme)' : ''}
+          ${fmt('ref_empire_lawyer_button_fmt', { cost: fmtMoney(Math.round(s.incomePerDay() * 0.5)) })}${lawyerCooldown ? ` (${i18n.t('ref_empire_action_cooldown_label')})` : ''}
         </button>
       </div>
-      <div class="ref-rushvet-note">Rüşvet: ısıyı -40 düşürür, paranın %5'i. Avukat: -25 ısı + koruma süresi.</div>
+      <div class="ref-rushvet-note">${i18n.t('ref_empire_bribe_note')}</div>
     `
     wrap.appendChild(rushvet)
   }
@@ -596,7 +600,7 @@ export class RefEmpirePage implements RefPage {
     const s = this.state
 
     if (!s) {
-      wrap.appendChild(demoBanner('Rakipler paneli — gerçek oyun verisi yok'))
+      wrap.appendChild(demoBanner(i18n.t('ref_empire_demo_rivals_panel')))
       return
     }
 
@@ -606,11 +610,11 @@ export class RefEmpirePage implements RefPage {
       const banner = document.createElement('div')
       banner.className = 'ref-rival-offer-banner'
       banner.innerHTML = `
-        <div class="ref-rival-offer-banner__head">🤝 ${offer.rivalName} — İttifak Teklifi</div>
+        <div class="ref-rival-offer-banner__head">🤝 ${offer.rivalName} — ${i18n.t('rival_offer_title')}</div>
         <div class="ref-rival-offer-banner__msg">${offer.message}</div>
         <div class="ref-rival-offer-banner__actions">
-          <button class="ref-world-btn" type="button" data-action="offer_accept">KABUL ET</button>
-          <button class="ref-world-btn danger" type="button" data-action="offer_decline">REDDET</button>
+          <button class="ref-world-btn" type="button" data-action="offer_accept">${i18n.t('rival_offer_accept')}</button>
+          <button class="ref-world-btn danger" type="button" data-action="offer_decline">${i18n.t('rival_offer_decline')}</button>
         </div>`
       wrap.appendChild(banner)
     }
@@ -633,7 +637,7 @@ export class RefEmpirePage implements RefPage {
 
     // ── Rakip kartları ──
     const activeRivals = s.rivals.filter(r => isRivalUnlocked(r.id, s.totalEarned))
-    wrap.appendChild(sectionTitle('Rakip Aileler', `${activeRivals.length} aktif`))
+    wrap.appendChild(sectionTitle(i18n.t('ref_empire_rival_families'), `${activeRivals.length} ${i18n.t('ref_empire_rival_active_suffix')}`))
     const list = document.createElement('div')
     list.className = 'ref-rival-list'
 
@@ -651,12 +655,12 @@ export class RefEmpirePage implements RefPage {
         <div class="ref-rival-card__head">
           <span class="ref-rival-card__emoji">${rival.emoji}</span>
           <div class="ref-rival-card__info">
-            <div class="ref-rival-card__name">${rival.name}</div>
-            <div class="ref-rival-card__meta">${def?.stageLabel ?? ''} · ${def?.personalityLabel ?? ''}</div>
+            <div class="ref-rival-card__name">${def ? rivalFamilyName(def) : rival.name}</div>
+            <div class="ref-rival-card__meta">${def ? rivalStageLabel(def) : ''} · ${def ? rivalPersonalityLabel(def) : ''}</div>
           </div>
           <div class="ref-rival-card__worth ${ahead ? 'ahead' : ''}">
             ${fmtMoney(Math.round(rival.netWorth))}
-            <small>${gone ? (rival.relation === 'merged' ? 'satın alındı' : 'iflas') : ahead ? '⚠️ önde' : 'geride'}</small>
+            <small>${gone ? (rival.relation === 'merged' ? i18n.t('rival_card_acquired') : i18n.t('rival_card_bankrupt')) : ahead ? i18n.t('rival_ahead') : i18n.t('rival_behind')}</small>
           </div>
         </div>
         ${gone
@@ -667,8 +671,8 @@ export class RefEmpirePage implements RefPage {
                 return `<div class="ref-rival-card__actions">
                   <button class="ref-world-btn sm acquire" type="button" data-action="rival_acquire:${rival.id}" ${canAcquire ? '' : 'disabled'}>
                     ${canAcquire
-                      ? `🏦 Varlıkları Al · ${fmtMoney(acquireCost)} · İtibar +10`
-                      : `🔒 Yetersiz bakiye · ${fmtMoney(acquireCost)}`}
+                      ? fmt('rival_action_acquire', { cost: fmtMoney(acquireCost) })
+                      : fmt('rival_action_no_funds', { cost: fmtMoney(acquireCost) })}
                   </button>
                 </div>`
               })()
@@ -679,9 +683,9 @@ export class RefEmpirePage implements RefPage {
             <div class="ref-perf-track sm"><div class="ref-perf-fill ${att >= 20 ? 'high' : att >= -20 ? 'medium' : 'low'}" style="width:${attPct}%"></div></div>
           </div>
           <div class="ref-rival-card__actions">
-            <button class="ref-world-btn sm danger" type="button" data-action="rival_lobby:${rival.id}">🏛️ Lobi · ${fmtMoney(Math.round(Math.max(5000, s.incomePerDay() * 0.2)))}</button>
-            <button class="ref-world-btn sm" type="button" data-action="rival_coop:${rival.id}">🤝 İşbirliği · ${fmtMoney(Math.round(Math.max(3000, s.incomePerDay() * 0.1)))}</button>
-            <button class="ref-world-btn sm gold" type="button" data-action="rival_merge:${rival.id}" ${s.money >= mergeRivalCost(rival) ? '' : 'disabled'}>🛒 Satın Al · ${fmtMoney(mergeRivalCost(rival))}</button>
+            <button class="ref-world-btn sm danger" type="button" data-action="rival_lobby:${rival.id}">${fmt('rival_action_lobby', { cost: fmtMoney(Math.round(Math.max(5000, s.incomePerDay() * 0.2))) })}</button>
+            <button class="ref-world-btn sm" type="button" data-action="rival_coop:${rival.id}">${fmt('rival_action_cooperate', { cost: fmtMoney(Math.round(Math.max(3000, s.incomePerDay() * 0.1))) })}</button>
+            <button class="ref-world-btn sm gold" type="button" data-action="rival_merge:${rival.id}" ${s.money >= mergeRivalCost(rival) ? '' : 'disabled'}>${fmt('rival_action_buy', { cost: fmtMoney(mergeRivalCost(rival)) })}</button>
           </div>`}
       `
       list.appendChild(card)
@@ -693,8 +697,8 @@ export class RefEmpirePage implements RefPage {
       empty.className = 'ref-empire-empty-state'
       empty.innerHTML = `
         <div class="ref-empire-empty-state__ico">⚔️</div>
-        <div class="ref-empire-empty-state__title">Henüz rakip yok</div>
-        <div class="ref-empire-empty-state__desc">Kazandıkça rakip aileler sahaya iner — büyümeye devam et.</div>`
+        <div class="ref-empire-empty-state__title">${i18n.t('rival_empty_title')}</div>
+        <div class="ref-empire-empty-state__desc">${i18n.t('rival_empty_desc')}</div>`
       wrap.appendChild(empty)
     }
 
@@ -707,8 +711,8 @@ export class RefEmpirePage implements RefPage {
         <div class="ref-rival-card__head">
           <span class="ref-rival-card__emoji">🔒</span>
           <div class="ref-rival-card__info">
-            <div class="ref-rival-card__name">${nextDef.name}</div>
-            <div class="ref-rival-card__meta">${fmtMoney(nextDef.minPlayerEarned)} toplam kazanca ulaşınca sahaya iner</div>
+            <div class="ref-rival-card__name">${rivalFamilyName(nextDef)}</div>
+            <div class="ref-rival-card__meta">${fmt('rival_locked_unlock_hint', { cost: fmtMoney(nextDef.minPlayerEarned) })}</div>
           </div>
         </div>`
       wrap.appendChild(lockedCard)
@@ -718,7 +722,9 @@ export class RefEmpirePage implements RefPage {
   /* ── Ar-Ge yardımcıları ─────────────────────────────────────────────── */
 
   private buildRndBranchLabel(branch: ResearchNode['branch']): string {
-    return branch === 'operasyon' ? 'Operasyon' : branch === 'finans' ? 'Finans' : 'İmparatorluk'
+    if (branch === 'operasyon') return i18n.t('ref_empire_rnd_branch_operasyon')
+    if (branch === 'finans') return i18n.t('ref_empire_rnd_branch_finans')
+    return i18n.t('ref_empire_rnd_branch_empire')
   }
 
   private buildResearchRow(node: ResearchNode, s?: GameState): HTMLElement {
@@ -732,7 +738,7 @@ export class RefEmpirePage implements RefPage {
     const row = document.createElement('div')
     row.className = 'ref-rnd-row' + (maxed ? ' maxed' : !unlocked ? ' locked' : level > 0 ? ' active' : '')
     const statusRight = maxed
-      ? '<span class="ref-rnd-status max">MAKS</span>'
+      ? `<span class="ref-rnd-status max">${i18n.t('ref_empire_research_status_max')}</span>`
       : !unlocked
         ? `<span class="ref-rnd-status lock">🔒 ${prereq ?? '?'}</span>`
         : `<span class="ref-rnd-cost">${node.currency === 'prestige' ? cost + ' ⭐' : fmtMoney(cost)}</span>`
@@ -740,14 +746,14 @@ export class RefEmpirePage implements RefPage {
     row.innerHTML = `
       <div class="ref-rnd-row__main">
         <div class="ref-rnd-row__head">
-          <span class="ref-rnd-row__name">${node.name}</span>
+          <span class="ref-rnd-row__name">${researchNodeName(node)}</span>
           <span class="ref-rnd-branch">${this.buildRndBranchLabel(node.branch)}</span>
         </div>
-        <div class="ref-rnd-row__desc">${node.description}</div>
+        <div class="ref-rnd-row__desc">${researchNodeDesc(node)}</div>
         <div class="ref-rnd-levels">
           ${Array.from({ length: node.maxLevel }, (_, i) =>
             `<span class="ref-rnd-pip ${i < level ? 'on' : ''}"></span>`).join('')}
-          <span class="ref-rnd-lvl-txt">Sv ${level}/${node.maxLevel}</span>
+          <span class="ref-rnd-lvl-txt">${fmt('ref_empire_research_level_fmt', { level: String(level), max: String(node.maxLevel) })}</span>
         </div>
       </div>
       <div class="ref-rnd-row__right" title="${curr}">${statusRight}</div>`
@@ -762,14 +768,14 @@ export class RefEmpirePage implements RefPage {
     const row = document.createElement('div')
     row.className = 'ref-rnd-row upg' + (owned ? ' maxed' : afford ? ' active' : '')
     const right = owned
-      ? '<span class="ref-rnd-status max">SAHİP</span>'
+      ? `<span class="ref-rnd-status max">${i18n.t('ref_empire_upgrade_owned')}</span>`
       : `<span class="ref-rnd-cost ${afford ? '' : 'dim'}">${fmtMoney(cost)}</span>`
     row.innerHTML = `
       <div class="ref-rnd-row__main">
         <div class="ref-rnd-row__head">
-          <span class="ref-rnd-row__name">${upg.name}</span>
+          <span class="ref-rnd-row__name">${upgradeName(upg)}</span>
         </div>
-        <div class="ref-rnd-row__desc">${upg.description}</div>
+        <div class="ref-rnd-row__desc">${upgradeDesc(upg)}</div>
       </div>
       <div class="ref-rnd-row__right">${right}</div>`
     return row

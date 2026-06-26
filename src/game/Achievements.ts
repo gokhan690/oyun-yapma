@@ -1,4 +1,5 @@
 import { PRODUCERS } from './Economy'
+import { requiredDomainText } from '../i18n'
 
 export interface AchievementDef {
   id: string
@@ -113,4 +114,15 @@ export const ACHIEVEMENTS: AchievementDef[] = [
 
 export function checkNewAchievements(ctx: AchievementContext): AchievementDef[] {
   return ACHIEVEMENTS.filter((a) => !ctx.achievements.has(a.id) && a.check(ctx))
+}
+
+export function achievementName(a: AchievementDef): string {
+  return requiredDomainText(`ach_${a.id}_name`)
+}
+export function achievementDesc(a: AchievementDef): string {
+  return requiredDomainText(`ach_${a.id}_desc`)
+}
+export function achievementRewardLabel(a: AchievementDef): string | undefined {
+  if (!a.rewardLabel) return undefined
+  return requiredDomainText(`ach_${a.id}_reward`)
 }

@@ -1,28 +1,30 @@
 import { sectionTitle, fmtMoney, refToast } from './refShared'
-import { i18n, requiredDomainText } from '../../i18n'
+import { i18n, fmt, requiredDomainText } from '../../i18n'
 import { RefSubTabs } from './RefSubTabs'
 import type { RefCareerVM } from './refAppDataAdapter'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
 import type { DiseaseId } from '../../game/Diseases'
-import { FAME_CAREERS, fameLevelLabel } from '../../game/Fame'
+import { FAME_CAREERS, fameLevelLabel, fameCareerName, fameActionLabel } from '../../game/Fame'
 import type { FameCareerType } from '../../game/Fame'
-import { diseaseDef } from '../../game/Diseases'
-import { PLAYER_RANKS, rankProgress } from '../../game/PlayerRank'
-import { JOB_DEFS, EDUCATION_DEFS, LIFESTYLE_DEFS } from '../../game/CharacterProfile'
+import { diseaseDef, diseaseName } from '../../game/Diseases'
+import { PLAYER_RANKS, rankProgress, rankName } from '../../game/PlayerRank'
+import { JOB_DEFS, EDUCATION_DEFS, LIFESTYLE_DEFS, profileJobLabel, educationLabel, lifestyleLabel } from '../../game/CharacterProfile'
 import {
-  CAREER_JOBS, BINDABLE_CAREER_ACTION_IDS, careerJobDef, estimatedCareerActionPay,
+  CAREER_JOBS, BINDABLE_CAREER_ACTION_IDS, careerJobDef, estimatedCareerActionPay, careerJobName,
   type CareerJobId, type CareerActionId,
 } from '../../game/Career'
-import { WELLBEING_ACTIVITIES, type WellbeingActivityId } from '../../game/Lifestyle'
-import { PRODUCERS } from '../../game/Economy'
+import { WELLBEING_ACTIVITIES, wellbeingName, type WellbeingActivityId } from '../../game/Lifestyle'
+import { PRODUCERS, producerName } from '../../game/Economy'
 
 /** Kariyer aksiyon butonlarının etiket/emoji/açıklaması. */
-const CAREER_ACTION_META: Record<string, { emoji: string; label: string; desc: string }> = {
-  mesai:      { emoji: '🕘', label: 'Mesai Yap',  desc: 'Günlük çalışma' },
-  ek_mesai:   { emoji: '🌙', label: 'Ek Mesai',   desc: 'Fazla mesai, yüksek prim' },
-  egitim_al:  { emoji: '📚', label: 'Eğitim Al',  desc: 'XP kazan, stres düşür' },
-  networking: { emoji: '🤝', label: 'Networking', desc: 'Ağ kur, az gelir + XP' },
+function buildCareerActionMeta(): Record<string, { emoji: string; label: string; desc: string }> {
+  return {
+    mesai:      { emoji: '🕘', label: i18n.t('ref_career_action_mesai_label'),      desc: i18n.t('ref_career_action_mesai_desc') },
+    ek_mesai:   { emoji: '🌙', label: i18n.t('ref_career_action_ek_mesai_label'),   desc: i18n.t('ref_career_action_ek_mesai_desc') },
+    egitim_al:  { emoji: '📚', label: i18n.t('ref_career_action_egitim_al_label'),  desc: i18n.t('ref_career_action_egitim_al_desc') },
+    networking: { emoji: '🤝', label: i18n.t('ref_career_action_networking_label'), desc: i18n.t('ref_career_action_networking_desc') },
+  }
 }
 
 /** Kariyer Sağlık sekmesinde bağlanan günlük rutin aksiyonları. */
@@ -34,11 +36,13 @@ const ROUTINE_META: { id: 'exercise' | 'meditate'; emoji: string; labelKey: stri
 /** Kariyer Sağlık sekmesinde gösterilen stres tedavileri (yalnız bu ikisi). */
 const CAREER_WELLBEING_IDS: WellbeingActivityId[] = ['terapi', 'meditasyon']
 
-const MOCK_CAREER: RefCareerVM = {
-  jobTitle: 'Holding YK Başkanı', level: 24, salaryDaily: 48_000, stress: 48,
-  xpPct: 64, xpText: '₺248M / ₺1Mr', nextRank: 'Sektör Lideri', seniorityYears: 6,
-  health: 72, healthLabel: 'İyi', diseases: [], fame: 0, fameLabel: 'Yeni Başlayan',
-  fameCareerName: null, fameCareerType: null, fameIsActive: false, karma: 0, siblingCount: 0,
+function buildMockCareer(): RefCareerVM {
+  return {
+    jobTitle: i18n.t('ref_career_mock_job_title'), level: 24, salaryDaily: 48_000, stress: 48,
+    xpPct: 64, xpText: '₺248M / ₺1Mr', nextRank: i18n.t('ref_career_mock_next_rank'), seniorityYears: 6,
+    health: 72, healthLabel: i18n.t('ref_health_good'), diseases: [], fame: 0, fameLabel: fameLevelLabel(0),
+    fameCareerName: null, fameCareerType: null, fameIsActive: false, karma: 0, siblingCount: 0,
+  }
 }
 
 export class RefCareerPage implements RefPage {
@@ -54,16 +58,16 @@ export class RefCareerPage implements RefPage {
   private lastJobSig = ''
 
   constructor(vm?: RefCareerVM, state?: GameState) {
-    this.vm = vm ?? MOCK_CAREER
+    this.vm = vm ?? buildMockCareer()
     this.state = state
 
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-career-page'
 
     this.tabs = new RefSubTabs([
-      { id: 'job',    label: 'İş',     icon: '💼' },
-      { id: 'health', label: 'Sağlık', icon: '❤️' },
-      { id: 'fame',   label: 'Şöhret', icon: '⭐' },
+      { id: 'job',    label: i18n.t('ref_career_tab_job'),    icon: '💼' },
+      { id: 'health', label: i18n.t('ref_career_tab_health'), icon: '❤️' },
+      { id: 'fame',   label: i18n.t('ref_career_tab_fame'),   icon: '⭐' },
     ])
     this.el.appendChild(this.tabs.tabsEl)
     const secJob = this.tabs.section('job')
@@ -94,11 +98,11 @@ export class RefCareerPage implements RefPage {
     const edu = EDUCATION_DEFS[p.educationLevel]
     const life = LIFESTYLE_DEFS[p.lifestyleType]
     return `
-      <div class="ref-career-profile__title">Karakter Profili</div>
+      <div class="ref-career-profile__title">${i18n.t('ref_career_profile_section_title')}</div>
       <div class="ref-career-profile__chips">
-        <span class="ref-member-chip">${job.emoji} ${job.label}${job.incomeDailyBonus > 0 ? ` · +${fmtMoney(job.incomeDailyBonus)}/g` : ''}</span>
-        <span class="ref-member-chip">${edu.emoji} ${edu.label}</span>
-        <span class="ref-member-chip">${life.emoji} ${life.label} yaşam</span>
+        <span class="ref-member-chip">${job.emoji} ${profileJobLabel(p.jobId)}${job.incomeDailyBonus > 0 ? ` · +${fmtMoney(job.incomeDailyBonus)}/g` : ''}</span>
+        <span class="ref-member-chip">${edu.emoji} ${educationLabel(p.educationLevel)}</span>
+        <span class="ref-member-chip">${life.emoji} ${lifestyleLabel(p.lifestyleType)} ${i18n.t('ref_career_lifestyle_suffix')}</span>
       </div>`
   }
 
@@ -116,21 +120,21 @@ export class RefCareerPage implements RefPage {
     let badge: string
     if (!this.state) {
       mainTitle = c.jobTitle
-      mainSub = `Kariyer Seviyesi ${c.level} · ${c.seniorityYears} yıl kıdem`
+      mainSub = `${i18n.t('ref_career_level_label')} ${c.level} · ${fmt('ref_career_seniority_fmt', { years: String(c.seniorityYears) })}`
       badge = `LVL ${c.level}`
     } else if (isEntrepreneur) {
-      mainTitle = '🚀 Girişimci'
-      mainSub = 'Gelir firmalarından geliyor'
-      badge = 'Firma Sahibi'
+      mainTitle = '🚀 ' + i18n.t('ref_career_entrepreneur_title')
+      mainSub = i18n.t('ref_career_entrepreneur_income')
+      badge = i18n.t('ref_career_entrepreneur_title')
     } else if (!career?.jobId) {
-      mainTitle = '🔍 İşsiz'
-      mainSub = 'Henüz iş seçilmedi'
-      badge = 'Başlangıç'
+      mainTitle = '🔍 ' + i18n.t('ref_career_unemployed_title')
+      mainSub = i18n.t('ref_career_no_job_subtitle')
+      badge = i18n.t('ref_career_starter_label')
     } else {
       const jobDef = careerJobDef(career.jobId)
-      mainTitle = `${jobDef?.emoji ?? '💼'} ${jobDef?.name ?? ''}`
-      mainSub = `Çalışan · Kariyer Seviyesi ${career.level} · ${c.seniorityYears} yıl kıdem`
-      badge = `İş Lv.${career.level}`
+      mainTitle = `${jobDef?.emoji ?? '💼'} ${jobDef ? careerJobName(jobDef) : ''}`
+      mainSub = `${i18n.t('ref_career_working_employee_label')} · ${i18n.t('ref_career_level_label')} ${career.level} · ${fmt('ref_career_seniority_fmt', { years: String(c.seniorityYears) })}`
+      badge = fmt('ref_career_job_level_fmt', { level: String(career.level) })
     }
 
     const banner = `
@@ -149,19 +153,19 @@ export class RefCareerPage implements RefPage {
 
     // 3. stat hücresi: işsizken rütbe yerine nötr yönlendirme.
     const thirdStat = isUnemployed
-      ? `<span class="ref-job-stat__lbl">🎯 Başlangıç</span>
-         <span class="ref-job-stat__val">İlk işini seç</span>`
-      : `<span class="ref-job-stat__lbl">🏆 Sıradaki Rütbe</span>
+      ? `<span class="ref-job-stat__lbl">🎯 ${i18n.t('ref_career_starter_label')}</span>
+         <span class="ref-job-stat__val">${i18n.t('ref_career_pick_first_job')}</span>`
+      : `<span class="ref-job-stat__lbl">🏆 ${i18n.t('ref_career_next_rank_label')}</span>
          <span class="ref-job-stat__val">${c.nextRank}</span>`
 
     return banner + `
       <div class="ref-job-stats">
         <div class="ref-job-stat">
-          <span class="ref-job-stat__lbl">💰 Günlük Gelir</span>
+          <span class="ref-job-stat__lbl">💰 ${i18n.t('ref_career_daily_income_label')}</span>
           <span class="ref-job-stat__val income">${fmtMoney(c.salaryDaily)}</span>
         </div>
         <div class="ref-job-stat">
-          <span class="ref-job-stat__lbl">📅 Aylık Tahmini</span>
+          <span class="ref-job-stat__lbl">📅 ${i18n.t('ref_career_monthly_income_label')}</span>
           <span class="ref-job-stat__val income">${fmtMoney(c.salaryDaily * 30)}</span>
         </div>
         <div class="ref-job-stat">
@@ -170,20 +174,20 @@ export class RefCareerPage implements RefPage {
       </div>
       <div class="ref-job-bars">
         <div class="ref-job-bar">
-          <div class="ref-job-bar__lbl"><span>📈 Kariyer İlerlemesi</span><span>${c.xpText}</span></div>
+          <div class="ref-job-bar__lbl"><span>📈 ${i18n.t('ref_career_progress_label')}</span><span>${c.xpText}</span></div>
           <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:${c.xpPct}%"></div></div>
         </div>
         <div class="ref-job-bar">
           <div class="ref-job-bar__lbl">
-            <span>😤 Stres ${c.stress >= 70 ? '⚠️' : ''}</span>
+            <span>😤 ${i18n.t('ref_career_stress_label')} ${c.stress >= 70 ? '⚠️' : ''}</span>
             <span>${c.stress}%</span>
           </div>
           <div class="ref-perf-track"><div class="ref-perf-fill ${c.stress >= 70 ? 'low' : c.stress >= 45 ? 'medium' : 'high'}" style="width:${c.stress}%"></div></div>
         </div>
       </div>
       <div class="ref-career-tips">
-        ${c.stress >= 70 ? '<div class="ref-career-tip ref-career-tip--warn">⚠️ Stres çok yüksek — sağlık riske girdi</div>' : ''}
-        ${c.xpPct >= 80 ? '<div class="ref-career-tip ref-career-tip--good">🚀 Rütbe atlamaya yakın!</div>' : ''}
+        ${c.stress >= 70 ? `<div class="ref-career-tip ref-career-tip--warn">⚠️ ${i18n.t('ref_career_stress_high')}</div>` : ''}
+        ${c.xpPct >= 80 ? `<div class="ref-career-tip ref-career-tip--good">🚀 ${i18n.t('ref_career_promotion_soon_tip')}</div>` : ''}
       </div>
       ${this.buildJobActionsHtml()}
     `
@@ -205,33 +209,33 @@ export class RefCareerPage implements RefPage {
     for (const p of PRODUCERS) {
       if ((s.producers[p.id] ?? 0) <= 0) continue
       const inc = s.producerIncome(p)
-      if (!best || inc > best.income) best = { name: p.name, emoji: p.emoji, income: inc }
+      if (!best || inc > best.income) best = { name: producerName(p), emoji: p.emoji, income: inc }
     }
 
     const bestRow = best
       ? `<div class="ref-entre-best">
            <span class="ref-entre-best__ico">${best.emoji}</span>
            <div class="ref-entre-best__main">
-             <div class="ref-entre-best__lbl">En çok gelir getiren</div>
+             <div class="ref-entre-best__lbl">${i18n.t('ref_career_best_earner_label')}</div>
              <div class="ref-entre-best__name">${best.name}</div>
            </div>
-           <div class="ref-entre-best__income">${fmtMoney(Math.round(best.income))}/gün</div>
+           <div class="ref-entre-best__income">${fmtMoney(Math.round(best.income))}${i18n.t('ref_career_best_earner_per_day')}</div>
          </div>`
-      : `<div class="ref-career-entrepreneur-badge">Henüz firman yok — Firmalar sekmesinden ilk işletmeni kur.</div>`
+      : `<div class="ref-career-entrepreneur-badge">${i18n.t('ref_career_no_firms_hint')}</div>`
 
     return `
-      <div class="ref-career-section-title">Girişimci Paneli</div>
+      <div class="ref-career-section-title">${i18n.t('ref_career_entrepreneur_panel_title')}</div>
       <div class="ref-entre-grid">
-        <div class="ref-entre-stat"><span class="ref-entre-stat__lbl">🏢 Firma</span><span class="ref-entre-stat__val">${firmCount}</span></div>
-        <div class="ref-entre-stat"><span class="ref-entre-stat__lbl">💰 Günlük Gelir</span><span class="ref-entre-stat__val income">${fmtMoney(dailyIncome)}</span></div>
-        <div class="ref-entre-stat"><span class="ref-entre-stat__lbl">💎 Net Değer</span><span class="ref-entre-stat__val">${fmtMoney(netWorth)}</span></div>
-        <div class="ref-entre-stat"><span class="ref-entre-stat__lbl">💵 Nakit</span><span class="ref-entre-stat__val">${fmtMoney(cash)}</span></div>
+        <div class="ref-entre-stat"><span class="ref-entre-stat__lbl">🏢 ${i18n.t('ref_career_firms_count_label')}</span><span class="ref-entre-stat__val">${firmCount}</span></div>
+        <div class="ref-entre-stat"><span class="ref-entre-stat__lbl">💰 ${i18n.t('ref_career_daily_income_label')}</span><span class="ref-entre-stat__val income">${fmtMoney(dailyIncome)}</span></div>
+        <div class="ref-entre-stat"><span class="ref-entre-stat__lbl">💎 ${i18n.t('ref_career_net_worth_label')}</span><span class="ref-entre-stat__val">${fmtMoney(netWorth)}</span></div>
+        <div class="ref-entre-stat"><span class="ref-entre-stat__lbl">💵 ${i18n.t('ref_career_cash_label')}</span><span class="ref-entre-stat__val">${fmtMoney(cash)}</span></div>
       </div>
       ${bestRow}
-      <div class="ref-entre-note">Artık kariyer maaşı yerine şirketlerinden gelir kazanıyorsun.</div>
-      <button class="ref-entre-cta" type="button" data-career-goto-firms>🏢 Firmalara Git</button>
+      <div class="ref-entre-note">${i18n.t('ref_career_entrepreneur_info')}</div>
+      <button class="ref-entre-cta" type="button" data-career-goto-firms>${i18n.t('ref_career_entrepreneur_cta')}</button>
       <div class="ref-career-tips">
-        <div class="ref-career-tip ref-career-tip--good">📈 Firma gelişimi: Firmalar sekmesinden yönet</div>
+        <div class="ref-career-tip ref-career-tip--good">${i18n.t('ref_career_manage_firms_tip')}</div>
       </div>
     `
   }
@@ -251,25 +255,27 @@ export class RefCareerPage implements RefPage {
       const cards = CAREER_JOBS.map((job) => `
         <button class="ref-career-job-card" type="button" data-career-job="${job.id}">
           <span class="ref-career-job-card__ico">${job.emoji}</span>
-          <span class="ref-career-job-card__name">${job.name}</span>
-          <span class="ref-career-job-card__wage">${fmtMoney(job.baseDailyWage)}/gün</span>
-          <span class="ref-career-job-card__stress">😤 +${job.stressDelta} stres</span>
+          <span class="ref-career-job-card__name">${careerJobName(job)}</span>
+          <span class="ref-career-job-card__wage">${fmtMoney(job.baseDailyWage)}${i18n.t('ref_career_wage_per_day_unit')}</span>
+          <span class="ref-career-job-card__stress">😤 +${job.stressDelta} ${i18n.t('ref_career_stress_unit')}</span>
         </button>`).join('')
       return `
-        <div class="ref-career-section-title">Bir İş Seç</div>
+        <div class="ref-career-section-title">${i18n.t('ref_career_pick_job_section')}</div>
         <div class="ref-career-job-grid">${cards}</div>`
     }
 
-    const jobName = careerJobDef(career.jobId)?.name ?? 'İşin'
+    const _jobDef = careerJobDef(career.jobId)
+    const jobName = _jobDef ? careerJobName(_jobDef) : i18n.t('ref_career_working_employee_label')
+    const careerActionMeta = buildCareerActionMeta()
     const buttons = BINDABLE_CAREER_ACTION_IDS.map((actId) => {
-      const meta = CAREER_ACTION_META[actId]
+      const meta = careerActionMeta[actId]
       const used = career.actionsUsedToday.includes(actId)
       const pay = estimatedCareerActionPay(career, actId)
       const earnLine = pay > 0
-        ? `<div class="ref-career-action-btn__earn">≈ ${fmtMoney(pay)} + prim</div>`
-        : `<div class="ref-career-action-btn__xp">XP & stres odaklı</div>`
+        ? `<div class="ref-career-action-btn__earn">≈ ${fmtMoney(pay)} + ${i18n.t('ref_career_bonus_suffix')}</div>`
+        : `<div class="ref-career-action-btn__xp">${i18n.t('ref_career_action_xp_focused')}</div>`
       const sub = used
-        ? '<div class="ref-career-action-btn__done">✓ Bugün tamamlandı</div>'
+        ? `<div class="ref-career-action-btn__done">✓ ${i18n.t('ref_career_action_completed_today')}</div>`
         : earnLine
       return `
         <button class="ref-career-action-btn${used ? ' used' : ''}" type="button"
@@ -282,7 +288,7 @@ export class RefCareerPage implements RefPage {
         </button>`
     }).join('')
     return `
-      <div class="ref-career-section-title">${jobName} · Günlük Aksiyonlar</div>
+      <div class="ref-career-section-title">${jobName} · ${i18n.t('ref_career_daily_actions_section')}</div>
       <div class="ref-career-action-grid">${buttons}</div>`
   }
 
@@ -300,7 +306,7 @@ export class RefCareerPage implements RefPage {
     const wrap = document.createElement('div')
     const hClass = c.health >= 70 ? 'high' : c.health >= 40 ? 'medium' : 'low'
     const hEmoji = c.health >= 80 ? '💚' : c.health >= 50 ? '💛' : c.health >= 20 ? '🟠' : '❤️'
-    wrap.appendChild(sectionTitle('Sağlık & Yaşam', `${c.health}% · ${c.healthLabel}`))
+    wrap.appendChild(sectionTitle(i18n.t('ref_career_health_section_title'), `${c.health}% · ${c.healthLabel}`))
 
     const card = document.createElement('div')
     card.className = 'ref-health-card'
@@ -317,23 +323,23 @@ export class RefCareerPage implements RefPage {
         <div class="ref-health-stat">
           <span class="ref-health-stat__ico">😤</span>
           <div>
-            <div class="ref-health-stat__lbl">Stres</div>
+            <div class="ref-health-stat__lbl">${i18n.t('ref_career_stress_label')}</div>
             <div class="ref-perf-track sm"><div class="ref-perf-fill ${c.stress >= 70 ? 'low' : c.stress >= 45 ? 'medium' : 'high'}" style="width:${c.stress}%"></div></div>
           </div>
           <span class="ref-health-val">${c.stress}%</span>
         </div>
       </div>
       <div class="ref-health-tips">
-        ${c.health >= 80 ? '<div class="ref-health-tip good">✅ Sağlık durumu mükemmel</div>' : ''}
-        ${c.health < 50 ? '<div class="ref-health-tip warn">⚠️ Sağlık düşük — tedavi önerilir</div>' : ''}
-        ${c.stress >= 70 ? '<div class="ref-health-tip warn">⚠️ Stres yüksek — dinlenme gerekli</div>' : ''}
+        ${c.health >= 80 ? `<div class="ref-health-tip good">✅ ${i18n.t('ref_career_health_excellent_tip')}</div>` : ''}
+        ${c.health < 50 ? `<div class="ref-health-tip warn">⚠️ ${i18n.t('ref_career_health_low_tip')}</div>` : ''}
+        ${c.stress >= 70 ? `<div class="ref-health-tip warn">⚠️ ${i18n.t('ref_career_stress_high_tip')}</div>` : ''}
       </div>
     `
 
     if (c.diseases.length > 0) {
       const dTitle = document.createElement('div')
       dTitle.className = 'ref-disease-list-title'
-      dTitle.textContent = '🏥 Aktif Hastalıklar'
+      dTitle.textContent = '🏥 ' + i18n.t('ref_career_diseases_section_title')
       card.appendChild(dTitle)
       const list = document.createElement('div')
       list.className = 'ref-disease-list'
@@ -344,7 +350,7 @@ export class RefCareerPage implements RefPage {
           <span class="ref-disease-emoji">${d.emoji}</span>
           <div class="ref-disease-info">
             <div class="ref-disease-name">${d.name}</div>
-            <div class="ref-disease-dmg">−${d.dailyDamage} sağlık/gün</div>
+            <div class="ref-disease-dmg">−${d.dailyDamage} ${i18n.t('ref_career_health_per_day_unit')}</div>
           </div>
           <button class="ref-disease-treat-btn" type="button" data-disease="${d.id}">
             Tedavi · ${fmtMoney(d.treatCost)}
@@ -356,7 +362,7 @@ export class RefCareerPage implements RefPage {
     } else {
       const ok = document.createElement('div')
       ok.className = 'ref-disease-ok'
-      ok.textContent = '✅ Aktif hastalık yok'
+      ok.textContent = '✅ ' + i18n.t('ref_career_no_diseases')
       card.appendChild(ok)
     }
     wrap.appendChild(card)
@@ -394,8 +400,8 @@ export class RefCareerPage implements RefPage {
         <div class="ref-wellbeing-row">
           <span class="ref-routine-btn__ico">${act.emoji}</span>
           <div class="ref-wellbeing-row__main">
-            <div class="ref-wellbeing-row__name">${act.name}</div>
-            <div class="ref-wellbeing-row__effect">😌 -${act.stressReduction} stres</div>
+            <div class="ref-wellbeing-row__name">${wellbeingName(act)}</div>
+            <div class="ref-wellbeing-row__effect">😌 -${act.stressReduction} ${i18n.t('ref_career_stress_unit')}</div>
           </div>
           <button class="ref-disease-treat-btn" type="button" data-wellbeing="${id}" ${canBuy ? '' : 'disabled'}>
             ${fmtMoney(act.cost)}
@@ -413,7 +419,7 @@ export class RefCareerPage implements RefPage {
   private buildFameSection(c: RefCareerVM): HTMLElement {
     const wrap = document.createElement('div')
     wrap.className = 'ref-fame-section'
-    wrap.appendChild(sectionTitle('Şöhret Kariyeri', c.fameIsActive ? (c.fameCareerName ?? '') : 'Pasif'))
+    wrap.appendChild(sectionTitle(i18n.t('ref_career_fame_section_title'), c.fameIsActive ? (c.fameCareerName ?? '') : i18n.t('ref_career_fame_inactive_label')))
 
     if (c.fameIsActive && c.fameCareerType) {
       const career = FAME_CAREERS.find((f) => f.id === c.fameCareerType)
@@ -425,8 +431,8 @@ export class RefCareerPage implements RefPage {
           <span class="ref-fame-level">${c.fameLabel} · ${c.fame}%</span>
         </div>
         <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:${c.fame}%"></div></div>
-        <div class="ref-fame-income">📈 Şöhret geliri: ${fmtMoney(c.fame * c.fame * 12 + (career?.baseDailyIncome ?? 0))}/gün</div>
-        <button class="ref-fame-quit-btn" type="button" data-action="quit_fame">Kariyeri Bırak</button>
+        <div class="ref-fame-income">📈 ${i18n.t('ref_career_fame_income_label')}: ${fmtMoney(c.fame * c.fame * 12 + (career?.baseDailyIncome ?? 0))}${i18n.t('ref_career_best_earner_per_day')}</div>
+        <button class="ref-fame-quit-btn" type="button" data-action="quit_fame">${i18n.t('ref_career_fame_quit_button')}</button>
       `
       if (career) {
         const actWrap = document.createElement('div')
@@ -436,7 +442,7 @@ export class RefCareerPage implements RefPage {
           btn.className = 'ref-fame-action-btn'
           btn.type = 'button'
           btn.dataset.action = `fame_action:${act.id}`
-          btn.innerHTML = `${act.emoji} ${act.label}${act.cost > 0 ? ` · ${fmtMoney(act.cost)}` : ''}`
+          btn.innerHTML = `${act.emoji} ${fameActionLabel(career.id, act)}${act.cost > 0 ? ` · ${fmtMoney(act.cost)}` : ''}`
           actWrap.appendChild(btn)
         }
         active.appendChild(actWrap)
@@ -445,7 +451,7 @@ export class RefCareerPage implements RefPage {
     } else {
       const note = document.createElement('div')
       note.className = 'ref-fame-inactive'
-      note.textContent = 'Şöhret kariyeri başlatmak için bir alan seç:'
+      note.textContent = i18n.t('ref_career_fame_career_prompt') + ':'
       wrap.appendChild(note)
       const grid = document.createElement('div')
       grid.className = 'ref-fame-pick-grid'
@@ -456,8 +462,8 @@ export class RefCareerPage implements RefPage {
         card.dataset.action = `start_fame:${career.id}`
         card.innerHTML = `
           <div class="ref-fame-pick-emoji">${career.emoji}</div>
-          <div class="ref-fame-pick-name">${career.name}</div>
-          <div class="ref-fame-pick-income">${fmtMoney(career.baseDailyIncome)}/gün</div>
+          <div class="ref-fame-pick-name">${fameCareerName(career)}</div>
+          <div class="ref-fame-pick-income">${fmtMoney(career.baseDailyIncome)}${i18n.t('ref_career_best_earner_per_day')}</div>
         `
         grid.appendChild(card)
       }
@@ -470,7 +476,7 @@ export class RefCareerPage implements RefPage {
     const row = document.createElement('div')
     row.className = `ref-karma-row ${c.karma >= 0 ? 'ref-karma-good' : 'ref-karma-bad'}`
     row.innerHTML = `
-      <span>${c.karma >= 0 ? '😇' : '😈'} Karma</span>
+      <span>${c.karma >= 0 ? '😇' : '😈'} ${i18n.t('ref_career_karma_label')}</span>
       <span class="ref-karma-val">${c.karma >= 0 ? '+' : ''}${c.karma}</span>
     `
     return row
@@ -533,23 +539,23 @@ export class RefCareerPage implements RefPage {
 
     return {
       ...this.vm,
-      jobTitle: `${rp.current.emoji} ${rp.current.name}`,
+      jobTitle: `${rp.current.emoji} ${rankName(rp.current)}`,
       level: PLAYER_RANKS.indexOf(rp.current) + 1,
       salaryDaily: Math.round(state.incomePerDay()),
       stress: Math.round(state.lifestyle.stress),
       xpPct: Math.round(rp.pct),
-      xpText: rp.next ? `${fmtMoney(Math.round(state.totalEarned))} / ${fmtMoney(rp.next.minEarned)}` : 'ZİRVE 🏆',
-      nextRank: rp.next ? `${rp.next.emoji} ${rp.next.name}` : '🏆 Zirvede',
+      xpText: rp.next ? `${fmtMoney(Math.round(state.totalEarned))} / ${fmtMoney(rp.next.minEarned)}` : `${i18n.t('ref_career_peak_label')} 🏆`,
+      nextRank: rp.next ? `${rp.next.emoji} ${rankName(rp.next)}` : `🏆 ${i18n.t('ref_career_at_peak')}`,
       seniorityYears: Math.max(0, age - 18),
       health,
-      healthLabel: health >= 80 ? 'İyi' : health >= 50 ? 'Orta' : health >= 20 ? 'Kötü' : 'Kritik',
+      healthLabel: health >= 80 ? i18n.t('ref_health_good') : health >= 50 ? i18n.t('ref_health_medium') : health >= 20 ? i18n.t('ref_health_bad') : i18n.t('ref_health_critical'),
       diseases: diseases.map((d) => {
         const def = diseaseDef(d.id)
-        return { id: d.id, name: def.name, emoji: def.emoji, treatCost: def.treatCost, dailyDamage: def.dailyHealthDamage }
+        return { id: d.id, name: diseaseName(def), emoji: def.emoji, treatCost: def.treatCost, dailyDamage: def.dailyHealthDamage }
       }),
       fame: Math.round(fs?.fameLevel ?? 0),
       fameLabel: fameLevelLabel(fs?.fameLevel ?? 0),
-      fameCareerName: fameCareerDef?.name ?? null,
+      fameCareerName: fameCareerDef ? fameCareerName(fameCareerDef) : null,
       fameCareerType: fs?.careerType ?? null,
       fameIsActive: fs?.isActive ?? false,
       karma,
@@ -566,7 +572,7 @@ export class RefCareerPage implements RefPage {
     const btns = shell?.querySelectorAll<HTMLButtonElement>('.ref-bottom-nav .ref-nav-btn')
     if (!btns) return
     for (const b of Array.from(btns)) {
-      if (b.querySelector('.ref-nav-btn__lbl')?.textContent?.trim() === 'Firmalar') {
+      if (b.querySelector('.ref-nav-btn__lbl')?.textContent?.trim() === i18n.t('ref_nav_firms')) {
         b.click()
         return
       }
@@ -591,7 +597,7 @@ export class RefCareerPage implements RefPage {
     const careerJob = btn.dataset.careerJob as CareerJobId | undefined
     if (careerJob) {
       s.setCareerJob(careerJob)
-      refToast('💼 İş seçildi', 'ok')
+      refToast('💼 ' + i18n.t('ref_career_toast_job_selected'), 'ok')
       this.refresh(s)
       return
     }
@@ -604,8 +610,8 @@ export class RefCareerPage implements RefPage {
       const parts: string[] = []
       if (r.money > 0) parts.push(`+${fmtMoney(r.money)}`)
       if (r.xp > 0) parts.push(`+${r.xp} XP`)
-      if (r.levelUp) parts.push('🎉 Seviye atladın!')
-      refToast(gained ? `✅ ${parts.join(' · ')}` : '⚠️ Bugün bu aksiyonu kullandın', gained ? 'ok' : 'err')
+      if (r.levelUp) parts.push('🎉 ' + i18n.t('ref_career_toast_level_up'))
+      refToast(gained ? `✅ ${parts.join(' · ')}` : '⚠️ ' + i18n.t('ref_career_toast_action_used'), gained ? 'ok' : 'err')
       this.refresh(s)
       return
     }
@@ -614,7 +620,7 @@ export class RefCareerPage implements RefPage {
     const routine = btn.dataset.routine as 'exercise' | 'meditate' | undefined
     if (routine) {
       const ok = s.doDailyRoutine(routine)
-      refToast(ok ? '✅ Tamamlandı' : '⚠️ Günlük limit doldu', ok ? 'ok' : 'err')
+      refToast(ok ? '✅ ' + i18n.t('ref_career_toast_completed') : '⚠️ ' + i18n.t('ref_career_toast_daily_limit'), ok ? 'ok' : 'err')
       this.refresh(s)
       return
     }
@@ -623,7 +629,7 @@ export class RefCareerPage implements RefPage {
     const wellbeing = btn.dataset.wellbeing as WellbeingActivityId | undefined
     if (wellbeing) {
       const ok = s.buyWellbeing(wellbeing)
-      refToast(ok ? '🧘 Aktivite tamamlandı' : '💸 Para yetersiz', ok ? 'ok' : 'err')
+      refToast(ok ? '🧘 ' + i18n.t('ref_career_toast_activity_done') : '💸 ' + i18n.t('ref_career_toast_insufficient_funds'), ok ? 'ok' : 'err')
       this.refresh(s)
       return
     }
@@ -631,7 +637,7 @@ export class RefCareerPage implements RefPage {
     const diseaseId = btn.dataset.disease as DiseaseId | undefined
     if (diseaseId) {
       const ok = (this.state as unknown as { treatDisease: (id: DiseaseId) => boolean }).treatDisease(diseaseId)
-      refToast(ok ? '💊 Tedavi tamamlandı' : '💸 Para yetersiz', ok ? 'ok' : 'err')
+      refToast(ok ? '💊 ' + i18n.t('ref_career_toast_treatment_done') : '💸 ' + i18n.t('ref_career_toast_insufficient_funds'), ok ? 'ok' : 'err')
       return
     }
 
@@ -640,19 +646,19 @@ export class RefCareerPage implements RefPage {
 
     if (action === 'quit_fame') {
       ;(this.state as unknown as { quitFameCareer: () => void }).quitFameCareer()
-      refToast('Şöhret kariyeri bırakıldı', 'ok')
+      refToast(i18n.t('ref_career_toast_fame_quit'), 'ok')
       return
     }
     if (action.startsWith('start_fame:')) {
       const type = action.split(':')[1] as FameCareerType
       const ok = (this.state as unknown as { startFameCareer: (t: FameCareerType) => boolean }).startFameCareer(type)
-      refToast(ok ? '🌟 Kariyer başladı!' : 'Zaten aktif bir kariyer var', ok ? 'ok' : 'err')
+      refToast(ok ? '🌟 ' + i18n.t('ref_career_toast_fame_started') : i18n.t('ref_career_toast_fame_already_active'), ok ? 'ok' : 'err')
       return
     }
     if (action.startsWith('fame_action:')) {
       const actionId = action.split(':')[1]!
       const ok = (this.state as unknown as { doFameAction: (id: string) => boolean }).doFameAction(actionId)
-      refToast(ok ? '⭐ Aksiyon tamamlandı!' : '💸 Para yetersiz', ok ? 'ok' : 'err')
+      refToast(ok ? '⭐ ' + i18n.t('ref_career_toast_fame_action_done') : '💸 ' + i18n.t('ref_career_toast_insufficient_funds'), ok ? 'ok' : 'err')
     }
   }
 }

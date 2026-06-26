@@ -1,5 +1,7 @@
 /** Arkadaş sistemi — 5 arkadaş tipi, ilişki puanı (0-100), bonuslar */
 
+import { requiredDomainText } from '../i18n'
+
 export type FriendTypeId = 'work_colleague' | 'school_friend' | 'neighborhood_friend' | 'rival_turned_friend' | 'mentor_friend'
 
 export interface FriendDef {
@@ -83,6 +85,16 @@ export function createFriendshipsState(): FriendshipsState {
 
 export function friendTypeDef(id: FriendTypeId): FriendDef {
   return FRIEND_TYPES.find((f) => f.id === id)!
+}
+
+export function friendName(f: FriendDef): string {
+  return requiredDomainText(`friend_${f.id}_name`)
+}
+export function friendDesc(f: FriendDef): string {
+  return requiredDomainText(`friend_${f.id}_desc`)
+}
+export function friendBonus(f: FriendDef): string {
+  return requiredDomainText(`friend_${f.id}_bonus`)
 }
 
 /** Günlük decay uygulaması */

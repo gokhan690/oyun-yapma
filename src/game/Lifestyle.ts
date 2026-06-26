@@ -1,3 +1,5 @@
+import { requiredDomainText } from '../i18n'
+
 export type ResidenceId = 'kira' | 'daire' | 'rezidans' | 'villa' | 'yali' | 'saray' | 'ada'
 export type VehicleId =
   | 'yuruyus' | 'motosiklet' | 'ekonomik' | 'suv' | 'luks_sedan' | 'super_araba' | 'helikopter' | 'yat' | 'ozel_jet'
@@ -574,4 +576,35 @@ export function homeRoomDailyStressReduction(ls: LifestyleState): number {
     total += homeRoomDef(id)?.stressReduction ?? 0
   }
   return total
+}
+
+export function residenceName(r: ResidenceDef): string {
+  return requiredDomainText(`residence_${r.id}_name`)
+}
+export function residenceDesc(r: ResidenceDef): string {
+  return requiredDomainText(`residence_${r.id}_desc`)
+}
+export function vehicleName(v: VehicleDef): string {
+  return requiredDomainText(`vehicle_${v.id}_name`)
+}
+export function vehicleDesc(v: VehicleDef): string {
+  return requiredDomainText(`vehicle_${v.id}_desc`)
+}
+export function petName(p: PetDef): string {
+  return requiredDomainText(`pet_${p.id}_name`)
+}
+export function petDesc(p: PetDef): string {
+  return requiredDomainText(`pet_${p.id}_desc`)
+}
+export function wellbeingName(a: WellbeingActivityDef): string {
+  return requiredDomainText(`wellbeing_${a.id}_name`)
+}
+export function wellbeingDesc(a: WellbeingActivityDef): string {
+  return requiredDomainText(`wellbeing_${a.id}_desc`)
+}
+export function homeRoomName(r: HomeRoomDef): string {
+  return requiredDomainText(`room_${r.id}_name`)
+}
+export function homeRoomBonus(r: HomeRoomDef): string {
+  return requiredDomainText(`room_${r.id}_bonus`)
 }

@@ -1,4 +1,4 @@
-import { tRaw } from '../i18n'
+import { requiredDomainText } from '../i18n'
 
 export type CrisisId = 'economic' | 'scandal' | 'rival_attack'
 
@@ -73,14 +73,14 @@ export function pickRandomCrisis(): CrisisId {
 }
 
 export function crisisTitle(c: CrisisDef): string {
-  return tRaw(`crisis_${c.id}_title`) ?? c.title
+  return requiredDomainText(`crisis_${c.id}_title`)
 }
 export function crisisDesc(c: CrisisDef): string {
-  return tRaw(`crisis_${c.id}_desc`) ?? c.description
+  return requiredDomainText(`crisis_${c.id}_desc`)
 }
 export function crisisChoiceLabel(crisisId: CrisisId, choice: CrisisChoice): string {
-  return tRaw(`crisis_${crisisId}_choice_${choice.id}_label`) ?? choice.label
+  return requiredDomainText(`crisis_${crisisId}_choice_${choice.id}_label`)
 }
 export function crisisChoiceDesc(crisisId: CrisisId, choice: CrisisChoice): string {
-  return tRaw(`crisis_${crisisId}_choice_${choice.id}_desc`) ?? choice.description
+  return requiredDomainText(`crisis_${crisisId}_choice_${choice.id}_desc`)
 }

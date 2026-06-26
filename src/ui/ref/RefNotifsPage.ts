@@ -1,5 +1,5 @@
 import { backRow, sectionTitle, demoBanner } from './refShared'
-import { i18n } from '../../i18n'
+import { i18n, fmt } from '../../i18n'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
 import type { GazetteCategory } from '../../game/BaronGazette'
@@ -16,7 +16,7 @@ const CATEGORY_EMOJI: Record<GazetteCategory, string> = {
 /** BİLDİRİMLER — gazette akışı, salt okunur (son ~50 girdi, yeniden eskiye). */
 export class RefNotifsPage implements RefPage {
   readonly el: HTMLElement
-  readonly title = i18n.t('ref_notifs_title')
+  get title(): string { return i18n.t('ref_notifs_title') }
   readonly titleDeco = '🔔'
 
   onBack?: () => void
@@ -32,9 +32,9 @@ export class RefNotifsPage implements RefPage {
 
     this.el.appendChild(backRow(() => this.onBack?.()))
 
-    if (!state) this.el.appendChild(demoBanner('bildirimler — gerçek oyun verisi yok'))
+    if (!state) this.el.appendChild(demoBanner(i18n.t('ref_notifs_demo_banner')))
 
-    this.el.appendChild(sectionTitle('Baron Gazetesi', 'son gelişmeler'))
+    this.el.appendChild(sectionTitle(i18n.t('ref_notifs_section_title'), i18n.t('ref_notifs_section_sub')))
     this.listEl = document.createElement('div')
     this.listEl.className = 'ref-notif-list'
     this.el.appendChild(this.listEl)
@@ -63,7 +63,7 @@ export class RefNotifsPage implements RefPage {
         <span class="ref-notif-row__ico">${CATEGORY_EMOJI[e.category] ?? '📰'}</span>
         <div class="ref-notif-row__main">
           <div class="ref-notif-row__headline">${e.headline}</div>
-          <div class="ref-notif-row__date">Gün ${e.gameDay}</div>
+          <div class="ref-notif-row__date">${fmt('ref_notifs_day_fmt', { day: String(e.gameDay) })}</div>
         </div>
       </div>
     `).join('')

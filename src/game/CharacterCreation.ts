@@ -1,4 +1,5 @@
 import type { CareerJobId, CharacterBackgroundId } from './Career'
+import { requiredDomainText } from '../i18n'
 
 export interface CharacterCreationResult {
   name: string
@@ -35,6 +36,13 @@ export const DEFAULT_CHARACTER: CharacterCreationResult = {
   backgroundId: 'sifirdan_gelen',
   startingJobId: 'satis_temsilcisi',
   difficulty: 'normal',
+}
+
+export function difficultyName(id: 'easy' | 'normal' | 'hard'): string {
+  return requiredDomainText(`difficulty_${id}_name`)
+}
+export function difficultyDesc(id: 'easy' | 'normal' | 'hard'): string {
+  return requiredDomainText(`difficulty_${id}_desc`)
 }
 
 /** Geçmişe göre başlangıç parası */

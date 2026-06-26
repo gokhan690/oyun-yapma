@@ -1,4 +1,5 @@
 /** Mentor & Düşman sistemi */
+import { requiredDomainText } from '../i18n'
 
 export type MentorId = 'veteran_investor' | 'retired_politician' | 'old_industrialist'
 export type EnemyId = 'corrupt_rival' | 'jealous_partner' | 'hostile_regulator'
@@ -256,6 +257,40 @@ export function assignRandomEnemy(): EnemyId {
   return ids[Math.floor(Math.random() * ids.length)]
 }
 
+export function mentorName(m: MentorDef): string {
+  return requiredDomainText(`mentor_${m.id}_name`)
+}
+export function mentorTitle(m: MentorDef): string {
+  return requiredDomainText(`mentor_${m.id}_title`)
+}
+export function mentorBackstory(m: MentorDef): string {
+  return requiredDomainText(`mentor_${m.id}_backstory`)
+}
+export function mentorQuestLabel(mentorId: MentorId, q: MentorQuest): string {
+  return requiredDomainText(`mentor_${mentorId}_quest_${q.id}_label`)
+}
+export function mentorQuestDesc(mentorId: MentorId, q: MentorQuest): string {
+  return requiredDomainText(`mentor_${mentorId}_quest_${q.id}_desc`)
+}
+export function mentorQuestReward(mentorId: MentorId, q: MentorQuest): string {
+  return requiredDomainText(`mentor_${mentorId}_quest_${q.id}_reward`)
+}
+export function enemyName(e: EnemyDef): string {
+  return requiredDomainText(`enemy_${e.id}_name`)
+}
+export function enemyTitle(e: EnemyDef): string {
+  return requiredDomainText(`enemy_${e.id}_title`)
+}
+export function enemyBackstory(e: EnemyDef): string {
+  return requiredDomainText(`enemy_${e.id}_backstory`)
+}
+export function enemyResolveLabel(enemyId: EnemyId, opt: EnemyResolveOption): string {
+  return requiredDomainText(`enemy_${enemyId}_resolve_${opt.method}_label`)
+}
+export function enemyResolveDesc(enemyId: EnemyId, opt: EnemyResolveOption): string {
+  return requiredDomainText(`enemy_${enemyId}_resolve_${opt.method}_desc`)
+}
+
 /** Tamamlanabilir görev kontrol */
 export function checkMentorQuests(
   state: MentorEnemyState,
@@ -287,7 +322,7 @@ export function completeMentorQuest(state: MentorEnemyState, questId: string): s
     case 'prestige_pct': state.mentorPrestigeBonusPct += quest.rewardValue; break
     case 'reputation': state.mentorReputationBonus += quest.rewardValue; break
   }
-  return quest.rewardLabel
+  return mentorQuestReward(state.mentorId, quest)
 }
 
 /** Düşman aktif değil ise günlük ceza yok */

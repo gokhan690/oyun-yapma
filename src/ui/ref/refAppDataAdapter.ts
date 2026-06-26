@@ -1,13 +1,13 @@
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, producerName, type ProducerDef } from '../../game/Economy'
 import { reputationLabel } from '../../game/Reputation'
-import { cityDef, type CityId } from '../../game/ExpansionMap'
+import { cityLabel, type CityId } from '../../game/ExpansionMap'
 import type { FirmData, FirmSector, FirmStatus } from './RefCard'
-import { fameLevelLabel, FAME_CAREERS } from '../../game/Fame'
+import { fameLevelLabel, FAME_CAREERS, fameCareerName } from '../../game/Fame'
 import type { DiseaseId } from '../../game/Diseases'
-import { diseaseDef } from '../../game/Diseases'
-import { PLAYER_RANKS, rankProgress } from '../../game/PlayerRank'
-import { i18n } from '../../i18n'
+import { diseaseDef, diseaseName } from '../../game/Diseases'
+import { PLAYER_RANKS, rankProgress, rankName } from '../../game/PlayerRank'
+import { i18n, fmt as i18nFmt } from '../../i18n'
 
 /*
  * RefAppDataAdapter — SALT OKUNUR. GÜVENLİK DENETİMİ:
@@ -236,7 +236,7 @@ function producerToFirm(state: GameState, p: ProducerDef, ownedCities: CityId[])
   const isIllegal = cat === 'illegal'
   const sector = categorySector(cat)
   const cityId = ownedCities.length ? ownedCities[h % ownedCities.length] : 'istanbul'
-  const status: FirmStatus = isIllegal ? 'Riskli' : income > expense * 1.6 ? 'Karlı' : 'Büyüyor'
+  const status: FirmStatus = isIllegal ? 'riskli' : income > expense * 1.6 ? 'karli' : 'buyuyor'
 
   const performance = derivePerformance(count, isIllegal, h)
   const growth = deriveGrowth(cat, p.tier, isIllegal, h)
@@ -254,7 +254,7 @@ function producerToFirm(state: GameState, p: ProducerDef, ownedCities: CityId[])
     income,
     expense,                              // estimatedExpense (bkz. yukarıdaki yorum)
     growth,
-    city: cityDef(cityId).label,
+    city: cityLabel(cityId),
     performance,
     riskLevel: isIllegal ? 55 + (h % 40) : undefined,
   }
@@ -313,7 +313,7 @@ export function playerVMFromState(state: GameState): RefPlayerVM {
     name: state.playerName || 'Baron',
     title: rank.title,
     age: state.playerAge(),
-    city: cityDef(state.cities.activeCity).label,
+    city: cityLabel(state.cities.activeCity),
     avatarAsset: AVATAR,
   }
 }
@@ -352,7 +352,7 @@ export function buildRefViewModel(state: GameState): RefViewModel {
   if (nextMs) {
     goals.push({
       ico: '💎',
-      name: `₺${nextMs >= 1e6 ? (nextMs / 1e6) + 'M' : nextMs >= 1e3 ? (nextMs / 1e3) + 'K' : nextMs} Servet`,
+      name: i18nFmt('ref_goal_wealth_fmt', { amount: `₺${fmt(nextMs)}` }),
       pct: Math.min(100, Math.round((netWorth / nextMs) * 100)),
       metaA: `₺${fmt(netWorth)} / ₺${fmt(nextMs)}`,
     })
@@ -392,7 +392,7 @@ export function buildRefViewModel(state: GameState): RefViewModel {
 
   const diseaseVMs: RefDiseaseVM[] = diseases.map((d) => {
     const def = diseaseDef(d.id)
-    return { id: d.id, name: def.name, emoji: def.emoji, treatCost: def.treatCost, dailyDamage: def.dailyHealthDamage }
+    return { id: d.id, name: diseaseName(def), emoji: def.emoji, treatCost: def.treatCost, dailyDamage: def.dailyHealthDamage }
   })
 
   const fameCareerDef = fameState?.careerType
@@ -402,20 +402,20 @@ export function buildRefViewModel(state: GameState): RefViewModel {
   // Gerçek kariyer basamağı: PlayerRank (totalEarned tabanlı 10 kademe) — TEK KAYNAK
   const rp = rankProgress(state.totalEarned)
   const career: RefCareerVM = {
-    jobTitle: `${rp.current.emoji} ${rp.current.name}`,
+    jobTitle: `${rp.current.emoji} ${rankName(rp.current)}`,
     level: PLAYER_RANKS.indexOf(rp.current) + 1,
     salaryDaily: dailyIncome,
     stress: Math.round(state.lifestyle.stress),
     xpPct: Math.round(rp.pct),
     xpText: `₺${fmt(Math.round(state.totalEarned))} / ${rp.next ? '₺' + fmt(rp.next.minEarned) : i18n.t('ref_rank_at_apex')}`,
-    nextRank: rp.next ? `${rp.next.emoji} ${rp.next.name}` : i18n.t('ref_rank_at_apex'),
+    nextRank: rp.next ? `${rp.next.emoji} ${rankName(rp.next)}` : i18n.t('ref_rank_at_apex'),
     seniorityYears: Math.max(0, age - 18),
     health,
     healthLabel,
     diseases: diseaseVMs,
     fame: Math.round(fameState?.fameLevel ?? 0),
     fameLabel: fameLevelLabel(fameState?.fameLevel ?? 0),
-    fameCareerName: fameCareerDef?.name ?? null,
+    fameCareerName: fameCareerDef ? fameCareerName(fameCareerDef) : null,
     fameCareerType: fameState?.careerType ?? null,
     fameIsActive: fameState?.isActive ?? false,
     karma,
@@ -426,7 +426,7 @@ export function buildRefViewModel(state: GameState): RefViewModel {
     name: state.playerName || 'Baron',
     title: rank.title,
     age,
-    city: cityDef(state.cities.activeCity).label,
+    city: cityLabel(state.cities.activeCity),
     avatarAsset: AVATAR,
   }
 
@@ -434,7 +434,7 @@ export function buildRefViewModel(state: GameState): RefViewModel {
 }
 
 function fmt(n: number): string {
-  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'Mr'
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B'
   if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'
   if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K'
   return String(Math.round(n))

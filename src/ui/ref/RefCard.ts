@@ -1,7 +1,8 @@
 import { assetUrl } from '../../utils/assetUrl'
 import { getBusinessIcon, getBusinessHero } from './refAssetsV2Generic'
+import { i18n, fmt } from '../../i18n'
 
-export type FirmStatus   = 'Karlı' | 'Büyüyor' | 'Riskli'
+export type FirmStatus   = 'karli' | 'buyuyor' | 'riskli'
 /** Filtre/renk sektörü (üst kategori sekmeleri için). */
 export type FirmSector = 'gida' | 'hizmet' | 'teknoloji' | 'finans' | 'turizm' | 'medya' | 'illegal'
 
@@ -82,7 +83,8 @@ export class RefCard {
 
   private render(): void {
     const f = this.data
-    const badgeCls = f.status === 'Karlı' ? 'karli' : f.status === 'Büyüyor' ? 'buyuyor' : 'riskli'
+    const badgeCls = f.status
+    const statusLbl = i18n.t(`ref_firm_status_${f.status}` as Parameters<typeof i18n.t>[0])
     const perf = perfClass(f.performance)
 
     this.el.innerHTML = `
@@ -100,38 +102,38 @@ export class RefCard {
             <div class="ref-firm-head">
               <div class="ref-firm-namebar">
                 <span class="ref-firm-name">${f.name}</span>
-                <span class="ref-firm-badge ${badgeCls}">${f.status}</span>
+                <span class="ref-firm-badge ${badgeCls}">${statusLbl}</span>
                 <span class="ref-firm-menu">⋮</span>
               </div>
               <div class="ref-firm-level">
-                <span class="ref-level-txt">Seviye ${f.level}</span>
+                <span class="ref-level-txt">${fmt('ref_card_level_fmt', { level: String(f.level) })}</span>
                 <div class="ref-stars">${stars(f.stars, f.maxStars ?? 5)}</div>
               </div>
             </div>
           </div>
 
-          ${f.status === 'Riskli' && f.riskLevel != null ? `
+          ${f.status === 'riskli' && f.riskLevel != null ? `
           <div class="ref-risk-bar">
             <span>⚠️</span>
-            Risk Seviyesi ${f.riskLevel}/100
+            ${fmt('ref_card_risk_level_fmt', { risk: String(f.riskLevel) })}
           </div>` : ''}
 
           <!-- Stats 2×2 -->
           <div class="ref-firm-stats">
             <div class="ref-stat">
-              <span class="ref-stat-lbl">Günlük Gelir</span>
+              <span class="ref-stat-lbl">${i18n.t('ref_card_daily_income')}</span>
               <span class="ref-stat-val income">${fmtMoney(f.income)}</span>
             </div>
             <div class="ref-stat">
-              <span class="ref-stat-lbl">Günlük Gider</span>
+              <span class="ref-stat-lbl">${i18n.t('ref_card_daily_expense')}</span>
               <span class="ref-stat-val expense">${fmtMoney(f.expense)}</span>
             </div>
             <div class="ref-stat">
-              <span class="ref-stat-lbl">Büyüme Oranı</span>
+              <span class="ref-stat-lbl">${i18n.t('ref_card_growth_rate')}</span>
               <span class="ref-stat-val growth">▲${f.growth.toFixed(1)}%</span>
             </div>
             <div class="ref-stat">
-              <span class="ref-stat-lbl">Şehir</span>
+              <span class="ref-stat-lbl">${i18n.t('ref_card_city_label')}</span>
               <span class="ref-stat-val">${f.city}</span>
             </div>
           </div>
@@ -139,7 +141,7 @@ export class RefCard {
           <!-- Performance bar -->
           <div class="ref-perf">
             <div class="ref-perf-row">
-              <span class="ref-perf-lbl">Performans</span>
+              <span class="ref-perf-lbl">${i18n.t('ref_card_performance')}</span>
               <span class="ref-perf-pct">${f.performance}%</span>
             </div>
             <div class="ref-perf-track">
@@ -148,11 +150,11 @@ export class RefCard {
           </div>
         </div>
 
-        <!-- Right: action buttons (ÖNİZLEME — işlem yapmaz, view-only/disabled) -->
+        <!-- Right: action buttons (preview — no-op, view-only/disabled) -->
         <div class="ref-firm-card__btns">
-          <button class="ref-btn develop" type="button" disabled>📈 GELİŞTİR</button>
-          <button class="ref-btn modernize" type="button" disabled>⚙️ MODERNİZE ET</button>
-          <button class="ref-btn manager" type="button" disabled>👤 MANAGER ATA</button>
+          <button class="ref-btn develop" type="button" disabled>${i18n.t('ref_card_btn_develop')}</button>
+          <button class="ref-btn modernize" type="button" disabled>${i18n.t('ref_card_btn_modernize')}</button>
+          <button class="ref-btn manager" type="button" disabled>${i18n.t('ref_card_btn_manager')}</button>
         </div>
       </div>
     `

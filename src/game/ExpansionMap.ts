@@ -1,3 +1,5 @@
+import { requiredDomainText, fmt } from '../i18n'
+
 export type CityId = 'istanbul' | 'ankara' | 'izmir' | 'dubai' | 'london'
 
 export interface CityDef {
@@ -36,6 +38,10 @@ export function cityDef(id: CityId): CityDef {
   return EXPANSION_CITIES.find((c) => c.id === id) ?? EXPANSION_CITIES[0]!
 }
 
+export function cityLabel(id: CityId): string {
+  return requiredDomainText(`city_${id}_label`)
+}
+
 export function canUnlockCity(
   id: CityId,
   state: CityState,
@@ -43,11 +49,11 @@ export function canUnlockCity(
   reputation: number,
   ipoCount: number,
 ): { ok: boolean; reason?: string } {
-  if (state.unlocked.includes(id)) return { ok: false, reason: 'Zaten açık' }
+  if (state.unlocked.includes(id)) return { ok: false, reason: requiredDomainText('city_unlock_already') }
   const def = cityDef(id)
-  if (ipoCount < def.ipoReq) return { ok: false, reason: `IPO #${def.ipoReq} gerekli` }
-  if (reputation < def.repReq) return { ok: false, reason: `İtibar min ${def.repReq}` }
-  if (money < def.unlockCost) return { ok: false, reason: 'Yetersiz para' }
+  if (ipoCount < def.ipoReq) return { ok: false, reason: fmt('city_unlock_ipo_req', { n: def.ipoReq }) }
+  if (reputation < def.repReq) return { ok: false, reason: fmt('city_unlock_rep_req', { n: def.repReq }) }
+  if (money < def.unlockCost) return { ok: false, reason: requiredDomainText('city_unlock_no_money') }
   return { ok: true }
 }
 

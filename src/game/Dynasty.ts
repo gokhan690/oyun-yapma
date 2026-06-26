@@ -1,5 +1,6 @@
 import { lifeGameTimeMs, MS_PER_GAME_DAY } from './GameClock'
 import type { PendingDeath } from './Mortality'
+import { requiredDomainText, fmt } from '../i18n'
 
 export type SpouseTrait = 'merchant' | 'diplomat' | 'innovator' | 'risk_taker'
 export type SpouseGender = 'female' | 'male'
@@ -168,34 +169,34 @@ export function calculateInheritance(
 
   if (hasWill && hasHeirSelected) {
     pct = 0.92
-    reasons.push('Vasiyet + seçili varis: %92')
+    reasons.push(requiredDomainText('dynasty_inherit_will_heir'))
   } else if (hasWill) {
     pct = 0.85
-    reasons.push('Vasiyet var: %85')
+    reasons.push(requiredDomainText('dynasty_inherit_will'))
   } else {
-    reasons.push('Vasiyet yok: %75')
+    reasons.push(requiredDomainText('dynasty_inherit_no_will'))
   }
 
   if (hasTrust) {
     pct += 0.05
-    reasons.push('Aile vakfı: +%5')
+    reasons.push(requiredDomainText('dynasty_inherit_trust'))
   }
 
   if (heat >= 70) {
     const heatPenalty = heat >= 90 ? 0.35 : heat >= 70 ? 0.20 : 0.10
     pct -= heatPenalty
-    reasons.push(`Heat yüksek: -%${Math.round(heatPenalty * 100)}`)
+    reasons.push(fmt('dynasty_inherit_heat', { pct: Math.round(heatPenalty * 100) }))
   }
 
   if (siblingCount > 1 && !hasWill) {
     const dispute = Math.min(0.25, siblingCount * 0.08)
     pct -= dispute
-    reasons.push(`Kardeş kavgası riski: -%${Math.round(dispute * 100)}`)
+    reasons.push(fmt('dynasty_inherit_sibling', { pct: Math.round(dispute * 100) }))
   }
 
   if (hasLawyerHeir) {
     pct += 0.08
-    reasons.push('Hukukçu varis: +%8')
+    reasons.push(requiredDomainText('dynasty_inherit_lawyer'))
   }
 
   return { transferPct: Math.max(0.4, Math.min(0.95, pct)), reason: reasons }
@@ -585,6 +586,40 @@ export function calculateLegacyScore(peakNetWorth: number, generation: number, i
   score += ipoCount * 15
   score += victories * 30
   return score
+}
+
+export function heirRoleName(r: HeirRoleDef): string {
+  return requiredDomainText(`heir_${r.id}_name`)
+}
+export function heirRoleDesc(r: HeirRoleDef): string {
+  return requiredDomainText(`heir_${r.id}_desc`)
+}
+export function heirRoleBonusLabel(r: HeirRoleDef): string {
+  return requiredDomainText(`heir_${r.id}_bonus`)
+}
+export function legacyItemLabel(item: DynastyLegacyItem): string {
+  return requiredDomainText(`dynasty_legacy_${item.id}_label`)
+}
+export function legacyItemDesc(item: DynastyLegacyItem): string {
+  return requiredDomainText(`dynasty_legacy_${item.id}_desc`)
+}
+export function legacyItemBonusLabel(item: DynastyLegacyItem): string {
+  return requiredDomainText(`dynasty_legacy_${item.id}_bonus`)
+}
+export function spouseBonusLabel(s: SpouseOption): string {
+  return requiredDomainText(`spouse_${s.id}_bonus`)
+}
+export function childCareerName(c: { id: ChildCareer; name: string; emoji: string; bonusLabel: string }): string {
+  return requiredDomainText(`child_career_${c.id}_name`)
+}
+export function childCareerBonusLabel(c: { id: ChildCareer; name: string; emoji: string; bonusLabel: string }): string {
+  return requiredDomainText(`child_career_${c.id}_bonus`)
+}
+export function eduPathName(e: ChildEducationPathDef): string {
+  return requiredDomainText(`edu_path_${e.id}_name`)
+}
+export function eduPathDesc(e: ChildEducationPathDef): string {
+  return requiredDomainText(`edu_path_${e.id}_desc`)
 }
 
 /** "Halk ne hatırlıyor?" — itibar puanına göre unvan */

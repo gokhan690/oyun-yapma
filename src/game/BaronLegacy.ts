@@ -2,6 +2,7 @@ import { formatMoney } from './Economy'
 import { PRESTIGE_THRESHOLD } from './Prestige'
 import type { DeathCauseId } from './Mortality'
 import type { PoliticsLevel } from './Empire'
+import { requiredDomainText, fmt } from '../i18n'
 
 export interface BaronRecord {
   baronNumber: number
@@ -52,32 +53,33 @@ export function buildBaronRecord(s: BaronLifeSnapshot): BaronRecord {
   const weaknesses: string[] = []
 
   if (s.hasFootballClub) {
-    achievements.push(`İlk Süper Lig kulübü kuruldu${s.footballLeague ? ` (${s.footballLeague})` : ''}`)
+    const base = requiredDomainText('legacy_ach_football_club')
+    achievements.push(s.footballLeague ? `${base} (${s.footballLeague})` : base)
   }
   if (s.nearPresidency) {
-    achievements.push('Cumhurbaşkanlığına 1 oy fark kaldı')
+    achievements.push(requiredDomainText('legacy_ach_near_president'))
   } else if (s.politicsLevel === 'cumhurbaskan') {
-    achievements.push('Cumhurbaşkanı oldun')
+    achievements.push(requiredDomainText('legacy_ach_president'))
   } else if (s.politicsLevel === 'bakan') {
-    achievements.push('Bakanlık seviyesine ulaşıldı')
+    achievements.push(requiredDomainText('legacy_ach_minister'))
   }
   if (s.peakNetWorth >= 1_000_000) {
-    achievements.push(`${formatMoney(s.peakNetWorth)} peak servet`)
+    achievements.push(fmt('legacy_ach_peak_wealth', { amount: formatMoney(s.peakNetWorth) }))
   }
-  if (s.reachedForbes) achievements.push('Forbes listesine girdi')
-  if (s.victoriesCount > 0) achievements.push(`${s.victoriesCount} zafer yolu tamamlandı`)
-  if (s.totalEarnedLife >= PRESTIGE_THRESHOLD) achievements.push('IPO eşiğine ulaşıldı')
+  if (s.reachedForbes) achievements.push(requiredDomainText('legacy_ach_forbes'))
+  if (s.victoriesCount > 0) achievements.push(fmt('legacy_ach_victories', { count: s.victoriesCount }))
+  if (s.totalEarnedLife >= PRESTIGE_THRESHOLD) achievements.push(requiredDomainText('legacy_ach_ipo'))
 
   if (s.childCrisisCount > 0) {
-    weaknesses.push(`Varis ${s.childCrisisCount} kez krize girdi, itibar zedelendi`)
+    weaknesses.push(fmt('legacy_weak_child_crisis', { count: s.childCrisisCount }))
   }
   if (s.raidsWithoutInsurance > 0 && !s.hadInsurance) {
-    weaknesses.push(`Sigorta yoktu — ${s.raidsWithoutInsurance} baskın ciddi hasar verdi`)
+    weaknesses.push(fmt('legacy_weak_raid_no_insurance', { count: s.raidsWithoutInsurance }))
   }
   if (s.factoriesLostToRaid > 0) {
-    weaknesses.push(`Baskında ${s.factoriesLostToRaid} işletme ağır zarar gördü`)
+    weaknesses.push(fmt('legacy_weak_factories_lost', { count: s.factoriesLostToRaid }))
   }
-  if (achievements.length === 0) achievements.push('İmparatorluğun temellerini attı')
+  if (achievements.length === 0) achievements.push(requiredDomainText('legacy_ach_foundation'))
 
   const epitaph = pickEpitaph(s.peakNetWorth, s.victoriesCount, weaknesses.length, s.nearPresidency)
   const yearsRuled = Math.max(1, Math.floor((s.deathGameDay - s.startedGameDay) / 365.25))
@@ -102,13 +104,13 @@ export function buildBaronRecord(s: BaronLifeSnapshot): BaronRecord {
 }
 
 function pickEpitaph(peak: number, victories: number, weakCount: number, nearPres: boolean): string {
-  if (nearPres) return 'Neredeyse zirveye ulaştı.'
-  if (victories >= 2) return 'Tarihe geçen bir baron.'
-  if (peak >= 100_000_000) return 'Forbes\'u titreten bir hayat.'
-  if (peak >= 10_000_000) return 'Zirveye yaklaştı, durmadı.'
-  if (weakCount >= 2) return 'Gölgesi servetinden uzun sürdü.'
-  if (peak >= 1_000_000) return 'Milyoner hayalleri gerçek oldu.'
-  return 'Her imparatorluk bir tezgahla başlar.'
+  if (nearPres) return requiredDomainText('legacy_epitaph_near_pres')
+  if (victories >= 2) return requiredDomainText('legacy_epitaph_victories')
+  if (peak >= 100_000_000) return requiredDomainText('legacy_epitaph_forbes')
+  if (peak >= 10_000_000) return requiredDomainText('legacy_epitaph_near_top')
+  if (weakCount >= 2) return requiredDomainText('legacy_epitaph_shadow')
+  if (peak >= 1_000_000) return requiredDomainText('legacy_epitaph_millionaire')
+  return requiredDomainText('legacy_epitaph_default')
 }
 
 export function dynastyHistorySummary(records: BaronRecord[]): { generations: number; totalEarned: number; baronCount: number } {

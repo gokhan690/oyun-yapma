@@ -1,3 +1,4 @@
+import { requiredDomainText, fmt } from '../i18n'
 import { PRODUCERS, type ProducerDef } from './Economy'
 
 export type BusinessSector =
@@ -287,7 +288,7 @@ export function tickRivals(
       rival.relation = 'bankrupt'
       events.push({
         rivalId: rival.id,
-        headline: `💀 ${rival.name} çöktü — varlıkları piyasaya sürüldü! Hızlı davran.`,
+        headline: fmt('rival_tick_bankruptcy', { rivalName: rival.name }),
         attitudeDelta: 0,
         kind: 'conflict',
       })
@@ -300,7 +301,7 @@ export function tickRivals(
         rival.attitude = Math.max(-100, rival.attitude - 6)
         events.push({
           rivalId: rival.id,
-          headline: `${rival.name}, ${who}'un ${dominant} yatırımlarını kopyalamaya başladı`,
+          headline: fmt('rival_tick_copy', { rivalName: rival.name, playerName: who, sector: dominant }),
           attitudeDelta: -6,
           kind: 'copy',
         })
@@ -311,7 +312,7 @@ export function tickRivals(
       rival.attitude = Math.max(-100, rival.attitude - 10)
       events.push({
         rivalId: rival.id,
-        headline: `${rival.name}, ${who}'un düşük itibarını fırsat bildi — siyasete giriyor`,
+        headline: fmt('rival_tick_shadow_weakpoint', { rivalName: rival.name, playerName: who }),
         attitudeDelta: -10,
         kind: 'weakpoint',
       })
@@ -321,7 +322,7 @@ export function tickRivals(
       rival.attitude = Math.max(-100, rival.attitude - 5)
       events.push({
         rivalId: rival.id,
-        headline: `${rival.name} medyada ${who}'a karşı kampanya başlattı`,
+        headline: fmt('rival_tick_media_attack', { rivalName: rival.name, playerName: who }),
         attitudeDelta: -5,
         kind: 'weakpoint',
       })
@@ -337,7 +338,7 @@ export function tickRivals(
         rival.attitude = Math.max(-100, rival.attitude - 8)
         events.push({
           rivalId: rival.id,
-          headline: `${rival.name} ${sector} sektöründe ${who} ile savaş ilan etti!`,
+          headline: fmt('rival_tick_war', { rivalName: rival.name, playerName: who, sector }),
           attitudeDelta: -8,
           kind: 'conflict',
         })
@@ -345,7 +346,7 @@ export function tickRivals(
         rival.attitude = Math.max(-100, rival.attitude - 4)
         events.push({
           rivalId: rival.id,
-          headline: `${rival.name}, ${who}'un pazar payını kısmaya çalışıyor`,
+          headline: fmt('rival_tick_rivalry', { rivalName: rival.name, playerName: who }),
           attitudeDelta: -4,
           kind: 'conflict',
         })
@@ -366,12 +367,12 @@ export function tickRivals(
         rivalName: rival.name,
         playerSector: playerSec,
         rivalSector: rivalSec,
-        message: `${rival.name}: "${playerSec} sana kalsın, ${rivalSec} bana — anlaşalım mı?"`,
+        message: `${rival.name}: "${fmt('rival_alliance_message', { playerSec, rivalSec })}"`,
         expiresAt: Date.now() + 120_000,
       }
       events.push({
         rivalId: rival.id,
-        headline: `${rival.name}, ${who}'a sektör paylaşım teklifi gönderdi`,
+        headline: fmt('rival_tick_alliance_offer', { rivalName: rival.name, playerName: who }),
         attitudeDelta: 0,
         kind: 'alliance',
       })
@@ -381,7 +382,7 @@ export function tickRivals(
       rival.attitude = Math.max(-100, rival.attitude - 6)
       events.push({
         rivalId: rival.id,
-        headline: `${rival.name} ${who}'u tehdit olarak görüyor`,
+        headline: fmt('rival_tick_threat', { rivalName: rival.name, playerName: who }),
         attitudeDelta: -6,
         kind: 'threat',
       })
@@ -425,16 +426,27 @@ export function mergeRivalCost(rival: RivalFamilyState): number {
   return Math.floor(rival.netWorth * 2.5)
 }
 
+export function rivalFamilyName(def: RivalFamilyDef): string {
+  return requiredDomainText(`rival_${def.id}_name`)
+}
+export function rivalStageLabel(def: RivalFamilyDef): string {
+  return requiredDomainText(`rival_${def.id}_stage`)
+}
+export function rivalPersonalityLabel(def: RivalFamilyDef): string {
+  return requiredDomainText(`rival_${def.id}_personality`)
+}
+
 export function attitudeLabel(attitude: number): string {
-  if (attitude >= 60) return 'Müttefik'
-  if (attitude >= 20) return 'Dostane'
-  if (attitude >= -20) return 'Nötr'
-  if (attitude >= -50) return 'Düşmanca'
-  return 'Savaş'
+  if (attitude >= 60) return requiredDomainText('rival_attitude_ally')
+  if (attitude >= 20) return requiredDomainText('rival_attitude_friendly')
+  if (attitude >= -20) return requiredDomainText('rival_attitude_neutral')
+  if (attitude >= -50) return requiredDomainText('rival_attitude_hostile')
+  return requiredDomainText('rival_attitude_war')
 }
 
 export function personalityLabel(id: RivalPersonality): string {
-  return RIVAL_FAMILY_DEFS.find((d) => d.personality === id)?.personalityLabel ?? id
+  const def = RIVAL_FAMILY_DEFS.find((d) => d.personality === id)
+  return def ? rivalPersonalityLabel(def) : id
 }
 
 // ─── Rival Event System ────────────────────────────────────────────────
@@ -477,43 +489,43 @@ export function generateRivalEvent(rival: RivalFamilyState, playerNetWorth: numb
 
   const configs: Record<RivalEventKind, { headline: string; desc: string; repDmg: number; moneyDmg: number; responses: RivalEventResponse[] }> = {
     media_scandal: {
-      headline: `${rival.name} seni medyaya şikayet etti`,
-      desc: `${rival.name} seni kamuoyunda yıpratmaya çalışıyor. İtibarın tehdit altında.`,
+      headline: fmt('rival_evt_media_scandal_headline', { rivalName: rival.name }),
+      desc: fmt('rival_evt_media_scandal_desc', { rivalName: rival.name }),
       repDmg: 8, moneyDmg: 0,
       responses: [
-        { id: 'counter_pr', label: 'Basın toplantısı yap', emoji: '📰', cost: 50_000, reputationDelta: 12 },
-        { id: 'legal', label: 'Dava aç', emoji: '⚖️', cost: 100_000, reputationDelta: 5 },
-        { id: 'ignore', label: 'Görmezden gel', emoji: '🤷', cost: 0, reputationDelta: -4 },
+        { id: 'counter_pr', label: requiredDomainText('rival_resp_counter_pr'), emoji: '📰', cost: 50_000, reputationDelta: 12 },
+        { id: 'legal', label: requiredDomainText('rival_resp_legal'), emoji: '⚖️', cost: 100_000, reputationDelta: 5 },
+        { id: 'ignore', label: requiredDomainText('rival_resp_ignore'), emoji: '🤷', cost: 0, reputationDelta: -4 },
       ],
     },
     market_manipulation: {
-      headline: `${rival.name} piyasayı manipüle ediyor`,
-      desc: `${rival.name} koordineli satış yapıyor. Sektör gelirlerin düşüyor.`,
+      headline: fmt('rival_evt_market_manip_headline', { rivalName: rival.name }),
+      desc: fmt('rival_evt_market_manip_desc', { rivalName: rival.name }),
       repDmg: 0, moneyDmg: halfNW,
       responses: [
-        { id: 'buy_dip', label: 'Dipten al — riskli', emoji: '📈', cost: Math.round(halfNW * 0.8), reputationDelta: 5 },
-        { id: 'report', label: 'Düzenleyiciye şikayet et', emoji: '🏛️', cost: 25_000, reputationDelta: 8 },
-        { id: 'wait', label: 'Fırtınanın geçmesini bekle', emoji: '⏳', cost: 0, reputationDelta: 0 },
+        { id: 'buy_dip', label: requiredDomainText('rival_resp_buy_dip'), emoji: '📈', cost: Math.round(halfNW * 0.8), reputationDelta: 5 },
+        { id: 'report', label: requiredDomainText('rival_resp_report'), emoji: '🏛️', cost: 25_000, reputationDelta: 8 },
+        { id: 'wait', label: requiredDomainText('rival_resp_wait'), emoji: '⏳', cost: 0, reputationDelta: 0 },
       ],
     },
     business_competition: {
-      headline: `${rival.name} rakip işletme açtı`,
-      desc: `${rival.name} en kârlı sektöründe şube açtı. Aylık gelirler düşüyor.`,
+      headline: fmt('rival_evt_biz_competition_headline', { rivalName: rival.name }),
+      desc: fmt('rival_evt_biz_competition_desc', { rivalName: rival.name }),
       repDmg: 0, moneyDmg: Math.round(halfNW * 0.6),
       responses: [
-        { id: 'price_war', label: 'Fiyat savaşı başlat', emoji: '⚔️', cost: Math.round(halfNW * 0.9), reputationDelta: -3 },
-        { id: 'differentiate', label: 'Farklılaştırma stratejisi', emoji: '💡', cost: 30_000, reputationDelta: 3 },
-        { id: 'buy_out', label: 'Rakibi satın al', emoji: '🤝', cost: rival.netWorth, reputationDelta: 5 },
+        { id: 'price_war', label: requiredDomainText('rival_resp_price_war'), emoji: '⚔️', cost: Math.round(halfNW * 0.9), reputationDelta: -3 },
+        { id: 'differentiate', label: requiredDomainText('rival_resp_differentiate'), emoji: '💡', cost: 30_000, reputationDelta: 3 },
+        { id: 'buy_out', label: requiredDomainText('rival_resp_buy_out'), emoji: '🤝', cost: rival.netWorth, reputationDelta: 5 },
       ],
     },
     political_lobbying: {
-      headline: `${rival.name} siyasi lobi başlattı`,
-      desc: `${rival.name} siyasi bağlantılarını seni zayıflatmak için kullanıyor.`,
+      headline: fmt('rival_evt_political_lobby_headline', { rivalName: rival.name }),
+      desc: fmt('rival_evt_political_lobby_desc', { rivalName: rival.name }),
       repDmg: 6, moneyDmg: 0,
       responses: [
-        { id: 'counter_lobby', label: 'Karşı lobi yap', emoji: '🏛️', cost: 80_000, reputationDelta: 8 },
-        { id: 'alliance', label: 'Siyasi ittifak teklif et', emoji: '🤝', cost: 50_000, reputationDelta: 4 },
-        { id: 'ignore', label: 'Görmezden gel', emoji: '🤷', cost: 0, reputationDelta: -3 },
+        { id: 'counter_lobby', label: requiredDomainText('rival_resp_counter_lobby'), emoji: '🏛️', cost: 80_000, reputationDelta: 8 },
+        { id: 'alliance', label: requiredDomainText('rival_resp_alliance'), emoji: '🤝', cost: 50_000, reputationDelta: 4 },
+        { id: 'ignore', label: requiredDomainText('rival_resp_ignore'), emoji: '🤷', cost: 0, reputationDelta: -3 },
       ],
     },
   }

@@ -1,11 +1,12 @@
 import './ref-ui.css'
-import { type FirmData, firmHeroSrc } from './RefCard'
+import { type FirmData, type FirmStatus, firmHeroSrc } from './RefCard'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import { assetUrl } from '../../utils/assetUrl'
 import { areaChartSvg, gaugeSvg, donutSvg, refToast } from './refShared'
 import { i18n } from '../../i18n'
 import type { GameState } from '../../game/GameState'
-import { PRODUCERS, type ProducerDef } from '../../game/Economy'
+import { PRODUCERS, producerName, type ProducerDef } from '../../game/Economy'
+import { fmt } from '../../i18n'
 import { FIRM_MAX_LEVEL, firmLevelIncomeMult, isFirmMaxLevel } from '../../game/FirmLevels'
 import { hasManager } from '../../game/Managers'
 
@@ -35,11 +36,17 @@ export interface FirmDetailLiveCtx {
 
 // Tipik sektör gider dağılımı (gerçek gider kalemleri tutulmuyor → tahmini yüzde)
 const EXPENSE_SPLIT = [
-  { label: 'Personel', value: 42, color: '#2563EB' },
-  { label: 'Tedarik',  value: 31, color: '#F6A609' },
-  { label: 'Kira',     value: 18, color: '#13B8A6' },
-  { label: 'Diğer',    value: 9,  color: '#94B4C2' },
+  { labelKey: 'ref_detail_expense_staff',  value: 42, color: '#2563EB' },
+  { labelKey: 'ref_detail_expense_supply', value: 31, color: '#F6A609' },
+  { labelKey: 'ref_detail_expense_rent',   value: 18, color: '#13B8A6' },
+  { labelKey: 'ref_detail_expense_other',  value: 9,  color: '#94B4C2' },
 ]
+
+function firmStatusLabel(status: FirmStatus): string {
+  if (status === 'karli')   return i18n.t('ref_firm_status_karli')
+  if (status === 'buyuyor') return i18n.t('ref_firm_status_buyuyor')
+  return i18n.t('ref_firm_status_riskli')
+}
 
 function fmtMoney(n: number): string {
   if (n >= 1e9) return `₺${(n / 1e9).toFixed(1)}Mr`
@@ -92,9 +99,9 @@ function firmBranches(f: FirmData): { name: string; perf: number; income: number
   const n = Math.min(3, Math.max(1, Math.ceil(f.level / 3)))
   const weights = [0.5, 0.3, 0.2].slice(0, n)
   const wsum = weights.reduce((a, b) => a + b, 0)
-  const names = ['Merkez Şube', '2. Şube', '3. Şube']
+  const nameKeys = ['ref_detail_branch_main', 'ref_detail_branch_2nd', 'ref_detail_branch_3rd']
   return weights.map((w, i) => ({
-    name: names[i],
+    name: i18n.t(nameKeys[i] as Parameters<typeof i18n.t>[0]),
     income: Math.round((f.income * w) / wsum),
     perf: Math.max(40, Math.min(96, f.performance - i * 9)),
   }))
@@ -102,11 +109,11 @@ function firmBranches(f: FirmData): { name: string; perf: number; income: number
 
 /** Detay sayfasında gösterilen "geliştirme" kartları (görsel/önizleme — işlem yapmaz).
  *  Fiyat firmanın GERÇEK gelirine göre tahmini ve deterministiktir (Math.random YOK). */
-const UPGRADE_TILES: { asset: string; label: string; mult: number }[] = [
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.quality,       label: 'Kalite',    mult: 0.6 },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.marketing,     label: 'Pazarlama', mult: 1.0 },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.staffTraining, label: 'Eğitim',    mult: 1.6 },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.automation,    label: 'Otomasyon', mult: 2.4 },
+const UPGRADE_TILES: { asset: string; labelKey: string; mult: number }[] = [
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.quality,       labelKey: 'ref_detail_upg_quality',    mult: 0.6 },
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.marketing,     labelKey: 'ref_detail_upg_marketing',  mult: 1.0 },
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.staffTraining, labelKey: 'ref_detail_upg_training',   mult: 1.6 },
+  { asset: REF_ASSETS_V2_GENERIC.upgrades.automation,    labelKey: 'ref_detail_upg_automation', mult: 2.4 },
 ]
 
 export class RefFirmDetailPage {
@@ -151,7 +158,8 @@ export class RefFirmDetailPage {
     const f = this.firm
     if (!f) return
 
-    const badgeCls = f.status === 'Karlı' ? 'karli' : f.status === 'Büyüyor' ? 'buyuyor' : 'riskli'
+    const badgeCls = f.status
+    const statusLabel = firmStatusLabel(f.status)
     const perf = perfClass(f.performance)
     const net = f.income - f.expense
     const trend = firmTrend(f.id, f.growth)
@@ -164,8 +172,8 @@ export class RefFirmDetailPage {
       <div class="ref-detail-hero">
         <img src="${firmHeroSrc(f)}" alt="" class="ref-detail-hero__img">
         <div class="ref-detail-hero__scrim"></div>
-        <button class="ref-detail-back" type="button" aria-label="Geri">‹</button>
-        <span class="ref-firm-badge ${badgeCls} ref-detail-hero__badge">${f.status}</span>
+        <button class="ref-detail-back" type="button" aria-label="${i18n.t('ref_detail_back_button')}">‹</button>
+        <span class="ref-firm-badge ${badgeCls} ref-detail-hero__badge">${statusLabel}</span>
         <div class="ref-detail-hero__title">
           <div class="ref-detail-name">${f.name}</div>
           ${f.slogan ? `<div class="ref-detail-slogan">${f.slogan}</div>` : ''}
@@ -178,15 +186,15 @@ export class RefFirmDetailPage {
         <!-- Identity row -->
         <div class="ref-detail-id">
           <div class="ref-detail-id__left">
-            <span class="ref-detail-lvl">Seviye ${f.level}</span>
+            <span class="ref-detail-lvl">${i18n.t('ref_detail_level_prefix')} ${f.level}</span>
             <div class="ref-stars ref-detail-stars">${stars(f.stars, f.maxStars ?? 5)}</div>
           </div>
           <div class="ref-detail-id__city"><span>📍</span> ${f.city}</div>
         </div>
 
-        ${f.status === 'Riskli' && f.riskLevel != null ? `
+        ${f.status === 'riskli' && f.riskLevel != null ? `
         <div class="ref-risk-bar ref-detail-risk">
-          <span>⚠️</span> Risk Seviyesi ${f.riskLevel}/100
+          <span>⚠️</span> ${i18n.t('ref_detail_risk_level_title')} ${f.riskLevel}/100
         </div>` : ''}
 
         <!-- Net daily strip (GERÇEK gelir - tahmini gider) -->
@@ -203,15 +211,15 @@ export class RefFirmDetailPage {
             <span class="ref-stat-val income">${fmtMoney(f.income)}</span>
           </div>
           <div class="ref-detail-stat">
-            <span class="ref-stat-lbl">${i18n.t('ref_detail_daily_expense')} <span class="ref-est-tag">tahmini</span></span>
+            <span class="ref-stat-lbl">${i18n.t('ref_detail_daily_expense')} <span class="ref-est-tag">${i18n.t('ref_detail_est_tag')}</span></span>
             <span class="ref-stat-val expense">${fmtMoney(f.expense)}</span>
           </div>
           <div class="ref-detail-stat">
-            <span class="ref-stat-lbl">Büyüme</span>
+            <span class="ref-stat-lbl">${i18n.t('ref_detail_growth_label')}</span>
             <span class="ref-stat-val growth">▲${f.growth.toFixed(1)}%</span>
           </div>
           <div class="ref-detail-stat">
-            <span class="ref-stat-lbl">Performans</span>
+            <span class="ref-stat-lbl">${i18n.t('ref_detail_performance_label')}</span>
             <span class="ref-stat-val">${f.performance}%</span>
           </div>
         </div>
@@ -219,7 +227,7 @@ export class RefFirmDetailPage {
         <!-- Performance bar -->
         <div class="ref-perf ref-detail-perf">
           <div class="ref-perf-row">
-            <span class="ref-perf-lbl">Operasyonel Performans</span>
+            <span class="ref-perf-lbl">${i18n.t('ref_detail_operational_performance')}</span>
             <span class="ref-perf-pct">${f.performance}%</span>
           </div>
           <div class="ref-perf-track">
@@ -230,7 +238,7 @@ export class RefFirmDetailPage {
         <!-- Gelir trendi (firmaya özgü tahmini eğri) -->
         <div class="ref-card-soft ref-detail-chart">
           <div class="ref-card-soft__title-row">
-            <span class="ref-card-soft__title">Gelir Trendi · 14 gün <span class="ref-est-tag">tahmini</span></span>
+            <span class="ref-card-soft__title">${i18n.t('ref_detail_income_trend_title')} <span class="ref-est-tag">${i18n.t('ref_detail_est_tag')}</span></span>
             <span class="ref-chart-up">▲ ${f.growth.toFixed(1)}%</span>
           </div>
           ${areaChartSvg(trend, '#13B8A6', 320, 80)}
@@ -239,18 +247,18 @@ export class RefFirmDetailPage {
         <!-- Memnuniyet gauge + Gider donut -->
         <div class="ref-detail-2col">
           <div class="ref-card-soft ref-detail-gauge">
-            <div class="ref-card-soft__title">Müşteri Memnuniyeti <span class="ref-est-tag">tahmini</span></div>
+            <div class="ref-card-soft__title">${i18n.t('ref_detail_customer_satisfaction_title')} <span class="ref-est-tag">${i18n.t('ref_detail_est_tag')}</span></div>
             ${gaugeSvg(satisfaction, '#28C76F')}
           </div>
           <div class="ref-card-soft ref-detail-expense">
-            <div class="ref-card-soft__title">Gider Dağılımı <span class="ref-est-tag">tahmini</span></div>
+            <div class="ref-card-soft__title">${i18n.t('ref_detail_expense_distribution_title')} <span class="ref-est-tag">${i18n.t('ref_detail_est_tag')}</span></div>
             <div class="ref-mini-donut">
               ${donutSvg(EXPENSE_SPLIT, 72, 13)}
               <div class="ref-donut-legend sm">
                 ${EXPENSE_SPLIT.map(s => `
                   <div class="ref-legend-row">
                     <span class="ref-legend-dot" style="background:${s.color}"></span>
-                    <span class="ref-legend-lbl">${s.label}</span>
+                    <span class="ref-legend-lbl">${i18n.t(s.labelKey as Parameters<typeof i18n.t>[0])}</span>
                     <span class="ref-legend-val">%${s.value}</span>
                   </div>`).join('')}
               </div>
@@ -259,19 +267,19 @@ export class RefFirmDetailPage {
         </div>
 
         <!-- Upgrades (önizleme) -->
-        <div class="ref-detail-section-title">Geliştirmeler <span class="ref-est-tag">tahmini fiyat</span></div>
+        <div class="ref-detail-section-title">${i18n.t('ref_detail_upgrades_section')} <span class="ref-est-tag">${i18n.t('ref_detail_est_price_tag')}</span></div>
         <div class="ref-detail-upgrades">
           ${UPGRADE_TILES.map(u => `
             <div class="ref-detail-upg">
               <img src="${ua(u.asset)}" alt="" class="ref-detail-upg__img">
-              <span class="ref-detail-upg__lbl">${u.label}</span>
+              <span class="ref-detail-upg__lbl">${i18n.t(u.labelKey as Parameters<typeof i18n.t>[0])}</span>
               <span class="ref-detail-upg__price">${fmtMoney(Math.max(10_000, Math.round(f.income * u.mult)))}</span>
             </div>
           `).join('')}
         </div>
 
         <!-- Şubeler (gerçek gelirden tahmini bölüşüm) -->
-        <div class="ref-detail-section-title">Şubeler <span class="ref-est-tag">tahmini</span></div>
+        <div class="ref-detail-section-title">${i18n.t('ref_detail_branches_section')} <span class="ref-est-tag">${i18n.t('ref_detail_est_tag')}</span></div>
         <div class="ref-branch-list">
           ${branches.map(b => `
             <div class="ref-branch-row">
@@ -288,11 +296,11 @@ export class RefFirmDetailPage {
         ${this.live ? this.liveManageHtml() : `
         <!-- Actions (ÖNİZLEME — işlem yapmaz) -->
         <div class="ref-detail-actions">
-          <button class="ref-btn develop" type="button" disabled>📈 GELİŞTİR</button>
-          <button class="ref-btn modernize" type="button" disabled>⚙️ MODERNİZE ET</button>
-          <button class="ref-btn manager" type="button" disabled>👤 MANAGER ATA</button>
+          <button class="ref-btn develop" type="button" disabled>${i18n.t('ref_detail_develop_button')}</button>
+          <button class="ref-btn modernize" type="button" disabled>${i18n.t('ref_detail_modernize_button')}</button>
+          <button class="ref-btn manager" type="button" disabled>${i18n.t('ref_detail_manager_button')}</button>
         </div>
-        <div class="ref-preview-note">🔒 Önizleme modu · butonlar işlem yapmaz</div>`}
+        <div class="ref-preview-note">${i18n.t('ref_detail_preview_note')}</div>`}
       </div>
     `
 
@@ -334,18 +342,18 @@ export class RefFirmDetailPage {
       `<span class="ref-prod-lvl-pip${i < lv ? ' on' : ''}"></span>`).join('')
 
     const lvBtn = maxed
-      ? `<button class="ref-btn develop" type="button" disabled>⭐ MAKSİMUM SEVİYE</button>`
-      : `<button class="ref-btn develop" type="button" data-act="level" ${canLevel ? '' : 'disabled'}>📈 GELİŞTİR · Lv.${lv + 1} · ${fmtMoney(lvCost)}</button>`
+      ? `<button class="ref-btn develop" type="button" disabled>${i18n.t('ref_detail_max_level_button')}</button>`
+      : `<button class="ref-btn develop" type="button" data-act="level" ${canLevel ? '' : 'disabled'}>${fmt('ref_detail_develop_level_fmt', { lv: lv + 1, cost: fmtMoney(lvCost) })}</button>`
 
     const modBtn = !modAvailable
-      ? `<button class="ref-btn modernize" type="button" disabled>⚙️ MODERNİZE (IPO sonrası)</button>`
+      ? `<button class="ref-btn modernize" type="button" disabled>${i18n.t('ref_detail_modernize_ipo_required')}</button>`
       : isModern
-        ? `<button class="ref-btn modernize" type="button" disabled>✓ MODERNİZE EDİLDİ</button>`
-        : `<button class="ref-btn modernize" type="button" data-act="modern">⚙️ MODERNİZE ET</button>`
+        ? `<button class="ref-btn modernize" type="button" disabled>${i18n.t('ref_detail_modernized_done')}</button>`
+        : `<button class="ref-btn modernize" type="button" data-act="modern">${i18n.t('ref_detail_modernize_button')}</button>`
 
     const manBtn = managerHired
-      ? `<button class="ref-btn manager" type="button" disabled>✓ YÖNETİCİ ATANDI</button>`
-      : `<button class="ref-btn manager" type="button" data-act="manager" ${canManager ? '' : 'disabled'}>👤 MANAGER · ${fmtMoney(manCost)}</button>`
+      ? `<button class="ref-btn manager" type="button" disabled>${i18n.t('ref_detail_manager_hired')}</button>`
+      : `<button class="ref-btn manager" type="button" data-act="manager" ${canManager ? '' : 'disabled'}>${fmt('ref_detail_manager_hire_fmt', { cost: fmtMoney(manCost) })}</button>`
 
     const owned = s.producers[def.id] ?? 0
     const baseIncome = Math.round(def.baseIncome * owned)
@@ -354,15 +362,15 @@ export class RefFirmDetailPage {
 
     const incomeBreakdown = owned > 0 ? `
       <div class="ref-detail-income-breakdown">
-        <div class="ref-detail-ib-title">Gelir Özeti</div>
-        <div class="ref-detail-ib-row"><span>Şube / Temel Potansiyel (${owned}×)</span><b>${fmtMoney(baseIncome)}</b></div>
-        <div class="ref-detail-ib-row"><span>Level Çarpanı (Lv.${lv})</span><b>×${lvMult.toFixed(2)}</b></div>
-        ${managerHired ? `<div class="ref-detail-ib-row"><span>Yönetici Bonusu</span><b>✓</b></div>` : ''}
+        <div class="ref-detail-ib-title">${i18n.t('ref_detail_income_summary')}</div>
+        <div class="ref-detail-ib-row"><span>${fmt('ref_detail_branch_base_fmt', { count: owned })}</span><b>${fmtMoney(baseIncome)}</b></div>
+        <div class="ref-detail-ib-row"><span>${fmt('ref_detail_level_mult_fmt', { lv })}</span><b>×${lvMult.toFixed(2)}</b></div>
+        ${managerHired ? `<div class="ref-detail-ib-row"><span>${i18n.t('ref_detail_manager_bonus_label')}</span><b>✓</b></div>` : ''}
         <div class="ref-detail-ib-row ref-detail-ib-row--total"><span>${i18n.t('ref_detail_true_daily')}</span><b>${fmtMoney(actualIncome)}</b></div>
       </div>` : ''
 
     return `
-      <div class="ref-detail-section-title">Yönetim · Lv.${lv}/${FIRM_MAX_LEVEL} ${lv > 1 ? `<span class="ref-detail-mult">×${firmLevelIncomeMult(lv).toFixed(2)} gelir</span>` : ''}</div>
+      <div class="ref-detail-section-title">${fmt('ref_detail_management_fmt', { lv, max: FIRM_MAX_LEVEL })} ${lv > 1 ? `<span class="ref-detail-mult">×${firmLevelIncomeMult(lv).toFixed(2)} ${i18n.t('ref_detail_income_mult_suffix')}</span>` : ''}</div>
       <div class="ref-detail-lvl-pips">${pips}</div>
       ${incomeBreakdown}
       <div class="ref-detail-actions live">
@@ -370,7 +378,7 @@ export class RefFirmDetailPage {
         ${modBtn}
         ${manBtn}
       </div>
-      <div class="ref-preview-note live">✅ Gerçek veri · butonlar oyunu günceller</div>`
+      <div class="ref-preview-note live">${i18n.t('ref_detail_live_note')}</div>`
   }
 
   private wireLiveActions(): void {
@@ -381,18 +389,18 @@ export class RefFirmDetailPage {
 
     this.el.querySelector<HTMLButtonElement>('[data-act="level"]')?.addEventListener('click', () => {
       const ok = s.levelUpFirm(def.id)
-      if (ok) { refToast(`📈 ${def.name} Lv.${s.producerLevel(def.id)}`, 'ok'); this.refreshLive() }
-      else refToast('Geliştirilemedi', 'err')
+      if (ok) { refToast(fmt('ref_detail_level_up_toast', { name: producerName(def), lv: s.producerLevel(def.id) }), 'ok'); this.refreshLive() }
+      else refToast(i18n.t('ref_detail_upgrade_failed'), 'err')
     })
     this.el.querySelector<HTMLButtonElement>('[data-act="modern"]')?.addEventListener('click', () => {
       const ok = s.modernizeProducer(def.id)
-      if (ok) { refToast(`⚙️ ${def.name} modernize edildi`, 'ok'); this.refreshLive() }
-      else refToast('Modernize edilemedi', 'err')
+      if (ok) { refToast(fmt('ref_detail_modernize_ok_toast', { name: producerName(def) }), 'ok'); this.refreshLive() }
+      else refToast(i18n.t('ref_detail_modernize_failed'), 'err')
     })
     this.el.querySelector<HTMLButtonElement>('[data-act="manager"]')?.addEventListener('click', () => {
       const ok = s.hireManager(def.id)
-      if (ok) { refToast(`👤 ${def.name} yöneticisi atandı`, 'ok'); this.refreshLive() }
-      else refToast('Yönetici atanamadı', 'err')
+      if (ok) { refToast(fmt('ref_detail_manager_ok_toast', { name: producerName(def) }), 'ok'); this.refreshLive() }
+      else refToast(i18n.t('ref_detail_manager_failed'), 'err')
     })
   }
 }

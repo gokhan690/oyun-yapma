@@ -1,5 +1,6 @@
 import { EXPANSION_CITIES } from './ExpansionMap'
 import { FRANCHISE_CITIES } from './Franchise'
+import { requiredDomainText } from '../i18n'
 
 export type CountryId = 'tr' | 'us' | 'gb' | 'de' | 'fr' | 'es' | 'jp' | 'br'
 
@@ -103,6 +104,15 @@ export function countryDef(id: CountryId): CountryDef {
   return COUNTRIES.find((c) => c.id === id) ?? COUNTRIES[0]!
 }
 
+export function countryDisplayName(id: CountryId): string {
+  return requiredDomainText(`country_${id}_name`)
+}
+
+/** Localized name of a country's domestic city slot (0=capital, 1, 2). */
+export function countryCityDisplayName(id: CountryId, cityIndex: number): string {
+  return requiredDomainText(`country_${id}_city_${cityIndex}`)
+}
+
 /**
  * Rewrites the labels/emoji of the 3 domestic city slots (istanbul/ankara/izmir
  * internally) to the chosen country's cities. Internal CityIds and skyline
@@ -115,14 +125,17 @@ export function applyCountry(id: CountryId): void {
   slotOrder.forEach((cityId, i) => {
     const slot = def.cities[i]
     if (!slot) return
+    // Use the locale-aware city name so labels reflect the active language
+    // (re-derived at every applyCountry call, e.g. on boot after a lang change).
+    const localizedLabel = countryCityDisplayName(id, i)
     const exp = EXPANSION_CITIES.find((c) => c.id === cityId)
     if (exp) {
-      exp.label = slot.label
+      exp.label = localizedLabel
       exp.emoji = slot.emoji
     }
     const fr = FRANCHISE_CITIES.find((c) => c.id === cityId)
     if (fr) {
-      fr.label = slot.label
+      fr.label = localizedLabel
     }
   })
 }

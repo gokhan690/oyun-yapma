@@ -1000,6 +1000,70 @@ export interface Translations {
   dynasty_crisis_scandal: string
   dynasty_death_warn_heir: string
   dynasty_death_warn_continue: string
+  dynasty_death_prefix: string
+  dynasty_est_years: string
+  dynasty_family_locked_title: string
+  dynasty_family_locked_desc: string
+  dynasty_family_surname: string
+  dynasty_gen_label: string
+  dynasty_family_influence: string
+  dynasty_family_unity: string
+  dynasty_sat_very_happy: string
+  dynasty_sat_happy: string
+  dynasty_sat_uneasy: string
+  dynasty_sat_critical: string
+  dynasty_spouse_satisfaction_title: string
+  dynasty_spouse_gift_btn: string
+  dynasty_inheritance_title: string
+  dynasty_inheritance_transfer_label: string
+  dynasty_iw_heir: string
+  dynasty_iw_loss: string
+  dynasty_will_done: string
+  dynasty_will_btn_label: string
+  dynasty_will_btn_hint: string
+  dynasty_trust_done: string
+  dynasty_trust_btn_label: string
+  dynasty_trust_btn_hint: string
+  dynasty_const_done: string
+  dynasty_const_btn_label: string
+  dynasty_const_btn_hint: string
+  dynasty_home_rooms_title: string
+  dynasty_home_rooms_desc: string
+  dynasty_home_room_owned: string
+  dynasty_legacy_title: string
+  dynasty_legacy_desc: string
+  dynasty_friends_title: string
+  dynasty_friend_time_btn: string
+  dynasty_friend_money_btn: string
+  dynasty_child_edu_prompt: string
+  dynasty_child_role_prompt: string
+  dynasty_child_time_btn: string
+  dynasty_parenting_strict: string
+  dynasty_parenting_free: string
+  dynasty_hobby_title: string
+  dynasty_hobby_desc: string
+  dynasty_hobby_monthly: string
+  dynasty_hobby_monthly_cost: string
+  dynasty_hobby_bonus_active: string
+  dynasty_hobby_bonus_soon: string
+  dynasty_social_status_title: string
+  dynasty_social_score: string
+  dynasty_travel_title: string
+  dynasty_last_travel: string
+  dynasty_travel_bonus_suffix: string
+  dynasty_travel_unlock_hint: string
+  dynasty_travel_duration: string
+  dynasty_family_tree_title: string
+  dynasty_tree_years: string
+  dynasty_married: string
+  dynasty_children_count: string
+  dynasty_single: string
+  dynasty_milestone_family: string
+  dynasty_milestone_maturity: string
+  dynasty_milestone_legacy: string
+  dynasty_milestone_retirement: string
+  dynasty_milestone_risk: string
+  dynasty_daily_risk_tooltip: string
 
   // WorldMetaPanel i18n keys
   world_baron_history_intro: string
@@ -1185,6 +1249,13 @@ export interface Translations {
   ref_profile_entrepreneur: string
   ref_profile_jobless: string
 
+  // RefProfile — newly migrated labels/hints
+  ref_profile_general_title_label: string
+  ref_profile_default_title: string
+  ref_profile_entrepreneur_hint_has_firms: string
+  ref_profile_entrepreneur_hint_no_firms: string
+  ref_profile_level_label: string
+
   // RefApp settings button (on profile page)
   ref_settings_btn: string
   ref_settings_subtitle: string
@@ -1231,12 +1302,48 @@ export interface Translations {
 
   // Common RefApp
   ref_back: string
+  ob_next: string
   ref_daily_income: string
   ref_daily_expense: string
   ref_daily_net: string
   ref_total: string
   ref_per_day: string
   ref_age_suffix: string
+  gz_raid_blocked_torpil: string
+  gz_raid_blocked_illegal: string
+  gz_child_born: string
+  gz_franchise_ready: string
+  gz_child_role: string
+  gz_will_prepared: string
+  gz_foundation: string
+  gz_constitution: string
+  gz_mentor_quest_done: string
+  gz_child_education: string
+  gz_research_done: string
+  gz_rival_overtook: string
+  gz_rival_resolved: string
+  gz_luxury_media: string
+  gz_room_added: string
+  gz_enemy_defeated: string
+  gz_new_skill: string
+  gz_spouse_gift: string
+  gz_child_career: string
+  gz_focus_family: string
+  gz_focus_health: string
+  gz_focus_social: string
+  gz_focus_work: string
+  gz_startup_payout: string
+  gz_franchise_opened: string
+  gz_mentor_joined: string
+  gz_rival_deal: string
+  gz_torpil_joined: string
+  gz_firm_upgraded: string
+  gz_firm_improvement: string
+  milestone_30_question: string
+  milestone_40_question: string
+  milestone_50_question: string
+  milestone_60_question: string
+  milestone_70_question: string
   ref_no_data: string
   ref_time_engine_status: string
 
@@ -1261,6 +1368,87 @@ export interface Translations {
   ref_firms_tab_normal: string
   ref_firms_tab_empire: string
   ref_firms_total_per_day: string
+
+  // RefFirmsPage — category filter
+  firms_cat_tumu: string
+  firms_cat_gida: string
+  firms_cat_hizmet: string
+  firms_cat_teknoloji: string
+  firms_cat_finans: string
+  firms_cat_turizm: string
+  firms_cat_medya: string
+  firms_cat_illegal: string
+
+  // RefFirmsPage — empire tabs
+  firms_empire_tab_futbol: string
+  firms_empire_tab_siyaset: string
+  firms_empire_tab_yeralti: string
+  firms_empire_tab_luks: string
+  firms_empire_tab_bilim: string
+  firms_empire_tab_finans: string
+
+  // RefFirmsPage — KPI
+  firms_kpi_active_firm: string
+  firms_kpi_total_sub: string
+  firms_kpi_income_label: string
+  firms_kpi_income_sub: string
+  firms_kpi_illegal_income: string
+  firms_kpi_daily_sub: string
+  firms_kpi_efficiency: string
+  firms_kpi_efficiency_sub: string
+  firms_kpi_biz_type: string
+  firms_kpi_legal_income: string
+  firms_kpi_owned_sub_fmt: string
+
+  // RefFirmsPage — buy mode / tier
+  firms_qty_label: string
+  firms_buy_max: string
+  firms_tier_all: string
+
+  // RefFirmsPage — producer card
+  firms_stat_tier: string
+  firms_stat_income_per_day: string
+  firms_stat_unit: string
+  firms_stat_count: string
+  firms_stat_cost: string
+  firms_buy_button: string
+  firms_insufficient: string
+  firms_lock_ipo_fmt: string
+  firms_lock_earn_fmt: string
+  firms_upgrade_button: string
+  firms_upgrade_max: string
+  firms_income_mult_fmt: string
+  firms_manager_button: string
+  firms_manager_owned: string
+  firms_modernize_button: string
+  firms_modern_owned: string
+
+  // RefFirmsPage — summary / notes
+  firms_summary_count_fmt: string
+  firms_summary_cash_fmt: string
+  firms_mock_count_fmt: string
+  firms_mock_total_fmt: string
+  firms_preview_note: string
+  firms_empire_live_note: string
+  firms_empire_empty: string
+
+  // RefFirmsPage — empire card
+  firms_empire_tier_fmt: string
+  firms_empire_owned_fmt: string
+  firms_empire_not_owned: string
+  firms_grow_button: string
+  firms_preview_suffix: string
+
+  // RefFirmsPage — toasts
+  firms_toast_bought_fmt: string
+  firms_toast_buy_failed: string
+  firms_toast_levelup_fmt: string
+  firms_toast_levelup_failed: string
+  firms_toast_manager_hired_fmt: string
+  firms_toast_manager_failed: string
+  firms_toast_modernized_fmt: string
+  firms_toast_modernize_failed: string
+  firms_toast_grown_fmt: string
 
   // RefApp Market
   ref_market_title: string
@@ -1294,10 +1482,50 @@ export interface Translations {
   // RefApp Achievements
   ref_achievements_title: string
   ref_achievements_tab: string
+  ref_ach_tab_missions: string
+  ref_ach_tab_goals: string
+  ref_ach_tab_badges: string
+  ref_ach_completed_fmt: string
+  ref_ach_demo_banner: string
+  ref_ach_milestone_title: string
+  ref_ach_cat_all: string
+  ref_ach_cat_money: string
+  ref_ach_cat_business: string
+  ref_ach_cat_stock: string
+  ref_ach_cat_activity: string
+  ref_ach_status_done: string
+  ref_ach_status_active: string
+  ref_ach_status_locked: string
+  ref_ach_no_missions_title: string
+  ref_ach_no_missions_desc: string
+  ref_ach_goals_preview_title: string
+  ref_ach_goals_preview_desc: string
+  ref_ach_all_done_title: string
+  ref_ach_all_done_desc: string
+  ref_ach_next_goals_hint: string
+  ref_ach_cat_all_label: string
+  ref_ach_open_count_fmt: string
+  ref_ach_goal_badge: string
+  ref_ach_flag_open_fmt: string
+  ref_ach_flag_locked: string
+  ref_ach_badge_count_fmt: string
+  ref_ach_detail_reward_label: string
+  ref_ach_detail_status_label: string
+  ref_ach_detail_status_open: string
+  ref_ach_detail_status_locked: string
+  ref_ach_badge_detail_cat: string
+  ref_ach_badge_status_earned: string
+  ref_ach_badge_status_not_yet: string
+  ref_ach_boost_reward_fmt: string
+  ref_ach_claimed_status: string
 
   // RefApp Notifications
   ref_notifs_title: string
   ref_notifs_empty: string
+  ref_notifs_demo_banner: string
+  ref_notifs_section_title: string
+  ref_notifs_section_sub: string
+  ref_notifs_day_fmt: string
 
   // RefApp Reward modals
   ref_reward_offline_title: string
@@ -1370,6 +1598,22 @@ export interface Translations {
   ref_daily_bonus_claimed: string
   ref_daily_bonus_button: string
   ref_est_tag_estimated: string
+  ref_dash_firms_cities_fmt: string
+  ref_dash_estimated_tag: string
+  ref_dash_net_worth_sub: string
+  ref_dash_cash_sub: string
+  ref_dash_income_sub: string
+  ref_daily_claim_reward_fmt: string
+  ref_daily_go_button: string
+  ref_daily_blocked_prefix: string
+  ref_daily_bonus_all_fmt: string
+  ref_daily_bonus_claimed_btn: string
+  ref_daily_bonus_action_btn: string
+  ref_daily_today_moves_title: string
+  ref_dash_feed_income: string
+  ref_dash_feed_market: string
+  ref_dash_sample_tag: string
+  ref_dash_percent_fmt: string
 
   // Firm Detail — labels and actions
   ref_detail_back_button: string
@@ -1395,6 +1639,43 @@ export interface Translations {
   ref_detail_upgrade_failed: string
   ref_detail_modernize_failed: string
   ref_detail_manager_failed: string
+  ref_firm_status_karli: string
+  ref_firm_status_buyuyor: string
+  ref_firm_status_riskli: string
+  ref_card_level_fmt: string
+  ref_card_daily_income: string
+  ref_card_daily_expense: string
+  ref_card_growth_rate: string
+  ref_card_city_label: string
+  ref_card_risk_level_fmt: string
+  ref_card_performance: string
+  ref_card_btn_develop: string
+  ref_card_btn_modernize: string
+  ref_card_btn_manager: string
+  ref_detail_develop_button: string
+  ref_detail_modernize_button: string
+  ref_detail_manager_button: string
+  ref_detail_preview_note: string
+  ref_detail_max_level_button: string
+  ref_detail_develop_level_fmt: string
+  ref_detail_modernize_ipo_required: string
+  ref_detail_modernized_done: string
+  ref_detail_manager_hired: string
+  ref_detail_manager_hire_fmt: string
+  ref_detail_income_summary: string
+  ref_detail_branch_base_fmt: string
+  ref_detail_level_mult_fmt: string
+  ref_detail_manager_bonus_label: string
+  ref_detail_management_fmt: string
+  ref_detail_income_mult_suffix: string
+  ref_detail_live_note: string
+  ref_detail_level_up_toast: string
+  ref_detail_modernize_ok_toast: string
+  ref_detail_manager_ok_toast: string
+  ref_detail_upg_quality: string
+  ref_detail_upg_marketing: string
+  ref_detail_upg_training: string
+  ref_detail_upg_automation: string
 
   // Market — labels, toasts
   ref_market_sentiment_title: string
@@ -1430,6 +1711,58 @@ export interface Translations {
   ref_market_stock_not_found: string
   ref_market_insurance_activated: string
   ref_market_insurance_deactivated: string
+  ref_market_kpi_net_worth: string
+  ref_market_kpi_cash: string
+  ref_market_kpi_portfolio: string
+  ref_market_kpi_loan: string
+  ref_market_kpi_total_sub: string
+  ref_market_kpi_liquid_sub: string
+  ref_market_kpi_shares_sub: string
+  ref_market_kpi_credit_sub: string
+  ref_market_kpi_no_loan: string
+  ref_market_instruments_fmt: string
+  ref_market_shares_owned_fmt: string
+  ref_market_stock_buy_btn: string
+  ref_market_stock_sell_btn: string
+  ref_market_ins_active_label: string
+  ref_market_ins_inactive_label: string
+  ref_market_ins_toggle_on: string
+  ref_market_ins_toggle_off: string
+  ref_market_ipo_pending_pts_fmt: string
+  ref_market_ipo_ready_badge: string
+  ref_market_ipo_total_earnings_fmt: string
+  ref_market_ipo_start_btn: string
+  ref_market_ipo_confirm_btn: string
+  ref_market_deposit_action_btn: string
+  ref_market_withdraw_action_btn: string
+  ref_market_loan_take_action_fmt: string
+  ref_market_loan_repay_action_btn: string
+  ref_market_toast_no_deposit_cash: string
+  ref_market_toast_deposited_fmt: string
+  ref_market_toast_withdrew_fmt: string
+  ref_market_toast_no_credit: string
+  ref_market_toast_loan_taken_fmt: string
+  ref_market_toast_bank_rejected: string
+  ref_market_toast_no_repay_cash: string
+  ref_market_toast_repaid_fmt: string
+  ref_market_toast_action_failed: string
+  ref_market_toast_ipo_done_fmt: string
+  ref_market_toast_ipo_failed: string
+  ref_market_demo_banner: string
+  ref_market_demo_sent_subtitle: string
+  ref_market_central_bank_rate_fmt: string
+  ref_market_demo_stocks_subtitle: string
+  ref_market_mock_portfolio: string
+  ref_market_mock_daily_pnl: string
+  ref_market_mock_cash: string
+  ref_market_mock_risk: string
+  ref_market_mock_today: string
+  ref_market_mock_medium: string
+  ref_market_mock_balanced: string
+  ref_market_mock_tech: string
+  ref_market_mock_energy: string
+  ref_market_mock_real_estate: string
+  ref_market_mock_banking: string
 
   // Empire — department badges, tabs, toasts
   ref_empire_tab_manage: string
@@ -1478,6 +1811,58 @@ export interface Translations {
   ref_empire_lobby_failed: string
   ref_empire_cooperation_success: string
   ref_empire_cooperation_failed: string
+  ref_empire_rnd_branch_operasyon: string
+  ref_empire_rnd_branch_finans: string
+  ref_empire_rnd_branch_empire: string
+  ref_empire_research_status_max: string
+  ref_empire_research_level_fmt: string
+  ref_empire_upgrade_owned: string
+  ref_empire_cat_football: string
+  ref_empire_cat_politics: string
+  ref_empire_cat_underground: string
+  ref_empire_cat_luxury: string
+  ref_empire_cat_science: string
+  ref_empire_cat_finance: string
+  ref_empire_city_kpi_cities: string
+  ref_empire_city_kpi_daily: string
+  ref_empire_city_kpi_reputation: string
+  ref_empire_city_kpi_finance_bonus: string
+  ref_empire_city_journey_title: string
+  ref_empire_city_journey_subtitle_fmt: string
+  ref_empire_city_mgmt_title: string
+  ref_empire_city_mgmt_subtitle_fmt: string
+  ref_empire_city_active_badge: string
+  ref_empire_city_set_active_button: string
+  ref_empire_city_rep_req_label: string
+  ref_empire_city_unlock_button_fmt: string
+  ref_empire_city_no_bonuses_label: string
+  ref_empire_regional_bonuses_title: string
+  ref_empire_regional_bonuses_subtitle: string
+  ref_empire_regional_ankara_cat: string
+  ref_empire_regional_ankara_bonus: string
+  ref_empire_regional_izmir_cat: string
+  ref_empire_regional_izmir_bonus: string
+  ref_empire_regional_dubai_cat: string
+  ref_empire_regional_dubai_bonus: string
+  ref_empire_regional_london_cat: string
+  ref_empire_regional_london_bonus: string
+  ref_empire_torpil_section_title: string
+  ref_empire_torpil_section_subtitle: string
+  ref_empire_torpil_meet_fmt: string
+  ref_empire_torpil_gift_fmt: string
+  ref_empire_torpil_active_label: string
+  ref_empire_bribe_section_title: string
+  ref_empire_bribe_section_subtitle: string
+  ref_empire_police_heat_label: string
+  ref_empire_action_cooldown_label: string
+  ref_empire_bribe_button_fmt: string
+  ref_empire_lawyer_button_fmt: string
+  ref_empire_bribe_note: string
+  ref_empire_rnd_preview_note: string
+  ref_empire_cities_manage_note_fmt: string
+  ref_empire_rival_active_suffix: string
+  ref_empire_demo_city_panel: string
+  ref_empire_demo_rivals_panel: string
 
   // Career — tabs, labels, toasts
   ref_career_tab_job: string
@@ -1509,6 +1894,68 @@ export interface Translations {
   ref_career_action_completed_today: string
   ref_career_daily_actions_section: string
   ref_career_action_xp_focused: string
+  ref_career_action_mesai_label: string
+  ref_career_action_mesai_desc: string
+  ref_career_action_ek_mesai_label: string
+  ref_career_action_ek_mesai_desc: string
+  ref_career_action_egitim_al_label: string
+  ref_career_action_egitim_al_desc: string
+  ref_career_action_networking_label: string
+  ref_career_action_networking_desc: string
+  ref_career_lifestyle_suffix: string
+  ref_career_stress_high: string
+  ref_career_daily_income_label: string
+  ref_career_monthly_income_label: string
+  ref_career_starter_label: string
+  ref_career_job_level_fmt: string
+  ref_career_seniority_fmt: string
+  ref_career_working_employee_label: string
+  ref_career_pick_job_section: string
+  ref_career_stress_per_day_label: string
+  ref_career_best_earner_per_day: string
+  ref_career_no_firms_hint: string
+  ref_career_entrepreneur_cta: string
+  ref_career_health_section_title: string
+  ref_career_diseases_section_title: string
+  ref_career_fame_section_title: string
+  ref_career_fame_career_prompt: string
+  career_routine_exercise_label: string
+  career_routine_exercise_effect: string
+  career_routine_meditate_label: string
+  career_routine_meditate_effect: string
+  career_routine_done: string
+
+  // RefCareer — newly migrated labels/tips/toasts/mock
+  ref_career_pick_first_job: string
+  ref_career_net_worth_label: string
+  ref_career_cash_label: string
+  ref_career_stress_unit: string
+  ref_career_bonus_suffix: string
+  ref_career_health_per_day_unit: string
+  ref_career_health_excellent_tip: string
+  ref_career_health_low_tip: string
+  ref_career_stress_high_tip: string
+  ref_career_no_diseases: string
+  ref_career_fame_inactive_label: string
+  ref_career_fame_income_label: string
+  ref_career_fame_quit_button: string
+  ref_career_karma_label: string
+  ref_career_peak_label: string
+  ref_career_at_peak: string
+  ref_career_toast_job_selected: string
+  ref_career_toast_level_up: string
+  ref_career_toast_action_used: string
+  ref_career_toast_completed: string
+  ref_career_toast_daily_limit: string
+  ref_career_toast_activity_done: string
+  ref_career_toast_insufficient_funds: string
+  ref_career_toast_treatment_done: string
+  ref_career_toast_fame_quit: string
+  ref_career_toast_fame_started: string
+  ref_career_toast_fame_already_active: string
+  ref_career_toast_fame_action_done: string
+  ref_career_mock_job_title: string
+  ref_career_mock_next_rank: string
 
   // Life — tabs, sections, labels, toasts
   ref_life_tab_dynasty: string
@@ -1580,6 +2027,59 @@ export interface Translations {
   ref_life_category_family_desc: string
   ref_life_sibling_age: string
 
+  // Life — RefLifePage wiring (traits, demo banners, toasts, units, fmt)
+  ref_life_trait_merchant: string
+  ref_life_trait_diplomat: string
+  ref_life_trait_innovator: string
+  ref_life_trait_risk_taker: string
+  ref_life_demo_panel: string
+  ref_life_demo_dynasty: string
+  ref_life_demo_home: string
+  ref_life_demo_travel: string
+  ref_life_demo_pets: string
+  ref_life_demo_shop: string
+  ref_life_lifestyle_sub: string
+  ref_life_toast_done: string
+  ref_life_toast_residence_bought: string
+  ref_life_toast_residence_sold: string
+  ref_life_toast_rental_off: string
+  ref_life_toast_rental_on: string
+  ref_life_toast_vehicle_bought: string
+  ref_life_toast_vehicle_sold: string
+  ref_life_toast_room_added: string
+  ref_life_toast_pet_adopted: string
+  ref_life_toast_travel_started: string
+  ref_life_toast_hobby_selected: string
+  ref_life_toast_wellbeing_done: string
+  ref_life_toast_visit_done: string
+  ref_life_toast_action_failed: string
+  ref_life_dynasty_name_fmt: string
+  ref_life_dynasty_default_name: string
+  ref_life_dynasty_generation_fmt: string
+  ref_life_insured: string
+  ref_life_uninsured: string
+  ref_life_active_short: string
+  ref_life_passive_short: string
+  ref_life_children_count_fmt: string
+  ref_life_legacy_selected_fmt: string
+  ref_life_stress_unit: string
+  ref_life_days_unit: string
+  ref_life_stress_per_day_unit: string
+  ref_life_count_pieces_fmt: string
+  ref_life_owned_count_fmt: string
+  ref_life_none: string
+  ref_life_no_property_vehicle_hint: string
+  ref_life_travel_bonus_active: string
+  ref_life_trips_count_fmt: string
+  ref_life_earn_to_unlock_suffix: string
+  ref_life_go_button: string
+  ref_life_select_button: string
+  ref_life_no_pets_hint: string
+  ref_life_owned_pets_title: string
+  ref_life_adopt_section_title: string
+  ref_life_types_count_fmt: string
+  ref_life_active_count_fmt: string
+
   // Shared / Header
   ref_test_mode_exit: string
   ref_demo_banner_prefix: string
@@ -1620,6 +2120,7 @@ export interface Translations {
   // Goal labels
   ref_goal_city_unlock: string
   ref_goal_cities_meta: string
+  ref_goal_wealth_fmt: string
 
   // Toast messages (RefNotificationBridge)
   ref_toast_milestone: string
@@ -1629,6 +2130,7 @@ export interface Translations {
   ref_toast_disease_diag: string
   ref_toast_disease_treated: string
   ref_toast_dynasty: string
+  ref_action_failed: string
 
   // Life event preview labels
   ref_preview_rep: string
@@ -1652,6 +2154,7 @@ export interface Translations {
   ref_marriage_crisis_gift_sub: string
   ref_marriage_crisis_time_label: string
   ref_marriage_crisis_time_sub: string
+  ref_marriage_crisis_spouse_fallback: string
   ref_annual_title: string
   ref_annual_body: string
   ref_undo_modal_title: string
@@ -1700,6 +2203,20 @@ export interface Translations {
   career_bg_karanlik_cevre_desc: string
   career_bg_karanlik_cevre_bonus: string
 
+  // Torpil contacts
+  torpil_amca_rifat_name: string
+  torpil_amca_rifat_role: string
+  torpil_amca_rifat_desc: string
+  torpil_sinan_bank_name: string
+  torpil_sinan_bank_role: string
+  torpil_sinan_bank_desc: string
+  torpil_siyaset_tanidik_name: string
+  torpil_siyaset_tanidik_role: string
+  torpil_siyaset_tanidik_desc: string
+  torpil_medya_partner_name: string
+  torpil_medya_partner_role: string
+  torpil_medya_partner_desc: string
+
   // Profile jobs
   profile_job_calisan_label: string
   profile_job_calisan_desc: string
@@ -1733,6 +2250,66 @@ export interface Translations {
   profile_life_orta_desc: string
   profile_life_luks_label: string
   profile_life_luks_desc: string
+
+  // Onboarding overlay UI chrome
+  ob_intro_heading: string
+  ob_intro_sub: string
+  ob_name_label: string
+  ob_gender_label: string
+  ob_gender_male: string
+  ob_gender_female: string
+  ob_background_heading: string
+  ob_background_sub: string
+  ob_edu_heading: string
+  ob_edu_sub: string
+  ob_job_heading: string
+  ob_job_sub: string
+  ob_lifestyle_heading: string
+  ob_lifestyle_sub: string
+  ob_difficulty_heading: string
+  ob_difficulty_sub: string
+
+  // Difficulty levels (CharacterCreation)
+  difficulty_easy_name: string
+  difficulty_easy_desc: string
+  difficulty_normal_name: string
+  difficulty_normal_desc: string
+  difficulty_hard_name: string
+  difficulty_hard_desc: string
+
+  // Country display names
+  country_tr_name: string
+  country_us_name: string
+  country_gb_name: string
+  country_de_name: string
+  country_fr_name: string
+  country_es_name: string
+  country_jp_name: string
+  country_br_name: string
+  country_tr_city_0: string
+  country_tr_city_1: string
+  country_tr_city_2: string
+  country_us_city_0: string
+  country_us_city_1: string
+  country_us_city_2: string
+  country_gb_city_0: string
+  country_gb_city_1: string
+  country_gb_city_2: string
+  country_de_city_0: string
+  country_de_city_1: string
+  country_de_city_2: string
+  country_fr_city_0: string
+  country_fr_city_1: string
+  country_fr_city_2: string
+  country_es_city_0: string
+  country_es_city_1: string
+  country_es_city_2: string
+  country_jp_city_0: string
+  country_jp_city_1: string
+  country_jp_city_2: string
+  country_br_city_0: string
+  country_br_city_1: string
+  country_br_city_2: string
 
   // Daily tasks
   task_pick_job_label: string
@@ -1851,4 +2428,683 @@ export interface Translations {
   rep_label_3: string
   rep_label_4: string
   rep_label_5: string
+
+  // ── Achievements (name + desc; 3 reward labels) ──
+  ach_first_100_name: string
+  ach_first_100_desc: string
+  ach_first_1k_name: string
+  ach_first_1k_desc: string
+  ach_first_100k_name: string
+  ach_first_100k_desc: string
+  ach_millionaire_name: string
+  ach_millionaire_desc: string
+  ach_first_job_name: string
+  ach_first_job_desc: string
+  ach_first_job_reward: string
+  ach_career_lv5_name: string
+  ach_career_lv5_desc: string
+  ach_career_lv5_reward: string
+  ach_entrepreneur_name: string
+  ach_entrepreneur_desc: string
+  ach_entrepreneur_reward: string
+  ach_first_business_name: string
+  ach_first_business_desc: string
+  ach_five_businesses_name: string
+  ach_five_businesses_desc: string
+  ach_boss_name: string
+  ach_boss_desc: string
+  ach_prestige_1_name: string
+  ach_prestige_1_desc: string
+  ach_prestige_5_name: string
+  ach_prestige_5_desc: string
+  ach_stajyer_10_name: string
+  ach_stajyer_10_desc: string
+  ach_robot_5_name: string
+  ach_robot_5_desc: string
+  ach_fabrika_3_name: string
+  ach_fabrika_3_desc: string
+  ach_earn_10m_name: string
+  ach_earn_10m_desc: string
+  ach_stock_10_name: string
+  ach_stock_10_desc: string
+  ach_manager_1_name: string
+  ach_manager_1_desc: string
+  ach_stock_trader_name: string
+  ach_stock_trader_desc: string
+  ach_weekly_1_name: string
+  ach_weekly_1_desc: string
+  ach_lifetime_1m_name: string
+  ach_lifetime_1m_desc: string
+  ach_ipo_3_name: string
+  ach_ipo_3_desc: string
+  ach_season_15_name: string
+  ach_season_15_desc: string
+  ach_tree_6_name: string
+  ach_tree_6_desc: string
+  ach_stock_3_name: string
+  ach_stock_3_desc: string
+  ach_night_1m_name: string
+  ach_night_1m_desc: string
+  ach_uydu_1_name: string
+  ach_uydu_1_desc: string
+  ach_merkez_1_name: string
+  ach_merkez_1_desc: string
+  ach_autobuy_3_name: string
+  ach_autobuy_3_desc: string
+  ach_season_30_name: string
+  ach_season_30_desc: string
+  ach_night_5k_name: string
+  ach_night_5k_desc: string
+  ach_mega_biz_name: string
+  ach_mega_biz_desc: string
+  ach_tree_5_name: string
+  ach_tree_5_desc: string
+  ach_billion_earned_name: string
+  ach_billion_earned_desc: string
+  ach_all_businesses_name: string
+  ach_all_businesses_desc: string
+  ach_galaksiyum_1_name: string
+  ach_galaksiyum_1_desc: string
+  ach_kafe_5_name: string
+  ach_kafe_5_desc: string
+  ach_illegal_1_name: string
+  ach_illegal_1_desc: string
+  ach_illegal_all_name: string
+  ach_illegal_all_desc: string
+  ach_earn_100m_name: string
+  ach_earn_100m_desc: string
+  ach_streak_14_name: string
+  ach_streak_14_desc: string
+  ach_streak_30_name: string
+  ach_streak_30_desc: string
+  ach_comeback_1_name: string
+  ach_comeback_1_desc: string
+  ach_heat_max_survive_name: string
+  ach_heat_max_survive_desc: string
+  ach_codex_legal_name: string
+  ach_codex_legal_desc: string
+  ach_codex_all_name: string
+  ach_codex_all_desc: string
+  ach_football_1_name: string
+  ach_football_1_desc: string
+  ach_politics_1_name: string
+  ach_politics_1_desc: string
+  ach_siyah_fabrika_1_name: string
+  ach_siyah_fabrika_1_desc: string
+  ach_superlig_club_name: string
+  ach_superlig_club_desc: string
+  ach_bakan_name: string
+  ach_bakan_desc: string
+  ach_theme_3_name: string
+  ach_theme_3_desc: string
+  ach_underground_lawyer_name: string
+  ach_underground_lawyer_desc: string
+  ach_data_center_1_name: string
+  ach_data_center_1_desc: string
+  ach_drone_10_name: string
+  ach_drone_10_desc: string
+  ach_dynasty_marry_name: string
+  ach_dynasty_marry_desc: string
+  ach_shop_advisor_name: string
+  ach_shop_advisor_desc: string
+  ach_luxury_1_name: string
+  ach_luxury_1_desc: string
+  ach_hedge_1_name: string
+  ach_hedge_1_desc: string
+  ach_mars_1_name: string
+  ach_mars_1_desc: string
+  ach_multiverse_1_name: string
+  ach_multiverse_1_desc: string
+  ach_biz_50_name: string
+  ach_biz_50_desc: string
+
+  // ── Badges (name + desc) ──
+  badge_streak_7_name: string
+  badge_streak_7_desc: string
+  badge_streak_14_name: string
+  badge_streak_14_desc: string
+  badge_streak_30_name: string
+  badge_streak_30_desc: string
+  badge_comeback_name: string
+  badge_comeback_desc: string
+  badge_season_10_name: string
+  badge_season_10_desc: string
+  badge_season_20_name: string
+  badge_season_20_desc: string
+  badge_season_30_name: string
+  badge_season_30_desc: string
+  badge_theme_gold_name: string
+  badge_theme_gold_desc: string
+  badge_theme_neon_name: string
+  badge_theme_neon_desc: string
+  badge_theme_galactic_name: string
+  badge_theme_galactic_desc: string
+  badge_codex_legal_name: string
+  badge_codex_legal_desc: string
+  badge_codex_all_name: string
+  badge_codex_all_desc: string
+  badge_underground_lawyer_name: string
+  badge_underground_lawyer_desc: string
+  badge_heat_survive_name: string
+  badge_heat_survive_desc: string
+  badge_investor_name: string
+  badge_investor_desc: string
+
+  // ── Empire departments (name/desc/bonus/task) ──
+  dept_operasyon_name: string
+  dept_operasyon_desc: string
+  dept_operasyon_bonus: string
+  dept_operasyon_task: string
+  dept_finans_name: string
+  dept_finans_desc: string
+  dept_finans_bonus: string
+  dept_finans_task: string
+  dept_pazarlama_name: string
+  dept_pazarlama_desc: string
+  dept_pazarlama_bonus: string
+  dept_pazarlama_task: string
+  dept_hukuk_name: string
+  dept_hukuk_desc: string
+  dept_hukuk_bonus: string
+  dept_hukuk_task: string
+  dept_arge_name: string
+  dept_arge_desc: string
+  dept_arge_bonus: string
+  dept_arge_task: string
+  dept_lojistik_name: string
+  dept_lojistik_desc: string
+  dept_lojistik_bonus: string
+  dept_lojistik_task: string
+  dept_guvenlik_name: string
+  dept_guvenlik_desc: string
+  dept_guvenlik_bonus: string
+  dept_guvenlik_task: string
+  dept_aile_ofisi_name: string
+  dept_aile_ofisi_desc: string
+  dept_aile_ofisi_bonus: string
+  dept_aile_ofisi_task: string
+
+  // ── Expansion cities ──
+  city_istanbul_label: string
+  city_ankara_label: string
+  city_izmir_label: string
+  city_dubai_label: string
+  city_london_label: string
+  city_unlock_already: string
+  city_unlock_ipo_req: string
+  city_unlock_rep_req: string
+  city_unlock_no_money: string
+
+  // ── Friendships (name/desc/bonus) ──
+  friend_work_colleague_name: string
+  friend_work_colleague_desc: string
+  friend_work_colleague_bonus: string
+  friend_school_friend_name: string
+  friend_school_friend_desc: string
+  friend_school_friend_bonus: string
+  friend_neighborhood_friend_name: string
+  friend_neighborhood_friend_desc: string
+  friend_neighborhood_friend_bonus: string
+  friend_rival_turned_friend_name: string
+  friend_rival_turned_friend_desc: string
+  friend_rival_turned_friend_bonus: string
+  friend_mentor_friend_name: string
+  friend_mentor_friend_desc: string
+  friend_mentor_friend_bonus: string
+
+  // ── Missions (label per type+tier) ──
+  mission_earn_money_easy_label: string
+  mission_claim_daily_easy_label: string
+  mission_buy_business_easy_label: string
+  mission_season_tier_easy_label: string
+  mission_buy_business_strategic_label: string
+  mission_buy_upgrade_strategic_label: string
+  mission_earn_money_strategic_label: string
+  mission_season_xp_strategic_label: string
+  mission_autobuy_enable_strategic_label: string
+  mission_stock_trade_strategic_label: string
+  mission_use_underground_risky_label: string
+  mission_reach_heat_risky_label: string
+  mission_stock_trade_risky_label: string
+
+  // ── Crisis events (title/desc + choice label/desc) ──
+  crisis_economic_title: string
+  crisis_economic_desc: string
+  crisis_economic_choice_sell_label: string
+  crisis_economic_choice_sell_desc: string
+  crisis_economic_choice_hold_label: string
+  crisis_economic_choice_hold_desc: string
+  crisis_economic_choice_buy_label: string
+  crisis_economic_choice_buy_desc: string
+  crisis_scandal_title: string
+  crisis_scandal_desc: string
+  crisis_scandal_choice_lobby_label: string
+  crisis_scandal_choice_lobby_desc: string
+  crisis_scandal_choice_pay_label: string
+  crisis_scandal_choice_pay_desc: string
+  crisis_scandal_choice_deny_label: string
+  crisis_scandal_choice_deny_desc: string
+  crisis_rival_attack_title: string
+  crisis_rival_attack_desc: string
+  crisis_rival_attack_choice_pricewar_label: string
+  crisis_rival_attack_choice_pricewar_desc: string
+  crisis_rival_attack_choice_retreat_label: string
+  crisis_rival_attack_choice_retreat_desc: string
+  crisis_rival_attack_choice_merge_talk_label: string
+  crisis_rival_attack_choice_merge_talk_desc: string
+
+  // ── BaronLegacy achievement / weakness / epitaph strings ──
+  legacy_ach_football_club: string
+  legacy_ach_near_president: string
+  legacy_ach_president: string
+  legacy_ach_minister: string
+  legacy_ach_peak_wealth: string
+  legacy_ach_forbes: string
+  legacy_ach_victories: string
+  legacy_ach_ipo: string
+  legacy_ach_foundation: string
+  legacy_weak_child_crisis: string
+  legacy_weak_raid_no_insurance: string
+  legacy_weak_factories_lost: string
+  legacy_epitaph_near_pres: string
+  legacy_epitaph_victories: string
+  legacy_epitaph_forbes: string
+  legacy_epitaph_near_top: string
+  legacy_epitaph_shadow: string
+  legacy_epitaph_millionaire: string
+  legacy_epitaph_default: string
+
+  // ── BaronGazette headline templates ──
+  gazette_purchase_single: string
+  gazette_purchase_multi: string
+  gazette_rival_behind: string
+  gazette_monthly_income_rival: string
+  gazette_monthly_income: string
+  gazette_loan_denied: string
+  gazette_crisis: string
+  gazette_market_0: string
+  gazette_market_1: string
+  gazette_market_2: string
+  gazette_market_3: string
+  gazette_market_3_rising: string
+  gazette_market_3_pressure: string
+  gazette_market_4: string
+  gazette_market_5: string
+  gazette_market_6: string
+  gazette_market_7: string
+  gazette_politics_0: string
+  gazette_politics_1: string
+  gazette_politics_2: string
+  gazette_politics_3: string
+  gazette_politics_4: string
+  gazette_politics_5: string
+  gazette_today: string
+
+  // ── StockMarket domain items ──
+  stock_tech_name: string
+  stock_energy_name: string
+  stock_realestate_name: string
+  stock_finance_name: string
+  stock_industrial_name: string
+  stock_crypto_name: string
+  stock_health_name: string
+  stock_fear_extreme: string
+  stock_fear_cautious: string
+  stock_fear_neutral: string
+  stock_fear_optimistic: string
+  stock_news_panic: string
+  stock_news_cautious_warning: string
+  stock_news_record: string
+  stock_news_high_rate: string
+  stock_news_low_rate: string
+  stock_news_tech_rally: string
+  stock_news_energy_rise: string
+  stock_news_balanced: string
+  stock_rate_hike: string
+  stock_rate_cut: string
+  stock_bankruptcy: string
+  stock_recovery: string
+  stock_panic: string
+  stock_crash: string
+  stock_rally: string
+  stock_initial_rate: string
+
+  // ── Dynasty domain items ──
+  heir_operasyon_name: string
+  heir_operasyon_desc: string
+  heir_operasyon_bonus: string
+  heir_finans_name: string
+  heir_finans_desc: string
+  heir_finans_bonus: string
+  heir_teknoloji_name: string
+  heir_teknoloji_desc: string
+  heir_teknoloji_bonus: string
+  heir_siyasi_name: string
+  heir_siyasi_desc: string
+  heir_siyasi_bonus: string
+  heir_hukukcu_name: string
+  heir_hukukcu_desc: string
+  heir_hukukcu_bonus: string
+  heir_golge_name: string
+  heir_golge_desc: string
+  heir_golge_bonus: string
+  heir_aileci_name: string
+  heir_aileci_desc: string
+  heir_aileci_bonus: string
+  dynasty_legacy_family_business_label: string
+  dynasty_legacy_family_business_desc: string
+  dynasty_legacy_family_business_bonus: string
+  dynasty_legacy_family_wealth_label: string
+  dynasty_legacy_family_wealth_desc: string
+  dynasty_legacy_family_wealth_bonus: string
+  dynasty_legacy_family_name_label: string
+  dynasty_legacy_family_name_desc: string
+  dynasty_legacy_family_name_bonus: string
+  spouse_aylin_bonus: string
+  spouse_kerem_bonus: string
+  spouse_zeynep_bonus: string
+  spouse_onur_bonus: string
+  spouse_selin_bonus: string
+  spouse_defne_bonus: string
+  spouse_burak_bonus: string
+  spouse_emre_bonus: string
+  child_career_businessperson_name: string
+  child_career_businessperson_bonus: string
+  child_career_politician_name: string
+  child_career_politician_bonus: string
+  child_career_artist_name: string
+  child_career_artist_bonus: string
+  child_career_scientist_name: string
+  child_career_scientist_bonus: string
+  child_career_athlete_name: string
+  child_career_athlete_bonus: string
+  edu_path_isletme_name: string
+  edu_path_isletme_desc: string
+  edu_path_finans_name: string
+  edu_path_finans_desc: string
+  edu_path_teknoloji_name: string
+  edu_path_teknoloji_desc: string
+  edu_path_siyaset_name: string
+  edu_path_siyaset_desc: string
+  edu_path_hukuk_name: string
+  edu_path_hukuk_desc: string
+  edu_path_medya_name: string
+  edu_path_medya_desc: string
+  edu_path_golge_baglantilari_name: string
+  edu_path_golge_baglantilari_desc: string
+  dynasty_inherit_will_heir: string
+  dynasty_inherit_will: string
+  dynasty_inherit_no_will: string
+  dynasty_inherit_trust: string
+  dynasty_inherit_heat: string
+  dynasty_inherit_sibling: string
+  dynasty_inherit_lawyer: string
+
+  // ── Lifestyle domain items ──
+  residence_kira_name: string
+  residence_kira_desc: string
+  residence_daire_name: string
+  residence_daire_desc: string
+  residence_rezidans_name: string
+  residence_rezidans_desc: string
+  residence_villa_name: string
+  residence_villa_desc: string
+  residence_yali_name: string
+  residence_yali_desc: string
+  residence_saray_name: string
+  residence_saray_desc: string
+  residence_ada_name: string
+  residence_ada_desc: string
+  vehicle_yuruyus_name: string
+  vehicle_yuruyus_desc: string
+  vehicle_motosiklet_name: string
+  vehicle_motosiklet_desc: string
+  vehicle_ekonomik_name: string
+  vehicle_ekonomik_desc: string
+  vehicle_suv_name: string
+  vehicle_suv_desc: string
+  vehicle_luks_sedan_name: string
+  vehicle_luks_sedan_desc: string
+  vehicle_super_araba_name: string
+  vehicle_super_araba_desc: string
+  vehicle_helikopter_name: string
+  vehicle_helikopter_desc: string
+  vehicle_yat_name: string
+  vehicle_yat_desc: string
+  vehicle_ozel_jet_name: string
+  vehicle_ozel_jet_desc: string
+  pet_kopek_name: string
+  pet_kopek_desc: string
+  pet_kedi_name: string
+  pet_kedi_desc: string
+  pet_kus_name: string
+  pet_kus_desc: string
+  pet_akvaryum_name: string
+  pet_akvaryum_desc: string
+  pet_at_name: string
+  pet_at_desc: string
+  pet_kaplan_name: string
+  pet_kaplan_desc: string
+  wellbeing_terapi_name: string
+  wellbeing_terapi_desc: string
+  wellbeing_meditasyon_name: string
+  wellbeing_meditasyon_desc: string
+  wellbeing_tatil_kisa_name: string
+  wellbeing_tatil_kisa_desc: string
+  wellbeing_tatil_uzun_name: string
+  wellbeing_tatil_uzun_desc: string
+  room_study_name: string
+  room_study_bonus: string
+  room_game_room_name: string
+  room_game_room_bonus: string
+  room_gym_name: string
+  room_gym_bonus: string
+  room_guest_room_name: string
+  room_guest_room_bonus: string
+
+  // ── Mentor definitions ──
+  mentor_veteran_investor_name: string
+  mentor_veteran_investor_title: string
+  mentor_veteran_investor_backstory: string
+  mentor_veteran_investor_quest_first_million_label: string
+  mentor_veteran_investor_quest_first_million_desc: string
+  mentor_veteran_investor_quest_first_million_reward: string
+  mentor_veteran_investor_quest_first_ipo_label: string
+  mentor_veteran_investor_quest_first_ipo_desc: string
+  mentor_veteran_investor_quest_first_ipo_reward: string
+  mentor_veteran_investor_quest_reputation_100_label: string
+  mentor_veteran_investor_quest_reputation_100_desc: string
+  mentor_veteran_investor_quest_reputation_100_reward: string
+  mentor_retired_politician_name: string
+  mentor_retired_politician_title: string
+  mentor_retired_politician_backstory: string
+  mentor_retired_politician_quest_ten_businesses_label: string
+  mentor_retired_politician_quest_ten_businesses_desc: string
+  mentor_retired_politician_quest_ten_businesses_reward: string
+  mentor_retired_politician_quest_three_cities_label: string
+  mentor_retired_politician_quest_three_cities_desc: string
+  mentor_retired_politician_quest_three_cities_reward: string
+  mentor_retired_politician_quest_second_ipo_label: string
+  mentor_retired_politician_quest_second_ipo_desc: string
+  mentor_retired_politician_quest_second_ipo_reward: string
+  mentor_old_industrialist_name: string
+  mentor_old_industrialist_title: string
+  mentor_old_industrialist_backstory: string
+  mentor_old_industrialist_quest_fifty_businesses_label: string
+  mentor_old_industrialist_quest_fifty_businesses_desc: string
+  mentor_old_industrialist_quest_fifty_businesses_reward: string
+  mentor_old_industrialist_quest_ten_million_label: string
+  mentor_old_industrialist_quest_ten_million_desc: string
+  mentor_old_industrialist_quest_ten_million_reward: string
+  mentor_old_industrialist_quest_three_ipos_label: string
+  mentor_old_industrialist_quest_three_ipos_desc: string
+  mentor_old_industrialist_quest_three_ipos_reward: string
+  // ── Enemy definitions ──
+  enemy_corrupt_rival_name: string
+  enemy_corrupt_rival_title: string
+  enemy_corrupt_rival_backstory: string
+  enemy_corrupt_rival_resolve_money_label: string
+  enemy_corrupt_rival_resolve_money_desc: string
+  enemy_corrupt_rival_resolve_law_label: string
+  enemy_corrupt_rival_resolve_law_desc: string
+  enemy_corrupt_rival_resolve_politics_label: string
+  enemy_corrupt_rival_resolve_politics_desc: string
+  enemy_corrupt_rival_resolve_diplomacy_label: string
+  enemy_corrupt_rival_resolve_diplomacy_desc: string
+  enemy_jealous_partner_name: string
+  enemy_jealous_partner_title: string
+  enemy_jealous_partner_backstory: string
+  enemy_jealous_partner_resolve_money_label: string
+  enemy_jealous_partner_resolve_money_desc: string
+  enemy_jealous_partner_resolve_law_label: string
+  enemy_jealous_partner_resolve_law_desc: string
+  enemy_jealous_partner_resolve_diplomacy_label: string
+  enemy_jealous_partner_resolve_diplomacy_desc: string
+  enemy_jealous_partner_resolve_politics_label: string
+  enemy_jealous_partner_resolve_politics_desc: string
+  enemy_hostile_regulator_name: string
+  enemy_hostile_regulator_title: string
+  enemy_hostile_regulator_backstory: string
+  enemy_hostile_regulator_resolve_politics_label: string
+  enemy_hostile_regulator_resolve_politics_desc: string
+  enemy_hostile_regulator_resolve_law_label: string
+  enemy_hostile_regulator_resolve_law_desc: string
+  enemy_hostile_regulator_resolve_money_label: string
+  enemy_hostile_regulator_resolve_money_desc: string
+  enemy_hostile_regulator_resolve_diplomacy_label: string
+  enemy_hostile_regulator_resolve_diplomacy_desc: string
+  // Mentor/enemy UI strings
+  mentor_section_title: string
+  enemy_section_title: string
+  mentor_quest_progress: string
+  enemy_daily_penalty: string
+  enemy_resolve_methods_title: string
+  enemy_defeated: string
+
+  // ── Rival family definitions ──
+  rival_kocak_name: string
+  rival_kocak_stage: string
+  rival_kocak_personality: string
+  rival_sabanolu_name: string
+  rival_sabanolu_stage: string
+  rival_sabanolu_personality: string
+  rival_demirhan_name: string
+  rival_demirhan_stage: string
+  rival_demirhan_personality: string
+  rival_yildiz_name: string
+  rival_yildiz_stage: string
+  rival_yildiz_personality: string
+  rival_aksoy_name: string
+  rival_aksoy_stage: string
+  rival_aksoy_personality: string
+  rival_tek_name: string
+  rival_tek_stage: string
+  rival_tek_personality: string
+  rival_karaca_name: string
+  rival_karaca_stage: string
+  rival_karaca_personality: string
+  rival_ozdemir_name: string
+  rival_ozdemir_stage: string
+  rival_ozdemir_personality: string
+  rival_altin_name: string
+  rival_altin_stage: string
+  rival_altin_personality: string
+  // Rival attitude labels
+  rival_attitude_ally: string
+  rival_attitude_friendly: string
+  rival_attitude_neutral: string
+  rival_attitude_hostile: string
+  rival_attitude_war: string
+  // Rival card UI
+  rival_card_acquired: string
+  rival_card_bankrupt: string
+  rival_offer_title: string
+  // Rival event kind headlines + descs
+  rival_evt_media_scandal_headline: string
+  rival_evt_media_scandal_desc: string
+  rival_evt_market_manip_headline: string
+  rival_evt_market_manip_desc: string
+  rival_evt_biz_competition_headline: string
+  rival_evt_biz_competition_desc: string
+  rival_evt_political_lobby_headline: string
+  rival_evt_political_lobby_desc: string
+  // Rival event response labels
+  rival_resp_counter_pr: string
+  rival_resp_legal: string
+  rival_resp_ignore: string
+  rival_resp_buy_dip: string
+  rival_resp_report: string
+  rival_resp_wait: string
+  rival_resp_price_war: string
+  rival_resp_differentiate: string
+  rival_resp_buy_out: string
+  rival_resp_counter_lobby: string
+  rival_resp_alliance: string
+  // Rival tick event templates
+  rival_tick_bankruptcy: string
+  rival_tick_copy: string
+  rival_tick_shadow_weakpoint: string
+  rival_tick_media_attack: string
+  rival_tick_war: string
+  rival_tick_rivalry: string
+  rival_tick_alliance_offer: string
+  rival_tick_threat: string
+  rival_alliance_message: string
+  // Rival card UI actions + state labels
+  rival_action_acquire: string
+  rival_action_no_funds: string
+  rival_action_lobby: string
+  rival_action_cooperate: string
+  rival_action_buy: string
+  rival_empty_title: string
+  rival_empty_desc: string
+  rival_locked_unlock_hint: string
+  rival_offer_accept: string
+  rival_offer_decline: string
+  rival_ahead: string
+  rival_behind: string
+  ref_empire_rival_families: string
+
+  // ── Mortality death-cause labels ──
+  death_traffic_accident_label: string
+  death_sudden_illness_label: string
+  death_heart_attack_label: string
+  death_stroke_label: string
+  death_natural_causes_label: string
+  death_fatal_raid_label: string
+  death_assassination_label: string
+  death_organized_crime_label: string
+  death_plane_crash_label: string
+  death_burnout_label: string
+  death_stadium_disaster_label: string
+  death_coup_label: string
+  death_lab_accident_label: string
+  death_yacht_accident_label: string
+  death_unknown_label: string
+  death_traffic_accident_msg_young: string
+  death_traffic_accident_msg_old: string
+  death_sudden_illness_msg: string
+  death_heart_attack_msg: string
+  death_stroke_msg: string
+  death_natural_causes_msg: string
+  death_fatal_raid_msg: string
+  death_assassination_msg: string
+  death_organized_crime_msg: string
+  death_plane_crash_msg: string
+  death_burnout_msg: string
+  death_stadium_disaster_msg: string
+  death_coup_msg: string
+  death_lab_accident_msg: string
+  death_yacht_accident_msg: string
+
+  // Push notifications + app title
+  notif_app_title: string
+  notif_daily_reward_body: string
+  notif_passive_income_body: string
+  notif_goal_near_body: string
+  notif_streak_body: string
+  notif_golden_event_body: string
+  notif_daily_reward_full_body: string
+  notif_passive_income_full_body: string
+  notif_goal_near_full_body: string
 }

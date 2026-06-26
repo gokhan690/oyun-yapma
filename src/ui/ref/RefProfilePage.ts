@@ -5,7 +5,7 @@ import { playerVMFromState } from './refAppDataAdapter'
 import type { GameState } from '../../game/GameState'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import { RefKpiStrip, type KpiItem } from './RefKpiStrip'
-import { CAREER_JOBS } from '../../game/Career'
+import { CAREER_JOBS, careerJobName } from '../../game/Career'
 import { ACHIEVEMENTS } from '../../game/Achievements'
 import { reputationLabel } from '../../game/Reputation'
 import { i18n } from '../../i18n'
@@ -95,8 +95,8 @@ export class RefProfilePage implements RefPage {
       </div>
       <div class="ref-profile-hero-info">
         <div class="ref-profile-name" data-ref="name">${vm?.player.name ?? 'Mert Karahan'}</div>
-        <div class="ref-profile-hero-rank-label">GENEL UNVAN</div>
-        <div class="ref-profile-title" data-ref="title">${vm?.player.title ?? 'Holding YK Başkanı'}</div>
+        <div class="ref-profile-hero-rank-label">${i18n.t('ref_profile_general_title_label')}</div>
+        <div class="ref-profile-title" data-ref="title">${vm?.player.title ?? i18n.t('ref_profile_default_title')}</div>
         <div class="ref-profile-meta">
           <span class="ref-profile-meta-chip" data-ref="age">🎂 ${vm?.player.age ?? 34} ${i18n.t('ref_age_suffix')}</span>
           <span class="ref-profile-meta-chip" data-ref="city">📍 ${vm?.player.city ?? 'İstanbul'}</span>
@@ -186,8 +186,8 @@ export class RefProfilePage implements RefPage {
     const firmCount = Object.values(state.producers).filter(c => c > 0).length
     if (isEntrepreneur) {
       const hint = firmCount > 0
-        ? 'Gelir şirketlerinden geliyor · Şirketlerini büyüt'
-        : 'Henüz şirketin yok · İlk şirketini kur'
+        ? i18n.t('ref_profile_entrepreneur_hint_has_firms')
+        : i18n.t('ref_profile_entrepreneur_hint_no_firms')
       return `
         <div class="ref-profile-info-title">${i18n.t('ref_profile_career')}</div>
         <div class="ref-profile-stat-row">
@@ -198,7 +198,7 @@ export class RefProfilePage implements RefPage {
     }
     if (jobId) {
       const job = CAREER_JOBS.find(j => j.id === jobId)
-      const name = job ? `${job.emoji} ${job.name}` : jobId
+      const name = job ? `${job.emoji} ${careerJobName(job)}` : jobId
       const rawPct = xpToNext > 0 ? Math.round((xp / xpToNext) * 100) : 0
       const pct = Math.max(0, Math.min(100, rawPct))
       return `
@@ -208,7 +208,7 @@ export class RefProfilePage implements RefPage {
           <span class="ref-profile-stat-val">${name}</span>
         </div>
         <div class="ref-profile-stat-row">
-          <span class="ref-profile-stat-lbl">Seviye</span>
+          <span class="ref-profile-stat-lbl">${i18n.t('ref_profile_level_label')}</span>
           <span class="ref-profile-stat-val">Lv.${level}</span>
         </div>
         <div class="ref-perf-track sm">

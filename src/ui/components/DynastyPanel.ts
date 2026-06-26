@@ -2,13 +2,13 @@ import type { GameState } from '../../game/GameState'
 import { formatMoney } from '../../game/Economy'
 import { gameDay, gameCalendarDate, lifeGameDay } from '../../game/GameClock'
 import { cityDef } from '../../game/ExpansionMap'
-import { spouseOptionsForPlayer, PLAYER_LIFESPAN, childCareerDef, childAgeYears, DYNASTY_LEGACY_ITEMS, CHILD_EDUCATION_PATHS, HEIR_ROLES, heirRoleDef, type ChildRecord } from '../../game/Dynasty'
-import { FRIEND_TYPES } from '../../game/Friendships'
-import { MENTORS, ENEMIES } from '../../game/MentorEnemy'
-import { HOBBIES } from '../../game/Hobby'
-import { TRAVEL_DESTINATIONS, availableDestinations } from '../../game/Travel'
-import { HOME_ROOMS } from '../../game/Lifestyle'
-import { t } from '../../i18n'
+import { spouseOptionsForPlayer, PLAYER_LIFESPAN, childCareerDef, childAgeYears, DYNASTY_LEGACY_ITEMS, CHILD_EDUCATION_PATHS, HEIR_ROLES, heirRoleDef, type ChildRecord, spouseBonusLabel, legacyItemLabel, legacyItemBonusLabel, heirRoleName, heirRoleDesc, heirRoleBonusLabel, eduPathName, eduPathDesc, childCareerName, childCareerBonusLabel } from '../../game/Dynasty'
+import { FRIEND_TYPES, friendName, friendBonus } from '../../game/Friendships'
+import { MENTORS, ENEMIES, mentorName, mentorTitle, mentorBackstory, mentorQuestLabel, mentorQuestDesc, mentorQuestReward, enemyName, enemyTitle, enemyBackstory, enemyResolveLabel } from '../../game/MentorEnemy'
+import { HOBBIES, hobbyName, hobbyBonus } from '../../game/Hobby'
+import { TRAVEL_DESTINATIONS, availableDestinations, travelName, travelBonus } from '../../game/Travel'
+import { HOME_ROOMS, homeRoomName, homeRoomBonus } from '../../game/Lifestyle'
+import { t, i18n, fmt } from '../../i18n'
 
 function traitLabel(trait: string): string {
   const map: Record<string, string> = {
@@ -52,9 +52,9 @@ export class DynastyPanel {
     const ageBar = document.createElement('div')
     ageBar.className = 'dynasty-age-bar'
     const pct = Math.min(100, (age / PLAYER_LIFESPAN) * 100)
-    const estLabel = estYears < 99 ? `~${estYears} yıl tahmini` : t('dynasty_long_life')
+    const estLabel = estYears < 99 ? fmt('dynasty_est_years', { n: estYears }) : t('dynasty_long_life')
     ageBar.innerHTML = `
-      <label><span>${this.state.playerName} · ${age} yaş</span><span>${estLabel}</span></label>
+      <label><span>${this.state.playerName} · ${age} ${t('ref_age_suffix')}</span><span>${estLabel}</span></label>
       <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${pct}%"></div></div>
     `
     this.root.appendChild(ageBar)
@@ -91,7 +91,7 @@ export class DynastyPanel {
       const suffix = this.state.dynasty.children.length > 0
         ? t('dynasty_death_warn_heir')
         : t('dynasty_death_warn_continue')
-      warn.textContent = `💀 Vefat: ${death.message} — ${suffix}`
+      warn.textContent = `${t('dynasty_death_prefix')} ${death.message} — ${suffix}`
       this.root.appendChild(warn)
     }
 
@@ -118,8 +118,8 @@ export class DynastyPanel {
       locked.className = 'family-locked-banner'
       locked.innerHTML = `
         <span class="family-locked-emoji">💍</span>
-        <strong>Aile sistemi ${DynastyPanel.FAMILY_UNLOCK_AGE} yaşında açılır</strong>
-        <p>Şu an ${age} yaşındasın. Önce kariyerine ve işine odaklan — evlilik ve çocuk sistemi olgunlaşınca açılacak.</p>
+        <strong>${fmt('dynasty_family_locked_title', { age: DynastyPanel.FAMILY_UNLOCK_AGE })}</strong>
+        <p>${fmt('dynasty_family_locked_desc', { age })}</p>
       `
       this.root.appendChild(locked)
       return
@@ -141,7 +141,7 @@ export class DynastyPanel {
       card.innerHTML = `
         <span class="dynasty-spouse-emoji">${s.emoji}</span>
         <strong>${s.name}</strong>
-        <small>${s.bonusLabel}</small>
+        <small>${spouseBonusLabel(s)}</small>
         <small class="dynasty-cost">${formatMoney(s.cost)}</small>
       `
       card.disabled = !this.state.canAfford(s.cost)
@@ -171,17 +171,17 @@ export class DynastyPanel {
         </div>
         <div class="fam-crest">
           <div class="fam-crest-emoji">👑</div>
-          <div class="fam-crest-name">${this.state.playerName} Ailesi</div>
-          <div class="fam-crest-gen">Nesil ${this.state.dynasty.generation}</div>
+          <div class="fam-crest-name">${fmt('dynasty_family_surname', { name: this.state.playerName })}</div>
+          <div class="fam-crest-gen">${fmt('dynasty_gen_label', { n: this.state.dynasty.generation })}</div>
         </div>
         <div class="fam-meters">
           <div class="fam-meter">
-            <span class="fam-meter-label">Aile Nüfuzu</span>
+            <span class="fam-meter-label">${t('dynasty_family_influence')}</span>
             <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${familyInfluence}%;background:#13b8a6"></div></div>
             <span class="fam-meter-val">%${familyInfluence}</span>
           </div>
           <div class="fam-meter">
-            <span class="fam-meter-label">Aile Birliği</span>
+            <span class="fam-meter-label">${t('dynasty_family_unity')}</span>
             <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${familyUnity}%;background:#28c76f"></div></div>
             <span class="fam-meter-val">%${familyUnity}</span>
           </div>
@@ -194,9 +194,9 @@ export class DynastyPanel {
     const satRow = document.createElement('div')
     satRow.className = 'spouse-satisfaction-row'
     const satColor = sat >= 80 ? '#5ee0a0' : sat >= 50 ? '#72b7ff' : sat >= 30 ? '#f8b84e' : '#f87171'
-    const satLabel = sat >= 80 ? 'Çok Mutlu (+%50 trait bonusu)' : sat >= 50 ? 'Mutlu' : sat >= 30 ? 'Huzursuz' : 'Kritik!'
+    const satLabel = sat >= 80 ? t('dynasty_sat_very_happy') : sat >= 50 ? t('dynasty_sat_happy') : sat >= 30 ? t('dynasty_sat_uneasy') : t('dynasty_sat_critical')
     satRow.innerHTML = `
-      <label><span>💕 Eş Memnuniyeti</span><span>${satLabel} · %${sat}</span></label>
+      <label><span>${t('dynasty_spouse_satisfaction_title')}</span><span>${satLabel} · %${sat}</span></label>
       <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${sat}%;background:${satColor}"></div></div>
     `
     this.root.appendChild(satRow)
@@ -204,7 +204,7 @@ export class DynastyPanel {
     giftBtn.type = 'button'
     giftBtn.className = 'btn-sm btn-secondary spouse-gift-btn'
     giftBtn.dataset.action = 'spouse-gift'
-    giftBtn.textContent = `🎁 Hediye ver (${formatMoney(50_000)}) · +20 memnuniyet`
+    giftBtn.textContent = fmt('dynasty_spouse_gift_btn', { cost: formatMoney(50_000) })
     giftBtn.disabled = !this.state.canAfford(50_000)
     this.root.appendChild(giftBtn)
 
@@ -273,7 +273,7 @@ export class DynastyPanel {
     const section = document.createElement('div')
     section.className = 'inheritance-section'
     const title = document.createElement('h4')
-    title.textContent = '📜 Miras Planı'
+    title.textContent = t('dynasty_inheritance_title')
     section.appendChild(title)
 
     const preview = this.state.inheritancePreview()
@@ -282,7 +282,7 @@ export class DynastyPanel {
     const pct = Math.round(preview.transferPct * 100)
     const color = pct >= 85 ? '#5ee0a0' : pct >= 70 ? '#72b7ff' : '#f8b84e'
     pctEl.innerHTML = `
-      <label><span>Tahmini Miras Aktarımı</span><span style="color:${color};font-weight:700">%${pct}</span></label>
+      <label><span>${t('dynasty_inheritance_transfer_label')}</span><span style="color:${color};font-weight:700">%${pct}</span></label>
       <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${pct}%;background:${color}"></div></div>
     `
     section.appendChild(pctEl)
@@ -300,8 +300,8 @@ export class DynastyPanel {
           <div class="iw-seg iw-loss" style="width:${100 - pct}%" title="Vergi/kayıp"></div>
         </div>
         <div class="iw-legend">
-          <span class="iw-legend-item"><span class="iw-dot iw-dot-keep"></span>Varise: ${formatMoney(transfer)}</span>
-          <span class="iw-legend-item"><span class="iw-dot iw-dot-loss"></span>Kayıp: ${formatMoney(loss)}</span>
+          <span class="iw-legend-item"><span class="iw-dot iw-dot-keep"></span>${fmt('dynasty_iw_heir', { amount: formatMoney(transfer) })}</span>
+          <span class="iw-legend-item"><span class="iw-dot iw-dot-loss"></span>${fmt('dynasty_iw_loss', { amount: formatMoney(loss) })}</span>
         </div>
       `
       section.appendChild(wealthBar)
@@ -324,9 +324,14 @@ export class DynastyPanel {
     willBtn.className = `btn-sm btn-secondary inheritance-btn${d.hasWill ? ' plan-done' : ''}`
     willBtn.dataset.action = 'prepare-will'
     willBtn.disabled = d.hasWill || !this.state.canAfford(100_000)
-    willBtn.innerHTML = d.hasWill
-      ? '✅ Vasiyet Hazır'
-      : `📜 Vasiyet Hazırla<small>${formatMoney(100_000)} · miras kaybı azalır</small>`
+    if (d.hasWill) {
+      willBtn.textContent = t('dynasty_will_done')
+    } else {
+      willBtn.textContent = t('dynasty_will_btn_label')
+      const willSmall = document.createElement('small')
+      willSmall.textContent = `${formatMoney(100_000)} · ${t('dynasty_will_btn_hint')}`
+      willBtn.appendChild(willSmall)
+    }
     grid.appendChild(willBtn)
 
     const trustBtn = document.createElement('button')
@@ -334,9 +339,14 @@ export class DynastyPanel {
     trustBtn.className = `btn-sm btn-secondary inheritance-btn${d.hasTrust ? ' plan-done' : ''}`
     trustBtn.dataset.action = 'create-trust'
     trustBtn.disabled = d.hasTrust || !this.state.canAfford(500_000)
-    trustBtn.innerHTML = d.hasTrust
-      ? '✅ Aile Vakfı Kuruldu'
-      : `🏛️ Aile Vakfı Kur<small>${formatMoney(500_000)} · +%5 koruma</small>`
+    if (d.hasTrust) {
+      trustBtn.textContent = t('dynasty_trust_done')
+    } else {
+      trustBtn.textContent = t('dynasty_trust_btn_label')
+      const trustSmall = document.createElement('small')
+      trustSmall.textContent = `${formatMoney(500_000)} · ${t('dynasty_trust_btn_hint')}`
+      trustBtn.appendChild(trustSmall)
+    }
     grid.appendChild(trustBtn)
 
     const constBtn = document.createElement('button')
@@ -344,9 +354,14 @@ export class DynastyPanel {
     constBtn.className = `btn-sm btn-secondary inheritance-btn${d.hasFamilyConstitution ? ' plan-done' : ''}`
     constBtn.dataset.action = 'write-constitution'
     constBtn.disabled = d.hasFamilyConstitution || !this.state.canAfford(250_000)
-    constBtn.innerHTML = d.hasFamilyConstitution
-      ? '✅ Aile Anayasası Yazıldı'
-      : `📋 Aile Anayasası<small>${formatMoney(250_000)} · kardeş kavgası azalır</small>`
+    if (d.hasFamilyConstitution) {
+      constBtn.textContent = t('dynasty_const_done')
+    } else {
+      constBtn.textContent = t('dynasty_const_btn_label')
+      const constSmall = document.createElement('small')
+      constSmall.textContent = `${formatMoney(250_000)} · ${t('dynasty_const_btn_hint')}`
+      constBtn.appendChild(constSmall)
+    }
     grid.appendChild(constBtn)
 
     section.appendChild(grid)
@@ -360,11 +375,11 @@ export class DynastyPanel {
     const section = document.createElement('div')
     section.className = 'home-rooms-section'
     const h4 = document.createElement('h4')
-    h4.textContent = '🏠 Ev Odaları'
+    h4.textContent = t('dynasty_home_rooms_title')
     section.appendChild(h4)
     const desc = document.createElement('p')
     desc.className = 'dynasty-desc'
-    desc.textContent = 'Evine oda ekle — her oda farklı bir yaşam bonusu sağlar.'
+    desc.textContent = t('dynasty_home_rooms_desc')
     section.appendChild(desc)
     const grid = document.createElement('div')
     grid.className = 'home-rooms-grid'
@@ -378,9 +393,9 @@ export class DynastyPanel {
       btn.disabled = isOwned || !this.state.canAfford(room.cost)
       btn.innerHTML = `
         <span>${room.emoji}</span>
-        <span>${room.name}</span>
-        <small>${isOwned ? '✅ Mevcut' : formatMoney(room.cost)}</small>
-        <small>${room.bonusLabel}</small>
+        <span>${homeRoomName(room)}</span>
+        <small>${isOwned ? t('dynasty_home_room_owned') : formatMoney(room.cost)}</small>
+        <small>${homeRoomBonus(room)}</small>
       `
       grid.appendChild(btn)
     }
@@ -393,11 +408,11 @@ export class DynastyPanel {
     const section = document.createElement('div')
     section.className = 'legacy-section'
     const title = document.createElement('h4')
-    title.textContent = '👑 Hanedan Mirası'
+    title.textContent = t('dynasty_legacy_title')
     section.appendChild(title)
     const desc = document.createElement('p')
     desc.className = 'dynasty-desc'
-    desc.textContent = 'IPO sırasında nesle bırakılacak miras kalemlerini seç (maks 3).'
+    desc.textContent = t('dynasty_legacy_desc')
     section.appendChild(desc)
     const grid = document.createElement('div')
     grid.className = 'legacy-items-grid'
@@ -408,7 +423,7 @@ export class DynastyPanel {
       btn.className = `legacy-item-btn${selected.includes(item.id) ? ' legacy-item-selected' : ''}`
       btn.dataset.action = 'toggle-legacy-item'
       btn.dataset.id = item.id
-      btn.innerHTML = `<span>${item.emoji} ${item.label}</span><small>${item.bonusLabel}</small>`
+      btn.innerHTML = `<span>${item.emoji} ${legacyItemLabel(item)}</span><small>${legacyItemBonusLabel(item)}</small>`
       grid.appendChild(btn)
     }
     section.appendChild(grid)
@@ -422,7 +437,7 @@ export class DynastyPanel {
     const section = document.createElement('div')
     section.className = 'friends-section'
     const title = document.createElement('h4')
-    title.textContent = '🤝 Arkadaşlar'
+    title.textContent = t('dynasty_friends_title')
     section.appendChild(title)
     for (const f of friends) {
       const def = FRIEND_TYPES.find((t) => t.id === f.typeId)
@@ -436,12 +451,12 @@ export class DynastyPanel {
           <span class="friend-emoji">${def.emoji}</span>
           <div>
             <strong>${f.name}</strong>
-            <small>${def.name}</small>
+            <small>${friendName(def)}</small>
           </div>
           <span class="friend-rel-pct" style="color:${relColor}">${rel}%</span>
         </div>
         <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${rel}%;background:${relColor}"></div></div>
-        ${rel >= 80 ? `<small class="friend-bonus">${def.highBonusLabel}</small>` : ''}
+        ${rel >= 80 ? `<small class="friend-bonus">${friendBonus(def)}</small>` : ''}
       `
       const btnRow = document.createElement('div')
       btnRow.className = 'friend-card-actions'
@@ -450,13 +465,13 @@ export class DynastyPanel {
       timeBtn.className = 'btn-sm btn-secondary'
       timeBtn.dataset.action = 'friend-time'
       timeBtn.dataset.id = f.typeId
-      timeBtn.textContent = '☕ Vakit geç (+8-15)'
+      timeBtn.textContent = t('dynasty_friend_time_btn')
       const moneyBtn = document.createElement('button')
       moneyBtn.type = 'button'
       moneyBtn.className = 'btn-sm btn-secondary'
       moneyBtn.dataset.action = 'friend-money'
       moneyBtn.dataset.id = f.typeId
-      moneyBtn.textContent = `💸 Para gönder (${formatMoney(10_000)}) +15`
+      moneyBtn.textContent = fmt('dynasty_friend_money_btn', { cost: formatMoney(10_000) })
       moneyBtn.disabled = !this.state.canAfford(10_000)
       btnRow.append(timeBtn, moneyBtn)
       card.appendChild(btnRow)
@@ -474,23 +489,35 @@ export class DynastyPanel {
       const mDef = MENTORS.find((m) => m.id === me.mentorId)
       if (mDef) {
         const mTitle = document.createElement('h4')
-        mTitle.textContent = '🧓 Mentor'
+        mTitle.textContent = `🧓 ${i18n.t('mentor_section_title')}`
         section.appendChild(mTitle)
         const mCard = document.createElement('div')
         mCard.className = 'mentor-card'
         const completedCount = me.completedQuests.length
         const totalCount = mDef.quests.length
-        mCard.innerHTML = `
-          <strong>${mDef.emoji} ${mDef.name}</strong> — ${mDef.title}
-          <small>${mDef.backstory}</small>
-          <small>Tamamlanan görevler: ${completedCount}/${totalCount}</small>
-        `
+        const mNameEl = document.createElement('strong')
+        mNameEl.textContent = `${mDef.emoji} ${mentorName(mDef)} — ${mentorTitle(mDef)}`
+        const mBackstoryEl = document.createElement('small')
+        mBackstoryEl.textContent = mentorBackstory(mDef)
+        const mProgressEl = document.createElement('small')
+        mProgressEl.textContent = fmt('mentor_quest_progress', { completed: completedCount, total: totalCount })
+        mCard.appendChild(mNameEl)
+        mCard.appendChild(mBackstoryEl)
+        mCard.appendChild(mProgressEl)
         // Show active quests
         for (const q of mDef.quests) {
           const done = me.completedQuests.includes(q.id)
           const qEl = document.createElement('div')
           qEl.className = `mentor-quest${done ? ' mentor-quest-done' : ''}`
-          qEl.innerHTML = `${done ? '✅' : '⬜'} <strong>${q.label}</strong>: ${q.description} → ${q.rewardLabel}`
+          const label = mentorQuestLabel(mDef.id, q)
+          const desc = mentorQuestDesc(mDef.id, q)
+          const reward = mentorQuestReward(mDef.id, q)
+          const checkEl = document.createTextNode(`${done ? '✅' : '⬜'} `)
+          const boldEl = document.createElement('strong')
+          boldEl.textContent = label
+          qEl.appendChild(checkEl)
+          qEl.appendChild(boldEl)
+          qEl.appendChild(document.createTextNode(`: ${desc} → ${reward}`))
           mCard.appendChild(qEl)
         }
         section.appendChild(mCard)
@@ -501,18 +528,23 @@ export class DynastyPanel {
       const eDef = ENEMIES.find((e) => e.id === me.enemyId)
       if (eDef) {
         const eTitle = document.createElement('h4')
-        eTitle.textContent = '😈 Düşman'
+        eTitle.textContent = `😈 ${i18n.t('enemy_section_title')}`
         section.appendChild(eTitle)
         const eCard = document.createElement('div')
         eCard.className = 'enemy-card'
         const penalty = Math.round(eDef.dailyIncomePenalty * 100)
-        eCard.innerHTML = `
-          <strong>${eDef.emoji} ${eDef.name}</strong> — ${eDef.title}
-          <small>${eDef.backstory}</small>
-          <small class="enemy-penalty">⚠️ Günlük gelir −%${penalty}</small>
-        `
+        const eNameEl = document.createElement('strong')
+        eNameEl.textContent = `${eDef.emoji} ${enemyName(eDef)} — ${enemyTitle(eDef)}`
+        const eBackstoryEl = document.createElement('small')
+        eBackstoryEl.textContent = enemyBackstory(eDef)
+        const ePenaltyEl = document.createElement('small')
+        ePenaltyEl.className = 'enemy-penalty'
+        ePenaltyEl.textContent = `⚠️ ${fmt('enemy_daily_penalty', { penalty })}`
+        eCard.appendChild(eNameEl)
+        eCard.appendChild(eBackstoryEl)
+        eCard.appendChild(ePenaltyEl)
         const resolveTitle = document.createElement('small')
-        resolveTitle.textContent = 'Çözüm yöntemleri:'
+        resolveTitle.textContent = i18n.t('enemy_resolve_methods_title')
         eCard.appendChild(resolveTitle)
         const resolveBtns = document.createElement('div')
         resolveBtns.className = 'enemy-resolve-btns'
@@ -523,7 +555,8 @@ export class DynastyPanel {
           btn.dataset.action = 'resolve-enemy'
           btn.dataset.id = opt.method
           btn.disabled = !this.state.canAfford(opt.moneyCost)
-          btn.innerHTML = `${opt.emoji} ${opt.label} (${formatMoney(opt.moneyCost)})`
+          const optLabel = enemyResolveLabel(eDef.id, opt)
+          btn.textContent = `${opt.emoji} ${optLabel} (${formatMoney(opt.moneyCost)})`
           resolveBtns.appendChild(btn)
         }
         eCard.appendChild(resolveBtns)
@@ -532,7 +565,7 @@ export class DynastyPanel {
     } else if (me.enemyId && me.enemyResolved) {
       const done = document.createElement('p')
       done.className = 'dynasty-desc'
-      done.textContent = '✅ Düşman bertaraf edildi.'
+      done.textContent = i18n.t('enemy_defeated')
       section.appendChild(done)
     }
 
@@ -555,7 +588,7 @@ export class DynastyPanel {
     card.innerHTML = `
       <span class="dynasty-child-emoji">${isHeir ? '👑' : '🧒'}</span>
       <div class="child-card-body">
-        <strong>${c.name} · ${ageYears} yaş</strong>
+        <strong>${c.name} · ${ageYears} ${t('ref_age_suffix')}</strong>
         <small>${traitLabel(c.trait)}</small>
         <small class="child-risk-warn">${c.riskLabel ?? ''}</small>
         <small>${bornLabel} · 😊 %${happiness}</small>
@@ -565,11 +598,11 @@ export class DynastyPanel {
         </div>
         ${eduPathDef ? `
           <div class="child-edu-row">
-            <small>📚 ${eduPathDef.emoji} ${eduPathDef.name}: %${eduXp}</small>
+            <small>📚 ${eduPathDef.emoji} ${eduPathName(eduPathDef)}: %${eduXp}</small>
             <div class="chart-progress" style="height:6px"><div class="chart-progress-fill" style="width:${eduXp}%;background:#60a5fa"></div></div>
           </div>` : ''}
-        ${roleDef ? `<small class="child-role-line">👔 ${roleDef.emoji} ${roleDef.name} — ${roleDef.bonusLabel}</small>` : ''}
-        ${careerInfo && !roleDef ? `<small>🎓 ${careerInfo.emoji} ${careerInfo.name} — ${careerInfo.bonusLabel}</small>` : ''}
+        ${roleDef ? `<small class="child-role-line">👔 ${roleDef.emoji} ${heirRoleName(roleDef)} — ${heirRoleBonusLabel(roleDef)}</small>` : ''}
+        ${careerInfo && !roleDef ? `<small>🎓 ${careerInfo.emoji} ${childCareerName(careerInfo)} — ${childCareerBonusLabel(careerInfo)}</small>` : ''}
       </div>
     `
     const actions = document.createElement('div')
@@ -579,7 +612,7 @@ export class DynastyPanel {
     if (ageYears >= 10 && !c.educationPath) {
       const eduLabel = document.createElement('small')
       eduLabel.className = 'child-career-prompt'
-      eduLabel.textContent = '📚 Eğitim yolu seç:'
+      eduLabel.textContent = t('dynasty_child_edu_prompt')
       actions.appendChild(eduLabel)
       for (const path of CHILD_EDUCATION_PATHS) {
         const eb = document.createElement('button')
@@ -587,8 +620,8 @@ export class DynastyPanel {
         eb.className = 'btn-sm btn-secondary'
         eb.dataset.action = 'child-education-path'
         eb.dataset.id = `${c.id}:${path.id}`
-        eb.title = path.description
-        eb.textContent = `${path.emoji} ${path.name}`
+        eb.title = eduPathDesc(path)
+        eb.textContent = `${path.emoji} ${eduPathName(path)}`
         actions.appendChild(eb)
       }
     }
@@ -597,7 +630,7 @@ export class DynastyPanel {
     if (ageYears >= 18 && !c.heirRole) {
       const roleLabel = document.createElement('small')
       roleLabel.className = 'child-career-prompt'
-      roleLabel.textContent = '👔 Şirkette rol ver:'
+      roleLabel.textContent = t('dynasty_child_role_prompt')
       actions.appendChild(roleLabel)
       // Eğitim yoluna uygun rolü öne çıkar
       const suggestedRole = c.educationPath
@@ -609,8 +642,8 @@ export class DynastyPanel {
         rb.className = `btn-sm btn-secondary${role.id === suggestedRole ? ' role-suggested' : ''}`
         rb.dataset.action = 'heir-role'
         rb.dataset.id = `${c.id}:${role.id}`
-        rb.title = `${role.description} · ${role.bonusLabel}`
-        rb.textContent = `${role.emoji} ${role.name}${role.id === suggestedRole ? ' ⭐' : ''}`
+        rb.title = `${heirRoleDesc(role)} · ${heirRoleBonusLabel(role)}`
+        rb.textContent = `${role.emoji} ${heirRoleName(role)}${role.id === suggestedRole ? ' ⭐' : ''}`
         actions.appendChild(rb)
       }
     }
@@ -621,7 +654,7 @@ export class DynastyPanel {
     timeBtn.className = 'btn-sm btn-secondary'
     timeBtn.dataset.action = 'child-time'
     timeBtn.dataset.id = c.id
-    timeBtn.textContent = '👨‍👧 Vakit geç'
+    timeBtn.textContent = t('dynasty_child_time_btn')
     actions.appendChild(timeBtn)
 
     // Yetiştirme tarzı (sadece henüz seçilmemişse)
@@ -631,13 +664,13 @@ export class DynastyPanel {
       strictBtn.className = 'btn-sm btn-secondary'
       strictBtn.dataset.action = 'child-parenting'
       strictBtn.dataset.id = `${c.id}:strict`
-      strictBtn.textContent = '📚 Katı'
+      strictBtn.textContent = t('dynasty_parenting_strict')
       const freeBtn = document.createElement('button')
       freeBtn.type = 'button'
       freeBtn.className = 'btn-sm btn-secondary'
       freeBtn.dataset.action = 'child-parenting'
       freeBtn.dataset.id = `${c.id}:free`
-      freeBtn.textContent = '🎈 Serbest'
+      freeBtn.textContent = t('dynasty_parenting_free')
       actions.append(strictBtn, freeBtn)
     }
 
@@ -657,13 +690,13 @@ export class DynastyPanel {
     const section = document.createElement('div')
     section.className = 'hobby-section'
     const title = document.createElement('h4')
-    title.textContent = '🎯 Hobi'
+    title.textContent = t('dynasty_hobby_title')
     section.appendChild(title)
 
     if (!hobby.hobbyId) {
       const desc = document.createElement('p')
       desc.className = 'dynasty-desc'
-      desc.textContent = 'Bir hobi seç — zaman ve para gerektiriyor ama uzun vadeli bonuslar açıyor.'
+      desc.textContent = t('dynasty_hobby_desc')
       section.appendChild(desc)
       const grid = document.createElement('div')
       grid.className = 'hobby-grid'
@@ -673,7 +706,7 @@ export class DynastyPanel {
         btn.className = 'btn-secondary hobby-btn'
         btn.dataset.action = 'set-hobby'
         btn.dataset.id = h.id
-        btn.innerHTML = `<span>${h.emoji} ${h.name}</span><small>${h.bonusLabel}</small><small>Aylık: ${formatMoney(h.monthlyCost)}</small>`
+        btn.innerHTML = `<span>${h.emoji} ${hobbyName(h)}</span><small>${hobbyBonus(h)}</small><small>${fmt('dynasty_hobby_monthly', { cost: formatMoney(h.monthlyCost) })}</small>`
         grid.appendChild(btn)
       }
       section.appendChild(grid)
@@ -684,10 +717,10 @@ export class DynastyPanel {
         card.className = 'hobby-active-card'
         const active = hobby.bonusActive
         card.innerHTML = `
-          <strong>${def.emoji} ${def.name}</strong>
-          <small>${def.bonusLabel}</small>
-          <small>Aylık maliyet: ${formatMoney(def.monthlyCost)}</small>
-          <small>${active ? '✅ Bonus aktif' : `⏳ Bonus ${3 - hobby.monthsActive} ay sonra aktif`}</small>
+          <strong>${def.emoji} ${hobbyName(def)}</strong>
+          <small>${hobbyBonus(def)}</small>
+          <small>${fmt('dynasty_hobby_monthly_cost', { cost: formatMoney(def.monthlyCost) })}</small>
+          <small>${active ? t('dynasty_hobby_bonus_active') : fmt('dynasty_hobby_bonus_soon', { n: 3 - hobby.monthsActive })}</small>
         `
         section.appendChild(card)
       }
@@ -701,13 +734,13 @@ export class DynastyPanel {
     const section = document.createElement('div')
     section.className = 'social-status-section'
     const h4 = document.createElement('h4')
-    h4.textContent = '🏆 Sosyal Statü'
+    h4.textContent = t('dynasty_social_status_title')
     section.appendChild(h4)
     const bar = document.createElement('div')
     bar.className = 'social-status-row'
     const fill = Math.min(100, (score / 200) * 100)
     bar.innerHTML = `
-      <label><span>${emoji} ${title}</span><span>${score} puan</span></label>
+      <label><span>${emoji} ${title}</span><span>${fmt('dynasty_social_score', { n: score })}</span></label>
       <div class="dynasty-age-track"><div class="dynasty-age-fill" style="width:${fill}%;background:var(--accent,#d4af37)"></div></div>
     `
     section.appendChild(bar)
@@ -718,7 +751,7 @@ export class DynastyPanel {
     const section = document.createElement('div')
     section.className = 'travel-section'
     const h4 = document.createElement('h4')
-    h4.textContent = '✈️ Seyahat'
+    h4.textContent = t('dynasty_travel_title')
     section.appendChild(h4)
 
     const available = availableDestinations(this.state.totalEarned)
@@ -731,7 +764,8 @@ export class DynastyPanel {
       if (lastDef) {
         const badge = document.createElement('p')
         badge.className = 'dynasty-desc'
-        badge.textContent = `Son seyahat: ${lastDef.emoji} ${lastDef.name} · Toplam ${travelState.totalTrips} gezi${bonusActive ? ` · ✨ ${lastDef.bonusLabel}` : ''}`
+        const baseTravelText = fmt('dynasty_last_travel', { emoji: lastDef.emoji, name: travelName(lastDef), trips: travelState.totalTrips })
+        badge.textContent = bonusActive ? `${baseTravelText} ${fmt('dynasty_travel_bonus_suffix', { bonus: travelBonus(lastDef) })}` : baseTravelText
         section.appendChild(badge)
       }
     }
@@ -739,7 +773,7 @@ export class DynastyPanel {
     if (available.length === 0) {
       const hint = document.createElement('p')
       hint.className = 'dynasty-desc'
-      hint.textContent = `İlk destinasyon ${formatMoney(TRAVEL_DESTINATIONS[0]!.unlockAt)} toplam kazançta açılır.`
+      hint.textContent = fmt('dynasty_travel_unlock_hint', { amount: formatMoney(TRAVEL_DESTINATIONS[0]!.unlockAt) })
       section.appendChild(hint)
     } else {
       const grid = document.createElement('div')
@@ -753,9 +787,9 @@ export class DynastyPanel {
         btn.disabled = !this.state.canAfford(dest.cost)
         btn.innerHTML = `
           <span class="travel-emoji">${dest.emoji}</span>
-          <span class="travel-name">${dest.name}</span>
-          <small>${dest.durationDays} gün · ${formatMoney(dest.cost)}</small>
-          <small>${dest.bonusLabel}</small>
+          <span class="travel-name">${travelName(dest)}</span>
+          <small>${fmt('dynasty_travel_duration', { days: dest.durationDays, cost: formatMoney(dest.cost) })}</small>
+          <small>${travelBonus(dest)}</small>
         `
         grid.appendChild(btn)
       }
@@ -770,7 +804,7 @@ export class DynastyPanel {
     const section = document.createElement('div')
     section.className = 'family-tree-section'
     const h4 = document.createElement('h4')
-    h4.textContent = '🌳 Soy Ağacı'
+    h4.textContent = t('dynasty_family_tree_title')
     section.appendChild(h4)
     const tree = document.createElement('div')
     tree.className = 'family-tree'
@@ -780,9 +814,9 @@ export class DynastyPanel {
       node.className = 'family-tree-node'
       const peakFmt = formatMoney(rec.peakNetWorth)
       node.innerHTML = `
-        <span class="tree-gen">Nesil ${rec.generation}</span>
+        <span class="tree-gen">${fmt('dynasty_gen_label', { n: rec.generation })}</span>
         <span class="tree-name">${rec.name ?? 'Baron'}</span>
-        <span class="tree-years">${rec.birthYear}–${rec.deathYear} (${rec.ageAtDeath} yaş)</span>
+        <span class="tree-years">${fmt('dynasty_tree_years', { birth: rec.birthYear, death: rec.deathYear, age: rec.ageAtDeath })}</span>
         <span class="tree-peak">💰 ${peakFmt}</span>
         ${rec.achievements.length > 0 ? `<small>${rec.achievements[0]}</small>` : ''}
       `
@@ -796,13 +830,13 @@ export class DynastyPanel {
   private renderLifeTimeline(age: number): void {
     const s = this.state
     const cal = gameCalendarDate(s.gameTimeMs)
-    const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara']
+    const months = [t('month_jan'), t('month_feb'), t('month_mar'), t('month_apr'), t('month_may'), t('month_jun'), t('month_jul'), t('month_aug'), t('month_sep'), t('month_oct'), t('month_nov'), t('month_dec')]
     const dateLabel = `${months[cal.getUTCMonth()]} ${cal.getUTCFullYear()}`
     const city = cityDef(s.activeCityId())
     const d = s.dynasty
     const familyLabel = d.spouseName
-      ? `Evli${d.children.length > 0 ? ` · ${d.children.length} çocuk` : ''}`
-      : 'Bekar'
+      ? `${t('dynasty_married')}${d.children.length > 0 ? ` · ${fmt('dynasty_children_count', { n: d.children.length })}` : ''}`
+      : t('dynasty_single')
 
     const section = document.createElement('div')
     section.className = 'life-timeline-section'
@@ -811,19 +845,19 @@ export class DynastyPanel {
     const info = document.createElement('div')
     info.className = 'life-info-card'
     info.innerHTML = `
-      <div class="life-info-row"><span>👤 ${s.playerName}</span><span>${age} yaş</span></div>
+      <div class="life-info-row"><span>👤 ${s.playerName}</span><span>${age} ${t('ref_age_suffix')}</span></div>
       <div class="life-info-row life-info-sub"><span>📅 ${dateLabel}</span><span>${city.emoji} ${city.label}</span></div>
-      <div class="life-info-row life-info-sub"><span>👨‍👩‍👧 ${familyLabel}</span><span>Nesil ${d.generation}</span></div>
+      <div class="life-info-row life-info-sub"><span>👨‍👩‍👧 ${familyLabel}</span><span>${fmt('dynasty_gen_label', { n: d.generation })}</span></div>
     `
     section.appendChild(info)
 
     // Yaşam çizgisi: 22 Başlangıç → 30 Aile → 50 Miras → 60 Emeklilik → 70 Risk
     const milestones = [
-      { age: 25, label: 'Aile', emoji: '💍' },
-      { age: 40, label: 'Olgunluk', emoji: '🏢' },
-      { age: 50, label: 'Miras', emoji: '📜' },
-      { age: 60, label: 'Emeklilik', emoji: '🌅' },
-      { age: 70, label: 'Risk', emoji: '⚠️' },
+      { age: 25, label: t('dynasty_milestone_family'), emoji: '💍' },
+      { age: 40, label: t('dynasty_milestone_maturity'), emoji: '🏢' },
+      { age: 50, label: t('dynasty_milestone_legacy'), emoji: '📜' },
+      { age: 60, label: t('dynasty_milestone_retirement'), emoji: '🌅' },
+      { age: 70, label: t('dynasty_milestone_risk'), emoji: '⚠️' },
     ]
     const minAge = 18
     const maxAge = 80
@@ -843,7 +877,7 @@ export class DynastyPanel {
     timeline.innerHTML = `
       <div class="life-timeline-track">
         <div class="life-timeline-fill" style="width:${agePct}%"></div>
-        <div class="life-timeline-now" style="left:${agePct}%" title="${age} yaş">🧍</div>
+        <div class="life-timeline-now" style="left:${agePct}%" title="${age} ${t('ref_age_suffix')}">🧍</div>
       </div>
       <div class="life-timeline-marks">${marks}</div>
     `
@@ -865,7 +899,7 @@ export class DynastyPanel {
     for (const r of risks) {
       const chip = document.createElement('span')
       chip.className = `mortality-risk mortality-risk-${r.level}`
-      chip.title = `Günlük risk: ~${r.dailyPct.toFixed(3)}%`
+      chip.title = fmt('dynasty_daily_risk_tooltip', { pct: r.dailyPct.toFixed(3) })
       chip.textContent = `${r.emoji} ${r.label}`
       list.appendChild(chip)
     }

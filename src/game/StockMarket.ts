@@ -1,3 +1,5 @@
+import { requiredDomainText, fmt } from '../i18n'
+
 export interface StockTicker {
   id: string
   name: string
@@ -79,7 +81,7 @@ export function createStockState(): StockState {
     marketEventMult: 1,
     centralBankRate: 0.055,
     marketFear: 28,
-    macroHeadline: 'Merkez bankası faiz oranı %5.5',
+    macroHeadline: fmt('stock_initial_rate', { rate: '5.5' }),
     bankruptTickerId: null,
     bankruptUntil: 0,
     lastMacroTick: Date.now(),
@@ -115,7 +117,7 @@ export function migrateStockState(raw: StockState): StockState {
   state.marketEventMult = raw.marketEventMult ?? 1
   state.centralBankRate = typeof raw.centralBankRate === 'number' ? raw.centralBankRate : 0.055
   state.marketFear = typeof raw.marketFear === 'number' ? raw.marketFear : 28
-  state.macroHeadline = raw.macroHeadline ?? `Merkez bankası faiz oranı %${(state.centralBankRate * 100).toFixed(1)}`
+  state.macroHeadline = raw.macroHeadline ?? fmt('stock_initial_rate', { rate: (state.centralBankRate * 100).toFixed(1) })
   state.bankruptTickerId = raw.bankruptTickerId ?? null
   state.bankruptUntil = raw.bankruptUntil ?? 0
   state.lastMacroTick = raw.lastMacroTick ?? Date.now()
@@ -206,8 +208,8 @@ export function tickMacro(state: StockState, now: number): MacroTickResult | nul
     const delta = hike ? 0.005 + Math.random() * 0.01 : -(0.005 + Math.random() * 0.008)
     state.centralBankRate = Math.max(0.02, Math.min(0.14, state.centralBankRate + delta))
     state.macroHeadline = hike
-      ? `📈 Merkez bankası faizi yükseltti → %${(state.centralBankRate * 100).toFixed(1)}`
-      : `📉 Merkez bankası faizi indirdi → %${(state.centralBankRate * 100).toFixed(1)}`
+      ? fmt('stock_rate_hike', { rate: (state.centralBankRate * 100).toFixed(1) })
+      : fmt('stock_rate_cut', { rate: (state.centralBankRate * 100).toFixed(1) })
     for (const t of Object.values(state.tickers)) {
       t.price *= 1 + sectorRateEffect(t.sector, delta) * 0.5
       t.price = Math.max(8, t.price)
@@ -227,23 +229,23 @@ export function tickMacro(state: StockState, now: number): MacroTickResult | nul
     state.bankruptTickerId = victimId
     state.bankruptUntil = now + 180_000
     state.marketFear = Math.min(95, state.marketFear + 12)
-    state.macroHeadline = `💀 ${victim.name} iflas riski — fiyat %${Math.round(drop * 100)} düştü!`
+    state.macroHeadline = fmt('stock_bankruptcy', { name: stockTickerName(victimId), drop: Math.round(drop * 100) })
     return { headline: state.macroHeadline, kind: 'bankruptcy', crash: true }
   }
 
   if (state.marketFear < 35 && Math.random() < 0.1) {
     state.marketFear = Math.max(10, state.marketFear - 8)
-    state.macroHeadline = '🌤️ Piyasalar toparlanıyor — korku endeksi düşüyor'
+    state.macroHeadline = requiredDomainText('stock_recovery')
     return { headline: state.macroHeadline, kind: 'recovery' }
   }
 
   if (state.marketFear > 70 && Math.random() < 0.15) {
-    state.macroHeadline = '😱 Piyasa paniği — volatilite yükseldi'
+    state.macroHeadline = requiredDomainText('stock_panic')
     return { headline: state.macroHeadline, kind: 'panic', crash: true }
   }
 
   // Update headline with sector-specific news
-  state.macroHeadline = generateSectorNews(state)
+  state.macroHeadline = generateSectorNewsI18n(state)
   return null
 }
 
@@ -253,7 +255,7 @@ export function startMarketEvent(state: StockState, crash: boolean): void {
   state.marketFear = crash
     ? Math.min(95, state.marketFear + 15)
     : Math.max(8, state.marketFear - 10)
-  state.macroHeadline = crash ? '📉 Genel piyasa çöküşü başladı!' : '📈 Piyasa rallisi — alıcılar agresif'
+  state.macroHeadline = crash ? requiredDomainText('stock_crash') : requiredDomainText('stock_rally')
 }
 
 export function liquidatePortfolio(state: StockState, discount = 1): number {
@@ -323,19 +325,7 @@ export function priceChangePct(ticker: StockTicker): number {
 }
 
 export function generateSectorNews(state: StockState): string {
-  const fear = state.marketFear
-  const rate = state.centralBankRate
-  const techPrice = state.tickers.tech?.price ?? 100
-  const energyPrice = state.tickers.energy?.price ?? 80
-
-  if (fear >= 75) return '📉 Piyasalarda panik satışı — tüm sektörler düşüşte'
-  if (fear >= 55) return '⚠️ Merkez Bankası uyarıda — yatırımcılar temkinli'
-  if (fear <= 25) return '🚀 Borsa rekor kırdı — yatırımcı güveni zirve'
-  if (rate >= 0.07) return '🏦 Yüksek faiz baskısı — gayrimenkul ve teknoloji geri çekiliyor'
-  if (rate <= 0.03) return '💚 Düşük faiz ortamı — büyüme hisseleri öne çıkıyor'
-  if (techPrice > 130) return '💻 Teknoloji sektörü rallisi — dijital dönüşüm hızlanıyor'
-  if (energyPrice > 100) return '⚡ Enerji fiyatları yükseliyor — sanayi maliyetleri artıyor'
-  return `📊 Piyasalar dengede — faiz %${(rate * 100).toFixed(1)}, korku endeksi ${Math.round(fear)}`
+  return generateSectorNewsI18n(state)
 }
 
 export function portfolioSummary(state: StockState): {
@@ -379,11 +369,32 @@ export function sparklinePath(history: number[], width: number, height: number):
     .join(' ')
 }
 
+export function stockTickerName(id: string): string {
+  const key = `stock_${id}_name` as Parameters<typeof requiredDomainText>[0]
+  return requiredDomainText(key)
+}
+
 export function fearLabel(fear: number): string {
-  if (fear >= 75) return 'Aşırı korku'
-  if (fear >= 55) return 'Temkinli'
-  if (fear >= 35) return 'Nötr'
-  return 'İyimser'
+  if (fear >= 75) return requiredDomainText('stock_fear_extreme')
+  if (fear >= 55) return requiredDomainText('stock_fear_cautious')
+  if (fear >= 35) return requiredDomainText('stock_fear_neutral')
+  return requiredDomainText('stock_fear_optimistic')
+}
+
+export function generateSectorNewsI18n(state: StockState): string {
+  const fear = state.marketFear
+  const rate = state.centralBankRate
+  const techPrice = state.tickers.tech?.price ?? 100
+  const energyPrice = state.tickers.energy?.price ?? 80
+
+  if (fear >= 75) return requiredDomainText('stock_news_panic')
+  if (fear >= 55) return requiredDomainText('stock_news_cautious_warning')
+  if (fear <= 25) return requiredDomainText('stock_news_record')
+  if (rate >= 0.07) return requiredDomainText('stock_news_high_rate')
+  if (rate <= 0.03) return requiredDomainText('stock_news_low_rate')
+  if (techPrice > 130) return requiredDomainText('stock_news_tech_rally')
+  if (energyPrice > 100) return requiredDomainText('stock_news_energy_rise')
+  return fmt('stock_news_balanced', { rate: (rate * 100).toFixed(1), fear: Math.round(fear) })
 }
 
 export function isBankruptTicker(state: StockState, tickerId: string): boolean {

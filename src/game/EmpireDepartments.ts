@@ -1,3 +1,5 @@
+import { requiredDomainText } from '../i18n'
+
 export type DepartmentId =
   | 'operasyon'
   | 'finans'
@@ -33,6 +35,19 @@ export const DEPARTMENTS: DepartmentDef[] = [
 
 export function departmentDef(id: DepartmentId): DepartmentDef {
   return DEPARTMENTS.find((d) => d.id === id) ?? DEPARTMENTS[0]!
+}
+
+export function departmentName(d: DepartmentDef): string {
+  return requiredDomainText(`dept_${d.id}_name`)
+}
+export function departmentDesc(d: DepartmentDef): string {
+  return requiredDomainText(`dept_${d.id}_desc`)
+}
+export function departmentBonus(d: DepartmentDef): string {
+  return requiredDomainText(`dept_${d.id}_bonus`)
+}
+export function departmentTask(d: DepartmentDef): string {
+  return requiredDomainText(`dept_${d.id}_task`)
 }
 
 export function departmentUpgradeCost(id: DepartmentId, currentLevel: number): number {

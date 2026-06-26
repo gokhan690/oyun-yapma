@@ -1,3 +1,5 @@
+import { i18n } from '../i18n'
+
 function isNative(): boolean {
   return typeof window !== 'undefined'
     && 'Capacitor' in window
@@ -102,11 +104,11 @@ export function scheduleWebAlarms(prefs: NotificationPrefs): void {
     timeoutIds.push(id)
   }
 
-  scheduleAt(10, 'İş İmparatorluğu 🏢', '🎁 Günlük ödülün seni bekliyor!', prefs.dailyReward)
-  scheduleAt(20, 'İş İmparatorluğu 🏢', '💼 Pasif gelirin birikiyor — kontrol et.', prefs.passiveIncome)
-  scheduleAt(14, 'İş İmparatorluğu 🎯', 'Günlük hedefe yaklaşıyorsun!', prefs.goalNear)
-  scheduleAt(21, 'İş İmparatorluğu 🔥', 'Streak kaybetme — bugün giriş yap!', prefs.dailyReward)
-  scheduleAt(18, 'İş İmparatorluğu ⏳', 'Golden event fırsatı yaklaşıyor — oyuna dön!', prefs.passiveIncome)
+  scheduleAt(10, `${i18n.t('notif_app_title')} 🏢`, `🎁 ${i18n.t('notif_daily_reward_body')}`, prefs.dailyReward)
+  scheduleAt(20, `${i18n.t('notif_app_title')} 🏢`, `💼 ${i18n.t('notif_passive_income_body')}`, prefs.passiveIncome)
+  scheduleAt(14, `${i18n.t('notif_app_title')} 🎯`, i18n.t('notif_goal_near_body'), prefs.goalNear)
+  scheduleAt(21, `${i18n.t('notif_app_title')} 🔥`, i18n.t('notif_streak_body'), prefs.dailyReward)
+  scheduleAt(18, `${i18n.t('notif_app_title')} ⏳`, i18n.t('notif_golden_event_body'), prefs.passiveIncome)
   window.localStorage.setItem(WEB_ALARM_KEY, JSON.stringify(timeoutIds))
 }
 
@@ -133,8 +135,8 @@ export async function scheduleDailyReminder(prefs?: NotificationPrefs): Promise<
       tomorrow.setHours(10, 0, 0, 0)
       notifications.push({
         id: 1001,
-        title: 'İş İmparatorluğu 🏢',
-        body: '🎁 Günlük ödülün seni bekliyor! Geri dön ve topla.',
+        title: `${i18n.t('notif_app_title')} 🏢`,
+        body: `🎁 ${i18n.t('notif_daily_reward_full_body')}`,
         schedule: { at: tomorrow },
         smallIcon: 'ic_launcher',
         channelId: 'daily',
@@ -147,8 +149,8 @@ export async function scheduleDailyReminder(prefs?: NotificationPrefs): Promise<
       evening.setHours(20, 0, 0, 0)
       notifications.push({
         id: 1002,
-        title: 'İş İmparatorluğu 🏢',
-        body: '💼 İşletmelerin gelir üretiyor! Kontrol et.',
+        title: `${i18n.t('notif_app_title')} 🏢`,
+        body: `💼 ${i18n.t('notif_passive_income_full_body')}`,
         schedule: { at: evening },
         smallIcon: 'ic_launcher',
         channelId: 'daily',
@@ -161,8 +163,8 @@ export async function scheduleDailyReminder(prefs?: NotificationPrefs): Promise<
       noon.setHours(14, 0, 0, 0)
       notifications.push({
         id: 1003,
-        title: 'İş İmparatorluğu 🎯',
-        body: 'Günlük hedefe yaklaşıyorsun — son sprint!',
+        title: `${i18n.t('notif_app_title')} 🎯`,
+        body: i18n.t('notif_goal_near_full_body'),
         schedule: { at: noon },
         smallIcon: 'ic_launcher',
         channelId: 'daily',

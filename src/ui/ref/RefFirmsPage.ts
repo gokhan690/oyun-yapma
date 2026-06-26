@@ -1,23 +1,23 @@
 import { RefKpiStrip, type KpiItem }  from './RefKpiStrip'
 import { RefCard, type FirmData } from './RefCard'
 import { fmtMoney, refToast } from './refShared'
-import { i18n, requiredDomainText } from '../../i18n'
+import { i18n, fmt, requiredDomainText } from '../../i18n'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
-import { PRODUCERS, isProducerUnlocked, type ProducerDef } from '../../game/Economy'
+import { PRODUCERS, isProducerUnlocked, producerName, producerDesc, type ProducerDef } from '../../game/Economy'
 import { FIRM_MAX_LEVEL, firmLevelIncomeMult, isFirmMaxLevel } from '../../game/FirmLevels'
 import { hasManager } from '../../game/Managers'
 import { modernizeCost } from '../../game/TechObsolescence'
 
 /* ── Mock data (gerçek veri/state yoksa saf önizleme) ──────────────────── */
 const MOCK_FIRMS: FirmData[] = [
-  { id: 'firin_1', name: 'Karahan Fırınları', slogan: 'Taze her gün', category: 'bakery', sector: 'gida', emoji: '🥖', level: 7, stars: 4, status: 'Büyüyor', income: 580_000, expense: 210_000, growth: 12.1, city: 'Ankara', performance: 76 },
-  { id: 'firin_2', name: 'Altın Ekmek', category: 'bakery', sector: 'gida', emoji: '🥖', level: 5, stars: 3, status: 'Karlı', income: 410_000, expense: 160_000, growth: 9.4, city: 'Konya', performance: 71 },
-  { id: 'kahve_1', name: 'Mavi Çekirdek', category: 'coffee', sector: 'gida', emoji: '☕', level: 8, stars: 5, status: 'Karlı', income: 1_120_000, expense: 340_000, growth: 9.7, city: 'İzmir', performance: 84 },
-  { id: 'berber_1', name: 'Beyoğlu Berber', category: 'barber', sector: 'hizmet', emoji: '💈', level: 6, stars: 4, status: 'Karlı', income: 320_000, expense: 120_000, growth: 8.3, city: 'İstanbul', performance: 82 },
-  { id: 'eticaret_1', name: 'TrendAl', category: 'ecommerce', sector: 'teknoloji', emoji: '🛒', level: 6, stars: 4, status: 'Büyüyor', income: 890_000, expense: 260_000, growth: 15.2, city: 'İstanbul', performance: 88 },
-  { id: 'yazilim_1', name: 'Piksel Stüdyo', category: 'software', sector: 'teknoloji', emoji: '💻', level: 5, stars: 3, status: 'Karlı', income: 760_000, expense: 190_000, growth: 11.4, city: 'Bursa', performance: 63 },
-  { id: 'lojistik_1', name: 'Hızlı Kargo', category: 'logistics', sector: 'hizmet', emoji: '🚚', level: 4, stars: 2, status: 'Riskli', income: 1_050_000, expense: 180_000, growth: 7.6, city: 'Mersin', performance: 48, riskLevel: 65 },
+  { id: 'firin_1', name: 'Karahan Fırınları', slogan: 'Taze her gün', category: 'bakery', sector: 'gida', emoji: '🥖', level: 7, stars: 4, status: 'buyuyor', income: 580_000, expense: 210_000, growth: 12.1, city: 'Ankara', performance: 76 },
+  { id: 'firin_2', name: 'Altın Ekmek', category: 'bakery', sector: 'gida', emoji: '🥖', level: 5, stars: 3, status: 'karli', income: 410_000, expense: 160_000, growth: 9.4, city: 'Konya', performance: 71 },
+  { id: 'kahve_1', name: 'Mavi Çekirdek', category: 'coffee', sector: 'gida', emoji: '☕', level: 8, stars: 5, status: 'karli', income: 1_120_000, expense: 340_000, growth: 9.7, city: 'İzmir', performance: 84 },
+  { id: 'berber_1', name: 'Beyoğlu Berber', category: 'barber', sector: 'hizmet', emoji: '💈', level: 6, stars: 4, status: 'karli', income: 320_000, expense: 120_000, growth: 8.3, city: 'İstanbul', performance: 82 },
+  { id: 'eticaret_1', name: 'TrendAl', category: 'ecommerce', sector: 'teknoloji', emoji: '🛒', level: 6, stars: 4, status: 'buyuyor', income: 890_000, expense: 260_000, growth: 15.2, city: 'İstanbul', performance: 88 },
+  { id: 'yazilim_1', name: 'Piksel Stüdyo', category: 'software', sector: 'teknoloji', emoji: '💻', level: 5, stars: 3, status: 'karli', income: 760_000, expense: 190_000, growth: 11.4, city: 'Bursa', performance: 63 },
+  { id: 'lojistik_1', name: 'Hızlı Kargo', category: 'logistics', sector: 'hizmet', emoji: '🚚', level: 4, stars: 2, status: 'riskli', income: 1_050_000, expense: 180_000, growth: 7.6, city: 'Mersin', performance: 48, riskLevel: 65 },
 ]
 
 /* ── Kategori ayrımı: İmparatorluk yatırımları normal listeden ayrılır ──── */
@@ -60,13 +60,18 @@ const EMPIRE_PRODUCER_FILTER: Record<EmpireTab, (p: ProducerDef) => boolean> = {
   finans:  p => p.category === 'finance',
 }
 
-const CAT_LABELS: Partial<Record<string, string>> = {
-  sport:    '⚽ Futbol',
-  politics: '🏛️ Siyaset',
-  dark:     '🔥 Yeraltı',
-  luxury:   '💎 Lüks',
-  science:  '🔬 Bilim',
-  finance:  '📊 Finans',
+const CAT_LABEL_META: Partial<Record<string, { emoji: string; key: string }>> = {
+  sport:    { emoji: '⚽', key: 'firms_empire_tab_futbol' },
+  politics: { emoji: '🏛️', key: 'firms_empire_tab_siyaset' },
+  dark:     { emoji: '🔥', key: 'firms_empire_tab_yeralti' },
+  luxury:   { emoji: '💎', key: 'firms_empire_tab_luks' },
+  science:  { emoji: '🔬', key: 'firms_empire_tab_bilim' },
+  finance:  { emoji: '📊', key: 'firms_empire_tab_finans' },
+}
+/** Producer kategori → görünür çip etiketi (render-time i18n). */
+function catLabel(category: string): string {
+  const meta = CAT_LABEL_META[category]
+  return meta ? `${meta.emoji} ${requiredDomainText(meta.key)}` : ''
 }
 
 type MainTab = 'normal' | 'empire'
@@ -153,10 +158,10 @@ export class RefFirmsPage implements RefPage {
     const totalIncome = data.reduce((a, f) => a + f.income, 0)
     const avgPerf = data.length ? Math.round(data.reduce((a, f) => a + f.performance, 0) / data.length) : 0
     return new RefKpiStrip([
-      { icon: '🏢', label: 'Aktif Firma', value: String(data.length), sub: 'Toplam', subDir: 'muted' },
-      { icon: '📈', label: 'Firmalardan Gelir', value: fmtMoney(totalIncome), sub: 'İşletme gelirleri', subDir: 'up' },
-      { icon: '💰', label: 'Yasadışı Gelir', value: 'Yok', sub: 'Günlük', subDir: 'muted' },
-      { icon: '⚙️', label: 'Verimlilik', value: `${avgPerf}%`, sub: 'Ortalama', subDir: 'muted' },
+      { icon: '🏢', label: i18n.t('firms_kpi_active_firm'), value: String(data.length), sub: i18n.t('firms_kpi_total_sub'), subDir: 'muted' },
+      { icon: '📈', label: i18n.t('firms_kpi_income_label'), value: fmtMoney(totalIncome), sub: i18n.t('firms_kpi_income_sub'), subDir: 'up' },
+      { icon: '💰', label: i18n.t('firms_kpi_illegal_income'), value: i18n.t('ref_life_none'), sub: i18n.t('firms_kpi_daily_sub'), subDir: 'muted' },
+      { icon: '⚙️', label: i18n.t('firms_kpi_efficiency'), value: `${avgPerf}%`, sub: i18n.t('firms_kpi_efficiency_sub'), subDir: 'muted' },
     ]).el
   }
 
@@ -197,18 +202,18 @@ export class RefFirmsPage implements RefPage {
     this.buyModeRow = document.createElement('div')
     this.buyModeRow.className = 'ref-buy-mode-row'
     this.buyModeRow.innerHTML = `
-      <span class="ref-buy-mode-lbl">Adet:</span>
+      <span class="ref-buy-mode-lbl">${i18n.t('firms_qty_label')}</span>
       <button class="ref-buy-mode-btn active" data-buy-mode="1">1×</button>
       <button class="ref-buy-mode-btn" data-buy-mode="10">10×</button>
       <button class="ref-buy-mode-btn" data-buy-mode="100">100×</button>
-      <button class="ref-buy-mode-btn" data-buy-mode="max">Max</button>`
+      <button class="ref-buy-mode-btn" data-buy-mode="max">${i18n.t('firms_buy_max')}</button>`
     wrap.appendChild(this.buyModeRow)
 
     // Tier filter
     this.tierFilterRow = document.createElement('div')
     this.tierFilterRow.className = 'ref-tier-filter-row'
     this.tierFilterRow.innerHTML = `
-      <button class="ref-tier-btn active" data-tier-filter="tumu">Tümü</button>
+      <button class="ref-tier-btn active" data-tier-filter="tumu">${i18n.t('firms_tier_all')}</button>
       <button class="ref-tier-btn" data-tier-filter="small">T1–3</button>
       <button class="ref-tier-btn" data-tier-filter="medium">T4–6</button>
       <button class="ref-tier-btn" data-tier-filter="large">T7+</button>`
@@ -285,14 +290,14 @@ export class RefFirmsPage implements RefPage {
     const cat = (def as ProducerDef & { category?: string }).category ?? def.id
     return {
       id: def.id,
-      name: def.name,
-      slogan: def.description,
+      name: producerName(def),
+      slogan: producerDesc(def),
       category: cat,
       emoji: def.emoji,
       level: lv,
       stars: Math.min(5, Math.max(1, lv)),
       maxStars: FIRM_MAX_LEVEL,
-      status: owned > 0 ? 'Karlı' : 'Büyüyor',
+      status: owned > 0 ? 'karli' : 'buyuyor',
       income,
       expense,
       growth: 5 + lv * 1.5,
@@ -352,15 +357,15 @@ export class RefFirmsPage implements RefPage {
     let footRight: string
     if (!unlocked) {
       const reason = (def.ipoRequirement && s.ipoCount < def.ipoRequirement)
-        ? `🔒 ${def.ipoRequirement} IPO gerekli`
-        : `🔒 ${fmtMoney(def.unlockAt)} kazanınca`
+        ? `🔒 ${fmt('firms_lock_ipo_fmt', { n: String(def.ipoRequirement) })}`
+        : `🔒 ${fmt('firms_lock_earn_fmt', { amount: fmtMoney(def.unlockAt) })}`
       footRight = `<span class="ref-prod-locked-lbl">${reason}</span>`
     } else if (canBuy) {
       const qtyLbl = this.buyMode === 'max' ? `Max(${qty})×` : `+${qty}×`
-      footRight = `<button class="ref-prod-btn buyable" type="button">${owned > 0 ? qtyLbl : 'SATIN AL'} · ${fmtMoney(cost)}</button>`
+      footRight = `<button class="ref-prod-btn buyable" type="button">${owned > 0 ? qtyLbl : i18n.t('firms_buy_button')} · ${fmtMoney(cost)}</button>`
     } else {
       const cost1 = s.producerCostFor(def, owned, 1)
-      footRight = `<button class="ref-prod-btn disabled" type="button" disabled>Para Yetersiz · ${fmtMoney(cost1)}</button>`
+      footRight = `<button class="ref-prod-btn disabled" type="button" disabled>${i18n.t('firms_insufficient')} · ${fmtMoney(cost1)}</button>`
     }
 
     const lvPips = owned > 0
@@ -372,44 +377,44 @@ export class RefFirmsPage implements RefPage {
       ? `<span class="ref-prod-lv-badge${isFirmMaxLevel(firmLv) ? ' ref-prod-lv-badge--max' : ''}">Lv.${firmLv}</span>`
       : ''
 
-    const incomeMult = owned > 0 && firmLv > 1 ? `<small class="ref-prod-lv-mult">×${firmLevelIncomeMult(firmLv).toFixed(2)} gelir</small>` : ''
+    const incomeMult = owned > 0 && firmLv > 1 ? `<small class="ref-prod-lv-mult">${fmt('firms_income_mult_fmt', { mult: firmLevelIncomeMult(firmLv).toFixed(2) })}</small>` : ''
 
     const lvBtn = owned > 0
       ? `<button class="ref-prod-lvl-btn${canLevelUp ? ' ref-prod-lvl-btn--active' : ''}" type="button" data-levelup="${def.id}" ${canLevelUp ? '' : 'disabled'}>
-          ⬆️ GELİŞTİR ${isFirmMaxLevel(firmLv) ? '(MAK)' : `· Lv.${firmLv + 1} · ${fmtMoney(lvCost)}`}
+          ⬆️ ${i18n.t('firms_upgrade_button')} ${isFirmMaxLevel(firmLv) ? `(${i18n.t('firms_upgrade_max')})` : `· Lv.${firmLv + 1} · ${fmtMoney(lvCost)}`}
         </button>`
       : ''
 
     const manBtn = owned > 0 && !managerHired
       ? `<button class="ref-prod-action-btn manager${canManager ? '' : ' disabled'}" type="button" data-manager="${def.id}" ${canManager ? '' : 'disabled'}>
-           👔 YÖNET. · ${fmtMoney(manCost)}
+           👔 ${i18n.t('firms_manager_button')} · ${fmtMoney(manCost)}
          </button>`
       : owned > 0 && managerHired
-        ? `<span class="ref-prod-badge-ok">✓ Yönetici</span>`
+        ? `<span class="ref-prod-badge-ok">✓ ${i18n.t('firms_manager_owned')}</span>`
         : ''
 
     const modBtn = owned > 0 && s.ipoCount > 0 && !isModernized
       ? `<button class="ref-prod-action-btn modernize${canModernize ? '' : ' disabled'}" type="button" data-modernize="${def.id}" ${canModernize ? '' : 'disabled'}>
-           🔧 MODERNİZE · ${fmtMoney(modCost)}
+           🔧 ${i18n.t('firms_modernize_button')} · ${fmtMoney(modCost)}
          </button>`
       : owned > 0 && isModernized
-        ? `<span class="ref-prod-badge-ok">✓ Modern</span>`
+        ? `<span class="ref-prod-badge-ok">✓ ${i18n.t('firms_modern_owned')}</span>`
         : ''
 
     card.innerHTML = `
       <div class="ref-prod-card__head">
         <span class="ref-prod-emoji">${def.emoji}</span>
         <div class="ref-prod-info">
-          <div class="ref-prod-name">${def.name}${owned > 0 ? `<span class="ref-prod-owned-badge">×${owned}</span>` : ''}${lvBadge}</div>
-          <div class="ref-prod-desc">${def.description}${incomeMult}</div>
+          <div class="ref-prod-name">${producerName(def)}${owned > 0 ? `<span class="ref-prod-owned-badge">×${owned}</span>` : ''}${lvBadge}</div>
+          <div class="ref-prod-desc">${producerDesc(def)}${incomeMult}</div>
         </div>
       </div>
       ${lvPips}
       <div class="ref-prod-stats">
-        <span class="ref-prod-stat"><small>Kademe</small><b>T${def.tier}</b></span>
-        <span class="ref-prod-stat"><small>${owned > 0 ? 'Gelir/g' : 'Birim'}</small><b class="inc">${fmtMoney(income)}</b></span>
-        <span class="ref-prod-stat"><small>Adet</small><b>${owned > 0 ? owned : '—'}</b></span>
-        <span class="ref-prod-stat"><small>Maliyet</small><b>${fmtMoney(s.producerCostFor(def, owned, 1))}</b></span>
+        <span class="ref-prod-stat"><small>${i18n.t('firms_stat_tier')}</small><b>T${def.tier}</b></span>
+        <span class="ref-prod-stat"><small>${owned > 0 ? i18n.t('firms_stat_income_per_day') : i18n.t('firms_stat_unit')}</small><b class="inc">${fmtMoney(income)}</b></span>
+        <span class="ref-prod-stat"><small>${i18n.t('firms_stat_count')}</small><b>${owned > 0 ? owned : '—'}</b></span>
+        <span class="ref-prod-stat"><small>${i18n.t('firms_stat_cost')}</small><b>${fmtMoney(s.producerCostFor(def, owned, 1))}</b></span>
       </div>
       <div class="ref-prod-card__foot">
         ${footRight}
@@ -438,21 +443,21 @@ export class RefFirmsPage implements RefPage {
     card.querySelector<HTMLButtonElement>('.ref-prod-btn.buyable')?.addEventListener('click', () => {
       const buyQty = this.getQty(def, this.state!)
       const ok = this.state?.buyProducer(def.id, Math.max(1, buyQty))
-      if (ok) refToast(`${def.emoji} ${def.name} ×${buyQty} alındı`, 'ok')
-      else refToast('Satın alınamadı', 'err')
+      if (ok) refToast(`${def.emoji} ${fmt('firms_toast_bought_fmt', { name: producerName(def), qty: String(buyQty) })}`, 'ok')
+      else refToast(i18n.t('firms_toast_buy_failed'), 'err')
     })
 
     card.querySelector<HTMLButtonElement>('[data-levelup]')?.addEventListener('click', (e) => {
       e.stopPropagation()
       const ok = this.state?.levelUpFirm(def.id)
       if (ok) {
-        refToast(`⬆️ ${def.emoji} ${def.name} Lv.${this.state!.producerLevel(def.id)}`, 'ok')
+        refToast(`⬆️ ${def.emoji} ${fmt('firms_toast_levelup_fmt', { name: producerName(def), level: String(this.state!.producerLevel(def.id)) })}`, 'ok')
         const newCard = this.buildOneProducerCard(def, this.state!)
         card.replaceWith(newCard)
         this.producerCards.set(def.id, newCard)
         this.updateSummary()
       } else {
-        refToast('Seviye atlatılamadı', 'err')
+        refToast(i18n.t('firms_toast_levelup_failed'), 'err')
       }
     })
 
@@ -460,12 +465,12 @@ export class RefFirmsPage implements RefPage {
       e.stopPropagation()
       const ok = this.state?.hireManager(def.id)
       if (ok) {
-        refToast(`👔 ${def.name} yöneticisi işe alındı`, 'ok')
+        refToast(`👔 ${fmt('firms_toast_manager_hired_fmt', { name: producerName(def) })}`, 'ok')
         const newCard = this.buildOneProducerCard(def, this.state!)
         card.replaceWith(newCard)
         this.producerCards.set(def.id, newCard)
       } else {
-        refToast('Yönetici işe alınamadı', 'err')
+        refToast(i18n.t('firms_toast_manager_failed'), 'err')
       }
     })
 
@@ -473,12 +478,12 @@ export class RefFirmsPage implements RefPage {
       e.stopPropagation()
       const ok = this.state?.modernizeProducer(def.id)
       if (ok) {
-        refToast(`🔧 ${def.name} modernize edildi`, 'ok')
+        refToast(`🔧 ${fmt('firms_toast_modernized_fmt', { name: producerName(def) })}`, 'ok')
         const newCard = this.buildOneProducerCard(def, this.state!)
         card.replaceWith(newCard)
         this.producerCards.set(def.id, newCard)
       } else {
-        refToast('Modernize edilemedi', 'err')
+        refToast(i18n.t('firms_toast_modernize_failed'), 'err')
       }
     })
 
@@ -518,8 +523,8 @@ export class RefFirmsPage implements RefPage {
     const s = this.state
     const ownedTypes = NORMAL_PRODUCERS.filter(p => (s.producers[p.id] ?? 0) > 0).length
     const html = `
-      <span class="ref-summary-count">${NORMAL_PRODUCERS.length} işletme türü · ${ownedTypes} sahip</span>
-      <span class="ref-summary-total">Nakit: ${fmtMoney(Math.round(s.money))}</span>
+      <span class="ref-summary-count">${fmt('firms_summary_count_fmt', { total: String(NORMAL_PRODUCERS.length), owned: String(ownedTypes) })}</span>
+      <span class="ref-summary-total">${fmt('firms_summary_cash_fmt', { cash: fmtMoney(Math.round(s.money)) })}</span>
     `
     if (html === this.lastSummaryHtml) return
     this.lastSummaryHtml = html
@@ -533,7 +538,7 @@ export class RefFirmsPage implements RefPage {
 
     const note = document.createElement('div')
     note.className = 'ref-preview-note ref-firms-note'
-    note.textContent = '🔒 Önizleme modu · gerçek oyun verisi yok (mock)'
+    note.textContent = `🔒 ${i18n.t('firms_preview_note')}`
     wrap.appendChild(note)
 
     wrap.appendChild(this.buildCatTabs())
@@ -542,8 +547,8 @@ export class RefFirmsPage implements RefPage {
     summary.className = 'ref-summary-strip'
     const totalIncome = data.reduce((a, f) => a + f.income, 0)
     summary.innerHTML = `
-      <span class="ref-summary-count">${data.length} firma gösteriliyor</span>
-      <span class="ref-summary-total">Toplam: ${fmtMoney(totalIncome)} / Gün</span>`
+      <span class="ref-summary-count">${fmt('firms_mock_count_fmt', { count: String(data.length) })}</span>
+      <span class="ref-summary-total">${fmt('firms_mock_total_fmt', { total: fmtMoney(totalIncome) })}</span>`
     wrap.appendChild(summary)
 
     this.cardsContainer = document.createElement('div')
@@ -594,8 +599,8 @@ export class RefFirmsPage implements RefPage {
     const note = document.createElement('div')
     note.className = 'ref-preview-note' + (this.state ? ' live-mode' : '')
     note.textContent = this.state
-      ? '👑 İmparatorluk yatırımları · gerçek veri · Büyüt aktif'
-      : '🔒 Önizleme modu · gerçek oyun verisi yok (mock)'
+      ? `👑 ${i18n.t('firms_empire_live_note')}`
+      : `🔒 ${i18n.t('firms_preview_note')}`
     wrap.appendChild(note)
 
     const tabBar = document.createElement('div')
@@ -635,7 +640,7 @@ export class RefFirmsPage implements RefPage {
     content.innerHTML = ''
     this.lastEmpireSig = this.state ? this.empireTabSig(id, this.state) : ''
     if (!list.length) {
-      content.innerHTML = '<div class="ref-empire-empty">Bu kategoride içerik yok.</div>'
+      content.innerHTML = `<div class="ref-empire-empty">${i18n.t('firms_empire_empty')}</div>`
       return
     }
     const grid = document.createElement('div')
@@ -650,29 +655,30 @@ export class RefFirmsPage implements RefPage {
 
       let foot: string
       if (!s) {
-        foot = `<button class="ref-prod-btn disabled" type="button" disabled>${fmtMoney(def.baseCost)} · önizleme</button>`
+        foot = `<button class="ref-prod-btn disabled" type="button" disabled>${fmtMoney(def.baseCost)} · ${i18n.t('firms_preview_suffix')}</button>`
       } else if (!unlocked) {
         const reason = (def.ipoRequirement && s.ipoCount < def.ipoRequirement)
-          ? `🔒 ${def.ipoRequirement} IPO gerekli`
-          : `🔒 ${fmtMoney(def.unlockAt)} kazanınca`
+          ? `🔒 ${fmt('firms_lock_ipo_fmt', { n: String(def.ipoRequirement) })}`
+          : `🔒 ${fmt('firms_lock_earn_fmt', { amount: fmtMoney(def.unlockAt) })}`
         foot = `<span class="ref-prod-locked-lbl">${reason}</span>`
       } else if (canBuy) {
-        foot = `<button class="ref-prod-btn buyable" type="button" data-buy="${def.id}">${owned > 0 ? '📈 BÜYÜT' : 'SATIN AL'} · ${fmtMoney(cost)}</button>`
+        foot = `<button class="ref-prod-btn buyable" type="button" data-buy="${def.id}">${owned > 0 ? `📈 ${i18n.t('firms_grow_button')}` : i18n.t('firms_buy_button')} · ${fmtMoney(cost)}</button>`
       } else {
-        foot = `<button class="ref-prod-btn disabled" type="button" disabled>Para Yetersiz · ${fmtMoney(cost)}</button>`
+        foot = `<button class="ref-prod-btn disabled" type="button" disabled>${i18n.t('firms_insufficient')} · ${fmtMoney(cost)}</button>`
       }
 
       const card = document.createElement('div')
       card.className = 'ref-empire-card' + (owned > 0 ? ' owned' : '') + (s && !unlocked ? ' locked' : '') + (def.category ? ` ref-empire-card--cat-${def.category}` : '')
-      const catChip = def.category && CAT_LABELS[def.category]
-        ? `<span class="ref-empire-cat-chip ref-empire-cat-chip--${def.category}">${CAT_LABELS[def.category]}</span>`
+      const catChipLabel = def.category ? catLabel(def.category) : ''
+      const catChip = catChipLabel
+        ? `<span class="ref-empire-cat-chip ref-empire-cat-chip--${def.category}">${catChipLabel}</span>`
         : ''
       card.innerHTML = `
         <div class="ref-empire-card__head">
           <span class="ref-empire-card__emoji">${def.emoji}</span>
           <div class="ref-empire-card__info">
-            <div class="ref-empire-card__name">${def.name}${catChip}</div>
-            <div class="ref-empire-card__tier">Tier ${def.tier} · ${owned > 0 ? `<b>${owned} adet · ${fmtMoney(income)}/g</b>` : 'Sahip değilsin'}</div>
+            <div class="ref-empire-card__name">${producerName(def)}${catChip}</div>
+            <div class="ref-empire-card__tier">${fmt('firms_empire_tier_fmt', { tier: String(def.tier) })} · ${owned > 0 ? `<b>${fmt('firms_empire_owned_fmt', { count: String(owned), income: fmtMoney(income) })}</b>` : i18n.t('firms_empire_not_owned')}</div>
           </div>
           ${owned > 0 ? '<span class="ref-empire-card__badge">✓</span>' : ''}
         </div>
@@ -680,8 +686,8 @@ export class RefFirmsPage implements RefPage {
 
       card.querySelector<HTMLButtonElement>('[data-buy]')?.addEventListener('click', () => {
         const ok = this.state?.buyProducer(def.id, 1)
-        if (ok) refToast(`${def.emoji} ${def.name} büyütüldü`, 'ok')
-        else refToast('Satın alınamadı', 'err')
+        if (ok) refToast(`${def.emoji} ${fmt('firms_toast_grown_fmt', { name: producerName(def) })}`, 'ok')
+        else refToast(i18n.t('firms_toast_buy_failed'), 'err')
       })
       grid.appendChild(card)
     }
@@ -701,10 +707,10 @@ export class RefFirmsPage implements RefPage {
     const illegalIncome = Math.round(s.illegalIncomePerDay())
     const ownedNormal   = NORMAL_PRODUCERS.filter(p => (s.producers[p.id] ?? 0) > 0).length
     return [
-      { icon: '🏪', label: 'İşletme Türü',   value: String(NORMAL_PRODUCERS.length), sub: `${ownedNormal} sahip`, subDir: 'muted' },
-      { icon: '📈', label: 'Yasal Gelir',    value: fmtMoney(legalIncome), sub: 'Günlük', subDir: 'up' },
-      { icon: '💰', label: 'Yasadışı Gelir', value: illegalIncome > 0 ? fmtMoney(illegalIncome) : 'Yok', sub: 'Günlük', subDir: 'muted' },
-      { icon: '💵', label: 'Nakit',          value: fmtMoney(Math.round(s.money)), sub: 'Likit', subDir: 'muted' },
+      { icon: '🏪', label: i18n.t('firms_kpi_biz_type'),   value: String(NORMAL_PRODUCERS.length), sub: fmt('firms_kpi_owned_sub_fmt', { count: String(ownedNormal) }), subDir: 'muted' },
+      { icon: '📈', label: i18n.t('firms_kpi_legal_income'),    value: fmtMoney(legalIncome), sub: i18n.t('firms_kpi_daily_sub'), subDir: 'up' },
+      { icon: '💰', label: i18n.t('firms_kpi_illegal_income'), value: illegalIncome > 0 ? fmtMoney(illegalIncome) : i18n.t('ref_life_none'), sub: i18n.t('firms_kpi_daily_sub'), subDir: 'muted' },
+      { icon: '💵', label: i18n.t('ref_career_cash_label'),          value: fmtMoney(Math.round(s.money)), sub: i18n.t('ref_dash_cash_sub'), subDir: 'muted' },
     ]
   }
 

@@ -1,31 +1,34 @@
 import { ua, ringSvg, demoBanner, fmtMoney } from './refShared'
-import { i18n } from '../../i18n'
+import { i18n, fmt } from '../../i18n'
+import type { Translations } from '../../i18n/keys'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
-import { ACHIEVEMENTS, type AchievementDef } from '../../game/Achievements'
-import { BADGES, type BadgeDef } from '../../game/Badges'
-import type { MissionProgress } from '../../game/Missions'
+import { ACHIEVEMENTS, achievementName, achievementDesc, type AchievementDef } from '../../game/Achievements'
+import { BADGES, badgeName, badgeDesc, type BadgeDef } from '../../game/Badges'
+import { missionProgressLabel, type MissionProgress } from '../../game/Missions'
 
 const A = REF_ASSETS_V2_GENERIC.achievements
 
 type TabKey = 'gorevler' | 'hedefler' | 'basarilar' | 'rozetler'
-const TABS: { id: TabKey; label: string }[] = [
-  { id: 'gorevler',  label: 'Görevler' },
-  { id: 'hedefler',  label: 'Hedefler' },
-  { id: 'basarilar', label: i18n.t('ref_achievements_tab') },
-  { id: 'rozetler',  label: 'Rozetler' },
+const TABS: { id: TabKey; labelKey: keyof Translations }[] = [
+  { id: 'gorevler',  labelKey: 'ref_ach_tab_missions' },
+  { id: 'hedefler',  labelKey: 'ref_ach_tab_goals' },
+  { id: 'basarilar', labelKey: 'ref_achievements_tab' },
+  { id: 'rozetler',  labelKey: 'ref_ach_tab_badges' },
 ]
 
 /* ── Başarı kategorileri (id desenlerinden türetilir — Achievements.ts'e dokunmaz) ── */
 type AchCat = 'para' | 'isletme' | 'borsa' | 'aktivite'
-const CAT_CHIPS: { id: AchCat | 'tumu'; label: string }[] = [
-  { id: 'tumu',     label: 'Tümü' },
-  { id: 'para',     label: '💰 Para' },
-  { id: 'isletme',  label: '🏢 İşletme' },
-  { id: 'borsa',    label: '📊 Borsa' },
-  { id: 'aktivite', label: '🎮 Aktivite' },
-]
+type CatId = AchCat | 'tumu'
+const CAT_IDS: CatId[] = ['tumu', 'para', 'isletme', 'borsa', 'aktivite']
+const CAT_LABEL_KEYS: Record<CatId, keyof Translations> = {
+  tumu:     'ref_ach_cat_all',
+  para:     'ref_ach_cat_money',
+  isletme:  'ref_ach_cat_business',
+  borsa:    'ref_ach_cat_stock',
+  aktivite: 'ref_ach_cat_activity',
+}
 function achCategory(id: string): AchCat {
   if (/^first_|millionaire|^earn_|billion|lifetime/.test(id)) return 'para'
   if (/stock|hedge|tree_|prestige|^ipo_/.test(id)) return 'borsa'
@@ -33,8 +36,7 @@ function achCategory(id: string): AchCat {
   return 'isletme'
 }
 function catLabel(id: string): string {
-  const MAP: Record<AchCat, string> = { para: '💰 Para', isletme: '🏢 İşletme', borsa: '📊 Borsa', aktivite: '🎮 Aktivite' }
-  return MAP[achCategory(id)] ?? '🎮 Aktivite'
+  return i18n.t(CAT_LABEL_KEYS[achCategory(id)])
 }
 
 /* ── Kupa görseli: ödül büyüklüğüne göre kademe ── */
@@ -47,18 +49,24 @@ function cupForReward(reward: number): string {
 
 /* ── MOCK (standalone önizleme — gerçek state yokken) ── */
 interface MockRow { ico: string; name: string; desc: string; pct: number; prog: string; reward: string; state: 'done' | 'active' | 'locked' }
-const MOCK_TASKS: MockRow[] = [
-  { ico: '🏭', name: '3 Firmayı Modernize Et', desc: 'Bugün 3 işletmeyi geliştir', pct: 66, prog: '2/3', reward: '+₺500K', state: 'active' },
-  { ico: '⭐', name: 'İtibarı 9,0’a Çıkar',     desc: 'Saygın baron statüsü', pct: 88, prog: '8,7/9', reward: '+İtibar', state: 'active' },
-  { ico: '👤', name: 'Yeni Yönetici Ata',       desc: 'Bir firmaya yönetici ata', pct: 0,  prog: '0/1', reward: '+XP',     state: 'locked' },
-  { ico: '📦', name: 'Lojistik Rotasını Aç',    desc: 'Yeni kargo hattı kur', pct: 100, prog: '1/1', reward: '+₺200K', state: 'done' },
-]
-const MOCK_BADGES = [
-  { asset: A.badgeCompleted, label: 'Kurucu',   on: true },
-  { asset: A.badgeCompleted, label: 'Milyoner', on: true },
-  { asset: A.badgeActive,    label: 'Yatırımcı', on: true },
-  { asset: A.badgeLocked,    label: 'Tekel',    on: false },
-]
+function buildMockTasks(): MockRow[] {
+  const biz = i18n.t('ref_ach_cat_business')
+  const act = i18n.t('ref_ach_cat_activity')
+  return [
+    { ico: '🏭', name: biz, desc: biz, pct: 66,  prog: '2/3',    reward: '+₺500K', state: 'active' },
+    { ico: '⭐', name: act, desc: act, pct: 88,  prog: '8.7/9',  reward: '+XP',    state: 'active' },
+    { ico: '👤', name: biz, desc: biz, pct: 0,   prog: '0/1',    reward: '+XP',    state: 'locked' },
+    { ico: '📦', name: act, desc: act, pct: 100, prog: '1/1',    reward: '+₺200K', state: 'done' },
+  ]
+}
+function buildMockBadges() {
+  return [
+    { asset: A.badgeCompleted, labelKey: 'ref_ach_cat_business' as const, on: true },
+    { asset: A.badgeCompleted, labelKey: 'ref_ach_cat_money'    as const, on: true },
+    { asset: A.badgeActive,    labelKey: 'ref_ach_cat_stock'    as const, on: true },
+    { asset: A.badgeLocked,    labelKey: 'ref_ach_cat_activity' as const, on: false },
+  ]
+}
 const MOCK_MILESTONES = [
   { cup: A.cupBronze, label: '10', reached: true },
   { cup: A.cupSilver, label: '25', reached: false },
@@ -67,9 +75,9 @@ const MOCK_MILESTONES = [
 ]
 
 function statusBadge(state: 'done' | 'active' | 'locked'): string {
-  if (state === 'done') return '<span class="ref-tstatus done">✓ Tamamlandı</span>'
-  if (state === 'active') return '<span class="ref-tstatus active">● Devam Ediyor</span>'
-  return '<span class="ref-tstatus locked">🔒 Kilitli</span>'
+  if (state === 'done') return `<span class="ref-tstatus done">${i18n.t('ref_ach_status_done')}</span>`
+  if (state === 'active') return `<span class="ref-tstatus active">${i18n.t('ref_ach_status_active')}</span>`
+  return `<span class="ref-tstatus locked">${i18n.t('ref_ach_status_locked')}</span>`
 }
 function mockRowHtml(t: MockRow): string {
   return `
@@ -86,7 +94,7 @@ function mockRowHtml(t: MockRow): string {
 
 export class RefAchievementsPage implements RefPage {
   readonly el: HTMLElement
-  readonly title = i18n.t('ref_achievements_title')
+  get title(): string { return i18n.t('ref_achievements_title') }
 
   onBack?: () => void
 
@@ -112,14 +120,14 @@ export class RefAchievementsPage implements RefPage {
     const top = document.createElement('div')
     top.className = 'ref-ach-top'
     top.innerHTML = `
-      <button class="ref-back-btn" type="button">‹ Geri</button>
-      <span class="ref-ach-count">${doneCount} / ${total} tamamlandı</span>
+      <button class="ref-back-btn" type="button">${i18n.t('ref_back')}</button>
+      <span class="ref-ach-count">${fmt('ref_ach_completed_fmt', { done: String(doneCount), total: String(total) })}</span>
     `
     top.querySelector('.ref-back-btn')!.addEventListener('click', () => this.onBack?.())
     this.el.appendChild(top)
     this.countEl = top.querySelector('.ref-ach-count') as HTMLElement
 
-    if (!state) this.el.appendChild(demoBanner('görev/başarı ilerlemesi önizleme — gerçek oyun verisi yok'))
+    if (!state) this.el.appendChild(demoBanner(i18n.t('ref_ach_demo_banner')))
 
     // Tamamlanma halkası + milestone çizgisi
     const summary = document.createElement('div')
@@ -132,7 +140,7 @@ export class RefAchievementsPage implements RefPage {
     const mil = document.createElement('div')
     mil.className = 'ref-ach-milestone'
     mil.innerHTML = `
-      <div class="ref-ach-milestone__lbl">Başarı Kupası Yolu</div>
+      <div class="ref-ach-milestone__lbl">${i18n.t('ref_ach_milestone_title')}</div>
       <div class="ref-milestone-track">
         <div class="ref-milestone-line"><div class="ref-milestone-fill" style="width:${pct}%"></div></div>
         ${milestones.map(m => `
@@ -150,7 +158,7 @@ export class RefAchievementsPage implements RefPage {
     for (const tab of TABS) {
       const btn = document.createElement('button')
       btn.className = 'ref-ach-tab' + (tab.id === this.activeTab ? ' active' : '')
-      btn.textContent = tab.label
+      btn.textContent = i18n.t(tab.labelKey)
       btn.addEventListener('click', () => this.setTab(tab.id))
       this.tabBtns.set(tab.id, btn)
       tabs.appendChild(btn)
@@ -171,7 +179,7 @@ export class RefAchievementsPage implements RefPage {
     const doneCount = state.achievements.size
     const total = ACHIEVEMENTS.length
     const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0
-    this.countEl.textContent = `${doneCount} / ${total} tamamlandı`
+    this.countEl.textContent = fmt('ref_ach_completed_fmt', { done: String(doneCount), total: String(total) })
     this.ringWrap.innerHTML = ringSvg(pct, `%${pct}`, `${doneCount} / ${total}`, 104, 10, '#F6A609')
     this.renderTab()
   }
@@ -205,12 +213,12 @@ export class RefAchievementsPage implements RefPage {
   private renderGorevler(): void {
     const s = this.state
     if (!s) {
-      this.contentEl.innerHTML = `<div class="ref-trow-list">${MOCK_TASKS.map(mockRowHtml).join('')}</div>`
+      this.contentEl.innerHTML = `<div class="ref-trow-list">${buildMockTasks().map(mockRowHtml).join('')}</div>`
       return
     }
     const missions = s.missions ?? []
     if (missions.length === 0) {
-      this.contentEl.innerHTML = this.emptyHtml('🗓️', 'Bugün için görev yok', 'Yeni günlük görevler her gün yenilenir.')
+      this.contentEl.innerHTML = this.emptyHtml('🗓️', i18n.t('ref_ach_no_missions_title'), i18n.t('ref_ach_no_missions_desc'))
       return
     }
     this.contentEl.innerHTML = `<div class="ref-trow-list">${missions.map(m => this.missionRowHtml(m)).join('')}</div>`
@@ -220,15 +228,15 @@ export class RefAchievementsPage implements RefPage {
     const pct = Math.max(0, Math.min(100, Math.round((m.progress / Math.max(1, m.target)) * 100)))
     const stClass: 'done' | 'active' = m.claimed || pct >= 100 ? 'done' : 'active'
     const statusHtml = m.claimed
-      ? '<span class="ref-tstatus done">✓ Alındı</span>'
+      ? `<span class="ref-tstatus done">${i18n.t('ref_ach_claimed_status')}</span>`
       : statusBadge(pct >= 100 ? 'done' : 'active')
     const tierIco = m.tier === 'risky' ? '🔥' : m.tier === 'strategic' ? '🎯' : '✅'
-    const reward = m.rewardMoney > 0 ? fmtMoney(m.rewardMoney) : m.rewardBoostMinutes > 0 ? `${m.rewardBoostMinutes}dk boost` : '+XP'
+    const reward = m.rewardMoney > 0 ? fmtMoney(m.rewardMoney) : m.rewardBoostMinutes > 0 ? fmt('ref_ach_boost_reward_fmt', { min: String(m.rewardBoostMinutes) }) : '+XP'
     return `
       <div class="ref-trow ${stClass}">
         <span class="ref-trow__ico">${tierIco}</span>
         <div class="ref-trow__main">
-          <div class="ref-trow__head"><span class="ref-trow__name">${m.label}</span>${statusHtml}</div>
+          <div class="ref-trow__head"><span class="ref-trow__name">${missionProgressLabel(m)}</span>${statusHtml}</div>
           <div class="ref-perf-track sm"><div class="ref-perf-fill ${pct >= 70 ? 'high' : pct > 0 ? 'medium' : 'low'}" style="width:${pct}%"></div></div>
           <div class="ref-trow__foot"><span class="ref-trow__prog">${Math.min(m.progress, m.target)}/${m.target}</span><span class="ref-trow__reward">🎁 ${reward}</span></div>
         </div>
@@ -239,22 +247,22 @@ export class RefAchievementsPage implements RefPage {
   private renderHedefler(): void {
     const s = this.state
     if (!s) {
-      this.contentEl.innerHTML = this.emptyHtml('🎯', 'Hedefler önizlemede', 'Gerçek oyunda bir sonraki büyük hedeflerin burada listelenir.')
+      this.contentEl.innerHTML = this.emptyHtml('🎯', i18n.t('ref_ach_goals_preview_title'), i18n.t('ref_ach_goals_preview_desc'))
       return
     }
     const locked = ACHIEVEMENTS.filter(a => !s.achievements.has(a.id)).sort((a, b) => a.reward - b.reward).slice(0, 8)
     if (locked.length === 0) {
-      this.contentEl.innerHTML = this.emptyHtml('🏆', 'Tüm başarılar tamam!', 'Her başarımın kilidini açtın — efsanesin.')
+      this.contentEl.innerHTML = this.emptyHtml('🏆', i18n.t('ref_ach_all_done_title'), i18n.t('ref_ach_all_done_desc'))
       return
     }
     this.contentEl.innerHTML = `
-      <div class="ref-ach-cat-hint">🎯 Sıradaki büyük hedeflerin</div>
+      <div class="ref-ach-cat-hint">${i18n.t('ref_ach_next_goals_hint')}</div>
       <div class="ref-trow-list">${locked.map(a => `
         <div class="ref-trow ref-ach-clickable" data-ach="${a.id}">
           <span class="ref-trow__ico">${a.emoji}</span>
           <div class="ref-trow__main">
-            <div class="ref-trow__head"><span class="ref-trow__name">${a.name}</span><span class="ref-tstatus locked">🔒 Hedef</span></div>
-            <div class="ref-trow__desc">${a.description}</div>
+            <div class="ref-trow__head"><span class="ref-trow__name">${achievementName(a)}</span><span class="ref-tstatus locked">${i18n.t('ref_ach_goal_badge')}</span></div>
+            <div class="ref-trow__desc">${achievementDesc(a)}</div>
             <div class="ref-trow__foot"><span class="ref-trow__prog">${catLabel(a.id)}</span><span class="ref-trow__reward">🎁 ${fmtMoney(a.reward)}</span></div>
           </div>
         </div>`).join('')}</div>`
@@ -271,26 +279,28 @@ export class RefAchievementsPage implements RefPage {
     // Açıklar önce
     const sorted = [...list].sort((a, b) => Number(done.has(b.id)) - Number(done.has(a.id)))
 
-    const chips = CAT_CHIPS.map(c => {
-      const all = c.id === 'tumu' ? ACHIEVEMENTS : ACHIEVEMENTS.filter(a => achCategory(a.id) === c.id)
+    const chips = CAT_IDS.map(cid => {
+      const all = cid === 'tumu' ? ACHIEVEMENTS : ACHIEVEMENTS.filter(a => achCategory(a.id) === cid)
       const total = all.length
       const doneN = all.filter(a => done.has(a.id)).length
-      return `<button class="ref-ach-chip ${c.id === this.activeCat ? 'active' : ''}" type="button" data-cat="${c.id}">${c.label} <b>${doneN}/${total}</b></button>`
+      const chipLabel = i18n.t(CAT_LABEL_KEYS[cid])
+      return `<button class="ref-ach-chip ${cid === this.activeCat ? 'active' : ''}" type="button" data-cat="${cid}">${chipLabel} <b>${doneN}/${total}</b></button>`
     }).join('')
 
     const catDone = sorted.filter(a => done.has(a.id)).length
+    const catHintLabel = this.activeCat === 'tumu' ? i18n.t('ref_ach_cat_all_label') : i18n.t(CAT_LABEL_KEYS[this.activeCat])
     this.contentEl.innerHTML = `
       <div class="ref-ach-chips">${chips}</div>
-      <div class="ref-ach-cat-hint">${this.activeCat === 'tumu' ? 'Tüm başarılar' : CAT_CHIPS.find(c => c.id === this.activeCat)?.label} · ${catDone}/${sorted.length} açık</div>
+      <div class="ref-ach-cat-hint">${catHintLabel} · ${fmt('ref_ach_open_count_fmt', { done: String(catDone), total: String(sorted.length) })}</div>
       <div class="ref-ach-grid">${sorted.map(a => {
         const isDone = done.has(a.id)
         return `
           <div class="ref-ach-card ${isDone ? 'done' : 'locked'} ref-ach-clickable" data-ach="${a.id}">
             <img src="${ua(isDone ? cupForReward(a.reward) : A.cupLocked)}" alt="" class="ref-ach-cup">
             <div class="ref-ach-emoji-badge">${a.emoji}</div>
-            <div class="ref-ach-name">${a.name}</div>
-            <div class="ref-ach-desc">${a.description}</div>
-            <div class="ref-ach-flag ${isDone ? 'done' : 'locked'}">${isDone ? '✓ Açık · ' + fmtMoney(a.reward) : '🔒 Kilitli'}</div>
+            <div class="ref-ach-name">${achievementName(a)}</div>
+            <div class="ref-ach-desc">${achievementDesc(a)}</div>
+            <div class="ref-ach-flag ${isDone ? 'done' : 'locked'}">${isDone ? fmt('ref_ach_flag_open_fmt', { reward: fmtMoney(a.reward) }) : i18n.t('ref_ach_flag_locked')}</div>
           </div>`
       }).join('')}</div>`
 
@@ -304,10 +314,10 @@ export class RefAchievementsPage implements RefPage {
   private renderRozetler(): void {
     const s = this.state
     if (!s) {
-      this.contentEl.innerHTML = `<div class="ref-badge-grid">${MOCK_BADGES.map(bd => `
+      this.contentEl.innerHTML = `<div class="ref-badge-grid">${buildMockBadges().map(bd => `
         <div class="ref-badge-tile ${bd.on ? '' : 'off'}">
           <img src="${ua(bd.asset)}" alt="" class="ref-badge-img">
-          <span class="ref-badge-lbl">${bd.label}</span>
+          <span class="ref-badge-lbl">${i18n.t(bd.labelKey)}</span>
         </div>`).join('')}</div>`
       return
     }
@@ -315,14 +325,14 @@ export class RefAchievementsPage implements RefPage {
     const sorted = [...BADGES].sort((a, b) => Number(earned.has(b.id)) - Number(earned.has(a.id)))
     const earnedCount = sorted.filter(b => earned.has(b.id)).length
     this.contentEl.innerHTML = `
-      <div class="ref-ach-cat-hint">🎖️ ${earnedCount}/${BADGES.length} rozet kazanıldı</div>
+      <div class="ref-ach-cat-hint">${fmt('ref_ach_badge_count_fmt', { done: String(earnedCount), total: String(BADGES.length) })}</div>
       <div class="ref-badge-grid">${sorted.map((bd: BadgeDef) => {
         const on = earned.has(bd.id)
         return `
           <div class="ref-badge-tile ${on ? '' : 'off'} ref-ach-clickable" data-badge="${bd.id}">
             <img src="${ua(on ? A.badgeCompleted : A.badgeLocked)}" alt="" class="ref-badge-img">
             <span class="ref-badge-emoji">${bd.emoji}</span>
-            <span class="ref-badge-lbl">${bd.name}</span>
+            <span class="ref-badge-lbl">${badgeName(bd)}</span>
           </div>`
       }).join('')}</div>`
     this.contentEl.querySelectorAll<HTMLElement>('[data-badge]').forEach(tile => {
@@ -349,15 +359,15 @@ export class RefAchievementsPage implements RefPage {
       <div class="ref-ach-detail__head">
         <span class="ref-ach-detail__emoji">${def.emoji}</span>
         <div class="ref-ach-detail__title">
-          <div class="ref-ach-detail__name">${def.name}</div>
+          <div class="ref-ach-detail__name">${achievementName(def)}</div>
           <div class="ref-ach-detail__cat">${catLabel(def.id)}</div>
         </div>
         <button class="ref-ach-detail__close" type="button">✕</button>
       </div>
-      <div class="ref-ach-detail__desc">${def.description}</div>
+      <div class="ref-ach-detail__desc">${achievementDesc(def)}</div>
       <div class="ref-ach-detail__rows">
-        <div class="ref-ach-detail__row"><span>🎁 Ödül</span><b>${fmtMoney(def.reward)}</b></div>
-        <div class="ref-ach-detail__row"><span>Durum</span><b class="${isDone ? 'ok' : 'lock'}">${isDone ? '✓ Açıldı' : '🔒 Henüz kilitli'}</b></div>
+        <div class="ref-ach-detail__row"><span>${i18n.t('ref_ach_detail_reward_label')}</span><b>${fmtMoney(def.reward)}</b></div>
+        <div class="ref-ach-detail__row"><span>${i18n.t('ref_ach_detail_status_label')}</span><b class="${isDone ? 'ok' : 'lock'}">${isDone ? i18n.t('ref_ach_detail_status_open') : i18n.t('ref_ach_detail_status_locked')}</b></div>
       </div>`, isDone)
   }
 
@@ -366,14 +376,14 @@ export class RefAchievementsPage implements RefPage {
       <div class="ref-ach-detail__head">
         <span class="ref-ach-detail__emoji">${bd.emoji}</span>
         <div class="ref-ach-detail__title">
-          <div class="ref-ach-detail__name">${bd.name}</div>
-          <div class="ref-ach-detail__cat">🎖️ Rozet</div>
+          <div class="ref-ach-detail__name">${badgeName(bd)}</div>
+          <div class="ref-ach-detail__cat">${i18n.t('ref_ach_badge_detail_cat')}</div>
         </div>
         <button class="ref-ach-detail__close" type="button">✕</button>
       </div>
-      <div class="ref-ach-detail__desc">${bd.description}</div>
+      <div class="ref-ach-detail__desc">${badgeDesc(bd)}</div>
       <div class="ref-ach-detail__rows">
-        <div class="ref-ach-detail__row"><span>Durum</span><b class="${on ? 'ok' : 'lock'}">${on ? '✓ Kazanıldı' : '🔒 Henüz yok'}</b></div>
+        <div class="ref-ach-detail__row"><span>${i18n.t('ref_ach_detail_status_label')}</span><b class="${on ? 'ok' : 'lock'}">${on ? i18n.t('ref_ach_badge_status_earned') : i18n.t('ref_ach_badge_status_not_yet')}</b></div>
       </div>`)
   }
 

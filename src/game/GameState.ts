@@ -4,6 +4,7 @@ import {
   selectDailyTasks, createDailyPlanState, sanitizeDailyPlanState,
 } from './DailyPlan'
 import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, producerName, type ProducerDef, type UpgradeDef } from './Economy'
+import { requiredDomainText, fmt } from '../i18n'
 import { PRESTIGE_SHOP_ITEMS } from './PrestigeShop'
 import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, ipoThreshold, prestigeMultiplier } from './Prestige'
 import { getActiveSynergies, globalSynergyBonus, producerSynergyBonus } from './Synergies'
@@ -1656,7 +1657,7 @@ export class GameState {
       if (owned <= 0) continue
       const chance = Math.min(0.35, p.riskChance * heatMult * (1 - raidChanceReduction(this.undergroundTree)))
       if (torpilRaidWarning(this.torpil) && Math.random() < 0.35) {
-        this.addGazette('🎖️ Torpil ağı uyarı verdi — baskın engellendi', 'player')
+        this.addGazette(requiredDomainText('gz_raid_blocked_torpil'), 'player')
         break
       }
       if (Math.random() > chance) continue
@@ -1669,7 +1670,7 @@ export class GameState {
       if (hasRaidInsurance(this.prestigeTree) && this.raidsToday === 0) finePct *= 0.5
       if (this.insurance.illegal && this.raidsToday === 0) {
         this.raidsToday++
-        this.addGazette(`${this.playerName.trim() || 'Baron'} — illegal koruma devreye girdi, baskın engellendi`, 'player')
+        this.addGazette(fmt('gz_raid_blocked_illegal', { name: this.playerName.trim() || 'Baron' }), 'player')
         break
       }
       finePct *= raidFineMult(this.insurance, this.raidsToday === 0)
@@ -2056,7 +2057,7 @@ export class GameState {
       ...pickChildRiskProfile(),
     }
     this.dynasty.children.push(child)
-    this.addGazette(`👶 ${this.playerName.trim() || 'Baron'} ailesine ${child.name} doğdu — ${child.riskLabel}`, 'player')
+    this.addGazette(fmt('gz_child_born', { name: this.playerName.trim() || 'Baron', child: child.name, risk: child.riskLabel }), 'player')
     this.emit({ type: 'dynasty_update', kind: 'child_born', name: child.name })
   }
 
@@ -2603,7 +2604,7 @@ export class GameState {
     }
     this.addGazette(headlinePurchase(this.playerName, def.name, owned + count), 'player')
     if ((this.producers[id] ?? 0) >= FRANCHISE_UNLOCK_COUNT) {
-      this.addGazette(`${this.playerName.trim() || 'Baron'} — ${def.name} franchise açmaya hazır (${FRANCHISE_UNLOCK_COUNT}+ şube)`, 'player')
+      this.addGazette(fmt('gz_franchise_ready', { name: this.playerName.trim() || 'Baron', firm: producerName(def), count: String(FRANCHISE_UNLOCK_COUNT) }), 'player')
     }
     if (this.hasCodexLegalComplete()) {
       this.awardBadge('codex_legal')
@@ -3885,7 +3886,7 @@ export class GameState {
     if (!child) return
     child.heirRole = role
     const def = heirRoleDef(role)
-    this.addGazette(`👔 ${child.name} şirkette rol aldı: ${def?.name ?? role}`, 'player')
+    this.addGazette(fmt('gz_child_role', { child: child.name, role: def?.name ?? role }), 'player')
     this.emit({ type: 'dynasty_update', kind: 'heir_role', name: child.name })
   }
 
@@ -3925,7 +3926,7 @@ export class GameState {
     if (!this.canAfford(cost)) return false
     this.money -= cost
     this.dynasty.hasWill = true
-    this.addGazette('📜 Vasiyet hazırlandı — miras kaybı azalacak', 'player')
+    this.addGazette(requiredDomainText('gz_will_prepared'), 'player')
     this.emit({ type: 'money_changed' })
     this.emit({ type: 'dynasty_update', kind: 'will' })
     return true
@@ -3937,7 +3938,7 @@ export class GameState {
     if (!this.canAfford(cost)) return false
     this.money -= cost
     this.dynasty.hasTrust = true
-    this.addGazette('🏛️ Aile vakfı kuruldu — servet koruması arttı', 'player')
+    this.addGazette(requiredDomainText('gz_foundation'), 'player')
     this.emit({ type: 'money_changed' })
     this.emit({ type: 'dynasty_update', kind: 'trust' })
     return true
@@ -3949,7 +3950,7 @@ export class GameState {
     if (!this.canAfford(cost)) return false
     this.money -= cost
     this.dynasty.hasFamilyConstitution = true
-    this.addGazette('📋 Aile anayasası yazıldı — kardeş kavgası azalacak', 'player')
+    this.addGazette(requiredDomainText('gz_constitution'), 'player')
     this.emit({ type: 'money_changed' })
     this.emit({ type: 'dynasty_update', kind: 'constitution' })
     return true
@@ -3995,7 +3996,7 @@ export class GameState {
     if (level < DEPARTMENT_MAX_LEVEL) this.departments[id] = level + 1
     this.addReputation(5)
     const def = departmentDef(id)
-    this.addGazette(`✅ ${def.name} görevi tamamlandı — bedava seviye + itibar`, 'player')
+    this.addGazette(fmt('gz_mentor_quest_done', { name: def.name }), 'player')
     this.emit({ type: 'money_changed' })
     return true
   }
@@ -4031,7 +4032,7 @@ export class GameState {
     if (!child) return
     child.educationPath = path
     const pathDef = CHILD_EDUCATION_PATHS.find((p) => p.id === path)
-    this.addGazette(`📚 ${child.name} eğitim yolunu seçti: ${pathDef?.name ?? path}`, 'player')
+    this.addGazette(fmt('gz_child_education', { child: child.name, path: pathDef?.name ?? path }), 'player')
     this.emit({ type: 'dynasty_update', kind: 'child_education', name: child.name })
   }
 
@@ -4134,7 +4135,7 @@ export class GameState {
         this.victoryMechanics.push(unlock.mechanic)
       }
       this.recordChronicle('victory', def.emoji, `${def.name} — ${unlock.title} açıldı`)
-      this.addGazette(`${this.playerName.trim() || 'Baron'} ${def.name} yolunu tamamladı — ${unlock.title}`, 'player')
+      this.addGazette(fmt('gz_research_done', { name: this.playerName.trim() || 'Baron', path: def.name, title: unlock.title }), 'player')
       this.emit({ type: 'victory_unlocked', victoryId: id, name: def.name, emoji: def.emoji })
       this.emit({
         type: 'victory_mechanic_unlocked',
@@ -4208,7 +4209,7 @@ export class GameState {
       if (isAhead && !wasAhead) {
         this.rivalWasAhead.add(rival.id)
         this.emit({ type: 'rival_surpassed', rivalName: rival.name, rivalWorth: rival.netWorth })
-        this.addGazette(`⚠️ ${rival.name} sizi geçti — net servet: ${formatMoney(rival.netWorth)}`, 'rival')
+        this.addGazette(fmt('gz_rival_overtook', { rival: rival.name, worth: formatMoney(rival.netWorth) }), 'rival')
       } else if (!isAhead && wasAhead) {
         this.rivalWasAhead.delete(rival.id)
       }
@@ -4275,7 +4276,7 @@ export class GameState {
       else if (responseId === 'alliance') rival.attitude = Math.min(100, rival.attitude + 30)
     }
     this.activeRivalEvents = this.activeRivalEvents.filter((e) => e.id !== eventId)
-    this.addGazette(`✅ ${ev.headline} — çözüldü`, 'player')
+    this.addGazette(fmt('gz_rival_resolved', { headline: ev.headline }), 'player')
   }
 
   /** İflas etmiş rakibi satın alma maliyeti. Infinity → satın alınamaz. */
@@ -4544,7 +4545,7 @@ export class GameState {
         const mediaRisk = (this.illegalHeat - 30) / 200  // 0-0.35 range
         if (Math.random() < mediaRisk) {
           this.reputation = Math.max(0, this.reputation - 2)
-          this.addGazette('📸 Lüks yaşam tarzın medyanın dikkatini çekti — itibar hafif düştü', 'crisis')
+          this.addGazette(requiredDomainText('gz_luxury_media'), 'crisis')
         }
       }
     }
@@ -4685,17 +4686,10 @@ export class GameState {
     this.lastAgeMilestoneTickDay = day
     const age = this.playerAge()
     const milestones = [30, 40, 50, 60, 70]
-    const questions: Record<number, string> = {
-      30: '30 yaşına girdin — kariyerinin yükselen döneminde ne odak alacaksın?',
-      40: '40 yaşına girdin — Hayatına ne bıraktın? Önümüzdeki on yılın hedefi?',
-      50: '50 yaşında! Deneyimin zirvede — miras mı bırakıyorsun, yoksa büyümeye devam mı?',
-      60: '60 yaşındasın — onuru koruyan bir lider misin, yoksa hâlâ risk alıyor musun?',
-      70: '70. yılın! Bu imparatorluğu bir ömür inşa ettin — verisatinle nesli mi yönlendiriyorsun?',
-    }
     for (const milestone of milestones) {
       if (age >= milestone && !this.ageMilestonesShown.includes(milestone)) {
         this.ageMilestonesShown.push(milestone)
-        const msEvent = { type: 'age_milestone' as const, age: milestone, question: questions[milestone] ?? `${milestone} yaşına girdin!` }
+        const msEvent = { type: 'age_milestone' as const, age: milestone, question: requiredDomainText(`milestone_${milestone}_question`) }
         this.pendingDecisions = this.pendingDecisions.filter(d => d.type !== 'age_milestone')
         this.pendingDecisions.push(msEvent)
         this.emit(msEvent)
@@ -4856,7 +4850,7 @@ export class GameState {
     if (!this.lifestyle.homeRooms) this.lifestyle.homeRooms = []
     this.lifestyle.homeRooms.push(roomId)
     this.emit({ type: 'money_changed' })
-    this.addGazette(`🏠 ${roomDef.emoji} ${roomDef.name} eklendi — ${roomDef.bonusLabel}`, 'player')
+    this.addGazette(fmt('gz_room_added', { emoji: roomDef.emoji, room: roomDef.name, bonus: roomDef.bonusLabel }), 'player')
     return true
   }
 
@@ -4909,7 +4903,7 @@ export class GameState {
     const repDelta = repMap[method] ?? 0
     this.addReputation(repDelta)
     this.emit({ type: 'money_changed' })
-    this.addGazette(`Düşman bertaraf edildi (${method}) — barış sağlandı`, 'player')
+    this.addGazette(fmt('gz_enemy_defeated', { method }), 'player')
     return true
   }
 
@@ -5111,7 +5105,7 @@ export class GameState {
     for (const skill of unlocked) {
       this.playerSkills.unlocked.push(skill.id)
       this.emit({ type: 'skill_unlocked', skill })
-      this.addGazette(`🎓 Yeni beceri: ${skill.emoji} ${skill.name} — ${skill.description}`, 'player')
+      this.addGazette(fmt('gz_new_skill', { emoji: skill.emoji, skill: skill.name, desc: skill.description }), 'player')
     }
   }
 
@@ -5177,7 +5171,7 @@ export class GameState {
     this.money -= cost
     this.dynasty.spouseSatisfaction = Math.min(100, (this.dynasty.spouseSatisfaction ?? 70) + 20)
     this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 5)
-    this.addGazette('🎁 Eşine değerli bir hediye aldın — memnuniyet arttı', 'player')
+    this.addGazette(requiredDomainText('gz_spouse_gift'), 'player')
     this.emit({ type: 'money_changed' })
     this.emit({ type: 'dynasty_update', kind: 'spouse_gift', name: this.dynasty.spouseName ?? '' })
     return true
@@ -5225,7 +5219,7 @@ export class GameState {
     const child = this.dynasty.children.find((c) => c.id === childId)
     if (!child) return
     child.career = career
-    this.addGazette(`🎓 ${child.name} kariyerini seçti: ${childCareerDef(career)?.name}`, 'player')
+    this.addGazette(fmt('gz_child_career', { child: child.name, career: childCareerDef(career)?.name ?? '' }), 'player')
     this.emit({ type: 'dynasty_update', kind: 'child_career', name: child.name })
   }
 
@@ -5239,16 +5233,16 @@ export class GameState {
     if (focus === 'family') {
       this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 15)
       this.health.health = Math.min(100, this.health.health + 5)
-      this.addGazette('👨‍👩‍👧 Aileye zaman ayırdın — stres azaldı, sağlık iyileşti', 'player')
+      this.addGazette(requiredDomainText('gz_focus_family'), 'player')
     } else if (focus === 'health') {
       this.health.health = Math.min(100, this.health.health + 20)
       this.health.exerciseDaysActive = 30
-      this.addGazette('🏃 Sağlığına yatırım yaptın — sağlık +20', 'player')
+      this.addGazette(requiredDomainText('gz_focus_health'), 'player')
     } else if (focus === 'social') {
       this.reputation = Math.min(100, this.reputation + 15)
-      this.addGazette('🤝 Sosyal ağını genişlettin — itibar +15', 'player')
+      this.addGazette(requiredDomainText('gz_focus_social'), 'player')
     } else if (focus === 'work') {
-      this.addGazette('💼 İşe odaklandın — gelir bu ay %10 arttı', 'player')
+      this.addGazette(requiredDomainText('gz_focus_work'), 'player')
     }
     // Clear AFTER all effects applied — this method has no failure path, clear is always safe here
     this.pendingDecisions = this.pendingDecisions.filter(d => d.type !== 'annual_summary' && d.type !== 'age_milestone')
@@ -5467,7 +5461,7 @@ export class GameState {
       const roll = inv.minReturn + Math.random() * (inv.maxReturn - inv.minReturn)
       const payout = Math.floor(inv.cost * roll)
       this.addMoney(payout)
-      this.addGazette(`${this.playerName.trim() || 'Baron'} startup yatırımından ${formatMoney(payout)} aldı`, 'market')
+      this.addGazette(fmt('gz_startup_payout', { name: this.playerName.trim() || 'Baron', amount: formatMoney(payout) }), 'market')
       resolved.push(inv)
     }
     if (resolved.length > 0) {
@@ -5638,7 +5632,7 @@ export class GameState {
       incomeMult: 0.08,
     })
     const p = PRODUCERS.find((x) => x.id === producerId)
-    this.addGazette(`${this.playerName.trim() || 'Baron'} ${cityDef.label}'de ${p?.name ?? 'işletme'} franchise açtı`, 'player')
+    this.addGazette(fmt('gz_franchise_opened', { name: this.playerName.trim() || 'Baron', city: cityDef.label, firm: p ? producerName(p) : '—' }), 'player')
     this.emit({ type: 'money_changed' })
     return true
   }
@@ -5658,7 +5652,7 @@ export class GameState {
       namedManagerId: id,
     }
     this.emit({ type: 'undo_available', label: this.pendingUndo.label, cost: this.pendingUndo.cost, undoId: this.pendingUndo.id })
-    this.addGazette(`${def.name} ${this.playerName.trim() || 'Baron'}'un ekibine katıldı`, 'player')
+    this.addGazette(fmt('gz_mentor_joined', { mentor: def.name, player: this.playerName.trim() || 'Baron' }), 'player')
     this.emit({ type: 'money_changed' })
     return true
   }
@@ -5668,7 +5662,7 @@ export class GameState {
     const rival = rivalById(this.rivals, this.pendingRivalOffer.rivalId)
     if (!rival) return false
     acceptRivalAlliance(rival)
-    this.addGazette(`${rival.name} ile sektör paylaşım anlaşması imzalandı`, 'rival')
+    this.addGazette(fmt('gz_rival_deal', { rival: rival.name }), 'rival')
     this.pendingRivalOffer = null
     return true
   }
@@ -5848,7 +5842,7 @@ export class GameState {
     this.money -= def.hireCost
     contact.active = true
     contact.lastGiftGameDay = gameDay(this.gameTimeMs)
-    this.addGazette(`${def.name} torpil ağına katıldı`, 'player')
+    this.addGazette(fmt('gz_torpil_joined', { name: def.name }), 'player')
     this.emit({ type: 'money_changed' })
     return true
   }
@@ -6029,7 +6023,7 @@ export class GameState {
     if (this.money < cost) return false
     this.money -= cost
     this.producerLevels[producerId] = level + 1
-    this.addGazette(`⬆️ ${producerName(def)} Lv.${level + 1}'e yükseltildi`, 'player')
+    this.addGazette(fmt('gz_firm_upgraded', { firm: producerName(def), level: String(level + 1) }), 'player')
     this.emit({ type: 'purchase' })
     this.emit({ type: 'money_changed' })
     this.recordDailyEvent('firm_level_upgraded')
@@ -6062,7 +6056,7 @@ export class GameState {
     if (!isFinite(cost) || this.money < cost) return false
     this.money -= cost
     this.producerUpgrades[producerId] = [...purchased, upgradeId]
-    this.addGazette(`${up.emoji} ${producerName(def)}: ${up.name} geliştirmesi yapıldı`, 'player')
+    this.addGazette(fmt('gz_firm_improvement', { emoji: up.emoji, firm: producerName(def), upgrade: up.name }), 'player')
     this.emit({ type: 'purchase' })
     this.emit({ type: 'money_changed' })
     return true

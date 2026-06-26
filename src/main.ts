@@ -177,6 +177,7 @@ async function bootstrap(): Promise<void> {
 
   await i18n.init()
   await normalizeToProductionLang()
+  document.title = i18n.t('notif_app_title')
 
   try {
     const state = new GameState()

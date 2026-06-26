@@ -1,4 +1,4 @@
-import { tRaw } from '../i18n'
+import { requiredDomainText } from '../i18n'
 
 export type MissionType = 'clicks' | 'buy_business' | 'buy_upgrade' | 'earn_money' | 'season_xp' | 'autobuy_enable' | 'use_underground' | 'claim_daily' | 'season_tier' | 'stock_trade' | 'reach_heat'
 
@@ -79,7 +79,12 @@ export function generateDailyMissions(seed: string): MissionProgress[] {
 }
 
 export function missionLabel(def: MissionDef): string {
-  return tRaw(`mission_${def.type}_${def.tier}_label`) ?? def.label
+  return requiredDomainText(`mission_${def.type}_${def.tier}_label`)
+}
+
+/** Localized "{target} {label}" for a generated mission (rebuilds from type+tier+target). */
+export function missionProgressLabel(m: { type: MissionType; tier: MissionTier; target: number }): string {
+  return `${m.target} ${requiredDomainText(`mission_${m.type}_${m.tier}_label`)}`
 }
 
 function seededRandom(seed: string): () => number {

@@ -1,3 +1,5 @@
+import { requiredDomainText } from '../i18n'
+
 export type TorpilId = 'amca_rifat' | 'sinan_bank' | 'siyaset_tanidik' | 'medya_partner'
 
 export interface TorpilContactDef {
@@ -72,6 +74,16 @@ export function createTorpilState(): TorpilContactState[] {
 
 export function torpilDef(id: TorpilId): TorpilContactDef {
   return TORPIL_CONTACTS.find((c) => c.id === id) ?? TORPIL_CONTACTS[0]!
+}
+
+export function torpilName(def: TorpilContactDef): string {
+  return requiredDomainText(`torpil_${def.id}_name`)
+}
+export function torpilRole(def: TorpilContactDef): string {
+  return requiredDomainText(`torpil_${def.id}_role`)
+}
+export function torpilDesc(def: TorpilContactDef): string {
+  return requiredDomainText(`torpil_${def.id}_desc`)
 }
 
 export function torpilBusinessDiscount(active: TorpilContactState[]): number {

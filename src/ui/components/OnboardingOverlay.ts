@@ -1,11 +1,14 @@
 import { i18n, LANG_META, type LangCode } from '../../i18n'
-import { COUNTRIES, type CountryId } from '../../game/Countries'
+import { COUNTRIES, countryDisplayName, countryCityDisplayName, type CountryId } from '../../game/Countries'
 import {
   JOB_DEFS, EDUCATION_DEFS, LIFESTYLE_DEFS,
+  profileJobLabel, profileJobDesc,
+  educationLabel, educationDesc,
+  lifestyleLabel, lifestyleDesc,
   type JobId, type EducationLevel, type LifestyleType, type CharacterProfile,
 } from '../../game/CharacterProfile'
-import { CHARACTER_BACKGROUNDS, type CharacterBackgroundId } from '../../game/Career'
-import { DIFFICULTY_OPTIONS } from '../../game/CharacterCreation'
+import { CHARACTER_BACKGROUNDS, careerBgName, careerBgDesc, type CharacterBackgroundId } from '../../game/Career'
+import { DIFFICULTY_OPTIONS, difficultyName, difficultyDesc } from '../../game/CharacterCreation'
 
 /**
  * First-run setup: 8-step flow with back navigation and progress.
@@ -41,10 +44,6 @@ export class OnboardingOverlay {
     if (this.root) this.root.replaceChildren()
   }
 
-  private tr(trText: string, enText: string): string {
-    return this.selectedLang === 'tr' ? trText : enText
-  }
-
   private mkProgress(step: number): HTMLElement {
     const el = document.createElement('span')
     el.className = 'ob-progress'
@@ -56,7 +55,7 @@ export class OnboardingOverlay {
     const btn = document.createElement('button')
     btn.type = 'button'
     btn.className = 'onboarding-back-btn'
-    btn.textContent = `← ${this.tr('Geri', 'Back')}`
+    btn.textContent = `← ${i18n.t('ref_back')}`
     btn.addEventListener('click', onClick)
     return btn
   }
@@ -111,7 +110,7 @@ export class OnboardingOverlay {
     next.type = 'button'
     next.className = 'onboarding-next-btn'
     next.textContent = '→'
-    next.setAttribute('aria-label', 'Next')
+    next.setAttribute('aria-label', i18n.t('ob_next'))
     next.addEventListener('click', () => this.renderCountryStep())
 
     card.append(h, sub, grid, next)
@@ -141,8 +140,8 @@ export class OnboardingOverlay {
       btn.className = `onboarding-country-btn${this.selectedCountry === c.id ? ' active' : ''}`
       btn.innerHTML =
         `<span class="ob-flag">${c.flag}</span>` +
-        `<span class="ob-country-name">${c.name}</span>` +
-        `<span class="ob-country-capital">${c.cities[0].emoji} ${c.cities[0].label}</span>`
+        `<span class="ob-country-name">${countryDisplayName(c.id)}</span>` +
+        `<span class="ob-country-capital">${c.cities[0].emoji} ${countryCityDisplayName(c.id, 0)}</span>`
       btn.addEventListener('click', () => {
         this.selectedCountry = c.id
         grid.querySelectorAll('.onboarding-country-btn').forEach((b) => b.classList.remove('active'))
@@ -155,7 +154,7 @@ export class OnboardingOverlay {
     next.type = 'button'
     next.className = 'onboarding-next-btn'
     next.textContent = '→'
-    next.setAttribute('aria-label', 'Next')
+    next.setAttribute('aria-label', i18n.t('ob_next'))
     next.addEventListener('click', () => this.renderNameGenderStep())
 
     card.append(h, sub, grid, next)
@@ -172,19 +171,16 @@ export class OnboardingOverlay {
 
     const h = document.createElement('h1')
     h.className = 'onboarding-title'
-    h.textContent = '🪪 ' + this.tr('Kendini tanıt', 'Introduce yourself')
+    h.textContent = i18n.t('ob_intro_heading')
     const sub = document.createElement('p')
     sub.className = 'onboarding-sub'
-    sub.textContent = this.tr(
-      'İsmin ve cinsiyetin oyun boyunca seni temsil eder.',
-      'Your name and gender represent you throughout the game.',
-    )
+    sub.textContent = i18n.t('ob_intro_sub')
 
     const nameSection = document.createElement('div')
     nameSection.className = 'ob-section'
     const nameLabel = document.createElement('label')
     nameLabel.className = 'ob-label'
-    nameLabel.textContent = this.tr('İsmin', 'Your name')
+    nameLabel.textContent = i18n.t('ob_name_label')
     const nameInput = document.createElement('input')
     nameInput.type = 'text'
     nameInput.className = 'ob-name-input'
@@ -200,18 +196,18 @@ export class OnboardingOverlay {
     genderSection.className = 'ob-section'
     const genderLabel = document.createElement('label')
     genderLabel.className = 'ob-label'
-    genderLabel.textContent = this.tr('Cinsiyet', 'Gender')
+    genderLabel.textContent = i18n.t('ob_gender_label')
     const genderRow = document.createElement('div')
     genderRow.className = 'ob-gender-row'
-    const genders: { id: 'male' | 'female'; emoji: string; label: string }[] = [
-      { id: 'male', emoji: '👨', label: this.tr('Erkek', 'Male') },
-      { id: 'female', emoji: '👩', label: this.tr('Kadın', 'Female') },
+    const genders: { id: 'male' | 'female'; emoji: string; labelKey: 'ob_gender_male' | 'ob_gender_female' }[] = [
+      { id: 'male', emoji: '👨', labelKey: 'ob_gender_male' },
+      { id: 'female', emoji: '👩', labelKey: 'ob_gender_female' },
     ]
     for (const g of genders) {
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = `ob-gender-btn${this.selectedGender === g.id ? ' active' : ''}`
-      btn.innerHTML = `<span style="font-size:22px">${g.emoji}</span>${g.label}`
+      btn.innerHTML = `<span style="font-size:22px">${g.emoji}</span>${i18n.t(g.labelKey)}`
       btn.addEventListener('click', () => {
         this.selectedGender = g.id
         genderRow.querySelectorAll('.ob-gender-btn').forEach((b) => b.classList.remove('active'))
@@ -225,7 +221,7 @@ export class OnboardingOverlay {
     next.type = 'button'
     next.className = 'onboarding-next-btn'
     next.textContent = '→'
-    next.setAttribute('aria-label', 'Next')
+    next.setAttribute('aria-label', i18n.t('ob_next'))
     next.addEventListener('click', () => this.renderBackgroundStep())
 
     card.append(h, sub, nameSection, genderSection, next)
@@ -233,42 +229,13 @@ export class OnboardingOverlay {
   }
 
   private renderBackgroundStep(): void {
-    const descOverrides: Partial<Record<CharacterBackgroundId, string>> = {
-      sifirdan_gelen: this.tr(
-        'Hiçbir servetin yok ama kararlısın. İtibar kazanımın daha hızlıdır.',
-        'You have no wealth but you are determined. You gain reputation faster.',
-      ),
-      universiteli: this.tr(
-        'Eğitimli geçmişin teknoloji ve araştırma alanlarında avantaj sağlar.',
-        'Your educated background gives an edge in tech and research.',
-      ),
-      satisci: this.tr(
-        'Doğal satış yeteneğin vardır. Yasal gelirde daha hızlı büyürsün.',
-        'You have a natural talent for sales. You grow faster in legal income.',
-      ),
-      finansci: this.tr(
-        'Piyasaları iyi tanırsın. Borsaya erken erişim ve kriz avantajı sağlar.',
-        'You know the markets well. Early stock access and crisis advantage.',
-      ),
-      aile_sirketi: this.tr(
-        'Ailenden küçük bir işletme devralırsın. İlk işletme maliyetin daha düşüktür.',
-        'You inherit a small family business. Your first business costs less.',
-      ),
-      karanlik_cevre: this.tr(
-        'Yeraltı bağlantıların işe yarar. Yasa dışı gelirin yüksektir ancak aranma riskin artar.',
-        'Your underground connections pay off. High illegal income but more heat.',
-      ),
-    }
     this.renderChoiceStep({
       step: 4,
-      title: '🌱 ' + this.tr('Nasıl Bir Geçmişten Geliyorsun?', 'What Is Your Background?'),
-      sub: this.tr(
-        'Geçmişin başlangıç paranı, itibarını ve bazı yeteneklerini etkiler.',
-        'Your background affects starting money, reputation and some skills.',
-      ),
+      title: i18n.t('ob_background_heading'),
+      sub: i18n.t('ob_background_sub'),
       entries: CHARACTER_BACKGROUNDS.map((b) => [
         b.id,
-        { label: b.name, emoji: b.emoji, desc: descOverrides[b.id] ?? b.description },
+        { label: careerBgName(b), emoji: b.emoji, desc: careerBgDesc(b) },
       ]),
       selected: this.selectedBackground,
       onSelect: (id) => { this.selectedBackground = id },
@@ -278,31 +245,12 @@ export class OnboardingOverlay {
   }
 
   private renderEducationStep(): void {
-    const descOverrides: Partial<Record<EducationLevel, string>> = {
-      ilkokul: this.tr(
-        'Düşük başlangıç sermayesi ve temel işlere erişim.',
-        'Low starting capital and access to basic jobs.',
-      ),
-      lise: this.tr('Dengeli ve standart bir başlangıç.', 'A balanced, standard start.'),
-      universite: this.tr('Daha iyi başlangıç ve araştırma bonusu.', 'Better start and a research bonus.'),
-      yukseklisans: this.tr(
-        'Güçlü bağlantılar ve araştırma avantajı.',
-        'Strong connections and research advantage.',
-      ),
-      doktora: this.tr(
-        'Maksimum araştırma bonusu ve akademik avantaj.',
-        'Maximum research bonus and academic advantage.',
-      ),
-    }
     this.renderChoiceStep({
       step: 5,
-      title: '🎓 ' + this.tr('Eğitim Seviyen Ne?', 'What Is Your Education Level?'),
-      sub: this.tr(
-        'Eğitimin başlangıç sermayeni, iş seçeneklerini ve araştırma hızını etkiler.',
-        'Education affects starting capital, job options and research speed.',
-      ),
+      title: i18n.t('ob_edu_heading'),
+      sub: i18n.t('ob_edu_sub'),
       entries: (Object.entries(EDUCATION_DEFS) as [EducationLevel, typeof EDUCATION_DEFS[EducationLevel]][]).map(
-        ([id, def]) => [id, { label: def.label, emoji: def.emoji, desc: descOverrides[id] ?? def.desc }],
+        ([id, def]) => [id, { label: educationLabel(id), emoji: def.emoji, desc: educationDesc(id) }],
       ),
       selected: this.selectedEducation,
       onSelect: (id) => { this.selectedEducation = id },
@@ -313,33 +261,16 @@ export class OnboardingOverlay {
   }
 
   private renderJobStep(): void {
-    const labelOverrides: Partial<Record<JobId, string>> = {
-      serbest: this.tr('Serbest Çalışan', 'Freelancer'),
-    }
-    const descOverrides: Partial<Record<JobId, string>> = {
-      calisan: this.tr('Düzenli maaş ve güvenli başlangıç.', 'Steady salary and a safe start.'),
-      serbest: this.tr('Esnek çalışma ve değişken gelir.', 'Flexible work and variable income.'),
-      girisimci: this.tr('Yüksek risk, yüksek büyüme potansiyeli.', 'High risk, high growth potential.'),
-      sanatci: this.tr(
-        'Şöhret ve itibar avantajı, daha düşük başlangıç geliri.',
-        'Fame and reputation advantage, lower starting income.',
-      ),
-      akademisyen: this.tr('Araştırma bonusu ve düzenli gelir.', 'Research bonus and steady income.'),
-      sporcu: this.tr('Şöhret, performans ve sponsor geliri.', 'Fame, performance and sponsor income.'),
-    }
     this.renderChoiceStep({
       step: 6,
-      title: '💼 ' + this.tr('Kariyer Yolun Ne Olsun?', 'What Is Your Career Path?'),
-      sub: this.tr(
-        'Kariyer yolun başlangıç gelirini, risklerini ve gelişim seçeneklerini belirler.',
-        'Your career path sets your starting income, risks and growth options.',
-      ),
+      title: i18n.t('ob_job_heading'),
+      sub: i18n.t('ob_job_sub'),
       entries: (Object.entries(JOB_DEFS) as [JobId, typeof JOB_DEFS[JobId]][]).map(([id, def]) => [
         id,
         {
-          label: labelOverrides[id] ?? def.label,
+          label: profileJobLabel(id),
           emoji: def.emoji,
-          desc: descOverrides[id] ?? def.desc,
+          desc: profileJobDesc(id),
         },
       ]),
       selected: this.selectedJob,
@@ -350,26 +281,12 @@ export class OnboardingOverlay {
   }
 
   private renderLifestyleStep(): void {
-    const labelOverrides: Partial<Record<LifestyleType, string>> = {
-      orta: this.tr('Dengeli', 'Balanced'),
-    }
-    const descOverrides: Partial<Record<LifestyleType, string>> = {
-      mutevazi: this.tr('Düşük aylık gider ve daha az stres.', 'Low monthly expenses and less stress.'),
-      orta: this.tr('Standart giderler ve dengeli yaşam.', 'Standard expenses and a balanced life.'),
-      luks: this.tr(
-        'Yüksek gider, yüksek statü ve itibar avantajı.',
-        'High expenses, high status and reputation advantage.',
-      ),
-    }
     this.renderChoiceStep({
       step: 7,
-      title: '🌿 ' + this.tr('Nasıl Bir Yaşam Tarzı?', 'What Lifestyle?'),
-      sub: this.tr(
-        'Yaşam tarzın aylık giderlerini, stresini ve sosyal statünü etkiler.',
-        'Your lifestyle affects monthly expenses, stress and social status.',
-      ),
+      title: i18n.t('ob_lifestyle_heading'),
+      sub: i18n.t('ob_lifestyle_sub'),
       entries: (Object.entries(LIFESTYLE_DEFS) as [LifestyleType, typeof LIFESTYLE_DEFS[LifestyleType]][]).map(
-        ([id, def]) => [id, { label: labelOverrides[id] ?? def.label, emoji: def.emoji, desc: descOverrides[id] ?? def.desc }],
+        ([id, def]) => [id, { label: lifestyleLabel(id), emoji: def.emoji, desc: lifestyleDesc(id) }],
       ),
       selected: this.selectedLifestyle,
       onSelect: (id) => { this.selectedLifestyle = id },
@@ -380,22 +297,11 @@ export class OnboardingOverlay {
   }
 
   private renderDifficultyStep(): void {
-    const descOverrides: Record<'easy' | 'normal' | 'hard', string> = {
-      easy: this.tr(
-        'Daha fazla başlangıç parası, düşük gider ve daha az risk.',
-        'More starting money, lower expenses and less risk.',
-      ),
-      normal: this.tr('Dengeli ekonomi ve standart riskler.', 'Balanced economy and standard risks.'),
-      hard: this.tr(
-        'Daha az başlangıç parası, yüksek gider ve daha sert riskler.',
-        'Less starting money, higher expenses and harsher risks.',
-      ),
-    }
     this.renderChoiceStep({
       step: 8,
-      title: '🎚️ ' + this.tr('Zorluk seç', 'Choose difficulty'),
-      sub: this.tr('Zorluk başlangıç paranı ve riskleri belirler.', 'Difficulty sets your starting money and risk level.'),
-      entries: DIFFICULTY_OPTIONS.map((d) => [d.id, { label: d.name, emoji: d.emoji, desc: descOverrides[d.id] }]),
+      title: i18n.t('ob_difficulty_heading'),
+      sub: i18n.t('ob_difficulty_sub'),
+      entries: DIFFICULTY_OPTIONS.map((d) => [d.id, { label: difficultyName(d.id), emoji: d.emoji, desc: difficultyDesc(d.id) }]),
       selected: this.selectedDifficulty,
       onSelect: (id) => { this.selectedDifficulty = id },
       onBack: () => this.renderLifestyleStep(),
@@ -465,7 +371,7 @@ export class OnboardingOverlay {
     } else {
       next.className = 'onboarding-next-btn'
       next.textContent = '→'
-      next.setAttribute('aria-label', 'Next')
+      next.setAttribute('aria-label', i18n.t('ob_next'))
       next.addEventListener('click', opts.onNext)
     }
 

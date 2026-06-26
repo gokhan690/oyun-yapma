@@ -69,7 +69,7 @@ export function sectionTitle(text: string, action?: string): HTMLElement {
 export function demoBanner(text: string): HTMLElement {
   const el = document.createElement('div')
   el.className = 'ref-demo-banner'
-  el.innerHTML = `<span>🧪</span><span><b>Demo veri</b> — ${text}</span>`
+  el.innerHTML = `<span>🧪</span><span><b>${i18n.t('ref_demo_banner_prefix')}</b> ${text}</span>`
   return el
 }
 
