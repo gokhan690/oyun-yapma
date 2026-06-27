@@ -22,7 +22,8 @@ import type { SaveManager } from '../../security/SaveManager'
 import type { DailyEvent } from '../../game/DailyPlan'
 import { RefRewardQueue } from './RefRewardQueue'
 import { RefNotificationBridge } from './RefNotificationBridge'
-import { refToast } from './refShared'
+import { refToast, fmtMoney } from './refShared'
+import { fmt } from '../../i18n'
 
 // Tab → DailyEvent map (here so DailyPlan.ts stays UI-free)
 const DAILY_VISIT_EVENTS: Partial<Record<RefNavTab, DailyEvent>> = {
@@ -186,6 +187,18 @@ export class RefApp {
         if (ev.type === 'purchase') this.refreshActive(st)
         else if (ev.type === 'health_changed' || ev.type === 'fame_changed') this.refreshActive(st)
         else if (ev.type === 'money_changed' || ev.type === 'passive_income') this.scheduleRefresh(st)
+        else if (ev.type === 'career_day_reset') this.refreshActive(st)
+        else if (ev.type === 'day_settled') {
+          // Gün değişimi bildirimi: gerçekten ödenen toplamı (çok günlü yakalamada
+          // kaç gün için ödendiğini) göster.
+          const amount = fmtMoney(ev.total)
+          refToast(
+            ev.days > 1
+              ? fmt('ref_day_settled_multi', { amount, days: String(ev.days) })
+              : fmt('ref_day_settled', { amount }),
+            'ok',
+          )
+        }
         else if (ev.type === 'daily_plan_updated') this.refreshActive(st)
         else if (ev.type === 'gazette_headline') {
           // 🔔 rozeti + açıksa bildirim sayfasını tazele

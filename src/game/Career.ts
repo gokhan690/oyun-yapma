@@ -337,19 +337,28 @@ export const BINDABLE_CAREER_ACTION_IDS: CareerActionId[] = [
   'networking',
 ]
 
+/**
+ * TUR14 — TEK KAYNAK kariyer gün sıfırlaması. Gün değişince günlük aksiyon/maaş
+ * durumunu sıfırlar; aynı gün ikinci çağrıda hiçbir şey yapmaz (idempotent).
+ * Dönüş: bu çağrıda sıfırlama yapıldıysa true (çağıran event üretebilir).
+ */
+export function ensureCareerDay(career: CareerState, currentDay: number): boolean {
+  if (career.lastActionDay === currentDay) return false
+  career.actionsUsedToday = []
+  career.lastActionDay = currentDay
+  career.wageEarnedToday = 0
+  career.dailyWagePaidToday = 0
+  return true
+}
+
 export function applyCareerAction(
   career: CareerState,
   actionId: CareerActionId,
   currentDay: number,
 ): { money: number; xp: number; stressDelta: number; levelUp: boolean } {
   if (career.isEntrepreneur) return { money: 0, xp: 0, stressDelta: 0, levelUp: false }
-  // Önce gün sıfırlaması, sonra kontrol (sıralama düzeltmesi)
-  if (career.lastActionDay !== currentDay) {
-    career.actionsUsedToday = []
-    career.lastActionDay = currentDay
-    // Otomatik maaş tick'i kaldırıldı; "bugünkü mesai geliri" sayacı burada sıfırlanır.
-    career.wageEarnedToday = 0
-  }
+  // Savunma amaçlı gün sıfırlaması (tek kaynak ensureCareerDay)
+  ensureCareerDay(career, currentDay)
   // Karar 18: Her aksiyon (eğitim dahil) günde 1 kez
   if (career.actionsUsedToday.includes(actionId)) {
     return { money: 0, xp: 0, stressDelta: 0, levelUp: false }

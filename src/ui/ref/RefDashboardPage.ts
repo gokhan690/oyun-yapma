@@ -7,6 +7,7 @@ import type { RefDashboardVM } from './refAppDataAdapter'
 import type { RefPage } from './RefApp'
 import type { RefNavTab } from './RefBottomNav'
 import type { GameState } from '../../game/GameState'
+import { moneySourceLabelKey, type MoneyTransaction, type MoneySource } from '../../game/MoneyLedger'
 import {
   TASK_DEFS, TASK_SEQUENTIAL_DEPS,
   type DailyPlanState, type DailyTaskId,
@@ -61,13 +62,38 @@ function buildQuickActions(): { asset: string; label: string; act: QuickAct }[] 
   ]
 }
 
-/* Aktivite akışı — GameState olay geçmişi henüz adapter'a bağlı değil (örnek/önizleme). */
-function buildFeed() {
-  return [
-    { ico: '🏆', txt: i18n.t('ref_dash_no_activity'),  time: '—' },
-    { ico: '📈', txt: i18n.t('ref_dash_feed_income'),  time: '—' },
-    { ico: '🏙️', txt: i18n.t('ref_dash_feed_market'),  time: '—' },
-  ]
+/* Para hareketi kaynağı → ikon (gerçek işlem geçmişi satırı). */
+const FEED_SOURCE_ICON: Record<MoneySource, string> = {
+  daily_business_income: '🏭', career_salary: '💼', career_action: '🧑‍💼',
+  rental_income: '🏠', dynasty_income: '👑',
+  stock_buy: '📉', stock_sell: '📈', firm_buy: '🏢', firm_sell: '🏷️',
+  manager_hire: '🧑‍✈️', manager_salary: '🧑‍✈️',
+  bank_deposit: '🏦', bank_withdraw: '🏦', loan_received: '💳', loan_repaid: '💳',
+  bond_buy: '📜', bond_sell: '📜', reward: '🎁', inheritance: '🪦',
+  football_bonus: '⚽', offline_reward: '🌙', bankruptcy_liquidation: '⚠️',
+  ipo_seed: '🚀', expense: '🧾', misc: '💱',
+}
+
+/** Tek bir para hareketini görsel feed satırına çevirir. */
+function feedRowFromTx(tx: MoneyTransaction) {
+  const sign = tx.direction === 'credit' ? '+' : '-'
+  const amount = `${sign}${fmtMoney(Math.abs(tx.amount))}`
+  const label = i18n.t(moneySourceLabelKey(tx.source) as Parameters<typeof i18n.t>[0])
+  return {
+    ico: FEED_SOURCE_ICON[tx.source] ?? (tx.direction === 'credit' ? '💰' : '💸'),
+    cls: tx.direction === 'credit' ? 'up' : 'down',
+    txt: `${amount} · ${label}`,
+    time: `${i18n.t('game_day')} ${tx.gameDay}`,
+  }
+}
+
+/* Aktivite akışı — canlı GameState para hareketi geçmişinden (son işlemler önce). */
+function buildFeed(state?: GameState) {
+  const txs = state?.moneyTransactions
+  if (!txs || txs.length === 0) {
+    return [{ ico: '🏆', cls: 'muted', txt: i18n.t('ref_dash_no_activity'), time: '—' }]
+  }
+  return txs.slice(-8).reverse().map(feedRowFromTx)
 }
 
 export class RefDashboardPage implements RefPage {
@@ -91,6 +117,7 @@ export class RefDashboardPage implements RefPage {
   private state?: GameState
   private dailyPanelEl: HTMLElement | null = null
   private lastDailyPanelSig = ''
+  private feedEl: HTMLElement | null = null
 
   constructor(vm?: RefDashboardVM, state?: GameState) {
     this.state = state
@@ -236,19 +263,26 @@ export class RefDashboardPage implements RefPage {
     }
     this.el.appendChild(quick)
 
-    // Aktivite akışı (örnek — olay geçmişi henüz bağlı değil)
-    this.el.appendChild(sectionTitle(i18n.t('ref_dash_recent_activities_title'), i18n.t('ref_dash_sample_tag')))
+    // Aktivite akışı (canlı para hareketi geçmişi)
+    this.el.appendChild(sectionTitle(i18n.t('ref_dash_recent_activities_title')))
     const feed = document.createElement('div')
     feed.className = 'ref-feed'
-    feed.innerHTML = buildFeed().map(f => `
+    this.feedEl = feed
+    this.renderFeed()
+    this.el.appendChild(feed)
+
+  }
+
+  /** Para hareketi feed'ini canlı state'ten yeniden kurar (DOM içeriği yenilenir). */
+  private renderFeed(): void {
+    if (!this.feedEl) return
+    this.feedEl.innerHTML = buildFeed(this.state).map(f => `
       <div class="ref-feed-row">
         <span class="ref-feed-ico">${f.ico}</span>
-        <span class="ref-feed-txt">${f.txt}</span>
+        <span class="ref-feed-txt ref-feed-txt--${f.cls}">${f.txt}</span>
         <span class="ref-feed-time">${f.time}</span>
       </div>
     `).join('')
-    this.el.appendChild(feed)
-
   }
 
   onShow(): void {
@@ -291,6 +325,7 @@ export class RefDashboardPage implements RefPage {
     if (this.todayCityEl)   this.todayCityEl.textContent = String(cityCount)
     state.ensureDailyPlan()
     this.refreshDailyPanel()
+    this.renderFeed()
   }
 
   // ── Günlük Plan panel ──────────────────────────────────────────────────────

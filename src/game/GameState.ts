@@ -5,6 +5,7 @@ import {
 } from './DailyPlan'
 import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, producerName, type ProducerDef, type UpgradeDef } from './Economy'
 import { requiredDomainText, fmt } from '../i18n'
+import { type MoneyTransaction, type MoneySource, MONEY_TX_LIMIT, moneySourceLabelKey } from './MoneyLedger'
 import { PRESTIGE_SHOP_ITEMS } from './PrestigeShop'
 import { PRESTIGE_THRESHOLD, calcPrestigePoints, canPrestige, ipoThreshold, prestigeMultiplier } from './Prestige'
 import { getActiveSynergies, globalSynergyBonus, producerSynergyBonus } from './Synergies'
@@ -102,7 +103,7 @@ import {
 } from './PrestigeTree'
 import { localDayKey, yesterdayLocalKey, calendarWeekKey } from './dateUtils'
 import { gameDay, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSecondsToGameMs, gameCalendarDate } from './GameClock'
-import { createCareerState, applyCareerAction, applyDailyWage, FIRST_GOAL_TARGET, backgroundDef, careerStressPenalty, dailyCareerWage, type CareerState, type CareerActionId, type CareerJobId, type CharacterBackgroundId } from './Career'
+import { createCareerState, applyCareerAction, applyDailyWage, ensureCareerDay, FIRST_GOAL_TARGET, backgroundDef, careerStressPenalty, dailyCareerWage, type CareerState, type CareerActionId, type CareerJobId, type CharacterBackgroundId } from './Career'
 import { firmLevelIncomeMult, firmLevelUpCost, FIRM_MAX_LEVEL } from './FirmLevels'
 import { firmUpgradeDef, firmUpgradeIncomeBonus, firmUpgradeCost } from './FirmUpgrades'
 import { createDepartmentState, departmentUpgradeCost, departmentDef, isDepartmentTaskComplete, DEPARTMENTS, DEPARTMENT_MAX_LEVEL, operasyonLegalBonus, finansProducerBonus, pazarlamaGlobalBonus, hukukRaidReduction, argeBonus, aileOfisiInheritanceBonus, lojistikCostReduction, guvenlikRivalReduction, type DepartmentId } from './EmpireDepartments'
@@ -299,6 +300,9 @@ import {
 } from './Franchise'
 import {
   namedManagerDef,
+  namedManagerFirmBonus,
+  managerApplicability,
+  type ManagerApplicability,
   type HiredNamedManager,
   type NamedManagerId,
 } from './NamedManagers'
@@ -619,6 +623,7 @@ export interface SerializableState {
   pendingInvestments?: PendingInvestment[]
   franchises?: FranchiseBranch[]
   namedManagers?: HiredNamedManager[]
+  firmManagerAssignments?: Record<string, NamedManagerId>
   pendingRivalOffer?: RivalAllianceOffer | null
   undergroundMarketActive?: UndergroundMarketAction[]
   advisorTip?: AdvisorTip | null
@@ -683,6 +688,8 @@ export interface SerializableState {
     | { type: 'annual_summary'; year: number; playerAge: number; totalEarned: number; businessCount: number; incomePerDay: number }
     | { type: 'age_milestone'; age: number; question: string }
   >
+  /** TUR14 — son ~50 para hareketi (migration-safe; eski save'de yoksa boş). */
+  moneyTransactions?: MoneyTransaction[]
 }
 
 export interface ProducerBreakdown {
@@ -790,6 +797,8 @@ export type GameEvent =
   | { type: 'life_event_risk_outcome'; headline: string; won: boolean }
   | { type: 'career_action'; actionId: CareerActionId; money: number; levelUp: boolean }
   | { type: 'career_wage'; amount: number }
+  | { type: 'career_day_reset' }
+  | { type: 'day_settled'; days: number; total: number; businessIncome: number; wage: number }
   | { type: 'career_phase_changed'; isEntrepreneur: boolean }
   | { type: 'daily_plan_updated' }
 
@@ -972,6 +981,8 @@ export class GameState {
   pendingInvestments: PendingInvestment[] = []
   franchises: FranchiseBranch[] = []
   namedManagers: HiredNamedManager[] = []
+  /** TUR14 P5 — firma(producerId) → atanmış isimli menajer. Boş = atanmamış. */
+  firmManagerAssignments: Record<string, NamedManagerId> = {}
   pendingRivalOffer: RivalAllianceOffer | null = null
   undergroundMarketActive: UndergroundMarketAction[] = []
   advisorTip: AdvisorTip | null = null
@@ -1168,14 +1179,34 @@ export class GameState {
         const passiveDays = currentPassiveGameDay - lastPassiveGameDay
         if (passiveDays > 0) {
           lastPassiveGameDay = currentPassiveGameDay
+          // Kariyer gün sıfırlaması — aksiyonlar tıklamaya gerek olmadan otomatik yenilensin.
+          if (ensureCareerDay(this.career, currentPassiveGameDay)) {
+            this.emit({ type: 'career_day_reset' })
+          }
           const currentIpd = PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0)
           if (currentIpd > this.peakIncomePerDay) this.peakIncomePerDay = currentIpd
-          const income = this.incomePerDay() * passiveDays
-          if (income > 0) this.addMoney(income, true)
+          // Tek kaynak: günlük settlement kırılımı (UI ile birebir aynı).
+          const settlement = this.dailySettlementBreakdown()
+          // İş geliri her geçen gün için ödenir (çok günlü yakalama doğru).
+          const income = settlement.businessIncome * passiveDays
+          if (income > 0) this.creditMoney(income, { source: 'daily_business_income', countsAsEarned: true, metadata: { days: passiveDays } })
+          // Maaş günde yalnız bir kez (applyDailyWage lastWageDay ile korur);
+          // çok günlü yakalamada bile maaş tekrar tekrar ödenmez.
           const wage = applyDailyWage(this.career, currentPassiveGameDay)
           if (wage > 0) {
-            this.addMoney(wage, false)
+            this.creditMoney(wage, { source: 'career_salary', countsAsEarned: true })
             this.emit({ type: 'career_wage', amount: wage })
+          }
+          // TUR14 P5: yalnız ATANMIŞ (firması ayakta) isimli menajerlerin günlük
+          // maaşı manager_salary debit'i olarak settlement'tan kesilir (boştaki
+          // menajer maaş almaz). Çok günlü yakalamada her gün için ödenir.
+          const managerSalary = settlement.managerSalary * passiveDays
+          if (managerSalary > 0) {
+            this.debitMoney(managerSalary, { source: 'manager_salary', metadata: { days: passiveDays } })
+          }
+          const settledTotal = income + wage - managerSalary
+          if (settledTotal !== 0) {
+            this.emit({ type: 'day_settled', days: passiveDays, total: settledTotal, businessIncome: income, wage })
           }
         }
       }
@@ -1806,10 +1837,8 @@ export class GameState {
     if (Date.now() < this.crisisHoldBonusUntil) mult *= 1.4
     mult *= calendarPassiveMult()
     mult *= 1 + franchiseIncomeBonus(this.franchises)
-    for (const hm of this.namedManagers) {
-      const def = namedManagerDef(hm.id)
-      if (def?.globalPassiveMult) mult *= 1 + def.globalPassiveMult
-    }
+    // TUR14 P5: isimli menajer gelir etkisi artık GLOBAL değil; yalnız atandığı
+    // firmaya (producerIncome içinde, firmManagerAssignments üzerinden) uygulanır.
     for (const act of this.undergroundMarketActive) {
       const def = undergroundActionDef(act)
       if (def.incomeMult) mult *= 1 + def.incomeMult
@@ -1883,7 +1912,16 @@ export class GameState {
       if (u?.effect === 'producer_mult' && u.producerId === def.id) mult *= u.value
     }
     mult *= 1 + producerSynergyBonus(def.id, this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
-    mult *= managerMultiplier(this.managers, def.id)
+    // TUR14 P5 — Menajer bonusu: firmaya isimli menajer ATANMIŞSA yalnız onun
+    // firmaya özel bonusu uygulanır; generic legacy müdür bonusu UYGULANMAZ
+    // (iki bonus üst üste binmez). Atama yoksa generic müdür geçerlidir.
+    const assignedMgrId = this.firmManagerAssignments[def.id]
+    if (assignedMgrId) {
+      const amdef = namedManagerDef(assignedMgrId)
+      if (amdef) mult *= 1 + namedManagerFirmBonus(amdef, def.id)
+    } else {
+      mult *= managerMultiplier(this.managers, def.id)
+    }
     mult *= this.weeklyProducerBonus(def.id)
     if (def.illegal) mult *= traitIllegalMult(activeDynastyTrait(this.dynasty))
     if (def.illegal) mult *= personalityIllegalMult(this.personality)
@@ -1899,11 +1937,8 @@ export class GameState {
       if (club) mult *= empireFootballIncomeMult(club)
       mult *= researchFootballBonus(this.research)
     }
-    for (const hm of this.namedManagers) {
-      const mdef = namedManagerDef(hm.id)
-      if (mdef?.producerMult?.[def.id]) mult *= 1 + mdef.producerMult[def.id]!
-      if (def.illegal && mdef?.illegalHeatReduce) mult *= 1 + 0.05
-    }
+    // (TUR14 P5: eski global isimli-menajer producerMult döngüsü kaldırıldı —
+    //  etki artık yalnız atanmış firmaya, yukarıda uygulanıyor.)
     if (!this.producerModernized[def.id]) {
       mult *= obsolescenceMult(def.tier, this.ipoCount)
     }
@@ -2463,6 +2498,59 @@ export class GameState {
     this.trackBaronPeak()
   }
 
+  // ── TUR14: açık para muhasebesi (kazanç vs transfer/borç) + hareket geçmişi ──
+  moneyTransactions: MoneyTransaction[] = []
+  private moneyTxCounter = 0
+
+  private recordMoneyTx(amount: number, direction: 'credit' | 'debit', source: MoneySource, countsAsEarned: boolean, metadata?: Record<string, string | number>): void {
+    this.moneyTxCounter++
+    this.moneyTransactions.push({
+      id: `tx${this.moneyTxCounter}`,
+      gameDay: gameDay(this.gameTimeMs),
+      amount: Math.round(amount),
+      direction,
+      source,
+      labelKey: moneySourceLabelKey(source),
+      countsAsEarned,
+      balanceAfter: Math.round(this.money),
+      metadata,
+    })
+    if (this.moneyTransactions.length > MONEY_TX_LIMIT) {
+      this.moneyTransactions.splice(0, this.moneyTransactions.length - MONEY_TX_LIMIT)
+    }
+  }
+
+  /** Saf para ekleme — yalnız money += (kazanç/günlük hedef/passive izlemesi YOK).
+   *  Transfer/borç ana parası için kullanılır. */
+  private addMoneyRaw(amount: number): void {
+    if (amount <= 0) return
+    this.money += amount
+    this.emit({ type: 'money_changed' })
+    this.trackBaronPeak()
+  }
+
+  /**
+   * AÇIK para girişi API'si. `countsAsEarned` zorunlu — varsayılan yok.
+   * `earnedAmount` verilirse yalnız o kısım gerçek kazanç sayılır (totalEarned),
+   * kalan kısım transfer olarak eklenir (örn. hisse satışında ana para + kâr).
+   */
+  creditMoney(amount: number, opts: { source: MoneySource; countsAsEarned: boolean; earnedAmount?: number; metadata?: Record<string, string | number> }): void {
+    if (amount <= 0) return
+    const earned = opts.earnedAmount != null ? Math.max(0, Math.min(amount, opts.earnedAmount)) : (opts.countsAsEarned ? amount : 0)
+    const transfer = amount - earned
+    if (earned > 0) this.addMoney(earned, true)   // tam kazanç pipeline'ı
+    if (transfer > 0) this.addMoneyRaw(transfer)  // saf transfer
+    this.recordMoneyTx(amount, 'credit', opts.source, earned > 0, opts.metadata)
+  }
+
+  /** AÇIK para çıkışı API'si — totalEarned'e dokunmaz, hareket olarak kaydeder. */
+  debitMoney(amount: number, opts: { source: MoneySource; metadata?: Record<string, string | number> }): void {
+    if (amount <= 0) return
+    this.money = Math.max(0, this.money - amount)
+    this.emit({ type: 'money_changed' })
+    this.recordMoneyTx(amount, 'debit', opts.source, false, opts.metadata)
+  }
+
   private trackBaronPeak(): void {
     const nw = this.financeNetWorth()
     if (nw > this.baronLifePeakNetWorth) this.baronLifePeakNetWorth = nw
@@ -2659,6 +2747,7 @@ export class GameState {
       this.calendarPurchaseDay = dayKey
     }
     this.money -= cost
+    this.recordMoneyTx(cost, 'debit', 'firm_buy', false, { firm: id, count })
     this.producers[id] = owned + count
     if (!hadAnyBusiness) this.firstBusinessPlayTimeMs = this.playTimeMs
     this.businessesBoughtSession += count
@@ -2844,6 +2933,9 @@ export class GameState {
     if (ipoThemeId) this.unlockTheme(ipoThemeId)
     this.announceIpoUnlocks(this.ipoCount)
     this.money = finalStartingCash
+    // IPO başlangıç sermayesi gerçek kazanç DEĞİL (yeni nesil tohum sermayesi).
+    // totalEarned sıfırlanır; tohum yalnız hareket geçmişine kaydedilir.
+    if (finalStartingCash > 0) this.recordMoneyTx(finalStartingCash, 'credit', 'ipo_seed', false, { ipo: this.ipoCount })
     this.totalEarned = 0
     this.totalClicks = 0
     this.sessionEarned = 0
@@ -2923,7 +3015,9 @@ export class GameState {
     const bondLoss = Math.floor(bondsBefore * 0.25)
     const loss = portfolioLoss + loanPenalty + depositLoss + bondLoss + businessLoss
 
-    this.money += fireSale
+    // İflas tasfiyesi: gerçek kazanç DEĞİL (ana para likidasyonu). totalEarned'i
+    // artırmaz; yalnız nakit + işlem kaydı.
+    if (fireSale > 0) this.creditMoney(fireSale, { source: 'bankruptcy_liquidation', countsAsEarned: false })
     this.bank.loan = Math.floor(this.bank.loan * 0.55)
     this.bank.deposit = Math.floor(this.bank.deposit * 0.7)
     this.bank.bonds = Math.floor(this.bank.bonds * 0.75)
@@ -2989,9 +3083,8 @@ export class GameState {
   bankDeposit(amount: number): boolean {
     const n = Math.floor(amount)
     if (n <= 0 || n > this.money) return false
-    this.money -= n
     this.bank.deposit += n
-    this.emit({ type: 'money_changed' })
+    this.debitMoney(n, { source: 'bank_deposit' })
     return true
   }
 
@@ -2999,7 +3092,7 @@ export class GameState {
     const n = Math.floor(amount)
     if (n <= 0 || n > this.bank.deposit) return false
     this.bank.deposit -= n
-    this.addMoney(n)
+    this.creditMoney(n, { source: 'bank_withdraw', countsAsEarned: false }) // transfer — kazanç DEĞİL
     return true
   }
 
@@ -3018,7 +3111,7 @@ export class GameState {
     if (torpilBypassCreditScore(this.torpil) && reputationLoanBlocked(this.reputation)) {
       this.addReputation(reputationFromScandal())
     }
-    this.addMoney(n)
+    this.creditMoney(n, { source: 'loan_received', countsAsEarned: false }) // borç — kazanç DEĞİL
     return true
   }
 
@@ -3027,19 +3120,17 @@ export class GameState {
     if (n <= 0) return false
     const pay = Math.min(n, this.bank.loan, this.money)
     if (pay <= 0) return false
-    this.money -= pay
     this.bank.loan -= pay
     if (this.bank.loan === 0) this.bank.creditScore = Math.min(100, this.bank.creditScore + 3)
-    this.emit({ type: 'money_changed' })
+    this.debitMoney(pay, { source: 'loan_repaid' })
     return true
   }
 
   bankBuyBonds(amount: number): boolean {
     const n = Math.floor(amount)
     if (n <= 0 || n > this.money) return false
-    this.money -= n
     this.bank.bonds += n
-    this.emit({ type: 'money_changed' })
+    this.debitMoney(n, { source: 'bond_buy' })
     return true
   }
 
@@ -3047,7 +3138,7 @@ export class GameState {
     const n = Math.floor(amount)
     if (n <= 0 || n > this.bank.bonds) return false
     this.bank.bonds -= n
-    this.addMoney(n)
+    this.creditMoney(n, { source: 'bond_sell', countsAsEarned: false }) // ana para — kazanç DEĞİL
     return true
   }
 
@@ -3732,6 +3823,7 @@ export class GameState {
     if (this.prestigeShopPurchased.includes('manager_discount')) cost = Math.floor(cost * 0.85)
     if (!this.canAfford(cost)) return false
     this.money -= cost
+    this.recordMoneyTx(cost, 'debit', 'manager_hire', false, { firm: producerId })
     this.managers[producerId] = true
     this.managerDiscountActive = false
     this.pendingUndo = {
@@ -3757,9 +3849,8 @@ export class GameState {
   stockBuy(tickerId: string, shares: number): boolean {
     const { cost, bought } = buyShares(this.stock, tickerId, shares, this.money)
     if (bought <= 0) return false
-    this.money -= cost
     this.emit({ type: 'stock_trade', action: 'buy', amount: bought })
-    this.emit({ type: 'money_changed' })
+    this.debitMoney(cost, { source: 'stock_buy', metadata: { ticker: tickerId, shares: bought } })
     this.updateMissionProgress('stock_trade', 1)
     this.checkAchievements()
     this.recordDailyEvent('market_action_completed')
@@ -3767,9 +3858,13 @@ export class GameState {
   }
 
   stockSell(tickerId: string, shares: number): boolean {
+    // Gerçekleşen kâr/zarar: SATIŞTAN ÖNCE ortalama maliyetten hesaplanır.
+    const avgBefore = this.stock.tickers[tickerId]?.avgBuyPrice ?? 0
     const { revenue, sold } = sellShares(this.stock, tickerId, shares)
     if (sold <= 0) return false
-    this.addMoney(revenue)
+    const costBasis = avgBefore * sold
+    const realizedProfit = Math.max(0, revenue - costBasis) // yalnız kâr kazanç sayılır; ana para DEĞİL
+    this.creditMoney(revenue, { source: 'stock_sell', countsAsEarned: false, earnedAmount: realizedProfit, metadata: { ticker: tickerId, shares: sold } })
     this.emit({ type: 'stock_trade', action: 'sell', amount: sold })
     this.updateMissionProgress('stock_trade', 1)
     this.recordDailyEvent('market_action_completed')
@@ -4109,6 +4204,38 @@ export class GameState {
     const pathDef = CHILD_EDUCATION_PATHS.find((p) => p.id === path)
     this.addGazette(fmt('gz_child_education', { child: child.name, path: pathDef?.name ?? path }), 'player')
     this.emit({ type: 'dynasty_update', kind: 'child_education', name: child.name })
+  }
+
+  /**
+   * TUR14 — Günlük yerleşim (settlement) için TEK KAYNAK. Hem tick (gün değişimi)
+   * hem de UI bu metodu kullanır; böylece gösterilen kırılım her zaman gerçekten
+   * ödenen tutara eşittir (gösterilip-ödenmeyen kalem yoktur).
+   *
+   * `businessIncome` === `incomePerDay()` (firmalar + hanedan + karakter günlük
+   * bonusu). Karakter günlük bonusu, kariyer maaşıyla ÇİFT SAYILMAZ: biri pasif
+   * karakter-mesleği bonusu (incomePerDay içinde), diğeri aktif istihdam maaşıdır
+   * (applyDailyWage ile günde bir kez ödenir).
+   */
+  dailySettlementBreakdown(): {
+    lines: { source: MoneySource; labelKey: string; value: number }[]
+    businessIncome: number
+    careerWage: number
+    managerSalary: number
+    total: number
+  } {
+    const firms = PRODUCERS.reduce((sum, p) => sum + this.producerIncome(p), 0)
+    const dynasty = this.dynastyPassiveIncome
+    const character = this.characterIncomeDailyBonus
+    const careerWage = this.career.isEntrepreneur ? 0 : dailyCareerWage(this.career)
+    const managerSalary = this.assignedManagerDailySalary()
+    const businessIncome = firms + dynasty + character // == incomePerDay()
+    const lines: { source: MoneySource; labelKey: string; value: number }[] = []
+    if (firms > 0) lines.push({ source: 'daily_business_income', labelKey: 'settle_firms', value: firms })
+    if (dynasty > 0) lines.push({ source: 'dynasty_income', labelKey: 'settle_dynasty', value: dynasty })
+    if (character > 0) lines.push({ source: 'misc', labelKey: 'settle_character_bonus', value: character })
+    if (careerWage > 0) lines.push({ source: 'career_salary', labelKey: 'settle_career', value: careerWage })
+    if (managerSalary > 0) lines.push({ source: 'manager_salary', labelKey: 'settle_manager_salary', value: -managerSalary })
+    return { lines, businessIncome, careerWage, managerSalary, total: businessIncome + careerWage - managerSalary }
   }
 
   incomeBreakdown(): { label: string; value: number; color: 'green' | 'blue' | 'cyan' | 'gold' | 'red' | 'purple' }[] {
@@ -4605,12 +4732,13 @@ export class GameState {
     if (day % 30 === 0 && day > 0) {
       const expense = lifestyleMonthlyExpense(ls)
       if (expense > 0 && this.money >= expense) {
-        this.money -= expense
+        this.debitMoney(expense, { source: 'expense', metadata: { kind: 'lifestyle_monthly' } })
         this.emit({ type: 'money_changed' })
       }
       const rentalInc = lifestyleRentalIncome(ls)
       if (rentalInc > 0) {
-        this.money += rentalInc
+        // Kira gerçek kazançtır → totalEarned'i artırır (P1 sınıflandırması).
+        this.creditMoney(rentalInc, { source: 'rental_income', countsAsEarned: true })
         this.emit({ type: 'money_changed' })
       }
       // Luxury lifestyle draws media attention when heat is elevated
@@ -5732,6 +5860,131 @@ export class GameState {
     return true
   }
 
+  // ── TUR14 P5: isimli menajer firma ataması ────────────────────────────────
+  isNamedManagerHired(id: NamedManagerId): boolean {
+    return this.namedManagers.some((m) => m.id === id)
+  }
+
+  /** Bu menajerin atanmış olduğu firma (yoksa undefined). Bir menajer tek firmada. */
+  namedManagerAssignedFirm(id: NamedManagerId): string | undefined {
+    for (const [firmId, mgrId] of Object.entries(this.firmManagerAssignments)) {
+      if (mgrId === id) return firmId
+    }
+    return undefined
+  }
+
+  /** Bu firmaya atanmış isimli menajer (yoksa undefined). */
+  firmAssignedManager(producerId: string): NamedManagerId | undefined {
+    return this.firmManagerAssignments[producerId]
+  }
+
+  /**
+   * TUR14 P5 — Atama önizlemesi (SALT-OKUNUR, MUTASYONSUZ). UI kendi yüzde
+   * formülünü yazmaz; bu API tek kaynaktır. `projectedIncome`, atama SONRASI
+   * gerçek `producerIncome` ile BİREBİR eşleşir.
+   */
+  previewManagerAssignment(producerId: string, managerId: NamedManagerId): {
+    appliesToFirm: boolean
+    applicabilityType: ManagerApplicability
+    currentIncome: number
+    projectedIncome: number
+    incomeDelta: number
+    dailySalary: number
+    netDailyDelta: number
+    hireCost: number
+    alreadyHired: boolean
+    assignedFirmId: string | null
+    canAssign: boolean
+    reason: 'ok' | 'not_found' | 'not_owned' | 'already_here' | 'insufficient'
+  } {
+    const def = namedManagerDef(managerId)
+    const prod = PRODUCERS.find((p) => p.id === producerId)
+    const owned = this.producers[producerId] ?? 0
+    const alreadyHired = this.isNamedManagerHired(managerId)
+    const assignedFirmId = this.namedManagerAssignedFirm(managerId) ?? null
+    const dailySalary = def?.dailySalary ?? 0
+    const hireCost = alreadyHired ? 0 : (def?.hireCost ?? 0)
+    const applicabilityType: ManagerApplicability = def && prod
+      ? managerApplicability(def, producerId, !!prod.illegal)
+      : null
+    const currentIncome = prod ? Math.round(this.producerIncome(prod)) : 0
+    let projectedIncome = currentIncome
+    if (def && prod && owned > 0) {
+      const prev = this.firmManagerAssignments[producerId]
+      this.firmManagerAssignments[producerId] = managerId
+      try {
+        projectedIncome = Math.round(this.producerIncome(prod))
+      } finally {
+        if (prev === undefined) delete this.firmManagerAssignments[producerId]
+        else this.firmManagerAssignments[producerId] = prev
+      }
+    }
+    let reason: 'ok' | 'not_found' | 'not_owned' | 'already_here' | 'insufficient' = 'ok'
+    if (!def) reason = 'not_found'
+    else if (owned <= 0) reason = 'not_owned'
+    else if (assignedFirmId === producerId) reason = 'already_here'
+    else if (!alreadyHired && !this.canAfford(hireCost)) reason = 'insufficient'
+    return {
+      appliesToFirm: applicabilityType !== null,
+      applicabilityType,
+      currentIncome,
+      projectedIncome,
+      incomeDelta: projectedIncome - currentIncome,
+      dailySalary,
+      netDailyDelta: (projectedIncome - currentIncome) - dailySalary,
+      hireCost,
+      alreadyHired,
+      assignedFirmId,
+      canAssign: reason === 'ok',
+      reason,
+    }
+  }
+
+  /**
+   * Firmaya isimli menajer ata. Henüz işe alınmamışsa işe alma bedeli BİR KEZ
+   * ödenir; firmalar arası taşımada tekrar bedel alınmaz. Bir menajer aynı anda
+   * tek firmada aktif olur (eski firmadan otomatik çözülür).
+   */
+  assignFirmManager(producerId: string, managerId: NamedManagerId): { ok: boolean; reason: string } {
+    const def = namedManagerDef(managerId)
+    if (!def) return { ok: false, reason: 'not_found' }
+    const owned = this.producers[producerId] ?? 0
+    if (owned <= 0) return { ok: false, reason: 'not_owned' }
+    if (this.firmManagerAssignments[producerId] === managerId) return { ok: false, reason: 'already_here' }
+    const alreadyHired = this.isNamedManagerHired(managerId)
+    if (!alreadyHired) {
+      if (!this.canAfford(def.hireCost)) return { ok: false, reason: 'insufficient' }
+      this.debitMoney(def.hireCost, { source: 'manager_hire', metadata: { manager: managerId, firm: producerId } })
+      this.namedManagers.push({ id: managerId, hiredGameDay: gameDay(this.gameTimeMs) })
+    }
+    // Menajeri eski firmasından çöz (tek firmada aktif olur).
+    const prevFirm = this.namedManagerAssignedFirm(managerId)
+    if (prevFirm && prevFirm !== producerId) delete this.firmManagerAssignments[prevFirm]
+    this.firmManagerAssignments[producerId] = managerId
+    this.emit({ type: 'money_changed' })
+    this.emit({ type: 'purchase' })
+    return { ok: true, reason: 'ok' }
+  }
+
+  /** Firmadan menajeri görevden al — menajer işe alınmış (boşta) kalır, maaş kesilir. */
+  unassignFirmManager(producerId: string): boolean {
+    if (!this.firmManagerAssignments[producerId]) return false
+    delete this.firmManagerAssignments[producerId]
+    this.emit({ type: 'money_changed' })
+    this.emit({ type: 'purchase' })
+    return true
+  }
+
+  /** Atanmış (ve firması hâlâ ayakta olan) menajerlerin toplam günlük maaşı. */
+  assignedManagerDailySalary(): number {
+    let total = 0
+    for (const [firmId, mgrId] of Object.entries(this.firmManagerAssignments)) {
+      if ((this.producers[firmId] ?? 0) <= 0) continue
+      total += namedManagerDef(mgrId)?.dailySalary ?? 0
+    }
+    return total
+  }
+
   acceptRivalAllianceOffer(): boolean {
     if (!this.pendingRivalOffer) return false
     const rival = rivalById(this.rivals, this.pendingRivalOffer.rivalId)
@@ -5834,6 +6087,31 @@ export class GameState {
     this.dynasty.pendingDeath = null
   }
 
+  /**
+   * TUR14 P5 — Firma satış önizlemesi (TEK KAYNAK, MUTASYONSUZ). Panelin
+   * gösterdiği "alınacak para / gelir düşüşü / kalan adet" gerçek satışla birebir.
+   * Gelir düşüşü için producers'ı geçici azaltır, producerIncome'u ölçer, restore eder.
+   */
+  sellProducerPreview(id: string, count: number): { count: number; refund: number; incomeNow: number; incomeAfter: number; incomeDrop: number; remaining: number } {
+    const owned = this.producers[id] ?? 0
+    const def = PRODUCERS.find((p) => p.id === id)
+    const n = Math.max(0, Math.min(Math.floor(count), owned))
+    if (!def || n <= 0) {
+      const inc = def ? Math.round(this.producerIncome(def)) : 0
+      return { count: 0, refund: 0, incomeNow: inc, incomeAfter: inc, incomeDrop: 0, remaining: owned }
+    }
+    const refund = Math.floor(this.producerCostFor(def, owned - n, n) * 0.55)
+    const incomeNow = Math.round(this.producerIncome(def))
+    this.producers[id] = owned - n
+    let incomeAfter = incomeNow
+    try {
+      incomeAfter = Math.round(this.producerIncome(def))
+    } finally {
+      this.producers[id] = owned
+    }
+    return { count: n, refund, incomeNow, incomeAfter, incomeDrop: Math.max(0, incomeNow - incomeAfter), remaining: owned - n }
+  }
+
   sellProducer(id: string, count = 1): boolean {
     const owned = this.producers[id] ?? 0
     if (count <= 0 || count > owned) return false
@@ -5841,11 +6119,14 @@ export class GameState {
     if (!def) return false
     const refund = Math.floor(this.producerCostFor(def, owned - count, count) * 0.55)
     this.producers[id] = owned - count
-    if (hasManager(this.managers, id) && (this.producers[id] ?? 0) <= 0) {
-      this.managers[id] = false
+    if ((this.producers[id] ?? 0) <= 0) {
+      // Firma tamamen kapandı: generic müdür + atanmış isimli menajer boşa çıkar.
+      // İsimli menajer işe alınmış kalır (boşta), maaşı ertesi günden kesilir.
+      if (hasManager(this.managers, id)) this.managers[id] = false
+      if (this.firmManagerAssignments[id]) delete this.firmManagerAssignments[id]
     }
     syncEmpireFromProducers(this.empire, this.producers)
-    this.addMoney(refund)
+    this.creditMoney(refund, { source: 'firm_sell', countsAsEarned: false, metadata: { firm: id, count } }) // satış ana parası — kazanç DEĞİL
     this.pendingUndo = {
       id: `sell_${id}_${Date.now()}`,
       kind: 'sell_producer',
@@ -6065,7 +6346,7 @@ export class GameState {
     }
     const currentDay = gameDay(this.gameTimeMs)
     const result = applyCareerAction(this.career, actionId, currentDay)
-    if (result.money > 0) this.addMoney(result.money, false)
+    if (result.money > 0) this.creditMoney(result.money, { source: 'career_action', countsAsEarned: true, metadata: { action: actionId } })
     if (!this.career.firstGoalComplete && this.totalEarned >= FIRST_GOAL_TARGET) {
       this.career.firstGoalComplete = true
     }
@@ -6481,6 +6762,7 @@ export class GameState {
       pendingInvestments: this.pendingInvestments.map((i) => ({ ...i })),
       franchises: this.franchises.map((f) => ({ ...f })),
       namedManagers: this.namedManagers.map((m) => ({ ...m })),
+      firmManagerAssignments: Object.keys(this.firmManagerAssignments).length > 0 ? { ...this.firmManagerAssignments } : undefined,
       pendingRivalOffer: this.pendingRivalOffer ? { ...this.pendingRivalOffer } : null,
       undergroundMarketActive: [...this.undergroundMarketActive],
       advisorTip: this.advisorTip ? { ...this.advisorTip } : null,
@@ -6510,6 +6792,7 @@ export class GameState {
       prestigeShopPurchased: [...this.prestigeShopPurchased],
       dailyPlan: this.dailyPlan ?? null,
       pendingDecisions: this.pendingDecisions.length > 0 ? [...this.pendingDecisions] : undefined,
+      moneyTransactions: this.moneyTransactions.length > 0 ? this.moneyTransactions.slice(-MONEY_TX_LIMIT) : undefined,
     }
   }
 
@@ -6517,6 +6800,8 @@ export class GameState {
     this.money = data.money
     this.totalEarned = data.totalEarned
     this.totalClicks = data.totalClicks
+    this.moneyTransactions = Array.isArray(data.moneyTransactions) ? data.moneyTransactions.slice(-MONEY_TX_LIMIT) : []
+    this.moneyTxCounter = this.moneyTransactions.length
     this.producers = { ...data.producers }
     for (const p of PRODUCERS) {
       if (this.producers[p.id] === undefined) this.producers[p.id] = 0
@@ -6674,6 +6959,10 @@ export class GameState {
     }
     this.career = data.career ? { ...createCareerState(), ...data.career } : createCareerState()
     if (!Array.isArray(this.career.actionsUsedToday)) this.career.actionsUsedToday = []
+    // Normalize career to the loaded game day: if the save is from a previous day,
+    // immediately reset daily action/wage counters so the screen shows a fresh day
+    // without the player needing to press anything.
+    ensureCareerDay(this.career, gameDay(this.gameTimeMs))
     this.producerLevels = data.producerLevels ? { ...data.producerLevels } : {}
     this.producerUpgrades = data.producerUpgrades
       ? Object.fromEntries(Object.entries(data.producerUpgrades).map(([k, v]) => [k, [...(v as string[])]]))
@@ -6828,6 +7117,16 @@ export class GameState {
     this.pendingInvestments = data.pendingInvestments ?? []
     this.franchises = data.franchises ?? []
     this.namedManagers = data.namedManagers ?? []
+    // TUR14 P5: firma ataması migration-safe — eski save'de yoksa boş. Yalnız
+    // gerçekten işe alınmış menajerin ataması korunur (tutarlılık).
+    this.firmManagerAssignments = {}
+    if (data.firmManagerAssignments && typeof data.firmManagerAssignments === 'object') {
+      for (const [firmId, mgrId] of Object.entries(data.firmManagerAssignments)) {
+        if (mgrId && this.namedManagers.some((m) => m.id === mgrId)) {
+          this.firmManagerAssignments[firmId] = mgrId as NamedManagerId
+        }
+      }
+    }
     this.pendingRivalOffer = data.pendingRivalOffer ?? null
     this.undergroundMarketActive = data.undergroundMarketActive ?? []
     this.advisorTip = data.advisorTip ?? null

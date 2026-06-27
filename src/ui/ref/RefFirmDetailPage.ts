@@ -2,13 +2,17 @@ import './ref-ui.css'
 import { type FirmData, type FirmStatus, firmHeroSrc } from './RefCard'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
 import { assetUrl } from '../../utils/assetUrl'
-import { areaChartSvg, gaugeSvg, donutSvg, refToast } from './refShared'
+import { areaChartSvg, gaugeSvg, donutSvg, refToast, registerSheetDismiss, formatSignedMoneyPerDay, fmtMoneyTrim } from './refShared'
 import { i18n } from '../../i18n'
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, producerName, type ProducerDef } from '../../game/Economy'
 import { fmt } from '../../i18n'
 import { FIRM_MAX_LEVEL, firmLevelIncomeMult } from '../../game/FirmLevels'
-import { hasManager } from '../../game/Managers'
+import { hasManager, MANAGER_BONUS } from '../../game/Managers'
+import {
+  NAMED_MANAGERS, namedManagerDef, namedManagerFirmBonus,
+  managerDisplayName, managerSpecialty, type NamedManagerId,
+} from '../../game/NamedManagers'
 
 /** Detay sayfasını gerçek GameState'e bağlayan opsiyonel bağlam. */
 export interface FirmDetailLiveCtx {
@@ -331,9 +335,10 @@ export class RefFirmDetailPage {
     const maxed = lvStatus.atMax
     const canLevel = lvStatus.canLevelUp
 
-    const managerHired = hasManager(s.managers, def.id)
-    const manCost = !managerHired ? s.managerCostFor(def) : 0
-    const canManager = !managerHired && s.money >= manCost && manCost > 0
+    // TUR14 P5: isimli menajer ataması (varsa) generic legacy müdürün yerine geçer.
+    const assignedId = s.firmAssignedManager(def.id)
+    const assignedDef = assignedId ? namedManagerDef(assignedId) : undefined
+    const genericManager = hasManager(s.managers, def.id)
 
     const isModern = !!s.producerModernized[def.id]
     const modAvailable = s.ipoCount > 0
@@ -357,9 +362,40 @@ export class RefFirmDetailPage {
         ? `<button class="ref-btn modernize" type="button" disabled>${i18n.t('ref_detail_modernized_done')}</button>`
         : `<button class="ref-btn modernize" type="button" data-act="modern">${i18n.t('ref_detail_modernize_button')}</button>`
 
-    const manBtn = managerHired
-      ? `<button class="ref-btn manager" type="button" disabled>${i18n.t('ref_detail_manager_hired')}</button>`
-      : `<button class="ref-btn manager" type="button" data-act="manager" ${canManager ? '' : 'disabled'}>${fmt('ref_detail_manager_hire_fmt', { cost: fmtMoney(manCost) })}</button>`
+    // Menajer bloğu: atanmış isimli menajer kartı (Değiştir/Görevden Al) ya da
+    // legacy generic müdür kartı (isimli menajere yükselt) ya da "Ata" butonu.
+    let manBlock: string
+    if (assignedDef) {
+      const bonusPct = Math.round(namedManagerFirmBonus(assignedDef, def.id) * 100)
+      manBlock = `
+        <div class="ref-mgr-current">
+          <div class="ref-mgr-current__info">
+            <span class="ref-mgr-current__emoji">${assignedDef.emoji}</span>
+            <div>
+              <div class="ref-mgr-current__name">${managerDisplayName(assignedDef)}</div>
+              <div class="ref-mgr-current__bonus">${i18n.t('ref_mgr_income_bonus')}: +%${bonusPct} · ${fmtMoneyTrim(assignedDef.dailySalary)}/${i18n.t('time_day')}</div>
+            </div>
+          </div>
+          <div class="ref-mgr-current__actions">
+            <button class="ref-btn manager sm" type="button" data-act="manager-panel">${i18n.t('ref_mgr_change')}</button>
+            <button class="ref-btn manager sm ghost" type="button" data-act="manager-dismiss">${i18n.t('ref_mgr_dismiss')}</button>
+          </div>
+        </div>`
+    } else if (genericManager) {
+      manBlock = `
+        <div class="ref-mgr-current">
+          <div class="ref-mgr-current__info">
+            <span class="ref-mgr-current__emoji">🧑‍💼</span>
+            <div>
+              <div class="ref-mgr-current__name">${i18n.t('ref_mgr_generic_name')}</div>
+              <div class="ref-mgr-current__bonus">${i18n.t('ref_mgr_income_bonus')}: +%${Math.round(MANAGER_BONUS * 100)}</div>
+            </div>
+          </div>
+          <button class="ref-btn manager sm" type="button" data-act="manager-panel">${i18n.t('ref_mgr_assign_named')}</button>
+        </div>`
+    } else {
+      manBlock = `<button class="ref-btn manager" type="button" data-act="manager-panel">${i18n.t('ref_mgr_assign_button')}</button>`
+    }
 
     const owned = s.producers[def.id] ?? 0
     const lvMult = firmLevelIncomeMult(lv)
@@ -374,18 +410,20 @@ export class RefFirmDetailPage {
         <div class="ref-detail-ib-row"><span>${i18n.t('firms_stat_unit_income')}</span><b>${fmtMoney(unitIncome)}</b></div>
         <div class="ref-detail-ib-row"><span>${i18n.t('firms_stat_count')}</span><b>${owned}</b></div>
         <div class="ref-detail-ib-row"><span>${fmt('ref_detail_level_mult_fmt', { lv })}</span><b>×${lvMult.toFixed(2)}</b></div>
-        ${managerHired ? `<div class="ref-detail-ib-row"><span>${i18n.t('ref_detail_manager_bonus_label')}</span><b>✓</b></div>` : ''}
+        ${assignedDef ? `<div class="ref-detail-ib-row"><span>${i18n.t('ref_detail_manager_bonus_label')}</span><b>${assignedDef.emoji} ${managerDisplayName(assignedDef)}</b></div>`
+          : genericManager ? `<div class="ref-detail-ib-row"><span>${i18n.t('ref_detail_manager_bonus_label')}</span><b>${i18n.t('ref_mgr_generic_name')}</b></div>` : ''}
       </div>` : ''
 
     return `
       <div class="ref-detail-section-title">${fmt('ref_detail_management_fmt', { lv, max: FIRM_MAX_LEVEL })} ${lv > 1 ? `<span class="ref-detail-mult">×${firmLevelIncomeMult(lv).toFixed(2)} ${i18n.t('ref_detail_income_mult_suffix')}</span>` : ''}</div>
       <div class="ref-detail-lvl-pips">${pips}</div>
       ${incomeBreakdown}
-      <div class="ref-detail-actions live">
+      <div class="ref-detail-actions live two">
         ${lvBtn}
         ${modBtn}
-        ${manBtn}
       </div>
+      <div class="ref-mgr-block">${manBlock}</div>
+      ${owned > 0 ? `<button class="ref-btn sell-firm" type="button" data-act="sell">${fmt('ref_detail_sell_button_fmt', { count: String(owned) })}</button>` : ''}
       <div class="ref-preview-note live">${i18n.t('ref_detail_live_note')}</div>`
   }
 
@@ -414,10 +452,226 @@ export class RefFirmDetailPage {
       if (ok) { refToast(fmt('ref_detail_modernize_ok_toast', { name: producerName(def) }), 'ok'); this.refreshLive() }
       else refToast(i18n.t('ref_detail_modernize_failed'), 'err')
     })
-    this.el.querySelector<HTMLButtonElement>('[data-act="manager"]')?.addEventListener('click', () => {
-      const ok = s.hireManager(def.id)
-      if (ok) { refToast(fmt('ref_detail_manager_ok_toast', { name: producerName(def) }), 'ok'); this.refreshLive() }
-      else refToast(i18n.t('ref_detail_manager_failed'), 'err')
+    this.el.querySelector<HTMLButtonElement>('[data-act="manager-panel"]')?.addEventListener('click', () => {
+      this.openManagerPanel(s, def)
     })
+    this.el.querySelector<HTMLButtonElement>('[data-act="manager-dismiss"]')?.addEventListener('click', () => {
+      if (s.unassignFirmManager(def.id)) { refToast(i18n.t('ref_mgr_dismissed_toast'), 'ok'); this.refreshLive() }
+    })
+    this.el.querySelector<HTMLButtonElement>('[data-act="sell"]')?.addEventListener('click', () => {
+      this.openSalePanel(s, def)
+    })
+  }
+
+  /* ── TUR14 P5: İsimli menajer seçim paneli ── */
+  private mgrOverlay: HTMLElement | null = null
+  private mgrDismiss: (() => void) | null = null
+
+  private closeManagerPanel(): void {
+    if (this.mgrOverlay) { this.mgrOverlay.remove(); this.mgrOverlay = null }
+    this.mgrDismiss?.(); this.mgrDismiss = null
+  }
+
+  private openManagerPanel(s: GameState, def: ProducerDef): void {
+    this.closeManagerPanel()
+    const overlay = document.createElement('div')
+    overlay.className = 'ref-trade-overlay'
+    const sheet = document.createElement('div')
+    sheet.className = 'ref-trade-sheet ref-mgr-sheet'
+    overlay.appendChild(sheet)
+    this.mgrOverlay = overlay
+    this.mgrDismiss = registerSheetDismiss(() => this.closeManagerPanel())
+    const render = () => { sheet.innerHTML = this.managerPanelHtml(s, def) }
+    overlay.addEventListener('click', (ev) => {
+      const target = ev.target as HTMLElement
+      if (target === overlay || target.closest('[data-mgr-close]')) { this.closeManagerPanel(); return }
+      const assignBtn = target.closest<HTMLButtonElement>('[data-mgr-assign]')
+      if (assignBtn && !assignBtn.disabled) {
+        const r = s.assignFirmManager(def.id, assignBtn.dataset.mgrAssign as NamedManagerId)
+        if (r.ok) {
+          refToast(i18n.t('ref_mgr_assigned_toast'), 'ok')
+          this.closeManagerPanel()
+          this.refreshLive()
+        } else {
+          refToast(this.managerReasonText(r.reason), 'err')
+          render() // yetersiz bakiye vb. durumda paneli güncel tut
+        }
+      }
+    })
+    document.body.appendChild(overlay)
+    render()
+  }
+
+  private managerReasonText(reason: string): string {
+    if (reason === 'insufficient') return i18n.t('ref_mgr_reason_insufficient')
+    if (reason === 'not_owned') return i18n.t('ref_mgr_reason_not_owned')
+    if (reason === 'already_here') return i18n.t('ref_mgr_reason_already_here')
+    return i18n.t('ref_detail_manager_failed')
+  }
+
+  /** Tek bir menajer kartı (uygunluk grubuna göre filtrelenmiş listede gösterilir). */
+  private managerCardHtml(def: ProducerDef, m: typeof NAMED_MANAGERS[number], pv: ReturnType<GameState['previewManagerAssignment']>): string {
+    let statusLbl: string, statusCls: string
+    if (pv.assignedFirmId === def.id) { statusLbl = i18n.t('ref_mgr_status_here'); statusCls = 'here' }
+    else if (pv.assignedFirmId) { statusLbl = i18n.t('ref_mgr_status_other'); statusCls = 'other' }
+    else if (pv.alreadyHired) { statusLbl = i18n.t('ref_mgr_status_idle'); statusCls = 'idle' }
+    else { statusLbl = i18n.t('ref_mgr_status_new'); statusCls = 'new' }
+
+    const applLbl = pv.applicabilityType === 'specific' ? i18n.t('ref_mgr_appl_specific') : i18n.t('ref_mgr_appl_general')
+    const firmBonus = namedManagerFirmBonus(m, def.id)
+    const bonusLine = firmBonus > 0
+      ? fmt('ref_mgr_firm_income_fmt', { from: fmtMoneyTrim(pv.currentIncome), to: fmtMoneyTrim(pv.projectedIncome) })
+      : `<span class="ref-mgr-nobonus">${i18n.t('ref_mgr_no_firm_bonus')}</span>`
+    const netCls = pv.netDailyDelta > 0 ? 'up' : pv.netDailyDelta < 0 ? 'down' : 'muted'
+    const hireLine = pv.alreadyHired
+      ? i18n.t('ref_mgr_already_hired')
+      : fmt('ref_mgr_hire_cost_fmt', { cost: fmtMoneyTrim(pv.hireCost) })
+    const lossWarn = pv.netDailyDelta < 0
+      ? `<div class="ref-mgr-card__loss">${fmt('ref_mgr_loss_warn', { amount: fmtMoneyTrim(Math.abs(pv.netDailyDelta)) })}</div>` : ''
+    const reasonNote = (!pv.canAssign && pv.reason === 'insufficient')
+      ? `<div class="ref-mgr-card__reason">${i18n.t('ref_mgr_reason_insufficient')}</div>` : ''
+    const btnLbl = pv.assignedFirmId === def.id ? i18n.t('ref_mgr_status_here')
+      : pv.alreadyHired ? i18n.t('ref_mgr_move_here') : i18n.t('ref_mgr_assign_here')
+    return `
+      <div class="ref-mgr-card">
+        <div class="ref-mgr-card__head">
+          <span class="ref-mgr-card__emoji">${m.emoji}</span>
+          <div class="ref-mgr-card__id">
+            <div class="ref-mgr-card__name">${managerDisplayName(m)}</div>
+            <div class="ref-mgr-card__spec">${managerSpecialty(m)} · <span class="ref-mgr-appl ${pv.applicabilityType}">${applLbl}</span></div>
+          </div>
+          <span class="ref-mgr-card__status ${statusCls}">${statusLbl}</span>
+        </div>
+        <div class="ref-mgr-card__rows">
+          <div class="ref-mgr-row"><span>${hireLine}</span><span>${i18n.t('ref_mgr_daily_salary')}: ${fmtMoneyTrim(m.dailySalary)}</span></div>
+          <div class="ref-mgr-row firm">${bonusLine}</div>
+          <div class="ref-mgr-row net"><span>${i18n.t('ref_mgr_net_daily')}</span><b class="ref-pl-${netCls}">${formatSignedMoneyPerDay(pv.netDailyDelta)}</b></div>
+        </div>
+        ${lossWarn}
+        ${reasonNote}
+        <button class="ref-btn manager mgr-assign" type="button" data-mgr-assign="${m.id}" ${pv.canAssign ? '' : 'disabled'}>${btnLbl}</button>
+      </div>`
+  }
+
+  private managerPanelHtml(s: GameState, def: ProducerDef): string {
+    // Yalnız bu firmada ANLAMLI menajerler: firmaya özel + genel bonus (gerçek
+    // bonus tanımından türetilir; alakasız menajer panelde GÖSTERİLMEZ).
+    const entries = NAMED_MANAGERS
+      .map((m) => ({ m, pv: s.previewManagerAssignment(def.id, m.id) }))
+      .filter((e) => e.pv.appliesToFirm)
+    const specific = entries.filter((e) => e.pv.applicabilityType === 'specific')
+    const general = entries.filter((e) => e.pv.applicabilityType === 'general')
+    // Küçük firma uyarısı: gösterilen tüm uygun seçenekler net-negatifse.
+    const allNegative = entries.length > 0 && entries.every((e) => e.pv.netDailyDelta < 0)
+    const smallWarn = allNegative ? `<div class="ref-mgr-toosmall">⚠️ ${i18n.t('ref_mgr_firm_too_small')}</div>` : ''
+    const group = (title: string, list: typeof entries) => list.length === 0 ? '' : `
+      <div class="ref-mgr-group-title">${title}</div>
+      ${list.map((e) => this.managerCardHtml(def, e.m, e.pv)).join('')}`
+    const body = entries.length === 0
+      ? `<div class="ref-mgr-empty">${i18n.t('ref_mgr_none_applicable')}</div>`
+      : group(i18n.t('ref_mgr_group_specific'), specific) + group(i18n.t('ref_mgr_group_general'), general)
+    return `
+      <div class="ref-trade-handle"></div>
+      <div class="ref-trade-head">
+        <div class="ref-trade-title">👔 ${i18n.t('ref_mgr_panel_title')} — ${producerName(def)}</div>
+        <button class="ref-trade-close" type="button" data-mgr-close>✕</button>
+      </div>
+      ${smallWarn}
+      <div class="ref-mgr-list">${body}</div>`
+  }
+
+  /* ── TUR14 P5: Firma satış paneli (1 / 10 / Tümü) ── */
+  private saleOverlay: HTMLElement | null = null
+  private saleDismiss: (() => void) | null = null
+  private saleBusy = false
+
+  private closeSalePanel(): void {
+    if (this.saleOverlay) { this.saleOverlay.remove(); this.saleOverlay = null }
+    this.saleDismiss?.(); this.saleDismiss = null
+    this.saleBusy = false
+  }
+
+  private resolveSaleQty(s: GameState, def: ProducerDef, key: string): number {
+    const owned = s.producers[def.id] ?? 0
+    if (key === '1') return Math.min(1, owned)
+    if (key === '10') return Math.min(10, owned)
+    if (key === 'all') return owned
+    return Math.min(1, owned)
+  }
+
+  private openSalePanel(s: GameState, def: ProducerDef): void {
+    this.closeSalePanel()
+    let qty = Math.min(1, s.producers[def.id] ?? 0)
+    let confirmingLast = false
+
+    const overlay = document.createElement('div')
+    overlay.className = 'ref-trade-overlay'
+    const sheet = document.createElement('div')
+    sheet.className = 'ref-trade-sheet'
+    overlay.appendChild(sheet)
+    this.saleOverlay = overlay
+    this.saleDismiss = registerSheetDismiss(() => this.closeSalePanel())
+
+    const render = () => { sheet.innerHTML = this.salePanelHtml(s, def, qty, confirmingLast) }
+
+    overlay.addEventListener('click', (ev) => {
+      const target = ev.target as HTMLElement
+      if (target === overlay || target.closest('[data-sale-close]')) { this.closeSalePanel(); return }
+      const qBtn = target.closest<HTMLElement>('[data-sale-qty]')
+      if (qBtn) { qty = this.resolveSaleQty(s, def, qBtn.dataset.saleQty!); confirmingLast = false; render(); return }
+      const confirmBtn = target.closest<HTMLButtonElement>('[data-sale-confirm]')
+      if (confirmBtn && !confirmBtn.disabled) {
+        if (this.saleBusy) return                  // çift işlem koruması
+        const owned = s.producers[def.id] ?? 0
+        // Son birimi satıyorsa ikinci onay iste (firma tamamen kapanır).
+        if (qty >= owned && !confirmingLast) { confirmingLast = true; render(); return }
+        this.saleBusy = true
+        const ok = s.sellProducer(def.id, qty)
+        this.closeSalePanel()
+        if (ok) {
+          refToast(fmt('ref_detail_sell_ok_toast', { name: producerName(def), count: String(qty) }), 'ok')
+          // Firma tamamen kapandıysa stale detay ekranı bırakma — listeye dön.
+          if ((s.producers[def.id] ?? 0) <= 0) this.onBack?.()
+          else this.refreshLive()
+        } else refToast(i18n.t('ref_detail_sell_failed'), 'err')
+      }
+    })
+    document.body.appendChild(overlay)
+    render()
+  }
+
+  private salePanelHtml(s: GameState, def: ProducerDef, qty: number, confirmingLast: boolean): string {
+    const owned = s.producers[def.id] ?? 0
+    const pv = s.sellProducerPreview(def.id, qty)
+    const presets: { key: string; label: string }[] = [
+      { key: '1', label: '1' }, { key: '10', label: '10' },
+      { key: 'all', label: i18n.t('ref_detail_sell_all') },
+    ]
+    const qtyBtns = presets.map((p) => `<button class="ref-trade-qty-btn" type="button" data-sale-qty="${p.key}">${p.label}</button>`).join('')
+    const confirmLabel = confirmingLast
+      ? i18n.t('ref_detail_sell_confirm_last')
+      : fmt('ref_detail_sell_confirm_fmt', { count: String(pv.count) })
+    return `
+      <div class="ref-trade-handle"></div>
+      <div class="ref-trade-head">
+        <div class="ref-trade-title">🏷️ ${producerName(def)}</div>
+        <button class="ref-trade-close" type="button" data-sale-close>✕</button>
+      </div>
+      <div class="ref-trade-position">
+        ${this.saleRow(i18n.t('ref_detail_sell_owned'), String(owned))}
+      </div>
+      <div class="ref-trade-qtyrow three">${qtyBtns}</div>
+      <div class="ref-trade-preview">
+        ${this.saleRow(i18n.t('ref_detail_sell_qty'), String(pv.count))}
+        ${this.saleRow(i18n.t('ref_detail_sell_proceeds'), fmtMoney(pv.refund), 'strong')}
+        ${this.saleRow(i18n.t('ref_detail_sell_income_drop'), `−${fmtMoney(pv.incomeDrop)}/g`)}
+        ${this.saleRow(i18n.t('ref_detail_sell_remaining'), String(pv.remaining))}
+      </div>
+      ${confirmingLast ? `<div class="ref-sale-warn">⚠️ ${i18n.t('ref_detail_sell_last_warn')}</div>` : ''}
+      <button class="ref-trade-confirm sell" type="button" data-sale-confirm ${pv.count <= 0 ? 'disabled' : ''}>${confirmLabel}</button>`
+  }
+
+  private saleRow(label: string, value: string, mod = ''): string {
+    return `<div class="ref-trade-row ${mod}"><span>${label}</span><b>${value}</b></div>`
   }
 }

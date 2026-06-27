@@ -640,6 +640,7 @@ function applyV9Defaults(state: SerializableState): SerializableState {
     pendingInvestments: state.pendingInvestments ?? [],
     franchises: state.franchises ?? [],
     namedManagers: state.namedManagers ?? [],
+    firmManagerAssignments: state.firmManagerAssignments ?? {},
     pendingRivalOffer: state.pendingRivalOffer ?? null,
     undergroundMarketActive: state.undergroundMarketActive ?? [],
     advisorTip: state.advisorTip ?? null,

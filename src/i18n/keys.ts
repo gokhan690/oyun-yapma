@@ -1650,6 +1650,122 @@ export interface Translations {
   ref_dash_sample_tag: string
   ref_dash_percent_fmt: string
 
+  // TUR14 — Para hareketi (ledger) kaynak etiketleri
+  ledger_src_daily_business_income: string
+  ledger_src_career_salary: string
+  ledger_src_career_action: string
+  ledger_src_rental_income: string
+  ledger_src_dynasty_income: string
+  ledger_src_stock_buy: string
+  ledger_src_stock_sell: string
+  ledger_src_firm_buy: string
+  ledger_src_firm_sell: string
+  ledger_src_manager_hire: string
+  ledger_src_manager_salary: string
+  ledger_src_bank_deposit: string
+  ledger_src_bank_withdraw: string
+  ledger_src_loan_received: string
+  ledger_src_loan_repaid: string
+  ledger_src_bond_buy: string
+  ledger_src_bond_sell: string
+  ledger_src_reward: string
+  ledger_src_inheritance: string
+  ledger_src_football_bonus: string
+  ledger_src_offline_reward: string
+  ledger_src_bankruptcy_liquidation: string
+  ledger_src_ipo_seed: string
+  ledger_src_expense: string
+  ledger_src_misc: string
+
+  // TUR14 — Günlük settlement kırılımı + gün değişim bildirimi
+  settle_firms: string
+  settle_dynasty: string
+  settle_character_bonus: string
+  settle_career: string
+  ref_day_settled: string
+  ref_day_settled_multi: string
+
+  // TUR14 — Piyasa nabzı + portföy özeti (P6)
+  ref_market_pulse_title: string
+  ref_market_pulse_fear_fmt: string
+  ref_market_pulse_central_bank: string
+  ref_market_portfolio_title: string
+  ref_market_portfolio_assets_fmt: string
+  ref_market_portfolio_value: string
+  ref_market_portfolio_cost: string
+  ref_market_portfolio_unrealized: string
+  ref_market_portfolio_cash: string
+
+  // TUR14 — Alım/satım paneli (P7)
+  ref_trade_buy: string
+  ref_trade_sell: string
+  ref_trade_max: string
+  ref_trade_qty: string
+  ref_trade_unit_price: string
+  ref_trade_gross: string
+  ref_trade_commission: string
+  ref_trade_total: string
+  ref_trade_net: string
+  ref_trade_after_cash: string
+  ref_trade_after_shares: string
+  ref_trade_avg_cost: string
+  ref_trade_cost_basis: string
+  ref_trade_realized: string
+  ref_trade_shares: string
+  ref_trade_position_value: string
+  ref_trade_unrealized: string
+  ref_trade_confirm_buy: string
+  ref_trade_confirm_sell: string
+  ref_trade_price_changed: string
+
+  // TUR14 — Firma satış paneli (P5)
+  ref_detail_sell_button_fmt: string
+  ref_detail_sell_all: string
+  ref_detail_sell_owned: string
+  ref_detail_sell_qty: string
+  ref_detail_sell_proceeds: string
+  ref_detail_sell_income_drop: string
+  ref_detail_sell_remaining: string
+  ref_detail_sell_confirm_fmt: string
+  ref_detail_sell_confirm_last: string
+  ref_detail_sell_last_warn: string
+  ref_detail_sell_ok_toast: string
+  ref_detail_sell_failed: string
+
+  // TUR14 — İsimli menajer atama (P5)
+  settle_manager_salary: string
+  ref_mgr_income_bonus: string
+  ref_mgr_change: string
+  ref_mgr_dismiss: string
+  ref_mgr_generic_name: string
+  ref_mgr_assign_named: string
+  ref_mgr_assign_button: string
+  ref_mgr_dismissed_toast: string
+  ref_mgr_assigned_toast: string
+  ref_mgr_reason_insufficient: string
+  ref_mgr_reason_not_owned: string
+  ref_mgr_reason_already_here: string
+  ref_mgr_status_here: string
+  ref_mgr_status_other: string
+  ref_mgr_status_idle: string
+  ref_mgr_status_new: string
+  ref_mgr_firm_income_fmt: string
+  ref_mgr_no_firm_bonus: string
+  ref_mgr_already_hired: string
+  ref_mgr_hire_cost_fmt: string
+  ref_mgr_daily_salary: string
+  ref_mgr_net_daily: string
+  ref_mgr_move_here: string
+  ref_mgr_assign_here: string
+  ref_mgr_panel_title: string
+  ref_mgr_group_specific: string
+  ref_mgr_group_general: string
+  ref_mgr_appl_specific: string
+  ref_mgr_appl_general: string
+  ref_mgr_firm_too_small: string
+  ref_mgr_loss_warn: string
+  ref_mgr_none_applicable: string
+
   // Firm Detail — labels and actions
   ref_detail_back_button: string
   ref_detail_level_prefix: string

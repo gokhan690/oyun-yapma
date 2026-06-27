@@ -18,6 +18,24 @@ export function fmtMoney(n: number): string {
   return `${neg}₺${formatMoney(Math.abs(n))}`
 }
 
+/** Tam sayı tutarlarda gereksiz `.0` göstermez (ör. ₺1.0 → ₺1, ₺3.0K → ₺3K). */
+export function fmtMoneyTrim(n: number): string {
+  return fmtMoney(n).replace(/\.0(?=[KMBT]?$)/, '')
+}
+
+/**
+ * TUR14 (kalan iş) — Locale-aware imzalı "günlük tutar" (ör. −₺587/gün).
+ * İşaret + para tek bir LTR `<bdi>` içinde izole edilir → Arapça/RTL'de sayı ve
+ * para işareti dağılmaz ("g/587-₺" gibi bozulma olmaz); gün eki aktif dilde gelir.
+ * Eksi işareti U+2212 (gerçek eksi), gereksiz `.0` yok, pozitifte `+`.
+ */
+export function formatSignedMoneyPerDay(amount: number): string {
+  const sign = amount > 0 ? '+' : amount < 0 ? '−' : ''
+  const money = fmtMoneyTrim(Math.abs(amount))
+  const unit = i18n.t('time_day')
+  return `<bdi dir="ltr">${sign}${money}</bdi>/${unit}`
+}
+
 /** Yıldız satırı HTML'i. */
 export function starsHtml(count: number, max = 5): string {
   return Array.from({ length: max }, (_, i) =>
@@ -42,6 +60,21 @@ export function refToast(message: string, kind: 'ok' | 'err' = 'ok'): void {
   refToastTimer = window.setTimeout(() => {
     refToastEl?.classList.remove('show')
   }, 1800)
+}
+
+/**
+ * TUR14 — Bottom-sheet/dialog panelleri için ortak dismiss davranışı: açılışta
+ * arka sayfa scroll'unu kilitler + ESC tuşuyla kapanışı bağlar. Dönen temizleyici
+ * panel kapanırken çağrılmalı (scroll geri açılır, listener kalkar).
+ */
+export function registerSheetDismiss(close: () => void): () => void {
+  document.body.classList.add('ref-sheet-open')
+  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
+  document.addEventListener('keydown', onKey)
+  return () => {
+    document.removeEventListener('keydown', onKey)
+    document.body.classList.remove('ref-sheet-open')
+  }
 }
 
 /** Header'dan açılan sayfalar için "‹ Geri" satırı (RefAchievementsPage deseni). */

@@ -1,10 +1,14 @@
 import { RefKpiStrip, type KpiItem } from './RefKpiStrip'
 import { RefSubTabs } from './RefSubTabs'
-import { sectionTitle, fmtMoney, gaugeSvg, demoBanner, refToast } from './refShared'
+import { sectionTitle, fmtMoney, fmtMoneyTrim, gaugeSvg, demoBanner, refToast, registerSheetDismiss } from './refShared'
 import { i18n, fmt } from '../../i18n'
 import type { RefPage } from './RefApp'
 import type { GameState } from '../../game/GameState'
-import { portfolioValue, type StockTicker, stockTickerName } from '../../game/StockMarket'
+import {
+  portfolioValue, type StockTicker, stockTickerName,
+  portfolioSummary, fearLabel,
+  previewStockBuy, previewStockSell, profitLoss,
+} from '../../game/StockMarket'
 
 /* ── Mock (state yokken saf önizleme) ──────────────────────────────────── */
 function buildMockKpi(): KpiItem[] {
@@ -45,11 +49,13 @@ export class RefMarketPage implements RefPage {
   private kpiStrip?: RefKpiStrip
   private tabs?: RefSubTabs
   private sentCard?: HTMLElement
+  private portfolioCard?: HTMLElement
   private stockList?: HTMLElement
   private bankGrid?: HTMLElement
   private insGrid?: HTMLElement
   private ipoCard?: HTMLElement
   private lastSentSig = ''
+  private lastPortfolioSig = ''
   private lastStockSig = ''
   private lastBankSig = ''
   private lastInsSig = ''
@@ -85,12 +91,17 @@ export class RefMarketPage implements RefPage {
     this.el.appendChild(secBank)
     this.el.appendChild(secIns)
 
-    // ── 📈 Borsa: duyarlılık + tickerlar ──
+    // ── 📈 Borsa: kompakt piyasa nabzı + portföy özeti + tickerlar ──
+    // Sıra: nabız → portföy → hisse listesi (TUR14 P6).
     this.sentCard = document.createElement('div')
-    this.sentCard.className = 'ref-card-soft ref-detail-gauge'
-    this.sentCard.style.margin = '8px 14px 0'
-    this.sentCard.innerHTML = this.sentHtml(s)
+    this.sentCard.className = 'ref-pulse-strip'
+    this.sentCard.innerHTML = this.pulseHtml(s)
     secStocks.appendChild(this.sentCard)
+
+    this.portfolioCard = document.createElement('div')
+    this.portfolioCard.className = 'ref-portfolio-card'
+    this.portfolioCard.innerHTML = this.portfolioHtml(s)
+    secStocks.appendChild(this.portfolioCard)
 
     secStocks.appendChild(sectionTitle(i18n.t('ref_market_stock_exchange_title'), fmt('ref_market_instruments_fmt', { count: String(Object.keys(s.stock.tickers).length) })))
     this.stockList = document.createElement('div')
@@ -119,6 +130,7 @@ export class RefMarketPage implements RefPage {
 
     // Açılış imzaları (ilk refresh'te gereksiz rebuild olmasın)
     this.lastSentSig  = this.sentSig(s)
+    this.lastPortfolioSig = this.portfolioSig(s)
     this.lastStockSig = this.stockSig(s)
     this.lastBankSig  = this.bankSig(s)
     this.lastInsSig   = this.insSig(s)
@@ -141,21 +153,54 @@ export class RefMarketPage implements RefPage {
   }
 
   private sentSig(s: GameState): string {
-    return `${Math.round(s.stock.marketFear)}|${(s.stock.centralBankRate * 100).toFixed(1)}`
+    return `${Math.round(s.stock.marketFear)}|${(s.stock.centralBankRate * 100).toFixed(1)}|${s.stock.macroHeadline}`
   }
 
-  private sentHtml(s: GameState): string {
+  /** Kompakt "Piyasa Nabzı" şeridi: nabız (iyimserlik/korku) + merkez bankası + son haber. */
+  private pulseHtml(s: GameState): string {
     const fear = Math.round(s.stock.marketFear)
     const optimism = Math.max(0, Math.min(100, 100 - fear))
-    const sentColor = optimism >= 60 ? '#28C76F' : optimism >= 40 ? '#FFB02E' : '#EA5455'
-    const sentLbl = optimism >= 60 ? i18n.t('ref_market_sentiment_optimistic') : optimism >= 40 ? i18n.t('ref_market_sentiment_neutral') : i18n.t('ref_market_sentiment_fearful')
+    const dir = s.stock.trendDirection
+    const pulseColor = optimism >= 60 ? '#28C76F' : optimism >= 40 ? '#FFB02E' : '#EA5455'
+    const pulseLbl = optimism >= 60 ? i18n.t('ref_market_sentiment_optimistic') : optimism >= 40 ? i18n.t('ref_market_sentiment_neutral') : i18n.t('ref_market_sentiment_fearful')
+    const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '◆'
     return `
-      <div class="ref-card-soft__title-row">
-        <span class="ref-card-soft__title">${i18n.t('ref_market_sentiment_title')}</span>
-        <span class="ref-sentiment-lbl" style="color:${sentColor}">${sentLbl}</span>
+      <div class="ref-pulse-item">
+        <span class="ref-pulse-lbl">${i18n.t('ref_market_pulse_title')}</span>
+        <span class="ref-pulse-val" style="color:${pulseColor}">
+          <span class="ref-pulse-dot" style="background:${pulseColor}"></span>${arrow} ${pulseLbl}
+        </span>
+        <span class="ref-pulse-sub">${fmt('ref_market_pulse_fear_fmt', { label: fearLabel(s.stock.marketFear), value: String(fear) })}</span>
       </div>
-      ${gaugeSvg(optimism, sentColor)}
-      <div class="ref-market-rate">${fmt('ref_market_central_bank_rate_fmt', { rate: (s.stock.centralBankRate * 100).toFixed(1) })}</div>`
+      <div class="ref-pulse-item">
+        <span class="ref-pulse-lbl">${i18n.t('ref_market_pulse_central_bank')}</span>
+        <span class="ref-pulse-val">${(s.stock.centralBankRate * 100).toFixed(1)}%</span>
+      </div>
+      <div class="ref-pulse-news">📰 ${s.stock.macroHeadline}</div>`
+  }
+
+  private portfolioSig(s: GameState): string {
+    const sum = portfolioSummary(s.stock)
+    return `${Math.round(sum.totalValue)}|${Math.round(sum.totalCost)}|${Math.round(sum.totalPl)}|${sum.holdings}|${Math.round(s.money)}`
+  }
+
+  /** Portföy özeti: değer / maliyet / gerçekleşmemiş K/Z / nakit / varlık sayısı. */
+  private portfolioHtml(s: GameState): string {
+    const sum = portfolioSummary(s.stock)
+    const plDir = sum.totalPl > 0 ? 'up' : sum.totalPl < 0 ? 'down' : 'muted'
+    const plSign = sum.totalPl > 0 ? '+' : ''
+    const plPct = sum.totalCost > 0 ? (sum.totalPl / sum.totalCost) * 100 : 0
+    return `
+      <div class="ref-portfolio-card__head">
+        <span class="ref-portfolio-card__title">${i18n.t('ref_market_portfolio_title')}</span>
+        <span class="ref-portfolio-card__assets">${fmt('ref_market_portfolio_assets_fmt', { count: String(sum.holdings) })}</span>
+      </div>
+      <div class="ref-portfolio-grid">
+        <div class="ref-portfolio-cell"><span>${i18n.t('ref_market_portfolio_value')}</span><b>${fmtMoney(Math.round(sum.totalValue))}</b></div>
+        <div class="ref-portfolio-cell"><span>${i18n.t('ref_market_portfolio_cost')}</span><b>${fmtMoney(Math.round(sum.totalCost))}</b></div>
+        <div class="ref-portfolio-cell"><span>${i18n.t('ref_market_portfolio_unrealized')}</span><b class="ref-pl-${plDir}">${plSign}${fmtMoney(Math.round(sum.totalPl))} (${plSign}${plPct.toFixed(1)}%)</b></div>
+        <div class="ref-portfolio-cell"><span>${i18n.t('ref_market_portfolio_cash')}</span><b>${fmtMoney(Math.round(s.money))}</b></div>
+      </div>`
   }
 
   private stockSig(s: GameState): string {
@@ -166,11 +211,13 @@ export class RefMarketPage implements RefPage {
     return Object.values(s.stock.tickers).map((t) => {
       const chg = tickerChangePct(t)
       const up = chg >= 0
-      const ownedTxt = t.shares > 0 ? `<span class="ref-stock-owned">${fmt('ref_market_shares_owned_fmt', { count: String(t.shares) })}</span>` : ''
-      const canBuy = s.money >= t.price
-      const canSell = t.shares > 0
+      const pl = profitLoss(t)
+      const ownedTxt = t.shares > 0
+        ? `<span class="ref-stock-owned">${fmt('ref_market_shares_owned_fmt', { count: String(t.shares) })} · <span class="ref-pl-${pl > 0 ? 'up' : pl < 0 ? 'down' : 'muted'}">${pl >= 0 ? '+' : ''}${fmtMoney(Math.round(pl))}</span></span>`
+        : ''
+      // Tüm satır dokunmatik: alım/satım paneli (bottom sheet) açar — basit 1-hisse butonu yerine.
       return `
-        <div class="ref-stock-row">
+        <button class="ref-stock-row" type="button" data-stock-trade="${t.id}">
           <div class="ref-stock-id">
             <span class="ref-stock-ticker">${t.emoji} ${stockTickerName(t.id)}</span>
             <span class="ref-stock-name">${ownedTxt || t.sector}</span>
@@ -180,11 +227,8 @@ export class RefMarketPage implements RefPage {
             <span class="ref-stock-price">${fmtMoney(Math.round(t.price))}</span>
             <span class="ref-stock-chg ${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(chg).toFixed(1)}%</span>
           </div>
-          <div class="ref-stock-actions">
-            <button class="ref-stock-buy-btn" type="button" data-stock-buy="${t.id}" ${canBuy ? '' : 'disabled'}>${i18n.t('ref_market_stock_buy_btn')}</button>
-            <button class="ref-stock-sell-btn" type="button" data-stock-sell="${t.id}" ${canSell ? '' : 'disabled'}>${i18n.t('ref_market_stock_sell_btn')}</button>
-          </div>
-        </div>`
+          <span class="ref-stock-chevron">›</span>
+        </button>`
     }).join('')
   }
 
@@ -259,7 +303,12 @@ export class RefMarketPage implements RefPage {
     const sSig = this.sentSig(state)
     if (sSig !== this.lastSentSig && this.sentCard) {
       this.lastSentSig = sSig
-      this.sentCard.innerHTML = this.sentHtml(state)
+      this.sentCard.innerHTML = this.pulseHtml(state)
+    }
+    const pSig = this.portfolioSig(state)
+    if (pSig !== this.lastPortfolioSig && this.portfolioCard) {
+      this.lastPortfolioSig = pSig
+      this.portfolioCard.innerHTML = this.portfolioHtml(state)
     }
     const stSig = this.stockSig(state)
     if (stSig !== this.lastStockSig && this.stockList) {
@@ -289,21 +338,10 @@ export class RefMarketPage implements RefPage {
     if (!s) return
     const el = e.target as HTMLElement
 
-    // ── Borsa Al/Sat ──
-    const buyBtn = el.closest<HTMLButtonElement>('[data-stock-buy]')
-    if (buyBtn && !buyBtn.disabled) {
-      const tickerId = buyBtn.dataset.stockBuy!
-      const ok = s.stockBuy(tickerId, 1)
-      refToast(ok ? i18n.t('ref_market_stock_buy_success') : i18n.t('ref_market_insufficient_cash'), ok ? 'ok' : 'err')
-      this.refresh(s)
-      return
-    }
-    const sellBtn = el.closest<HTMLButtonElement>('[data-stock-sell]')
-    if (sellBtn && !sellBtn.disabled) {
-      const tickerId = sellBtn.dataset.stockSell!
-      const ok = s.stockSell(tickerId, 1)
-      refToast(ok ? i18n.t('ref_market_stock_sell_success') : i18n.t('ref_market_stock_not_found'), ok ? 'ok' : 'err')
-      this.refresh(s)
+    // ── Borsa: hisse satırı → alım/satım paneli (bottom sheet) ──
+    const tradeBtn = el.closest<HTMLButtonElement>('[data-stock-trade]')
+    if (tradeBtn) {
+      this.openTradePanel(s, tradeBtn.dataset.stockTrade!)
       return
     }
 
@@ -391,6 +429,173 @@ export class RefMarketPage implements RefPage {
       <b class="ref-fin-cell__val">${active ? i18n.t('ref_market_ins_active_label') : i18n.t('ref_market_ins_inactive_label')}</b>
       <button class="ref-ins-toggle-btn" type="button" data-ins-toggle="${kind}">${toggleLbl}</button>
     </div>`
+  }
+
+  /* ── TUR14 P7: Alım/satım paneli (bottom sheet) ── */
+  private tradeOverlay: HTMLElement | null = null
+  private tradeDismiss: (() => void) | null = null
+  private tradeBusy = false
+
+  private closeTradePanel(): void {
+    if (this.tradeOverlay) {
+      this.tradeOverlay.remove()
+      this.tradeOverlay = null
+    }
+    this.tradeDismiss?.(); this.tradeDismiss = null
+    this.tradeBusy = false
+  }
+
+  private resolveTradeQty(s: GameState, tickerId: string, mode: 'buy' | 'sell', key: string): number {
+    const t = s.stock.tickers[tickerId]
+    if (!t) return 0
+    if (mode === 'buy') {
+      const maxAff = Math.floor(s.money / (t.price * 1.01))
+      if (key === '1') return Math.min(1, maxAff)
+      if (key === '10') return Math.min(10, maxAff)
+      if (key === '25') return Math.floor(maxAff * 0.25)
+      if (key === '50') return Math.floor(maxAff * 0.5)
+      if (key === 'max') return maxAff
+    } else {
+      const owned = t.shares
+      if (key === '1') return Math.min(1, owned)
+      if (key === '10') return Math.min(10, owned)
+      if (key === '25') return Math.floor(owned * 0.25)
+      if (key === '50') return Math.floor(owned * 0.5)
+      if (key === 'max') return owned
+    }
+    return 0
+  }
+
+  private openTradePanel(s: GameState, tickerId: string): void {
+    this.closeTradePanel()
+    const ticker = s.stock.tickers[tickerId]
+    if (!ticker) return
+    let mode: 'buy' | 'sell' = 'buy'
+    let qty = Math.min(1, Math.floor(s.money / (ticker.price * 1.01))) || 1
+
+    const overlay = document.createElement('div')
+    overlay.className = 'ref-trade-overlay'
+    const sheet = document.createElement('div')
+    sheet.className = 'ref-trade-sheet'
+    overlay.appendChild(sheet)
+    this.tradeOverlay = overlay
+    this.tradeDismiss = registerSheetDismiss(() => this.closeTradePanel())
+
+    // Panelin render edildiği fiyat — onay anında fiyat değiştiyse sessiz işlem
+    // yapmadan yeni tutarı gösteririz (Part 5).
+    let renderedPrice = ticker.price
+    const render = () => { renderedPrice = s.stock.tickers[tickerId]?.price ?? renderedPrice; sheet.innerHTML = this.tradePanelHtml(s, tickerId, mode, qty) }
+
+    overlay.addEventListener('click', (ev) => {
+      const target = ev.target as HTMLElement
+      if (target === overlay || target.closest('[data-trade-close]')) { this.closeTradePanel(); return }
+      const modeBtn = target.closest<HTMLElement>('[data-trade-mode]')
+      if (modeBtn) {
+        const next = modeBtn.dataset.tradeMode as 'buy' | 'sell'
+        if (next !== mode) { mode = next; qty = this.resolveTradeQty(s, tickerId, mode, '1') }
+        render(); return
+      }
+      const qBtn = target.closest<HTMLElement>('[data-trade-qty]')
+      if (qBtn) { qty = this.resolveTradeQty(s, tickerId, mode, qBtn.dataset.tradeQty!); render(); return }
+      const confirmBtn = target.closest<HTMLButtonElement>('[data-trade-confirm]')
+      if (confirmBtn && !confirmBtn.disabled) {
+        if (this.tradeBusy) return                 // çift tıklama/çift işlem koruması
+        // Fiyat değiştiyse: yeniden doğrula + yeni tutarı göster, sessiz işlem YOK.
+        const livePrice = s.stock.tickers[tickerId]?.price ?? renderedPrice
+        if (livePrice !== renderedPrice) {
+          refToast(i18n.t('ref_trade_price_changed'), 'err')
+          render(); return
+        }
+        this.tradeBusy = true
+        const ok = mode === 'buy' ? s.stockBuy(tickerId, qty) : s.stockSell(tickerId, qty)
+        if (ok) {
+          refToast(mode === 'buy' ? i18n.t('ref_market_stock_buy_success') : i18n.t('ref_market_stock_sell_success'), 'ok')
+        } else {
+          refToast(mode === 'buy' ? i18n.t('ref_market_insufficient_cash') : i18n.t('ref_market_stock_not_found'), 'err')
+        }
+        this.closeTradePanel()
+        this.refresh(s)
+      }
+    })
+    document.body.appendChild(overlay)
+    render()
+  }
+
+  /** Panel içeriği — previewStockBuy/Sell TEK KAYNAK; önizleme == gerçek işlem. */
+  private tradePanelHtml(s: GameState, tickerId: string, mode: 'buy' | 'sell', qty: number): string {
+    const t = s.stock.tickers[tickerId]!
+    const chg = tickerChangePct(t)
+    const up = chg >= 0
+    const buyMode = mode === 'buy'
+    const pos = profitLoss(t)
+    const posDir = pos > 0 ? 'up' : pos < 0 ? 'down' : 'muted'
+    const presets: { key: string; label: string }[] = [
+      { key: '1', label: '1' }, { key: '10', label: '10' },
+      { key: '25', label: '%25' }, { key: '50', label: '%50' },
+      { key: 'max', label: i18n.t('ref_trade_max') },
+    ]
+    const qtyBtns = presets.map((p) => `<button class="ref-trade-qty-btn" type="button" data-trade-qty="${p.key}">${p.label}</button>`).join('')
+
+    let previewRows = ''
+    let confirmLabel = ''
+    let confirmDisabled = true
+    if (buyMode) {
+      const pv = previewStockBuy(s.stock, tickerId, qty, s.money)
+      confirmDisabled = pv.qty <= 0 || !pv.affordable
+      confirmLabel = fmt('ref_trade_confirm_buy', { qty: String(pv.qty) })
+      previewRows = `
+        ${this.tradeRow(i18n.t('ref_trade_qty'), String(pv.qty))}
+        ${this.tradeRow(i18n.t('ref_trade_unit_price'), fmtMoneyTrim(Math.round(pv.unitPrice)))}
+        ${this.tradeRow(i18n.t('ref_trade_gross'), fmtMoneyTrim(Math.round(pv.gross)))}
+        ${this.tradeRow(i18n.t('ref_trade_commission'), fmtMoneyTrim(Math.round(pv.commission)))}
+        ${this.tradeRow(i18n.t('ref_trade_total'), fmtMoneyTrim(Math.round(pv.total)), 'strong')}
+        ${this.tradeRow(i18n.t('ref_trade_after_cash'), fmtMoneyTrim(Math.round(pv.afterCash)))}
+        ${this.tradeRow(i18n.t('ref_trade_after_shares'), String(pv.afterShares))}`
+    } else {
+      const pv = previewStockSell(s.stock, tickerId, qty, s.money)
+      confirmDisabled = pv.qty <= 0
+      confirmLabel = fmt('ref_trade_confirm_sell', { qty: String(pv.qty) })
+      const rDir = pv.realizedPl > 0 ? 'up' : pv.realizedPl < 0 ? 'down' : 'muted'
+      const rSign = pv.realizedPl > 0 ? '+' : ''
+      previewRows = `
+        ${this.tradeRow(i18n.t('ref_trade_qty'), String(pv.qty))}
+        ${this.tradeRow(i18n.t('ref_trade_unit_price'), fmtMoneyTrim(Math.round(pv.unitPrice)))}
+        ${this.tradeRow(i18n.t('ref_trade_avg_cost'), fmtMoneyTrim(Math.round(pv.avgBuyPrice)))}
+        ${this.tradeRow(i18n.t('ref_trade_gross'), fmtMoneyTrim(Math.round(pv.gross)))}
+        ${this.tradeRow(i18n.t('ref_trade_commission'), fmtMoneyTrim(Math.round(pv.commission)))}
+        ${this.tradeRow(i18n.t('ref_trade_net'), fmtMoneyTrim(Math.round(pv.net)), 'strong')}
+        ${this.tradeRow(i18n.t('ref_trade_cost_basis'), fmtMoneyTrim(Math.round(pv.costBasis)))}
+        ${this.tradeRow(i18n.t('ref_trade_realized'), `<span class="ref-pl-${rDir}">${rSign}${fmtMoneyTrim(Math.round(pv.realizedPl))}</span>`)}
+        ${this.tradeRow(i18n.t('ref_trade_after_cash'), fmtMoneyTrim(Math.round(pv.afterCash)))}
+        ${this.tradeRow(i18n.t('ref_trade_after_shares'), String(pv.afterShares))}`
+    }
+
+    return `
+      <div class="ref-trade-handle"></div>
+      <div class="ref-trade-head">
+        <div class="ref-trade-title">${t.emoji} ${stockTickerName(t.id)}</div>
+        <button class="ref-trade-close" type="button" data-trade-close>✕</button>
+      </div>
+      <div class="ref-trade-pricerow">
+        <span class="ref-trade-price">${fmtMoneyTrim(Math.round(t.price))}</span>
+        <span class="ref-stock-chg ${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(chg).toFixed(1)}%</span>
+      </div>
+      <div class="ref-trade-position">
+        ${this.tradeRow(i18n.t('ref_trade_shares'), String(t.shares))}
+        ${this.tradeRow(i18n.t('ref_trade_position_value'), fmtMoneyTrim(Math.round(t.shares * t.price)))}
+        ${this.tradeRow(i18n.t('ref_trade_unrealized'), `<span class="ref-pl-${posDir}">${pos >= 0 ? '+' : ''}${fmtMoneyTrim(Math.round(pos))}</span>`)}
+      </div>
+      <div class="ref-trade-modes">
+        <button class="ref-trade-mode-btn buy ${buyMode ? 'active' : ''}" type="button" data-trade-mode="buy">${i18n.t('ref_trade_buy')}</button>
+        <button class="ref-trade-mode-btn sell ${!buyMode ? 'active' : ''}" type="button" data-trade-mode="sell" ${t.shares <= 0 ? 'disabled' : ''}>${i18n.t('ref_trade_sell')}</button>
+      </div>
+      <div class="ref-trade-qtyrow">${qtyBtns}</div>
+      <div class="ref-trade-preview">${previewRows}</div>
+      <button class="ref-trade-confirm ${buyMode ? 'buy' : 'sell'}" type="button" data-trade-confirm ${confirmDisabled ? 'disabled' : ''}>${confirmLabel}</button>`
+  }
+
+  private tradeRow(label: string, value: string, mod = ''): string {
+    return `<div class="ref-trade-row ${mod}"><span>${label}</span><b>${value}</b></div>`
   }
 
   // ── Mock (state yok) ─────────────────────────────────────────────────

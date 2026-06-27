@@ -308,6 +308,72 @@ export function sellShares(state: StockState, tickerId: string, amount: number):
   return { revenue, sold, commission }
 }
 
+export interface StockBuyPreview {
+  unitPrice: number
+  qty: number
+  gross: number
+  commission: number
+  total: number
+  afterCash: number
+  afterShares: number
+  newAvgBuyPrice: number
+  affordable: boolean
+}
+
+export interface StockSellPreview {
+  unitPrice: number
+  qty: number
+  gross: number
+  commission: number
+  net: number
+  afterCash: number
+  afterShares: number
+  avgBuyPrice: number
+  costBasis: number
+  realizedPl: number
+}
+
+/**
+ * TUR14 — Alım önizlemesi (TEK KAYNAK). buyShares ile birebir aynı matematik;
+ * state'i MUTASYONA UĞRATMAZ. UI ve gerçek işlem aynı sonucu üretir.
+ */
+export function previewStockBuy(state: StockState, tickerId: string, amount: number, money: number): StockBuyPreview {
+  const ticker = state.tickers[tickerId]
+  const empty: StockBuyPreview = { unitPrice: 0, qty: 0, gross: 0, commission: 0, total: 0, afterCash: money, afterShares: ticker?.shares ?? 0, newAvgBuyPrice: ticker?.avgBuyPrice ?? 0, affordable: false }
+  if (!ticker) return empty
+  const effectivePrice = ticker.price * (1 + STOCK_COMMISSION)
+  const maxShares = Math.floor(money / effectivePrice)
+  const qty = Math.min(Math.max(0, Math.floor(amount)), maxShares)
+  if (qty <= 0) return { ...empty, unitPrice: ticker.price }
+  const gross = qty * ticker.price
+  const commission = Math.ceil(gross * STOCK_COMMISSION)
+  const total = gross + commission
+  const totalShares = ticker.shares + qty
+  const prevAvg = Number.isFinite(ticker.avgBuyPrice) ? ticker.avgBuyPrice : 0
+  const newAvgBuyPrice = totalShares > 0 ? (prevAvg * ticker.shares + ticker.price * qty) / totalShares : 0
+  return { unitPrice: ticker.price, qty, gross, commission, total, afterCash: money - total, afterShares: totalShares, newAvgBuyPrice, affordable: true }
+}
+
+/**
+ * TUR14 — Satış önizlemesi (TEK KAYNAK). sellShares ile birebir aynı matematik;
+ * state'i MUTASYONA UĞRATMAZ. Ortalama maliyet, maliyet temeli, gerçekleşen K/Z
+ * (yalnız kâr kazanç sayılır; ana para ASLA) gösterimi için.
+ */
+export function previewStockSell(state: StockState, tickerId: string, amount: number, money = 0): StockSellPreview {
+  const ticker = state.tickers[tickerId]
+  const empty: StockSellPreview = { unitPrice: ticker?.price ?? 0, qty: 0, gross: 0, commission: 0, net: 0, afterCash: money, afterShares: ticker?.shares ?? 0, avgBuyPrice: ticker?.avgBuyPrice ?? 0, costBasis: 0, realizedPl: 0 }
+  if (!ticker) return empty
+  const qty = Math.min(Math.max(0, Math.floor(amount)), ticker.shares)
+  if (qty <= 0) return empty
+  const gross = qty * ticker.price
+  const commission = Math.ceil(gross * STOCK_COMMISSION)
+  const net = gross - commission
+  const avgBuyPrice = Number.isFinite(ticker.avgBuyPrice) ? ticker.avgBuyPrice : 0
+  const costBasis = avgBuyPrice * qty
+  const realizedPl = net - costBasis
+  return { unitPrice: ticker.price, qty, gross, commission, net, afterCash: money + net, afterShares: ticker.shares - qty, avgBuyPrice, costBasis, realizedPl }
+}
+
 export function profitLoss(ticker: StockTicker): number {
   if (ticker.shares <= 0) return 0
   return (ticker.price - ticker.avgBuyPrice) * ticker.shares
