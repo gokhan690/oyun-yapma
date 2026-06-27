@@ -73,6 +73,8 @@ export interface CareerState {
   stress: number
   /** Girişimci mi oldu? */
   isEntrepreneur: boolean
+  /** Kariyer boyunca tamamlanan toplam aksiyon sayısı (firma kilidi için). */
+  actionsTotal?: number
   /** Kariyer boyunca kullanılan aksiyonlar */
   actionsUsedToday: string[]
   /** Son aksiyonun oyun günü */
@@ -223,6 +225,7 @@ export function createCareerState(): CareerState {
     totalWageEarned: 0,
     stress: 20,
     isEntrepreneur: false,
+    actionsTotal: 0,
     actionsUsedToday: [],
     lastActionDay: 0,
     firstGoalComplete: false,

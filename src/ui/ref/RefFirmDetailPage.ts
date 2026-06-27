@@ -7,7 +7,7 @@ import { i18n } from '../../i18n'
 import type { GameState } from '../../game/GameState'
 import { PRODUCERS, producerName, type ProducerDef } from '../../game/Economy'
 import { fmt } from '../../i18n'
-import { FIRM_MAX_LEVEL, firmLevelIncomeMult, isFirmMaxLevel } from '../../game/FirmLevels'
+import { FIRM_MAX_LEVEL, firmLevelIncomeMult } from '../../game/FirmLevels'
 import { hasManager } from '../../game/Managers'
 
 /** Detay sayfasını gerçek GameState'e bağlayan opsiyonel bağlam. */
@@ -326,10 +326,10 @@ export class RefFirmDetailPage {
     const def = this.liveDef()
     if (!def) return ''
     const s = ctx.state
-    const lv = s.producerLevel(def.id)
-    const maxed = isFirmMaxLevel(lv)
-    const lvCost = !maxed ? s.firmLevelUpCostFor(def) : 0
-    const canLevel = !maxed && s.money >= lvCost && lvCost > 0
+    const lvStatus = s.firmLevelUpStatus(def)
+    const lv = lvStatus.level
+    const maxed = lvStatus.atMax
+    const canLevel = lvStatus.canLevelUp
 
     const managerHired = hasManager(s.managers, def.id)
     const manCost = !managerHired ? s.managerCostFor(def) : 0
@@ -341,9 +341,15 @@ export class RefFirmDetailPage {
     const pips = Array.from({ length: FIRM_MAX_LEVEL }, (_, i) =>
       `<span class="ref-prod-lvl-pip${i < lv ? ' on' : ''}"></span>`).join('')
 
+    const lvDisabledReason = (!maxed && !canLevel && lvStatus.reason === 'insufficient')
+      ? `<span class="ref-detail-develop-reason">${i18n.t('firms_insufficient')}</span>` : ''
     const lvBtn = maxed
       ? `<button class="ref-btn develop" type="button" disabled>${i18n.t('ref_detail_max_level_button')}</button>`
-      : `<button class="ref-btn develop" type="button" data-act="level" ${canLevel ? '' : 'disabled'}>${fmt('ref_detail_develop_level_fmt', { lv: lv + 1, cost: fmtMoney(lvCost) })}</button>`
+      : `<button class="ref-btn develop" type="button" data-act="level" ${canLevel ? '' : 'disabled'}>
+          <span class="ref-detail-develop-main">${fmt('ref_detail_develop_level_fmt', { lv: lvStatus.nextLevel, cost: fmtMoney(lvStatus.cost) })}</span>
+          <span class="ref-detail-develop-preview">${fmt('firms_levelup_arrow_fmt', { from: String(lv), to: String(lvStatus.nextLevel) })} · ${fmtMoney(lvStatus.currentIncome)}→${fmtMoney(lvStatus.nextIncome)} · ${fmt('firms_levelup_income_pct_fmt', { pct: String(lvStatus.incomePct) })}</span>
+          ${lvDisabledReason}
+        </button>`
 
     const modBtn = !modAvailable
       ? `<button class="ref-btn modernize" type="button" disabled>${i18n.t('ref_detail_modernize_ipo_required')}</button>`
@@ -356,17 +362,19 @@ export class RefFirmDetailPage {
       : `<button class="ref-btn manager" type="button" data-act="manager" ${canManager ? '' : 'disabled'}>${fmt('ref_detail_manager_hire_fmt', { cost: fmtMoney(manCost) })}</button>`
 
     const owned = s.producers[def.id] ?? 0
-    const baseIncome = Math.round(def.baseIncome * owned)
     const lvMult = firmLevelIncomeMult(lv)
+    // TEK GELİR KAYNAĞI — toplam/birim, GameState.producerIncome pipeline'ından.
     const actualIncome = Math.round(s.producerIncome(def))
+    const unitIncome = Math.round(s.producerUnitIncome(def))
 
     const incomeBreakdown = owned > 0 ? `
       <div class="ref-detail-income-breakdown">
         <div class="ref-detail-ib-title">${i18n.t('ref_detail_income_summary')}</div>
-        <div class="ref-detail-ib-row"><span>${fmt('ref_detail_branch_base_fmt', { count: owned })}</span><b>${fmtMoney(baseIncome)}</b></div>
+        <div class="ref-detail-ib-row ref-detail-ib-row--total"><span>${i18n.t('firms_stat_total_income')}</span><b>${fmtMoney(actualIncome)}</b></div>
+        <div class="ref-detail-ib-row"><span>${i18n.t('firms_stat_unit_income')}</span><b>${fmtMoney(unitIncome)}</b></div>
+        <div class="ref-detail-ib-row"><span>${i18n.t('firms_stat_count')}</span><b>${owned}</b></div>
         <div class="ref-detail-ib-row"><span>${fmt('ref_detail_level_mult_fmt', { lv })}</span><b>×${lvMult.toFixed(2)}</b></div>
         ${managerHired ? `<div class="ref-detail-ib-row"><span>${i18n.t('ref_detail_manager_bonus_label')}</span><b>✓</b></div>` : ''}
-        <div class="ref-detail-ib-row ref-detail-ib-row--total"><span>${i18n.t('ref_detail_true_daily')}</span><b>${fmtMoney(actualIncome)}</b></div>
       </div>` : ''
 
     return `
@@ -381,6 +389,15 @@ export class RefFirmDetailPage {
       <div class="ref-preview-note live">${i18n.t('ref_detail_live_note')}</div>`
   }
 
+  /** Geliştir başarısızlığında gerçek nedeni döndürür (genel "başarısız" yerine). */
+  private levelUpFailReason(s: GameState, def: ProducerDef): string {
+    const st = s.firmLevelUpStatus(def)
+    if (st.reason === 'insufficient') return i18n.t('firms_insufficient')
+    if (st.reason === 'max') return i18n.t('ref_detail_max_level_button')
+    if (st.reason === 'not_owned') return i18n.t('firms_levelup_reason_not_owned')
+    return i18n.t('ref_detail_upgrade_failed')
+  }
+
   private wireLiveActions(): void {
     const ctx = this.live!
     const def = this.liveDef()
@@ -390,7 +407,7 @@ export class RefFirmDetailPage {
     this.el.querySelector<HTMLButtonElement>('[data-act="level"]')?.addEventListener('click', () => {
       const ok = s.levelUpFirm(def.id)
       if (ok) { refToast(fmt('ref_detail_level_up_toast', { name: producerName(def), lv: s.producerLevel(def.id) }), 'ok'); this.refreshLive() }
-      else refToast(i18n.t('ref_detail_upgrade_failed'), 'err')
+      else refToast(this.levelUpFailReason(s, def), 'err')
     })
     this.el.querySelector<HTMLButtonElement>('[data-act="modern"]')?.addEventListener('click', () => {
       const ok = s.modernizeProducer(def.id)

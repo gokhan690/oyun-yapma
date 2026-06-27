@@ -1303,6 +1303,31 @@ export interface Translations {
   // Common RefApp
   ref_back: string
   ob_next: string
+  ob_chip_money_up_fmt: string
+  ob_chip_money_down_fmt: string
+  ob_chip_daily_fmt: string
+  ob_chip_rep_fmt: string
+  ob_chip_active_fmt: string
+  ob_chip_illegal_fmt: string
+  ob_chip_cost_fmt: string
+  ob_chip_research_pct_fmt: string
+  ob_chip_research_lvl_fmt: string
+  ob_chip_heat_fmt: string
+  ob_chip_finance_early: string
+  ob_chip_expense_up_fmt: string
+  ob_chip_expense_down_fmt: string
+  ob_chip_expense_std: string
+  ob_chip_health_fmt: string
+  ob_chip_stress_fmt: string
+  ob_chip_range_fmt: string
+  ob_summary_title: string
+  ob_summary_money_fmt: string
+  ob_summary_career_fmt: string
+  ob_summary_health_fmt: string
+  ob_summary_stress_fmt: string
+  ob_summary_rep_fmt: string
+  ob_summary_research_fmt: string
+  ob_summary_firm_fmt: string
   ref_daily_income: string
   ref_daily_expense: string
   ref_daily_net: string
@@ -1449,6 +1474,16 @@ export interface Translations {
   firms_toast_modernized_fmt: string
   firms_toast_modernize_failed: string
   firms_toast_grown_fmt: string
+  firms_stat_total_income: string
+  firms_stat_unit_income: string
+  firms_one_unit_income: string
+  firms_buy_gain_fmt: string
+  firms_levelup_income_pct_fmt: string
+  firms_levelup_arrow_fmt: string
+  firms_levelup_reason_not_owned: string
+  firms_lock_btn: string
+  firms_lock_banner_need_job: string
+  firms_lock_banner_progress_fmt: string
 
   // RefApp Market
   ref_market_title: string
@@ -1963,6 +1998,9 @@ export interface Translations {
   ref_life_tab_travel: string
   ref_life_tab_pets: string
   ref_life_tab_shop: string
+  ref_life_tab_family: string
+  ref_life_tab_property: string
+  ref_life_tab_lifestyle: string
   ref_life_stress_label: string
   ref_life_expense_label: string
   ref_life_monthly_label: string

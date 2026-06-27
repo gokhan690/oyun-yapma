@@ -28,6 +28,29 @@ export const DEFAULT_PROFILE_IDENTITY = {
   difficulty: 'normal' as const,
 }
 
+/** Yeni oyuncu başlangıç parası hedef aralıkları (zorluğa göre). Hiçbir
+ *  background/eğitim/iş kombinasyonu bu aralığın dışına çıkamaz. */
+export const STARTING_MONEY_RANGE: Record<'easy' | 'normal' | 'hard', { min: number; max: number }> = {
+  easy:   { min: 450, max: 2000 },
+  normal: { min: 300, max: 1500 },
+  hard:   { min: 200, max: 1000 },
+}
+
+/**
+ * TEK KAYNAK: Onboarding profilinden gerçek başlangıç parasını hesaplar.
+ * background+difficulty tabanı × eğitim × iş çarpanı, sonra zorluk aralığına clamp.
+ * Hem `applyProfileToState` hem onboarding canlı özeti bunu kullanır → tutarlılık.
+ */
+export function computeStartingMoney(profile: CharacterProfile): number {
+  const identity = { ...DEFAULT_PROFILE_IDENTITY, ...profile }
+  const job = JOB_DEFS[profile.jobId]
+  const edu = EDUCATION_DEFS[profile.educationLevel]
+  const base = startingMoneyForBackground(identity.backgroundId, identity.difficulty)
+  const raw = Math.round(base * edu.moneyMult * job.startingMoneyMult)
+  const range = STARTING_MONEY_RANGE[identity.difficulty]
+  return Math.max(range.min, Math.min(range.max, raw))
+}
+
 export const JOB_DEFS: Record<JobId, { label: string; emoji: string; startingMoneyMult: number; incomeDailyBonus: number; desc: string }> = {
   calisan:     { label: 'Çalışan',      emoji: '👔', startingMoneyMult: 1.0, incomeDailyBonus: 50,    desc: 'Düzenli maaş, güvenli başlangıç' },
   serbest:     { label: 'Serbest',      emoji: '💼', startingMoneyMult: 1.2, incomeDailyBonus: 120,   desc: 'Esnek çalışma, değişken gelir' },
@@ -59,7 +82,6 @@ export const LIFESTYLE_DEFS: Record<LifestyleType, { label: string; emoji: strin
  */
 export function applyProfileToState(profile: CharacterProfile, state: GameState): void {
   const job  = JOB_DEFS[profile.jobId]
-  const edu  = EDUCATION_DEFS[profile.educationLevel]
   const life = LIFESTYLE_DEFS[profile.lifestyleType]
 
   // ── Kimlik (master) ──
@@ -71,12 +93,13 @@ export function applyProfileToState(profile: CharacterProfile, state: GameState)
   state.characterBackground = identity.backgroundId
   state.career.backgroundId = identity.backgroundId
 
-  // ── Başlangıç parası: background+difficulty TABANI (difficulty yalnız burada) ──
-  // sonra eğitim/iş çarpanı (her biri bir kez). integration ekonomisi difficulty'yi
-  // başlangıç parasına ayrıca uygulamaz → çift uygulama yok.
-  const base = startingMoneyForBackground(identity.backgroundId, identity.difficulty)
-  state.money = Math.round(base * edu.moneyMult * job.startingMoneyMult)
-  state.totalEarned = state.money
+  // ── Başlangıç parası: TEK KAYNAK computeStartingMoney (background+difficulty
+  // tabanı × eğitim × iş, sonra zorluk aralığına CLAMP). Kontrolsüz çarpan
+  // birikimi engellenir; sonuç daima hedef aralıkta kalır.
+  state.money = computeStartingMoney(profile)
+  // ÖNEMLİ: onboarding başlangıç hibesi "kazanılmış para" DEĞİLDİR. Yeni oyuncuda
+  // totalEarned = 0 olmalı (firma kilidi/açılışı kazanılmış gelirle ilerler).
+  state.totalEarned = 0
 
   // ── Background itibar bonusu (master) ──
   // Idempotent: taban REPUTATION_START üzerinden mutlak set (state.reputation +=

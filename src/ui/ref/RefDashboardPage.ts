@@ -51,12 +51,13 @@ function buildMockDashboard(): RefDashboardVM {
   }
 }
 
-function buildQuickActions() {
+type QuickAct = 'new_firm' | 'open_city' | 'market' | 'achievements'
+function buildQuickActions(): { asset: string; label: string; act: QuickAct }[] {
   return [
-    { asset: REF_ASSETS_V2_GENERIC.upgrades.franchise,      label: i18n.t('ref_dash_new_firm_button') },
-    { asset: REF_ASSETS_V2_GENERIC.upgrades.cityExpansion,  label: i18n.t('ref_dash_open_city_button') },
-    { asset: REF_ASSETS_V2_GENERIC.upgrades.marketAnalysis, label: i18n.t('ref_dash_market_button') },
-    { asset: REF_ASSETS_V2_GENERIC.achievements.cupGold,    label: i18n.t('ref_dash_achievements_button') },
+    { asset: REF_ASSETS_V2_GENERIC.upgrades.franchise,      label: i18n.t('ref_dash_new_firm_button'),     act: 'new_firm' },
+    { asset: REF_ASSETS_V2_GENERIC.upgrades.cityExpansion,  label: i18n.t('ref_dash_open_city_button'),    act: 'open_city' },
+    { asset: REF_ASSETS_V2_GENERIC.upgrades.marketAnalysis, label: i18n.t('ref_dash_market_button'),       act: 'market' },
+    { asset: REF_ASSETS_V2_GENERIC.achievements.cupGold,    label: i18n.t('ref_dash_achievements_button'), act: 'achievements' },
   ]
 }
 
@@ -75,6 +76,10 @@ export class RefDashboardPage implements RefPage {
 
   onOpenAchievements?: () => void
   onNavigate?: (tab: RefNavTab) => void
+  /** Firms sekmesine git + ilk alınabilir karta kaydır (varsa). */
+  onQuickNewFirm?: () => void
+  /** Empire sekmesine git + şehir genişleme bölümüne kaydır (varsa). */
+  onQuickOpenCity?: () => void
 
   private kpi!: RefKpiStrip
   private heroValEl?: HTMLElement
@@ -214,8 +219,19 @@ export class RefDashboardPage implements RefPage {
     for (const q of buildQuickActions()) {
       const tile = document.createElement('button')
       tile.className = 'ref-quick-tile'
+      tile.type = 'button'
+      tile.title = q.label
+      tile.setAttribute('aria-label', q.label)
       tile.innerHTML = `<img src="${ua(q.asset)}" alt="" class="ref-quick-tile__img"><span>${q.label}</span>`
-      if (q.asset === REF_ASSETS_V2_GENERIC.achievements.cupGold) tile.addEventListener('click', () => this.onOpenAchievements?.())
+      tile.addEventListener('click', () => {
+        // Gerçek navigasyon — RefApp callback'leri üzerinden (sahte DOM click yok).
+        switch (q.act) {
+          case 'new_firm':     if (this.onQuickNewFirm) this.onQuickNewFirm(); else this.onNavigate?.('firms'); break
+          case 'open_city':    if (this.onQuickOpenCity) this.onQuickOpenCity(); else this.onNavigate?.('empire'); break
+          case 'market':       this.onNavigate?.('market'); break
+          case 'achievements': this.onOpenAchievements?.(); break
+        }
+      })
       quick.appendChild(tile)
     }
     this.el.appendChild(quick)

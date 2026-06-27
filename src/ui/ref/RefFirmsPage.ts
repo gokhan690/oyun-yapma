@@ -96,6 +96,7 @@ export class RefFirmsPage implements RefPage {
   private producerCards = new Map<string, HTMLElement>()
   private cardSignatures = new Map<string, string>()
   private summaryEl?: HTMLElement
+  private lockBannerEl?: HTMLElement
   private lastSummaryHtml = ''
   private kpiStrip?: RefKpiStrip
 
@@ -219,6 +220,12 @@ export class RefFirmsPage implements RefPage {
       <button class="ref-tier-btn" data-tier-filter="large">T7+</button>`
     wrap.appendChild(this.tierFilterRow)
 
+    // Erken oyun firma-alımı kilidi ilerleme bandı (kilitliyken görünür)
+    this.lockBannerEl = document.createElement('div')
+    this.lockBannerEl.className = 'ref-firms-lock-banner'
+    wrap.appendChild(this.lockBannerEl)
+    this.updateLockBanner()
+
     this.summaryEl = document.createElement('div')
     this.summaryEl.className = 'ref-summary-strip'
     wrap.appendChild(this.summaryEl)
@@ -324,15 +331,19 @@ export class RefFirmsPage implements RefPage {
   private buildOneProducerCard(def: ProducerDef, s: GameState): HTMLElement {
     const owned    = s.producers[def.id] ?? 0
     const unlocked = isProducerUnlocked(def, s.totalEarned, s.forcedUnlocks, s.ipoCount)
+    const purchaseLocked = !s.firmsPurchaseUnlocked()
     const qty      = this.getQty(def, s)
     const cost     = s.producerCostFor(def, owned, Math.max(1, qty))
-    const canBuy   = unlocked && qty > 0 && s.money >= cost
+    const canBuy   = unlocked && !purchaseLocked && qty > 0 && s.money >= cost
 
-    const income   = owned > 0 ? Math.round(s.producerIncome(def)) : Math.round(def.baseIncome)
+    // TEK GELİR KAYNAĞI: tüm gelir gösterimleri gerçek producerIncome pipeline'ından türetilir.
+    const unitIncome  = Math.round(s.producerUnitIncome(def))
+    const totalIncome = Math.round(s.producerIncome(def))
+    const buyDelta    = Math.round(s.producerIncomeBuyDelta(def, Math.max(1, qty)))
 
     const firmLv   = owned > 0 ? (s.producerLevel ? s.producerLevel(def.id) : 1) : 0
-    const lvCost   = owned > 0 && !isFirmMaxLevel(firmLv) ? (s.firmLevelUpCostFor ? s.firmLevelUpCostFor(def) : 0) : 0
-    const canLevelUp = owned > 0 && !isFirmMaxLevel(firmLv) && s.money >= lvCost && lvCost > 0
+    const lv       = s.firmLevelUpStatus(def)
+    const canLevelUp = lv.canLevelUp
 
     const managerHired = hasManager(s.managers, def.id)
     const manCost      = owned > 0 && !managerHired ? s.managerCostFor(def) : 0
@@ -360,6 +371,8 @@ export class RefFirmsPage implements RefPage {
         ? `🔒 ${fmt('firms_lock_ipo_fmt', { n: String(def.ipoRequirement) })}`
         : `🔒 ${fmt('firms_lock_earn_fmt', { amount: fmtMoney(def.unlockAt) })}`
       footRight = `<span class="ref-prod-locked-lbl">${reason}</span>`
+    } else if (purchaseLocked && owned === 0) {
+      footRight = `<button class="ref-prod-btn disabled" type="button" disabled title="${i18n.t('firms_lock_banner_need_job')}">🔒 ${i18n.t('firms_lock_btn')}</button>`
     } else if (canBuy) {
       const qtyLbl = this.buyMode === 'max' ? `Max(${qty})×` : `+${qty}×`
       footRight = `<button class="ref-prod-btn buyable" type="button">${owned > 0 ? qtyLbl : i18n.t('firms_buy_button')} · ${fmtMoney(cost)}</button>`
@@ -379,9 +392,12 @@ export class RefFirmsPage implements RefPage {
 
     const incomeMult = owned > 0 && firmLv > 1 ? `<small class="ref-prod-lv-mult">${fmt('firms_income_mult_fmt', { mult: firmLevelIncomeMult(firmLv).toFixed(2) })}</small>` : ''
 
+    const lvPreview = lv.atMax
+      ? i18n.t('firms_upgrade_max')
+      : `${fmt('firms_levelup_arrow_fmt', { from: String(lv.level), to: String(lv.nextLevel) })} · ${fmtMoney(lv.currentIncome)}→${fmtMoney(lv.nextIncome)} · ${fmt('firms_levelup_income_pct_fmt', { pct: String(lv.incomePct) })} · ${i18n.t('firms_stat_cost')}: ${fmtMoney(lv.cost)}`
     const lvBtn = owned > 0
-      ? `<button class="ref-prod-lvl-btn${canLevelUp ? ' ref-prod-lvl-btn--active' : ''}" type="button" data-levelup="${def.id}" ${canLevelUp ? '' : 'disabled'}>
-          ⬆️ ${i18n.t('firms_upgrade_button')} ${isFirmMaxLevel(firmLv) ? `(${i18n.t('firms_upgrade_max')})` : `· Lv.${firmLv + 1} · ${fmtMoney(lvCost)}`}
+      ? `<button class="ref-prod-lvl-btn${canLevelUp ? ' ref-prod-lvl-btn--active' : ''}" type="button" data-levelup="${def.id}" ${canLevelUp ? '' : 'disabled'} title="${lvPreview}">
+          ⬆️ ${i18n.t('firms_upgrade_button')} ${lv.atMax ? `(${i18n.t('firms_upgrade_max')})` : `· Lv.${lv.nextLevel} · ${fmtMoney(lv.cost)}`}
         </button>`
       : ''
 
@@ -412,10 +428,14 @@ export class RefFirmsPage implements RefPage {
       ${lvPips}
       <div class="ref-prod-stats">
         <span class="ref-prod-stat"><small>${i18n.t('firms_stat_tier')}</small><b>T${def.tier}</b></span>
-        <span class="ref-prod-stat"><small>${owned > 0 ? i18n.t('firms_stat_income_per_day') : i18n.t('firms_stat_unit')}</small><b class="inc">${fmtMoney(income)}</b></span>
-        <span class="ref-prod-stat"><small>${i18n.t('firms_stat_count')}</small><b>${owned > 0 ? owned : '—'}</b></span>
-        <span class="ref-prod-stat"><small>${i18n.t('firms_stat_cost')}</small><b>${fmtMoney(s.producerCostFor(def, owned, 1))}</b></span>
+        ${owned > 0
+          ? `<span class="ref-prod-stat"><small>${i18n.t('firms_stat_total_income')}</small><b class="inc">${fmtMoney(totalIncome)}</b></span>
+             <span class="ref-prod-stat"><small>${i18n.t('firms_stat_unit_income')}</small><b>${fmtMoney(unitIncome)}</b></span>
+             <span class="ref-prod-stat"><small>${i18n.t('firms_stat_count')}</small><b>${owned}</b></span>`
+          : `<span class="ref-prod-stat"><small>${i18n.t('firms_one_unit_income')}</small><b class="inc">${fmtMoney(unitIncome)}</b></span>
+             <span class="ref-prod-stat"><small>${i18n.t('firms_stat_cost')}</small><b>${fmtMoney(s.producerCostFor(def, owned, 1))}</b></span>`}
       </div>
+      ${owned === 0 && canBuy ? `<div class="ref-prod-buy-gain">${fmt('firms_buy_gain_fmt', { amount: fmtMoney(buyDelta) })}${this.buyMode !== 1 ? ` (${qty}×)` : ''}</div>` : ''}
       <div class="ref-prod-card__foot">
         ${footRight}
         ${lvBtn}
@@ -457,7 +477,12 @@ export class RefFirmsPage implements RefPage {
         this.producerCards.set(def.id, newCard)
         this.updateSummary()
       } else {
-        refToast(i18n.t('firms_toast_levelup_failed'), 'err')
+        const r = this.state?.firmLevelUpStatus(def).reason
+        const msg = r === 'insufficient' ? i18n.t('firms_insufficient')
+          : r === 'max' ? i18n.t('firms_upgrade_max')
+          : r === 'not_owned' ? i18n.t('firms_levelup_reason_not_owned')
+          : i18n.t('firms_toast_levelup_failed')
+        refToast(msg, 'err')
       }
     })
 
@@ -498,7 +523,8 @@ export class RefFirmsPage implements RefPage {
     const income   = owned > 0 ? Math.round(s.producerIncome(def as Parameters<typeof s.producerIncome>[0])) : 0
     const mgr      = hasManager(s.managers, def.id) ? 1 : 0
     const mod      = s.producerModernized[def.id] ? 1 : 0
-    return `${owned}|${unlocked ? 1 : 0}|${canBuy ? 1 : 0}|${cost}|${income}|${mgr}|${mod}|${this.buyMode}`
+    const plock    = s.firmsPurchaseUnlocked() ? 1 : 0
+    return `${owned}|${unlocked ? 1 : 0}|${canBuy ? 1 : 0}|${cost}|${income}|${mgr}|${mod}|${this.buyMode}|${plock}`
   }
 
   /** İmza tabanlı diff — yalnız durumu değişen kartı yeniden çizer. */
@@ -515,7 +541,20 @@ export class RefFirmsPage implements RefPage {
       existing.replaceWith(newCard)
       this.producerCards.set(def.id, newCard)
     }
+    this.updateLockBanner()
     this.updateSummary()
+  }
+
+  /** Firma-alımı kilidi ilerleme bandını günceller (kilit kalkınca gizlenir). */
+  private updateLockBanner(): void {
+    if (!this.lockBannerEl || !this.state) return
+    const st = this.state.firmsPurchaseLockStatus()
+    if (!st.locked) { this.lockBannerEl.style.display = 'none'; this.lockBannerEl.innerHTML = ''; return }
+    this.lockBannerEl.style.display = ''
+    this.lockBannerEl.innerHTML = `
+      <div class="ref-firms-lock-banner__title">🔒 ${i18n.t('firms_lock_btn')}</div>
+      <div class="ref-firms-lock-banner__msg">${i18n.t('firms_lock_banner_need_job')}</div>
+      <div class="ref-firms-lock-banner__progress">${fmt('firms_lock_banner_progress_fmt', { actions: String(st.actions), income: fmtMoney(st.income) })}</div>`
   }
 
   private updateSummary(): void {
@@ -650,8 +689,10 @@ export class RefFirmsPage implements RefPage {
       const owned    = s ? (s.producers[def.id] ?? 0) : 0
       const unlocked = s ? isProducerUnlocked(def, s.totalEarned, s.forcedUnlocks, s.ipoCount) : false
       const cost     = s ? s.producerCostFor(def, owned, 1) : def.baseCost
-      const canBuy   = !!s && unlocked && s.money >= cost
-      const income   = s && owned > 0 ? Math.round(s.producerIncome(def)) : Math.round(def.baseIncome)
+      const canBuy   = !!s && unlocked && s.firmsPurchaseUnlocked() && s.money >= cost
+      // TEK GELİR KAYNAĞI — owned: gerçek toplam gelir; unowned: tek birim ön izleme.
+      const unitIncome  = s ? Math.round(s.producerUnitIncome(def)) : Math.round(def.baseIncome)
+      const totalIncome = s && owned > 0 ? Math.round(s.producerIncome(def)) : 0
 
       let foot: string
       if (!s) {
@@ -678,7 +719,9 @@ export class RefFirmsPage implements RefPage {
           <span class="ref-empire-card__emoji">${def.emoji}</span>
           <div class="ref-empire-card__info">
             <div class="ref-empire-card__name">${producerName(def)}${catChip}</div>
-            <div class="ref-empire-card__tier">${fmt('firms_empire_tier_fmt', { tier: String(def.tier) })} · ${owned > 0 ? `<b>${fmt('firms_empire_owned_fmt', { count: String(owned), income: fmtMoney(income) })}</b>` : i18n.t('firms_empire_not_owned')}</div>
+            <div class="ref-empire-card__tier">${fmt('firms_empire_tier_fmt', { tier: String(def.tier) })} · ${owned > 0
+              ? `<b>${fmt('firms_empire_owned_fmt', { count: String(owned), income: fmtMoney(totalIncome) })}</b>`
+              : (s && unlocked ? `${i18n.t('firms_one_unit_income')}: <b>${fmtMoney(unitIncome)}</b>` : i18n.t('firms_empire_not_owned'))}</div>
           </div>
           ${owned > 0 ? '<span class="ref-empire-card__badge">✓</span>' : ''}
         </div>

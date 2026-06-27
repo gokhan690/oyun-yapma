@@ -253,6 +253,22 @@ export class RefApp {
         const dashboard = new RefDashboardPage(vm?.dashboard, st)
         dashboard.onOpenAchievements = () => this.showAchievements()
         dashboard.onNavigate = (tab) => this.show(tab)
+        dashboard.onQuickNewFirm = () => {
+          this.show('firms')
+          requestAnimationFrame(() => {
+            const card = this.pages.get('firms')?.el.querySelector('.ref-prod-card.available')
+              ?? this.pages.get('firms')?.el.querySelector('.ref-prod-card')
+            card?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          })
+        }
+        dashboard.onQuickOpenCity = () => {
+          this.show('empire')
+          requestAnimationFrame(() => {
+            const sec = this.pages.get('empire')?.el.querySelector('.ref-cities-journey')
+              ?? this.pages.get('empire')?.el.querySelector('.ref-cities-kpi')
+            sec?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          })
+        }
         return dashboard
       }
       case 'firms': {

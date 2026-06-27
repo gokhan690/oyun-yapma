@@ -27,6 +27,13 @@ function buildCareerActionMeta(): Record<string, { emoji: string; label: string;
   }
 }
 
+/**
+ * Şöhret (Fame) sekmesi/paneli production UI'da şimdilik GİZLİ. Fame sistemi,
+ * FameState, save migration, gelir hesapları ve mevcut veri KORUNUR — yalnız
+ * görünürlük kapalı. İleride tek noktadan açmak için bu sabiti true yap.
+ */
+const FAME_UI_ENABLED = false
+
 /** Kariyer Sağlık sekmesinde bağlanan günlük rutin aksiyonları. */
 const ROUTINE_META: { id: 'exercise' | 'meditate'; emoji: string; labelKey: string; effectKey: string }[] = [
   { id: 'exercise', emoji: '🏃', labelKey: 'career_routine_exercise_label', effectKey: 'career_routine_exercise_effect' },
@@ -64,16 +71,17 @@ export class RefCareerPage implements RefPage {
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-career-page'
 
-    this.tabs = new RefSubTabs([
+    const tabDefs = [
       { id: 'job',    label: i18n.t('ref_career_tab_job'),    icon: '💼' },
       { id: 'health', label: i18n.t('ref_career_tab_health'), icon: '❤️' },
-      { id: 'fame',   label: i18n.t('ref_career_tab_fame'),   icon: '⭐' },
-    ])
+    ]
+    if (FAME_UI_ENABLED) tabDefs.push({ id: 'fame', label: i18n.t('ref_career_tab_fame'), icon: '⭐' })
+    this.tabs = new RefSubTabs(tabDefs)
     this.el.appendChild(this.tabs.tabsEl)
     const secJob = this.tabs.section('job')
     this.el.appendChild(secJob)
     this.el.appendChild(this.tabs.section('health'))
-    this.el.appendChild(this.tabs.section('fame'))
+    if (FAME_UI_ENABLED) this.el.appendChild(this.tabs.section('fame'))
 
     this.jobCard = document.createElement('div')
     this.jobCard.className = 'ref-job-card'
@@ -296,10 +304,15 @@ export class RefCareerPage implements RefPage {
     const secHealth = this.tabs.section('health')
     secHealth.innerHTML = ''
     secHealth.appendChild(this.buildHealthSection(c))
-    const secFame = this.tabs.section('fame')
-    secFame.innerHTML = ''
-    secFame.appendChild(this.buildFameSection(c))
-    secFame.appendChild(this.buildKarmaRow(c))
+    if (FAME_UI_ENABLED) {
+      const secFame = this.tabs.section('fame')
+      secFame.innerHTML = ''
+      secFame.appendChild(this.buildFameSection(c))
+      secFame.appendChild(this.buildKarmaRow(c))
+    } else {
+      // Şöhret gizli — karma satırı kaybolmasın diye Sağlık sekmesine eklenir.
+      secHealth.appendChild(this.buildKarmaRow(c))
+    }
   }
 
   private buildHealthSection(c: RefCareerVM): HTMLElement {

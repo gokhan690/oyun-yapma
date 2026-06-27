@@ -55,11 +55,9 @@ export class RefLifePage implements RefPage {
   private state?: GameState
   private tabs: RefSubTabs
   private kpiStrip?: RefKpiStrip
-  private lastDynSig = ''
-  private lastHomeSig = ''
-  private lastTravelSig = ''
-  private lastPetsSig = ''
-  private lastShopSig = ''
+  private lastFamilySig = ''
+  private lastPropertySig = ''
+  private lastLifestyleSig = ''
 
   constructor(state?: GameState) {
     this.state = state
@@ -73,23 +71,21 @@ export class RefLifePage implements RefPage {
       this.el.appendChild(this.kpiStrip.el)
     }
 
+    // TUR13: 5 sekme → 3 sekme. Aile&Hanedan (eş/çocuk/kardeş/miras),
+    // Ev&Mülk (konut/oda/araç/kira), Yaşam Tarzı (seyahat/hobi/wellbeing/evcil).
     this.tabs = new RefSubTabs([
-      { id: 'dynasty', label: i18n.t('ref_life_tab_dynasty'), icon: '👨‍👩‍👧' },
-      { id: 'home',    label: i18n.t('ref_life_tab_home'),    icon: '🏠' },
-      { id: 'travel',  label: i18n.t('ref_life_tab_travel'),  icon: '✈️' },
-      { id: 'pets',    label: i18n.t('ref_life_tab_pets'),    icon: '🐾' },
-      { id: 'shop',    label: i18n.t('ref_life_tab_shop'),    icon: '🛍️' },
+      { id: 'family',    label: i18n.t('ref_life_tab_family'),    icon: '👨‍👩‍👧' },
+      { id: 'property',  label: i18n.t('ref_life_tab_property'),  icon: '🏠' },
+      { id: 'lifestyle', label: i18n.t('ref_life_tab_lifestyle'), icon: '✨' },
     ])
     this.el.appendChild(this.tabs.tabsEl)
-    for (const id of ['dynasty', 'home', 'travel', 'pets', 'shop']) {
+    for (const id of ['family', 'property', 'lifestyle']) {
       this.el.appendChild(this.tabs.section(id))
     }
 
-    this.buildDynasty()
-    this.buildHome()
-    this.buildTravel()
-    this.buildPets()
-    this.buildShop()
+    this.buildFamily()
+    this.buildProperty()
+    this.buildLifestyle()
 
     this.el.addEventListener('click', (e) => this.handleClick(e))
   }
@@ -111,7 +107,8 @@ export class RefLifePage implements RefPage {
 
   /* ── İmzalar ─────────────────────────────────────────────────────── */
 
-  private dynSig(s: GameState): string {
+  // Aile&Hanedan = hanedan + kardeşler.
+  private familySig(s: GameState): string {
     const d = s.dynasty
     const siblings = s.siblings ?? []
     return [
@@ -122,7 +119,8 @@ export class RefLifePage implements RefPage {
     ].join('§')
   }
 
-  private homeSig(s: GameState): string {
+  // Ev&Mülk = konut + oda + araç.
+  private propertySig(s: GameState): string {
     const ls = s.lifestyle
     const res = ls.ownedResidences.map(r => `${r.id}:${r.isRenting ? 1 : 0}`).join(',')
     const veh = ls.ownedVehicles.map(v => `${v.id}:${v.isRenting ? 1 : 0}`).join(',')
@@ -131,38 +129,25 @@ export class RefLifePage implements RefPage {
     return `${res}|${veh}|${rooms}|${afford}`
   }
 
-  private travelSig(s: GameState): string {
+  // Yaşam Tarzı = seyahat + hobi + wellbeing + evcil.
+  private lifestyleSig(s: GameState): string {
     const t = s.travel
     const afford = TRAVEL_DESTINATIONS.map(d => (s.money >= d.cost && s.totalEarned >= d.unlockAt) ? 1 : 0).join('')
     const wb = WELLBEING_ACTIVITIES.map(w => s.money >= w.cost ? 1 : 0).join('')
-    return `${t.lastDestinationId ?? '-'}|${t.travelBonusUntilDay}|${t.totalTrips}|${s.hobby.hobbyId ?? '-'}|${afford}|${wb}`
-  }
-
-  private petsSig(s: GameState): string {
     const pets = (s.lifestyle.ownedPets ?? []).map(p => `${p.id}:${p.adoptedDay}`).join(',')
-    const siblings = (s.siblings ?? []).map(x => `${x.id}:${x.isAlive}:${x.relationshipScore}`).join('|')
-    const afford = PETS.map(p => s.money >= p.buyCost ? 1 : 0).join('')
-    return `${pets}|${siblings}|${afford}|${gameDay(s.gameTimeMs)}`
-  }
-
-  private shopSig(s: GameState): string {
-    const ls = s.lifestyle
-    return `${Math.round(lifestyleMonthlyExpense(ls))}|${Math.round(lifestyleRentalIncome(ls))}|${ls.ownedResidences.length}|${ls.ownedVehicles.length}|${(ls.ownedPets ?? []).length}|${s.hobby.hobbyId ?? '-'}`
+    const petAfford = PETS.map(p => s.money >= p.buyCost ? 1 : 0).join('')
+    return `${t.lastDestinationId ?? '-'}|${t.travelBonusUntilDay}|${t.totalTrips}|${s.hobby.hobbyId ?? '-'}|${afford}|${wb}|${pets}|${petAfford}|${gameDay(s.gameTimeMs)}`
   }
 
   refresh(state: GameState): void {
     this.state = state
     this.kpiStrip?.update(this.buildKpis(state))
-    const dSig = this.dynSig(state)
-    if (dSig !== this.lastDynSig) { this.lastDynSig = dSig; this.buildDynasty() }
-    const hSig = this.homeSig(state)
-    if (hSig !== this.lastHomeSig) { this.lastHomeSig = hSig; this.buildHome() }
-    const tSig = this.travelSig(state)
-    if (tSig !== this.lastTravelSig) { this.lastTravelSig = tSig; this.buildTravel() }
-    const pSig = this.petsSig(state)
-    if (pSig !== this.lastPetsSig) { this.lastPetsSig = pSig; this.buildPets() }
-    const shSig = this.shopSig(state)
-    if (shSig !== this.lastShopSig) { this.lastShopSig = shSig; this.buildShop() }
+    const fSig = this.familySig(state)
+    if (fSig !== this.lastFamilySig) { this.lastFamilySig = fSig; this.buildFamily() }
+    const prSig = this.propertySig(state)
+    if (prSig !== this.lastPropertySig) { this.lastPropertySig = prSig; this.buildProperty() }
+    const lSig = this.lifestyleSig(state)
+    if (lSig !== this.lastLifestyleSig) { this.lastLifestyleSig = lSig; this.buildLifestyle() }
   }
 
   /* ── Aksiyonlar ──────────────────────────────────────────────────── */
@@ -213,8 +198,8 @@ export class RefLifePage implements RefPage {
 
   /* ── 👨‍👩‍👧 HANEDAN ────────────────────────────────────────────────── */
 
-  private buildDynasty(): void {
-    const wrap = this.tabs.section('dynasty')
+  private buildFamily(): void {
+    const wrap = this.tabs.section('family')
     wrap.innerHTML = ''
     const s = this.state
     if (!s) {
@@ -332,12 +317,15 @@ export class RefLifePage implements RefPage {
         </div>`
     }).join('')
     wrap.appendChild(legacyList)
+
+    // TUR13: Kardeşler artık Aile & Hanedan sekmesinde.
+    this.appendSiblings(wrap, s)
   }
 
-  /* ── 🏠 EV & ARAÇ ───────────────────────────────────────────────── */
+  /* ── 🏠 EV & MÜLK ───────────────────────────────────────────────── */
 
-  private buildHome(): void {
-    const wrap = this.tabs.section('home')
+  private buildProperty(): void {
+    const wrap = this.tabs.section('property')
     wrap.innerHTML = ''
     const s = this.state
     if (!s) {
@@ -432,8 +420,8 @@ export class RefLifePage implements RefPage {
 
   /* ── ✈️ SEYAHAT & HOBİ ──────────────────────────────────────────── */
 
-  private buildTravel(): void {
-    const wrap = this.tabs.section('travel')
+  private buildLifestyle(): void {
+    const wrap = this.tabs.section('lifestyle')
     wrap.innerHTML = ''
     const s = this.state
     if (!s) {
@@ -518,18 +506,14 @@ export class RefLifePage implements RefPage {
         </div>`
     }).join('')
     wrap.appendChild(wbList)
+
+    // TUR13: Evcil hayvanlar artık Yaşam Tarzı sekmesinde.
+    this.appendPets(wrap, s)
   }
 
-  /* ── 🐾 EVCİL & KARDEŞLER ───────────────────────────────────────── */
+  /* ── 🐾 EVCİL HAYVANLAR (Yaşam Tarzı sekmesi) ───────────────────── */
 
-  private buildPets(): void {
-    const wrap = this.tabs.section('pets')
-    wrap.innerHTML = ''
-    const s = this.state
-    if (!s) {
-      wrap.appendChild(demoBanner(i18n.t('ref_life_demo_pets')))
-      return
-    }
+  private appendPets(wrap: HTMLElement, s: GameState): void {
     const day = gameDay(s.gameTimeMs)
     const ownedPets = s.lifestyle.ownedPets ?? []
 
@@ -581,8 +565,11 @@ export class RefLifePage implements RefPage {
         </div>`
     }).join('')
     wrap.appendChild(catalog)
+  }
 
-    // Kardeşler
+  /* ── 👦 KARDEŞLER (Aile & Hanedan sekmesi) ──────────────────────── */
+
+  private appendSiblings(wrap: HTMLElement, s: GameState): void {
     const siblings = s.siblings ?? []
     if (siblings.length > 0) {
       const alive = siblings.filter(x => x.isAlive)
@@ -608,57 +595,5 @@ export class RefLifePage implements RefPage {
       }
       wrap.appendChild(list)
     }
-  }
-
-  /* ── 🛍️ ALIŞVERİŞ ──────────────────────────────────────────────── */
-
-  private buildShop(): void {
-    const wrap = this.tabs.section('shop')
-    wrap.innerHTML = ''
-    const s = this.state
-    if (!s) {
-      wrap.appendChild(demoBanner(i18n.t('ref_life_demo_shop')))
-      return
-    }
-    const ls = s.lifestyle
-
-    // Harcama özeti
-    wrap.appendChild(sectionTitle(i18n.t('ref_life_expenses_section')))
-    const summary = document.createElement('div')
-    summary.className = 'ref-world-rep-card'
-    const expense = Math.round(lifestyleMonthlyExpense(ls))
-    const rental = Math.round(lifestyleRentalIncome(ls))
-    const activeHobby = s.hobby.hobbyId ? HOBBIES.find(h => h.id === s.hobby.hobbyId) : null
-    summary.innerHTML = `
-      <div class="ref-world-rep-row"><span>💳 ${i18n.t('ref_life_monthly_expense_label')}</span><b>${fmtMoney(expense)}</b></div>
-      <div class="ref-world-rep-row"><span>🔑 ${i18n.t('ref_life_rental_income_label')}</span><b>${rental > 0 ? '+' + fmtMoney(rental) : '—'}</b></div>
-      <div class="ref-world-rep-row"><span>🏠 ${i18n.t('ref_life_property_label')}</span><b>${fmt('ref_life_count_pieces_fmt', { count: String(ls.ownedResidences.length) })}</b></div>
-      <div class="ref-world-rep-row"><span>🚗 ${i18n.t('ref_life_vehicle_label')}</span><b>${fmt('ref_life_count_pieces_fmt', { count: String(ls.ownedVehicles.length) })}</b></div>
-      <div class="ref-world-rep-row"><span>🐾 ${i18n.t('ref_life_pet_label')}</span><b>${fmt('ref_life_count_pieces_fmt', { count: String((ls.ownedPets ?? []).length) })}</b></div>
-      <div class="ref-world-rep-row"><span>🎯 ${i18n.t('ref_life_hobby_label')}</span><b>${activeHobby ? `${activeHobby.emoji} ${hobbyName(activeHobby)}` : i18n.t('ref_life_none')}</b></div>
-    `
-    wrap.appendChild(summary)
-
-    // Hızlı yönlendirme kartları
-    wrap.appendChild(sectionTitle(i18n.t('ref_life_categories_title')))
-    const nav = document.createElement('div')
-    nav.className = 'ref-life-room-grid'
-    const cats: { icon: string; name: string; desc: string; tab: string }[] = [
-      { icon: '🏠', name: i18n.t('ref_life_tab_home'), desc: i18n.t('ref_life_category_home_desc'), tab: 'home' },
-      { icon: '✈️', name: i18n.t('ref_life_tab_travel'), desc: i18n.t('ref_life_category_travel_desc'), tab: 'travel' },
-      { icon: '🐾', name: i18n.t('ref_life_tab_pets'), desc: i18n.t('ref_life_category_pet_desc'), tab: 'pets' },
-      { icon: '👨‍👩‍👧', name: i18n.t('ref_life_tab_dynasty'), desc: i18n.t('ref_life_category_family_desc'), tab: 'dynasty' },
-    ]
-    for (const c of cats) {
-      const card = document.createElement('div')
-      card.className = 'ref-life-room-card clickable'
-      card.innerHTML = `
-        <span class="ref-life-room-card__ico">${c.icon}</span>
-        <div class="ref-life-room-card__name">${c.name}</div>
-        <div class="ref-life-room-card__desc">${c.desc}</div>`
-      card.addEventListener('click', () => this.tabs.setActive(c.tab))
-      nav.appendChild(card)
-    }
-    wrap.appendChild(nav)
   }
 }

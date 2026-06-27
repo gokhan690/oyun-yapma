@@ -2370,6 +2370,14 @@
 .onboarding-character-grid .onboarding-country-btn .ob-flag { font-size: 26px; }
 .onboarding-character-grid .ob-country-capital { white-space: normal; line-height: 1.25; }
 
+/* TUR13: rakamsal etki çipleri + canlı başlangıç özeti */
+.ob-chips { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 6px; }
+.ob-chip { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: rgba(37,99,235,0.12); color: #1d4ed8; white-space: nowrap; }
+.ob-summary { margin: 10px auto 0; max-width: 420px; padding: 12px 14px; border-radius: 12px; background: rgba(22,163,74,0.08); border: 1px solid rgba(22,163,74,0.3); }
+.ob-summary__title { font-weight: 800; font-size: 13px; margin-bottom: 6px; color: #15803d; }
+.ob-summary__row { font-size: 12px; line-height: 1.6; color: var(--r-text, #0a1628); }
+.ob-summary-host { width: 100%; }
+
 /* ===== CHANGE 1: RefFirmsPage — Firma seviye badge + GELİŞTİR butonu ===== */
 .ref-prod-lvl-pips { display: flex; gap: 3px; padding: 4px 12px 2px; }
 .ref-prod-lvl-pip { width: 20%; height: 4px; border-radius: 2px; background: var(--ref-border, #e2e8f0); }
@@ -3105,6 +3113,16 @@
   background: transparent; color: var(--r-text);
   font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
 }
+
+/* ── TUR13: firma alımı kilidi + gelir/geliştirme ön izleme ── */
+.ref-firms-lock-banner { margin: 8px 14px; padding: 10px 12px; border-radius: 10px; background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.4); }
+.ref-firms-lock-banner__title { font-weight: 800; color: #b45309; font-size: 13px; }
+.ref-firms-lock-banner__msg { font-size: 12px; color: var(--r-text); margin-top: 2px; line-height: 1.35; }
+.ref-firms-lock-banner__progress { font-size: 11px; color: var(--r-muted); margin-top: 4px; font-weight: 600; }
+.ref-prod-buy-gain { font-size: 11px; color: var(--r-success, #16a34a); font-weight: 700; padding: 2px 12px 0; }
+.ref-detail-develop-main { display: block; font-weight: 800; }
+.ref-detail-develop-preview { display: block; font-size: 11px; opacity: 0.85; font-weight: 600; margin-top: 2px; }
+.ref-detail-develop-reason { display: block; font-size: 11px; color: var(--r-danger, #ea5455); margin-top: 2px; font-weight: 700; }
 
 /* ── RTL overrides (Arabic) ─────────────────────────────────────── */
 [dir="rtl"] .ref-back-btn { direction: rtl; }

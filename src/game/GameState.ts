@@ -1920,6 +1920,78 @@ export class GameState {
     return scaledBaseIncome(def.baseIncome, def) * owned * mult * this.passiveMultiplier()
   }
 
+  /**
+   * TEK GELİR KAYNAĞI: Bu üreticinin (mevcut adet + addedQty) adetteyken üreteceği
+   * günlük geliri, `producerIncome` ile BİREBİR aynı pipeline'ı (sinerji, firma
+   * seviyesi, upgrade, manager, modernize, şehir/hobi bonusları ve tüm global
+   * çarpanlar) kullanarak hesaplar. UI kendi gelir formülünü yazmamalı; satın alma
+   * ön izlemesi ve gerçekleşen gelir bu fonksiyondan türetilmelidir.
+   *
+   * Saftır: adet alanını geçici olarak değiştirir ve okuma bittikten sonra geri alır
+   * (senkron; aradan başka iş geçmez).
+   */
+  projectedProducerIncome(def: ProducerDef, addedQty: number): number {
+    const owned = this.producers[def.id] ?? 0
+    const target = Math.max(0, owned + addedQty)
+    if (target === 0) return 0
+    const had = Object.prototype.hasOwnProperty.call(this.producers, def.id)
+    const prev = this.producers[def.id]
+    // Empire (spor/siyaset) gelir bonusları satın almada syncEmpireFromProducers ile
+    // güncellenir; ön izleme gerçek satın alma ile eşit olsun diye empire de geçici
+    // olarak projeksiyonla eşitlenir. Yalnız sync'in dokunduğu iki alan (politics.level
+    // ve football dizisi) snapshot'lanır ve finally'de geri yüklenir → saf kalır.
+    const prevPoliticsLevel = this.empire.politics.level
+    const prevFootball = this.empire.football
+    this.empire.football = prevFootball.map((c) => ({ ...c }))
+    this.producers[def.id] = target
+    try {
+      syncEmpireFromProducers(this.empire, this.producers)
+      return this.producerIncome(def)
+    } finally {
+      if (had) this.producers[def.id] = prev!
+      else delete this.producers[def.id]
+      this.empire.politics.level = prevPoliticsLevel
+      this.empire.football = prevFootball
+    }
+  }
+
+  /** `qty` adet satın almanın bu firmanın günlük gelirine ekleyeceği gerçek artış. */
+  producerIncomeBuyDelta(def: ProducerDef, qty: number): number {
+    return this.projectedProducerIncome(def, qty) - this.producerIncome(def)
+  }
+
+  /** Bu firmanın tek bir biriminin (tüm çarpanlar dahil) günlük geliri. */
+  producerUnitIncome(def: ProducerDef): number {
+    const owned = this.producers[def.id] ?? 0
+    if (owned > 0) return this.producerIncome(def) / owned
+    return this.projectedProducerIncome(def, 1)
+  }
+
+  /**
+   * Firma SATIN ALMA kilidi. Yeni oyuncu önce kariyere girmeli:
+   * bir iş seçilmiş VE (≥3 kariyer aksiyonu VEYA kariyer geliri ≥ ₺1.000).
+   * Zaten firma sahibi olan / girişimci olan oyuncular (ve eski save'ler) kilitsizdir.
+   * Kilit YALNIZ satın almayı engeller; katalog her zaman görülebilir.
+   */
+  firmsPurchaseUnlocked(): boolean {
+    if (this.career.isEntrepreneur) return true
+    if (this.anyProducerOwned()) return true
+    if (this.career.jobId == null) return false
+    return (this.career.actionsTotal ?? 0) >= 3 || this.career.totalWageEarned >= 1000
+  }
+
+  /** UI ilerleme ipucu için kilit durumu (eşik: 3 aksiyon / ₺1.000 kariyer geliri). */
+  firmsPurchaseLockStatus(): { locked: boolean; jobSelected: boolean; actions: number; income: number; actionsNeeded: number; incomeNeeded: number } {
+    return {
+      locked: !this.firmsPurchaseUnlocked(),
+      jobSelected: this.career.jobId != null || this.career.isEntrepreneur,
+      actions: this.career.actionsTotal ?? 0,
+      income: Math.round(this.career.totalWageEarned),
+      actionsNeeded: 3,
+      incomeNeeded: 1000,
+    }
+  }
+
   /** Aktif gelir çarpanları — UI'da dalgalanma açıklaması için */
   incomeModifierChips(): { emoji: string; label: string; detail: string }[] {
     const chips: { emoji: string; label: string; detail: string }[] = []
@@ -2571,6 +2643,9 @@ export class GameState {
     this.ensureDailyPlan()
     const def = PRODUCERS.find((p) => p.id === id)
     if (!def || !isProducerUnlocked(def, this.totalEarned, this.forcedUnlocks, this.ipoCount)) return false
+    // Erken oyun kariyer kilidi: ilk firmayı satın almadan önce kariyere girilmeli.
+    // (Zaten firma sahibi / girişimci / eski save'ler kilitsiz — bu yalnız ilk alımı geciktirir.)
+    if (!this.firmsPurchaseUnlocked()) return false
     const owned = this.producers[id] ?? 0
     const hadAnyBusiness = this.hasAnyBusiness()
     if (def.category === 'politics' && owned === 0 && reputationPoliticsBlocked(this.reputation)) {
@@ -5996,7 +6071,10 @@ export class GameState {
     }
     this.emit({ type: 'career_action', actionId, money: result.money, levelUp: result.levelUp })
     if (result.money > 0) this.emit({ type: 'money_changed' })
-    if (result.money > 0 || result.xp > 0) this.recordDailyEvent('career_action_completed')
+    if (result.money > 0 || result.xp > 0) {
+      this.career.actionsTotal = (this.career.actionsTotal ?? 0) + 1
+      this.recordDailyEvent('career_action_completed')
+    }
     return result
   }
 
@@ -6028,6 +6106,41 @@ export class GameState {
     this.emit({ type: 'money_changed' })
     this.recordDailyEvent('firm_level_upgraded')
     return true
+  }
+
+  /**
+   * Geliştir butonu için tek doğruluk kaynağı: sahiplik/max/maliyet durumu,
+   * gerçek başarısızlık nedeni ve seviye atlama ön izlemesi (mevcut→sonraki gelir).
+   * Sonraki seviye geliri, gerçek `producerIncome` pipeline'ı geçici seviye
+   * override'ı ile hesaplanır (UI kendi formülünü yazmaz).
+   */
+  firmLevelUpStatus(def: ProducerDef): {
+    owned: boolean; atMax: boolean; canLevelUp: boolean;
+    reason: 'not_owned' | 'max' | 'insufficient' | null;
+    level: number; nextLevel: number; cost: number;
+    currentIncome: number; nextIncome: number; incomePct: number;
+  } {
+    const owned = (this.producers[def.id] ?? 0) > 0
+    const level = this.producerLevel(def.id)
+    const atMax = level >= FIRM_MAX_LEVEL
+    const cost = owned && !atMax ? this.firmLevelUpCostFor(def) : 0
+    const currentIncome = this.producerIncome(def)
+    let nextIncome = currentIncome
+    if (owned && !atMax) {
+      const had = Object.prototype.hasOwnProperty.call(this.producerLevels, def.id)
+      const prev = this.producerLevels[def.id]
+      this.producerLevels[def.id] = level + 1
+      try { nextIncome = this.producerIncome(def) }
+      finally { if (had) this.producerLevels[def.id] = prev!; else delete this.producerLevels[def.id] }
+    }
+    const incomePct = currentIncome > 0 ? Math.round((nextIncome / currentIncome - 1) * 100) : 0
+    let reason: 'not_owned' | 'max' | 'insufficient' | null = null
+    let canLevelUp = false
+    if (!owned) reason = 'not_owned'
+    else if (atMax) reason = 'max'
+    else if (this.money < cost) reason = 'insufficient'
+    else canLevelUp = true
+    return { owned, atMax, canLevelUp, reason, level, nextLevel: level + 1, cost, currentIncome, nextIncome, incomePct }
   }
 
   // ── Firma geliştirme metodları ─────────────────────────────────────────────

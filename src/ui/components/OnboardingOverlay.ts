@@ -1,14 +1,16 @@
-import { i18n, LANG_META, type LangCode } from '../../i18n'
+import { i18n, fmt, LANG_META, type LangCode } from '../../i18n'
 import { COUNTRIES, countryDisplayName, countryCityDisplayName, type CountryId } from '../../game/Countries'
 import {
   JOB_DEFS, EDUCATION_DEFS, LIFESTYLE_DEFS,
   profileJobLabel, profileJobDesc,
   educationLabel, educationDesc,
   lifestyleLabel, lifestyleDesc,
+  computeStartingMoney, STARTING_MONEY_RANGE,
   type JobId, type EducationLevel, type LifestyleType, type CharacterProfile,
 } from '../../game/CharacterProfile'
-import { CHARACTER_BACKGROUNDS, careerBgName, careerBgDesc, type CharacterBackgroundId } from '../../game/Career'
+import { CHARACTER_BACKGROUNDS, careerBgName, careerBgDesc, backgroundDef, type CharacterBackgroundId } from '../../game/Career'
 import { DIFFICULTY_OPTIONS, difficultyName, difficultyDesc } from '../../game/CharacterCreation'
+import { REPUTATION_START } from '../../game/Reputation'
 
 /**
  * First-run setup: 8-step flow with back navigation and progress.
@@ -26,6 +28,7 @@ export class OnboardingOverlay {
   private selectedJob: JobId = 'calisan'
   private selectedEducation: EducationLevel = 'lise'
   private selectedLifestyle: LifestyleType = 'orta'
+  private summaryHost?: HTMLElement
   private readonly onComplete: (country: CountryId, profile: CharacterProfile) => void
 
   constructor(onComplete: (country: CountryId, profile: CharacterProfile) => void) {
@@ -235,7 +238,7 @@ export class OnboardingOverlay {
       sub: i18n.t('ob_background_sub'),
       entries: CHARACTER_BACKGROUNDS.map((b) => [
         b.id,
-        { label: careerBgName(b), emoji: b.emoji, desc: careerBgDesc(b) },
+        { label: careerBgName(b), emoji: b.emoji, desc: careerBgDesc(b), chips: this.backgroundChips(b) },
       ]),
       selected: this.selectedBackground,
       onSelect: (id) => { this.selectedBackground = id },
@@ -250,7 +253,7 @@ export class OnboardingOverlay {
       title: i18n.t('ob_edu_heading'),
       sub: i18n.t('ob_edu_sub'),
       entries: (Object.entries(EDUCATION_DEFS) as [EducationLevel, typeof EDUCATION_DEFS[EducationLevel]][]).map(
-        ([id, def]) => [id, { label: educationLabel(id), emoji: def.emoji, desc: educationDesc(id) }],
+        ([id, def]) => [id, { label: educationLabel(id), emoji: def.emoji, desc: educationDesc(id), chips: this.eduChips(id) }],
       ),
       selected: this.selectedEducation,
       onSelect: (id) => { this.selectedEducation = id },
@@ -271,6 +274,7 @@ export class OnboardingOverlay {
           label: profileJobLabel(id),
           emoji: def.emoji,
           desc: profileJobDesc(id),
+          chips: this.jobChips(id),
         },
       ]),
       selected: this.selectedJob,
@@ -286,7 +290,7 @@ export class OnboardingOverlay {
       title: i18n.t('ob_lifestyle_heading'),
       sub: i18n.t('ob_lifestyle_sub'),
       entries: (Object.entries(LIFESTYLE_DEFS) as [LifestyleType, typeof LIFESTYLE_DEFS[LifestyleType]][]).map(
-        ([id, def]) => [id, { label: lifestyleLabel(id), emoji: def.emoji, desc: lifestyleDesc(id) }],
+        ([id, def]) => [id, { label: lifestyleLabel(id), emoji: def.emoji, desc: lifestyleDesc(id), chips: this.lifestyleChips(id) }],
       ),
       selected: this.selectedLifestyle,
       onSelect: (id) => { this.selectedLifestyle = id },
@@ -301,27 +305,120 @@ export class OnboardingOverlay {
       step: 8,
       title: i18n.t('ob_difficulty_heading'),
       sub: i18n.t('ob_difficulty_sub'),
-      entries: DIFFICULTY_OPTIONS.map((d) => [d.id, { label: difficultyName(d.id), emoji: d.emoji, desc: difficultyDesc(d.id) }]),
+      entries: DIFFICULTY_OPTIONS.map((d) => [d.id, { label: difficultyName(d.id), emoji: d.emoji, desc: difficultyDesc(d.id), chips: this.difficultyChips(d.id) }]),
       selected: this.selectedDifficulty,
       onSelect: (id) => { this.selectedDifficulty = id },
       onBack: () => this.renderLifestyleStep(),
       onNext: () => this.finish(),
       isLast: true,
       centerLast: true,
+      footer: () => this.buildStartingSummary(),
     })
+  }
+
+  // ── TUR13: gerçek (rakamsal) etki çipleri — yalnız var olan etkiler gösterilir ──
+  private pct(v: number): string { return String(Math.round(v * 100)) }
+
+  private backgroundChips(b: typeof CHARACTER_BACKGROUNDS[number]): string[] {
+    const c: string[] = []
+    if (b.startingReputationBonus) c.push(fmt('ob_chip_rep_fmt', { n: String(b.startingReputationBonus) }))
+    if (b.clickBonus) c.push(fmt('ob_chip_active_fmt', { n: this.pct(b.clickBonus) }))
+    if (b.illegalBonus) c.push(fmt('ob_chip_illegal_fmt', { n: this.pct(b.illegalBonus) }))
+    if (b.costDiscount) c.push(fmt('ob_chip_cost_fmt', { n: this.pct(b.costDiscount) }))
+    if (b.researchBonus) c.push(fmt('ob_chip_research_pct_fmt', { n: this.pct(b.researchBonus) }))
+    if (b.heatBonus) c.push(fmt('ob_chip_heat_fmt', { n: String(b.heatBonus) }))
+    if (b.unlockFinanceEarly) c.push(i18n.t('ob_chip_finance_early'))
+    return c
+  }
+
+  private moneyMultChips(mult: number): string[] {
+    const pct = Math.round((mult - 1) * 100)
+    if (pct > 0) return [fmt('ob_chip_money_up_fmt', { n: String(pct) })]
+    if (pct < 0) return [fmt('ob_chip_money_down_fmt', { n: String(-pct) })]
+    return []
+  }
+
+  private jobChips(id: JobId): string[] {
+    const def = JOB_DEFS[id]
+    const c = this.moneyMultChips(def.startingMoneyMult)
+    if (def.incomeDailyBonus > 0) c.push(fmt('ob_chip_daily_fmt', { n: String(def.incomeDailyBonus) }))
+    return c
+  }
+
+  private eduChips(id: EducationLevel): string[] {
+    const def = EDUCATION_DEFS[id]
+    const c = this.moneyMultChips(def.moneyMult)
+    if (def.researchBonus > 0) c.push(fmt('ob_chip_research_lvl_fmt', { n: String(def.researchBonus) }))
+    return c
+  }
+
+  private lifestyleChips(id: LifestyleType): string[] {
+    const def = LIFESTYLE_DEFS[id]
+    const c: string[] = []
+    const pct = Math.round((def.monthlyExpenseMult - 1) * 100)
+    if (pct > 0) c.push(fmt('ob_chip_expense_up_fmt', { n: String(pct) }))
+    else if (pct < 0) c.push(fmt('ob_chip_expense_down_fmt', { n: String(-pct) }))
+    else c.push(i18n.t('ob_chip_expense_std'))
+    c.push(fmt('ob_chip_health_fmt', { n: String(def.startHealth) }))
+    c.push(fmt('ob_chip_stress_fmt', { n: String(def.startStress) }))
+    return c
+  }
+
+  private difficultyChips(id: 'easy' | 'normal' | 'hard'): string[] {
+    const r = STARTING_MONEY_RANGE[id]
+    return [fmt('ob_chip_range_fmt', { min: String(r.min), max: String(r.max) })]
+  }
+
+  private currentProfile(): CharacterProfile {
+    return {
+      jobId: this.selectedJob,
+      educationLevel: this.selectedEducation,
+      lifestyleType: this.selectedLifestyle,
+      name: this.selectedName,
+      gender: this.selectedGender,
+      backgroundId: this.selectedBackground,
+      difficulty: this.selectedDifficulty,
+    }
+  }
+
+  /** Son adımda canlı başlangıç özeti — applyProfileToState ile AYNI kaynaktan. */
+  private buildStartingSummary(): HTMLElement {
+    const p = this.currentProfile()
+    const money = computeStartingMoney(p)
+    const job = JOB_DEFS[p.jobId]
+    const life = LIFESTYLE_DEFS[p.lifestyleType]
+    const edu = EDUCATION_DEFS[p.educationLevel]
+    const bg = backgroundDef(p.backgroundId)
+    const rep = Math.min(100, REPUTATION_START + (bg?.startingReputationBonus ?? 0))
+    const firmDiscount = Math.round((bg?.costDiscount ?? 0) * 100)
+    const rows = [
+      fmt('ob_summary_money_fmt', { n: String(money) }),
+      fmt('ob_summary_career_fmt', { n: String(job.incomeDailyBonus) }),
+      fmt('ob_summary_health_fmt', { n: String(life.startHealth) }),
+      fmt('ob_summary_stress_fmt', { n: String(life.startStress) }),
+      fmt('ob_summary_rep_fmt', { n: String(rep) }),
+    ]
+    if (edu.researchBonus > 0) rows.push(fmt('ob_summary_research_fmt', { n: String(edu.researchBonus) }))
+    if (firmDiscount > 0) rows.push(fmt('ob_summary_firm_fmt', { n: String(firmDiscount) }))
+    const wrap = document.createElement('div')
+    wrap.className = 'ob-summary'
+    wrap.innerHTML = `<div class="ob-summary__title">${i18n.t('ob_summary_title')}</div>` +
+      rows.map(r => `<div class="ob-summary__row">${r}</div>`).join('')
+    return wrap
   }
 
   private renderChoiceStep<T extends string>(opts: {
     step: number
     title: string
     sub: string
-    entries: [T, { label: string; emoji: string; desc: string }][]
+    entries: [T, { label: string; emoji: string; desc: string; chips?: string[] }][]
     selected: T
     onSelect: (id: T) => void
     onBack?: () => void
     onNext: () => void
     isLast?: boolean
     centerLast?: boolean
+    footer?: () => HTMLElement
   }): void {
     if (!this.root) return
     this.clear()
@@ -346,16 +443,31 @@ export class OnboardingOverlay {
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = `onboarding-country-btn${opts.selected === id ? ' active' : ''}`
+      const chipsHtml = (def.chips && def.chips.length)
+        ? `<span class="ob-chips">${def.chips.map(ch => `<span class="ob-chip">${ch}</span>`).join('')}</span>`
+        : ''
       btn.innerHTML =
         `<span class="ob-flag">${def.emoji}</span>` +
         `<span class="ob-country-name">${def.label}</span>` +
-        `<span class="ob-country-capital">${def.desc}</span>`
+        `<span class="ob-country-capital">${def.desc}</span>` +
+        chipsHtml
       btn.addEventListener('click', () => {
         opts.onSelect(id)
         grid.querySelectorAll('.onboarding-country-btn').forEach((b) => b.classList.remove('active'))
         btn.classList.add('active')
+        if (this.summaryHost) { this.summaryHost.replaceChildren(this.buildStartingSummary()) }
       })
       grid.appendChild(btn)
+    }
+
+    // Canlı başlangıç özeti (yalnız son adım — footer sağlanırsa)
+    this.summaryHost = undefined
+    let footerEl: HTMLElement | undefined
+    if (opts.footer) {
+      this.summaryHost = document.createElement('div')
+      this.summaryHost.className = 'ob-summary-host'
+      this.summaryHost.appendChild(opts.footer())
+      footerEl = this.summaryHost
     }
 
     const next = document.createElement('button')
@@ -375,7 +487,8 @@ export class OnboardingOverlay {
       next.addEventListener('click', opts.onNext)
     }
 
-    card.append(h, sub, grid, next)
+    if (footerEl) card.append(h, sub, grid, footerEl, next)
+    else card.append(h, sub, grid, next)
     this.root.appendChild(card)
   }
 
