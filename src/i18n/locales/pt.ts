@@ -1402,6 +1402,7 @@ export const pt: Translations = {
   ref_reward_bankruptcy_desc: 'Você pode recuperar parte dos ativos perdidos.',
   ref_reward_bankruptcy_btn: '📺 Assistir e recuperar',
   ref_reward_discard: 'Descartar',
+  ref_reward_not_now: 'Agora não',
   ref_reward_ad_loading: 'Carregando anúncio…',
   ref_reward_ad_failed: 'Anúncio não concluído',
   ref_reward_already_claimed: 'Recompensa já coletada',

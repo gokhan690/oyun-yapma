@@ -1402,6 +1402,7 @@ export const zh: Translations = {
   ref_reward_bankruptcy_desc: '您可以找回部分损失的资产。',
   ref_reward_bankruptcy_btn: '📺 观看并救援',
   ref_reward_discard: '忽略',
+  ref_reward_not_now: '暂时不要',
   ref_reward_ad_loading: '广告加载中…',
   ref_reward_ad_failed: '广告未完成',
   ref_reward_already_claimed: '奖励已领取',

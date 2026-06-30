@@ -1394,6 +1394,7 @@ export const ar: Translations = {
   ref_reward_bankruptcy_desc: 'يمكنك استعادة بعض أصولك المفقودة.',
   ref_reward_bankruptcy_btn: '📺 شاهد واسترد',
   ref_reward_discard: 'رفض',
+  ref_reward_not_now: 'ليس الآن',
   ref_reward_ad_loading: 'جارٍ تحميل الإعلان…',
   ref_reward_ad_failed: 'لم يكتمل الإعلان',
   ref_reward_already_claimed: 'تم المطالبة بالمكافأة مسبقاً',

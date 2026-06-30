@@ -816,7 +816,6 @@ const BASE_CLICK = 6
 const BASE_OFFLINE_CAP_GAME_DAYS = 365
 const BASE_OFFLINE_CAP_MS = BASE_OFFLINE_CAP_GAME_DAYS * MS_PER_GAME_DAY
 const AD_BOOST_DURATION_MS = 5 * 60 * 1000
-const COMEBACK_MIN_AWAY_MS = 24 * 60 * 60 * 1000
 const STREAK_MILESTONES = [7, 14, 30]
 const COMBO_WINDOW_MS = 1500
 const META_SYSTEMS_MIN_PLAY_MS = 180_000
@@ -3586,35 +3585,19 @@ export class GameState {
   }
 
   claimComebackBonus(): number {
-    if (this.comebackPending <= 0) return 0
-    const amount = this.comebackPending
-    this.comebackPending = 0
-    this.comebackSettlementAt = null
-    this.comebackPresentedSettlementAt = null
-    this.comebackClaimed = true
-    this.comebackClaimedDay = todayKey()
-    this.addMoney(amount)
-    this.awardBadge('comeback')
-    return amount
+    this.discardComeback()
+    return 0
   }
 
   /** Geri dönüş bonusu — yalnızca reklam sonrası */
   claimComebackViaAd(multiplier = 1): number {
-    if (this.comebackPending <= 0) return 0
-    const amount = Math.floor(this.comebackPending * multiplier)
-    this.comebackPending = 0
-    this.comebackSettlementAt = null
-    this.comebackPresentedSettlementAt = null
-    this.comebackClaimed = true
-    this.comebackClaimedDay = todayKey()
-    this.addMoney(amount)
-    this.awardBadge('comeback')
-    this.emit({ type: 'offline_earnings', amount })
-    return amount
+    void multiplier
+    this.discardComeback()
+    return 0
   }
 
   hasPendingComeback(): boolean {
-    return this.comebackPending > 0
+    return false
   }
 
   private validRewardSettlementIdentity(value: unknown): number | null {
@@ -3622,15 +3605,11 @@ export class GameState {
   }
 
   shouldPresentComeback(): boolean {
-    return this.comebackPending > 0
-      && this.comebackSettlementAt !== null
-      && this.comebackPresentedSettlementAt !== this.comebackSettlementAt
+    return false
   }
 
   markComebackPresented(): boolean {
-    if (!this.shouldPresentComeback()) return false
-    this.comebackPresentedSettlementAt = this.comebackSettlementAt
-    return true
+    return false
   }
 
   hasPendingOfflineReward(): boolean {
@@ -3668,26 +3647,8 @@ export class GameState {
 
     const elapsed = Math.min(awayMs, this.offlineCapMs())
     const offlineWindowReached = elapsed >= MS_PER_GAME_DAY
-    let shouldPersistSettlement = offlineWindowReached
-
-    if (awayMs >= COMEBACK_MIN_AWAY_MS && this.comebackPending <= 0 && this.comebackClaimedDay !== todayKey()) {
-      const gameDaysAway = elapsed / MS_PER_GAME_DAY
-      let base = 0
-      for (const p of PRODUCERS) {
-        base += this.producerIncome(p) * gameDaysAway
-      }
-      if (base > 0) {
-        const mult = awayMs >= 72 * 60 * 60 * 1000 ? 3 : awayMs >= 48 * 60 * 60 * 1000 ? 2 : 1.5
-        this.comebackPending = Math.floor(base * mult)
-        if (this.comebackPending > 0) {
-          this.comebackSettlementAt = now
-          this.comebackPresentedSettlementAt = null
-          this.triggerStoryBeat('comeback')
-          this.emit({ type: 'comeback_ready', amount: this.comebackPending })
-          shouldPersistSettlement = true
-        }
-      }
-    }
+    const shouldPersistSettlement = offlineWindowReached
+    this.discardComeback()
 
     if (offlineWindowReached) {
       const gameDaysAway = elapsed / MS_PER_GAME_DAY
@@ -7157,19 +7118,9 @@ export class GameState {
       ? loadedOfflinePresentedAt
       : null
     this.comebackClaimedDay = data.comebackClaimedDay ?? null
-    this.comebackPending = data.comebackPending ?? 0
-    const loadedComebackSettlementAt = Number.isFinite(data.comebackSettlementAt) && (data.comebackSettlementAt ?? 0) > 0
-      ? data.comebackSettlementAt!
-      : null
-    const loadedComebackPresentedAt = Number.isFinite(data.comebackPresentedSettlementAt) && (data.comebackPresentedSettlementAt ?? 0) > 0
-      ? data.comebackPresentedSettlementAt!
-      : null
-    this.comebackSettlementAt = this.comebackPending > 0
-      ? loadedComebackSettlementAt ?? data.lastSaveTime
-      : null
-    this.comebackPresentedSettlementAt = this.comebackPending > 0
-      ? loadedComebackPresentedAt
-      : null
+    this.comebackPending = 0
+    this.comebackSettlementAt = null
+    this.comebackPresentedSettlementAt = null
     this.notificationPrefs = {
       dailyReward: data.notificationPrefs?.dailyReward ?? true,
       passiveIncome: data.notificationPrefs?.passiveIncome ?? true,

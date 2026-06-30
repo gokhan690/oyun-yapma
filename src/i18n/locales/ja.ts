@@ -1402,6 +1402,7 @@ export const ja: Translations = {
   ref_reward_bankruptcy_desc: '失った資産の一部を取り戻せます。',
   ref_reward_bankruptcy_btn: '📺 見て復活する',
   ref_reward_discard: '閉じる',
+  ref_reward_not_now: '今はしない',
   ref_reward_ad_loading: '広告を読み込み中…',
   ref_reward_ad_failed: '広告が完了しませんでした',
   ref_reward_already_claimed: '報酬は既に受け取り済みです',

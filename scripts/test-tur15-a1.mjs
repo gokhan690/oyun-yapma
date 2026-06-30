@@ -187,12 +187,12 @@ async function instrumentContext(context) {
     if (body.includes('const ads = new AdManager();')) {
       body = body.replace(
         'const ads = new AdManager();',
-        'const ads = new AdManager();\nads.showRewarded = async (type) => ({ success: true, type });',
+        'const ads = new AdManager();\nads.showRewarded = async (type) => globalThis.__tur15AdFail ? ({ success: false, type, reason: "Test ad cancelled" }) : ({ success: true, type });',
       )
     } else if (body.includes('const ads = new AdManager()')) {
       body = body.replace(
         'const ads = new AdManager()',
-        'const ads = new AdManager();\nads.showRewarded = async (type) => ({ success: true, type })',
+        'const ads = new AdManager();\nads.showRewarded = async (type) => globalThis.__tur15AdFail ? ({ success: false, type, reason: "Test ad cancelled" }) : ({ success: true, type })',
       )
     } else {
       throw new Error('TUR15 route patch: ad manager anchor not found')
@@ -355,6 +355,7 @@ async function stateSnapshot(page) {
         title: overlay.querySelector('.ref-reward-title')?.textContent?.trim() ?? '',
         amount: overlay.querySelector('.ref-reward-amount')?.textContent?.trim() ?? '',
         primary: overlay.querySelector('.ref-reward-primary')?.textContent?.trim() ?? '',
+        discard: overlay.querySelector('.ref-reward-discard')?.textContent?.trim() ?? '',
         rewardId: overlay.querySelector('.ref-reward-primary')?.getAttribute('data-reward-id') ?? null,
         settlementAt: overlay.querySelector('.ref-reward-primary')?.getAttribute('data-settlement-at') ?? null,
       })),
@@ -394,13 +395,6 @@ async function closeRewardModal(page) {
     await close.click()
     await page.waitForTimeout(250)
   }
-}
-
-async function openOfflineFromBanner(page) {
-  const bannerButton = page.locator('[data-action="claim_offline_reward"]').first()
-  await bannerButton.waitFor({ state: 'visible', timeout: 10000 })
-  await bannerButton.click()
-  await page.locator('.ref-reward-primary[data-reward-id="offline"]').waitFor({ state: 'visible', timeout: 10000 })
 }
 
 async function claimOfflineModal(page) {
@@ -686,6 +680,9 @@ async function scenarioA(base) {
   assert(before.pendingOfflineEarnings === OFFLINE_AMOUNT, 'Scenario A: pending offline reward should load exactly', before)
   assert(before.offlineRewardSettlementAt === FIXED_SETTLEMENT_AT, 'Scenario A: settlement identity should load exactly', before)
   assert(before.rewardModals.length === 1 && before.rewardModals[0].rewardId === 'offline', 'Scenario A: exactly one offline reward modal should open', before)
+  assert(/Watch|İzle|Izle|Topla|Collect/i.test(before.rewardModals[0].primary), 'Scenario A: offline reward must use watch-and-collect primary copy', before)
+  assert(before.rewardModals[0].discard, 'Scenario A: offline reward must expose a discard path', before)
+  assert(before.banners.length === 0, 'Scenario A: offline reward must not create a global fixed banner', before)
   await context.close()
   return { before, screenshot: shot }
 }
@@ -702,7 +699,9 @@ async function scenarioB(base) {
   const events = await trace(page)
   const shot = await screenshot(page, 'scenario-b-career-no-claim')
   assert(after.money === START_MONEY, 'Scenario B: clicking job before reward claim must not add money', { before, after, events: moneyMethodCalls(events) })
-  assert(after.pendingOfflineEarnings === OFFLINE_AMOUNT, 'Scenario B: job click must not clear pending offline reward', after)
+  assert(before.pendingOfflineEarnings === 0, 'Scenario B: X close must discard pending offline reward', before)
+  assert(after.pendingOfflineEarnings === 0, 'Scenario B: discarded offline reward must stay cleared after tab/action changes', after)
+  assert(after.rewardModals.length === 0 && after.banners.length === 0, 'Scenario B: discarded offline reward must leave no modal or banner behind', after)
   assert(after.career?.jobId, 'Scenario B: job click should still select a job', after)
   await context.close()
   return { before, after, moneyCalls: moneyMethodCalls(events), screenshot: shot }
@@ -713,24 +712,25 @@ async function scenarioC(base) {
   await page.locator('.ref-reward-primary[data-reward-id="offline"]').waitFor({ state: 'visible', timeout: 10000 })
   await closeRewardModal(page)
   const afterClose = await stateSnapshot(page)
+  const saveAfterClose = await saved(page)
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {})
   await waitForShell(page)
   await page.waitForTimeout(500)
   const afterReload = await stateSnapshot(page)
-  const shot = await screenshot(page, 'scenario-c-reload-banner')
-  assert(afterClose.pendingOfflineEarnings === OFFLINE_AMOUNT, 'Scenario C: closing modal must preserve pending offline reward', afterClose)
+  const shot = await screenshot(page, 'scenario-c-reload-no-banner')
+  assert(afterClose.pendingOfflineEarnings === 0, 'Scenario C: closing modal must discard pending offline reward', afterClose)
+  assert(saveAfterClose.pendingOfflineEarnings === 0 && saveAfterClose.offlineRewardSettlementAt === null, 'Scenario C: discarded offline reward must be persisted immediately', saveAfterClose)
   assert(afterReload.money === START_MONEY, 'Scenario C: reload before claim must not add money', afterReload)
-  assert(afterReload.rewardModals.length === 0, 'Scenario C: reload after presentation should not auto-open offline modal again', afterReload)
-  assert(afterReload.banners.some((banner) => banner.action === 'claim_offline_reward'), 'Scenario C: pending offline reward should remain accessible by banner', afterReload)
+  assert(afterReload.rewardModals.length === 0, 'Scenario C: discarded reward must not auto-open after reload', afterReload)
+  assert(afterReload.banners.length === 0, 'Scenario C: discarded reward must not return as a banner after reload', afterReload)
   await context.close()
-  return { afterClose, afterReload, screenshot: shot }
+  return { afterClose, saveAfterClose, afterReload, screenshot: shot }
 }
 
 async function scenarioD(base) {
-  const staleSave = offlineFixture(base, { offlineRewardPresentedSettlementAt: FIXED_SETTLEMENT_AT })
-  const { context, page } = await launchWithSave(staleSave)
-  await openOfflineFromBanner(page)
+  const { context, page } = await launchWithSave(offlineFixture(base))
+  await page.locator('.ref-reward-primary[data-reward-id="offline"]').waitFor({ state: 'visible', timeout: 10000 })
   const beforeStale = await stateSnapshot(page)
   await page.evaluate((newSettlementAt) => {
     window.__tur15State.offlineRewardSettlementAt = newSettlementAt
@@ -741,9 +741,9 @@ async function scenarioD(base) {
   assert(afterStale.pendingOfflineEarnings === OFFLINE_AMOUNT, 'Scenario D: stale rendered settlement must not clear pending reward', afterStale)
   await context.close()
 
-  const success = await launchWithSave(staleSave)
+  const success = await launchWithSave(offlineFixture(base))
   const page2 = success.page
-  await openOfflineFromBanner(page2)
+  await page2.locator('.ref-reward-primary[data-reward-id="offline"]').waitFor({ state: 'visible', timeout: 10000 })
   const beforeClaim = await stateSnapshot(page2)
   await page2.evaluate(() => { window.__tur15Trace = [] })
   await claimOfflineModal(page2)
@@ -771,19 +771,24 @@ async function scenarioE(base) {
   })
   const { context, page } = await launchWithSave(save)
   const initial = await stateSnapshot(page)
-  assert(initial.rewardModals.length === 1 && initial.rewardModals[0].rewardId === 'offline', 'Scenario E: offline modal should be first when both rewards are pending', initial)
+  assert(initial.rewardModals.length === 1 && initial.rewardModals[0].rewardId === 'offline', 'Scenario E: old comeback save data must not preempt the offline modal', initial)
+  assert(initial.comebackPending === 0 && initial.shouldPresentComeback === false, 'Scenario E: old comeback pending state must be cleared on load', initial)
   await claimOfflineModal(page)
   await page.waitForTimeout(500)
   const afterOffline = await stateSnapshot(page)
   assert(afterOffline.money === START_MONEY + OFFLINE_AMOUNT, 'Scenario E: offline claim should add exactly offline amount first', afterOffline)
-  assert(afterOffline.rewardModals.length <= 1, 'Scenario E: reward queue must never overlap modals', afterOffline)
-  assert(afterOffline.comebackPending === 22222, 'Scenario E: comeback reward must remain pending after offline claim', afterOffline)
-  const comebackReachable = afterOffline.rewardModals.some((modal) => modal.rewardId === 'comeback')
-    || afterOffline.banners.some((banner) => banner.action === 'claim_comeback')
-  assert(comebackReachable, 'Scenario E: comeback reward must remain accessible after offline claim', afterOffline)
-  const shot = await screenshot(page, 'scenario-e-offline-then-comeback')
+  assert(afterOffline.rewardModals.every((modal) => modal.rewardId !== 'comeback'), 'Scenario E: comeback modal must never be created', afterOffline)
+  assert(afterOffline.banners.every((banner) => banner.action !== 'claim_comeback'), 'Scenario E: comeback banner must never be created', afterOffline)
+  assert(afterOffline.comebackPending === 0, 'Scenario E: comeback reward must remain cleared after offline claim', afterOffline)
+  const directComeback = await page.evaluate(() => {
+    const before = window.__tur15State.money
+    const result = window.__tur15State.claimComebackViaAd(1)
+    return { before, result, after: window.__tur15State.money, comebackPending: window.__tur15State.comebackPending }
+  })
+  assert(directComeback.result === 0 && directComeback.after === directComeback.before && directComeback.comebackPending === 0, 'Scenario E: direct comeback claim must not pay money', directComeback)
+  const shot = await screenshot(page, 'scenario-e-offline-no-comeback')
   await context.close()
-  return { initial, afterOffline, screenshot: shot }
+  return { initial, afterOffline, directComeback, screenshot: shot }
 }
 
 async function scenarioF(base) {
@@ -791,12 +796,83 @@ async function scenarioF(base) {
   await page.locator('.ref-reward-primary[data-reward-id="offline"]').waitFor({ state: 'visible', timeout: 10000 })
   const modalShot = await screenshot(page, 'scenario-f-modal-image-check')
   await closeRewardModal(page)
-  const bannerShot = await screenshot(page, 'scenario-f-banner-image-check')
+  const bannerShot = await screenshot(page, 'scenario-f-no-banner-image-check')
   const scan = await stateSnapshot(page)
+  assert(scan.banners.length === 0, 'Scenario F: dismissed offline reward must not render a persistent banner', scan)
   assert(scan.brokenImages.length === 0, 'Scenario F: no broken rendered images detected', scan)
   assert(scan.failedImageRequests.length === 0, 'Scenario F: no failed image requests detected', scan)
   await context.close()
   return { scan, screenshots: { modal: modalShot, banner: bannerShot } }
+}
+
+async function scenarioH(base) {
+  const { context, page } = await launchWithSave(offlineFixture(base))
+  await page.locator('.ref-reward-primary[data-reward-id="offline"]').waitFor({ state: 'visible', timeout: 10000 })
+  await page.evaluate(() => { window.__tur15AdFail = true })
+  await claimOfflineModal(page)
+  const afterFail = await stateSnapshot(page)
+  assert(afterFail.money === START_MONEY, 'Scenario H: failed/cancelled ad must not add money', afterFail)
+  assert(afterFail.pendingOfflineEarnings === OFFLINE_AMOUNT, 'Scenario H: failed/cancelled ad must keep pending offline reward', afterFail)
+  assert(afterFail.rewardModals.length === 1 && afterFail.rewardModals[0].rewardId === 'offline', 'Scenario H: failed/cancelled ad should keep the modal available', afterFail)
+  await context.close()
+  return { afterFail }
+}
+
+async function scenarioI(base) {
+  const { context, page } = await launchWithSave(offlineFixture(base, {
+    pendingOfflineEarnings: 0,
+    offlineRewardSettlementAt: null,
+    offlineRewardPresentedSettlementAt: null,
+  }))
+  await page.waitForTimeout(500)
+  const snapshot = await stateSnapshot(page)
+  assert(snapshot.rewardModals.length === 0, 'Scenario I: zero offline reward must not open a modal', snapshot)
+  assert(snapshot.banners.length === 0, 'Scenario I: zero offline reward must not create a banner', snapshot)
+  await context.close()
+  return { snapshot }
+}
+
+async function scenarioJ(base) {
+  const dailySave = offlineFixture(base, {
+    pendingOfflineEarnings: 0,
+    offlineRewardSettlementAt: null,
+    offlineRewardPresentedSettlementAt: null,
+    dailyLastClaim: todayKey(-1),
+    playTimeMs: 240_000,
+    firstBusinessPlayTimeMs: 0,
+    producers: { ...(base.producers ?? {}), stajyer: 1 },
+  })
+  const daily = await launchWithSave(dailySave)
+  await daily.page.locator('.ref-reward-primary[data-reward-id="daily"]').waitFor({ state: 'visible', timeout: 10000 })
+  const dailyBefore = await stateSnapshot(daily.page)
+  const dailyStartMoney = dailyBefore.money
+  await daily.page.locator('.ref-reward-primary[data-reward-id="daily"]').first().click()
+  await daily.page.waitForTimeout(500)
+  const dailyAfter = await stateSnapshot(daily.page)
+  assert(dailyBefore.rewardModals.length === 1 && dailyBefore.rewardModals[0].rewardId === 'daily', 'Scenario J: daily reward modal must still open when eligible', dailyBefore)
+  assert(dailyAfter.money > dailyStartMoney, 'Scenario J: daily reward claim must still add money', { dailyBefore, dailyAfter })
+  await daily.context.close()
+
+  const bankruptcySave = offlineFixture(base, {
+    pendingOfflineEarnings: 0,
+    offlineRewardSettlementAt: null,
+    offlineRewardPresentedSettlementAt: null,
+    bankruptcyRecoveryPool: 10000,
+    bankruptcyRecoveryClaimed: false,
+    bankruptcySeizedSnapshot: [],
+  })
+  const bankruptcy = await launchWithSave(bankruptcySave)
+  await bankruptcy.page.locator('.ref-reward-primary[data-reward-id="bankruptcy"]').waitFor({ state: 'visible', timeout: 10000 })
+  const bankruptcyBefore = await stateSnapshot(bankruptcy.page)
+  const bankruptcyStartMoney = bankruptcyBefore.money
+  await bankruptcy.page.locator('.ref-reward-primary[data-reward-id="bankruptcy"]').first().click()
+  await bankruptcy.page.waitForTimeout(500)
+  const bankruptcyAfter = await stateSnapshot(bankruptcy.page)
+  assert(bankruptcyBefore.rewardModals.length === 1 && bankruptcyBefore.rewardModals[0].rewardId === 'bankruptcy', 'Scenario J: bankruptcy reward modal must still open when eligible', bankruptcyBefore)
+  assert(bankruptcyAfter.money > bankruptcyStartMoney, 'Scenario J: bankruptcy reward claim must still add money', { bankruptcyBefore, bankruptcyAfter })
+  await bankruptcy.context.close()
+
+  return { daily: { before: dailyBefore, after: dailyAfter }, bankruptcy: { before: bankruptcyBefore, after: bankruptcyAfter } }
 }
 
 function scenarioGSourceAudit() {
@@ -845,6 +921,9 @@ try {
       E: await scenarioE(base),
       F: await scenarioF(base),
       G: scenarioGSourceAudit(),
+      H: await scenarioH(base),
+      I: await scenarioI(base),
+      J: await scenarioJ(base),
     },
     routeHits,
   }
@@ -902,6 +981,13 @@ try {
       firstClaimCash: results.scenarios.D.success.afterClaim.money,
       repeatedClaimResult: results.scenarios.D.success.repeat.result,
       staleClaimCash: results.scenarios.D.stale.afterStale.money,
+      discardedPending: results.scenarios.C.afterClose.pendingOfflineEarnings,
+      comebackPendingAfterLoad: results.scenarios.E.initial.comebackPending,
+      failedAdCash: results.scenarios.H.afterFail.money,
+      zeroOfflineModalCount: results.scenarios.I.snapshot.rewardModals.length,
+      bannerCountAfterDismiss: results.scenarios.F.scan.banners.length,
+      dailyClaimDelta: results.scenarios.J.daily.after.money - results.scenarios.J.daily.before.money,
+      bankruptcyClaimDelta: results.scenarios.J.bankruptcy.after.money - results.scenarios.J.bankruptcy.before.money,
       brokenImages: results.scenarios.F.scan.brokenImages.length,
       failedImageRequests: results.scenarios.F.scan.failedImageRequests.length,
     },

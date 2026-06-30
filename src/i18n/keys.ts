@@ -1577,6 +1577,7 @@ export interface Translations {
   ref_reward_bankruptcy_desc: string
   ref_reward_bankruptcy_btn: string
   ref_reward_discard: string
+  ref_reward_not_now: string
   ref_reward_ad_loading: string
   ref_reward_ad_failed: string
   ref_reward_already_claimed: string

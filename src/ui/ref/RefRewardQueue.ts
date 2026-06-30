@@ -4,20 +4,20 @@ import { fmtMoney, refToast } from './refShared'
 import { i18n } from '../../i18n'
 
 /**
- * RefApp reward kuyruğu — legacy HUD'un offline/comeback/daily/bankruptcy claim
+ * RefApp reward kuyruğu — legacy HUD'un offline/daily/bankruptcy claim
  * akışlarını integration RefApp mimarisine taşır. Tek seferde tek modal gösterir;
  * sonraki ödül kuyruğa girer.
  *
- * State mutation'ın TEK kaynağı mevcut GameState metotlarıdır (claimOfflineViaAd,
- * claimComebackViaAd, claimDailyReward, claimBankruptcyRecovery). UI yalnız
+ * State mutation'ın TEK kaynağı mevcut GameState metotlarıdır (claimOfflineReward,
+ * claimDailyReward, claimBankruptcyRecovery). UI yalnız
  * kullanıcının onayını/ad izlemesini toplar ve doğru metodu BİR kez çağırır.
  *
  * Reload güvenliği: her başarılı claim sonrası onClaimed() çağrılır (refresh +
- * persist). comeback/daily/bankruptcy bayrakları serialize edilir; offline
+ * persist). daily/bankruptcy bayrakları serialize edilir; offline
  * transient olduğundan claim sonrası para kaydedilir ve lastSaveTime ilerler →
  * yeniden hesaplanıp çift verilmez.
  */
-export type RewardId = 'offline' | 'comeback' | 'daily' | 'bankruptcy'
+export type RewardId = 'offline' | 'daily' | 'bankruptcy'
 
 interface RewardSpec {
   id: RewardId
@@ -32,7 +32,7 @@ interface RewardSpec {
   ad?: RewardedAdType
   /** GameState claim metodu — verilen tutarı döndürür (0 = zaten alınmış). */
   claim: (settlementAt?: number) => number
-  /** Açık "vazgeç" aksiyonu (yalnız bankruptcy). X ile kapatma ödülü SİLMEZ. */
+  /** Açık "vazgeç" aksiyonu. Offline X kapatma da bu aksiyonu kullanır. */
   discard?: { label: string; run: () => void }
   onShown?: () => void
 }
@@ -40,8 +40,6 @@ interface RewardSpec {
 export class RefRewardQueue {
   private queue: RewardId[] = []
   private overlay: HTMLElement | null = null
-  private offlineBanner: HTMLElement | null = null
-  private comebackBanner: HTMLElement | null = null
   /** Reklam beklerken ikinci aksiyonu engeller (çift claim koruması). */
   private busy = false
   private destroyed = false
@@ -63,7 +61,7 @@ export class RefRewardQueue {
   /** Bootstrap sonrası bir kez çağrılır. Pending ödülleri sıraya alır. */
   start(): void {
     if (this.destroyed) return
-    const order: RewardId[] = ['offline', 'comeback', 'daily', 'bankruptcy']
+    const order: RewardId[] = ['offline', 'daily', 'bankruptcy']
     for (const id of order) {
       if (this.isPending(id) && !this.queue.includes(id)) this.queue.push(id)
     }
@@ -73,7 +71,6 @@ export class RefRewardQueue {
   private isPending(id: RewardId): boolean {
     switch (id) {
       case 'offline':    return this.state.shouldPresentOfflineReward()
-      case 'comeback':   return this.state.shouldPresentComeback()
       case 'daily':      return this.state.canClaimDaily() && this.state.canShowDailyRewardPrompt()
       case 'bankruptcy': return this.state.hasPendingBankruptcyRecovery()
     }
@@ -85,8 +82,6 @@ export class RefRewardQueue {
     // Sıraya alındıktan sonra state değişmiş olabilir — yeniden doğrula.
     while (next && !this.isPending(next)) next = this.queue.shift()
     if (!next) {
-      if (this.state.hasPendingOfflineReward()) this.showOfflineClaimBanner()
-      if (this.state.hasPendingComeback()) this.showComebackClaimBanner()
       // Kuyruk boş → bir sonraki modal sistemine (karar modalları) devret.
       if (!this.allDoneFired) {
         this.allDoneFired = true
@@ -109,23 +104,10 @@ export class RefRewardQueue {
           primaryLabel: i18n.t('ref_reward_offline_btn'),
           ad: 'offline_bonus',
           claim: (settlementAt) => s.claimOfflineReward(settlementAt ?? 0, 1),
+          discard: { label: i18n.t('ref_reward_not_now'), run: () => s.discardPendingOffline() },
           onShown: autoPresent
             ? () => {
                 if (s.markOfflineRewardPresented()) this.onClaimed()
-              }
-            : undefined,
-        }
-      case 'comeback':
-        return {
-          id, emoji: '🎁', title: i18n.t('ref_reward_comeback_title'),
-          amount: s.comebackPending,
-          desc: i18n.t('ref_reward_comeback_desc'),
-          primaryLabel: i18n.t('ref_reward_comeback_btn'),
-          ad: 'offline_bonus',
-          claim: () => s.claimComebackViaAd(1),
-          onShown: autoPresent
-            ? () => {
-                if (s.markComebackPresented()) this.onClaimed()
               }
             : undefined,
         }
@@ -179,9 +161,13 @@ export class RefRewardQueue {
     const closeBtn = overlay.querySelector<HTMLButtonElement>('.ref-reward-close')!
     const discardBtn = overlay.querySelector<HTMLButtonElement>('.ref-reward-discard')
 
-    // X ile kapatma: ödülü SİLMEZ; pending kalır, sonraki açılışta yeniden sunulur.
+    // Offline X kapatma ödülden vazgeçer; diğer ödüllerde eski kapatma davranışı korunur.
     closeBtn.addEventListener('click', () => {
       if (this.busy) return
+      if (spec.id === 'offline' && spec.discard) {
+        spec.discard.run()
+        this.onClaimed()
+      }
       this.close()
     })
 
@@ -193,81 +179,6 @@ export class RefRewardQueue {
     })
 
     primary.addEventListener('click', () => { void this.handlePrimary(spec, primary) })
-  }
-
-  private showOfflineClaimBanner(): void {
-    const settlementAt = this.state.offlineRewardSettlementAt
-    if (
-      this.destroyed
-      || this.offlineBanner
-      || this.overlay
-      || !this.state.hasPendingOfflineReward()
-      || settlementAt == null
-    ) return
-
-    const banner = document.createElement('div')
-    banner.className = 'ref-rival-offer-banner'
-    banner.style.position = 'fixed'
-    banner.style.left = '50%'
-    banner.style.bottom = 'calc(78px + env(safe-area-inset-bottom))'
-    banner.style.width = 'min(420px, calc(100vw - 28px))'
-    banner.style.margin = '0'
-    banner.style.transform = 'translateX(-50%)'
-    banner.style.zIndex = '3100'
-    banner.innerHTML = `
-      <div class="ref-rival-offer-banner__head">&#128176; ${i18n.t('ref_reward_offline_title')}</div>
-      <div class="ref-rival-offer-banner__msg">${i18n.t('ref_reward_offline_desc')} ${fmtMoney(this.state.pendingOfflineEarnings)}</div>
-      <div class="ref-rival-offer-banner__actions">
-        <button class="ref-world-btn" type="button" data-action="claim_offline_reward" data-settlement-at="${settlementAt}">${i18n.t('ref_reward_offline_btn')}</button>
-      </div>`
-    banner.querySelector<HTMLButtonElement>('[data-action="claim_offline_reward"]')?.addEventListener('click', () => {
-      if (
-        !this.state.hasPendingOfflineReward()
-        || this.state.offlineRewardSettlementAt !== settlementAt
-        || this.overlay
-        || document.querySelector('.ref-decision-overlay')
-      ) return
-      this.clearOfflineBanner()
-      this.render(this.specFor('offline'))
-    })
-    this.offlineBanner = banner
-    document.body.appendChild(banner)
-  }
-
-  private showComebackClaimBanner(): void {
-    if (this.destroyed || this.comebackBanner || this.overlay || !this.state.hasPendingComeback()) return
-    const banner = document.createElement('div')
-    banner.className = 'ref-rival-offer-banner'
-    banner.style.position = 'fixed'
-    banner.style.left = '50%'
-    banner.style.bottom = 'calc(78px + env(safe-area-inset-bottom))'
-    banner.style.width = 'min(420px, calc(100vw - 28px))'
-    banner.style.margin = '0'
-    banner.style.transform = 'translateX(-50%)'
-    banner.style.zIndex = '3100'
-    banner.innerHTML = `
-      <div class="ref-rival-offer-banner__head">🎁 ${i18n.t('ref_reward_comeback_title')}</div>
-      <div class="ref-rival-offer-banner__msg">${i18n.t('ref_reward_comeback_desc')}</div>
-      <div class="ref-rival-offer-banner__actions">
-        <button class="ref-world-btn" type="button" data-action="claim_comeback">${i18n.t('ref_reward_comeback_btn')}</button>
-      </div>`
-    banner.querySelector<HTMLButtonElement>('[data-action="claim_comeback"]')?.addEventListener('click', () => {
-      if (!this.state.hasPendingComeback() || this.overlay || document.querySelector('.ref-decision-overlay')) return
-      this.clearComebackBanner()
-      this.render(this.specFor('comeback'))
-    })
-    this.comebackBanner = banner
-    document.body.appendChild(banner)
-  }
-
-  private clearComebackBanner(): void {
-    this.comebackBanner?.remove()
-    this.comebackBanner = null
-  }
-
-  private clearOfflineBanner(): void {
-    this.offlineBanner?.remove()
-    this.offlineBanner = null
   }
 
   private async handlePrimary(spec: RewardSpec, btn: HTMLButtonElement): Promise<void> {
@@ -293,14 +204,10 @@ export class RefRewardQueue {
     const amount = spec.claim(spec.settlementAt)
     if (amount > 0) {
       refToast(`+${fmtMoney(amount)}`, 'ok')
-      if (spec.id === 'offline') this.clearOfflineBanner()
-      if (spec.id === 'comeback') this.clearComebackBanner()
       this.onClaimed()
     } else {
       // Guard: zaten alınmış (çift claim) — para uygulanmaz.
       refToast(i18n.t('ref_reward_already_claimed'), 'err')
-      if (spec.id === 'offline') this.clearOfflineBanner()
-      if (spec.id === 'comeback') this.clearComebackBanner()
     }
     this.busy = false
     this.close()
@@ -317,8 +224,6 @@ export class RefRewardQueue {
     this.destroyed = true
     this.overlay?.remove()
     this.overlay = null
-    this.clearOfflineBanner()
-    this.clearComebackBanner()
     this.queue = []
   }
 }

@@ -1402,6 +1402,7 @@ export const ru: Translations = {
   ref_reward_bankruptcy_desc: 'Вы можете вернуть часть потерянных активов.',
   ref_reward_bankruptcy_btn: '📺 Смотреть и восстановить',
   ref_reward_discard: 'Отклонить',
+  ref_reward_not_now: 'Не сейчас',
   ref_reward_ad_loading: 'Загрузка рекламы…',
   ref_reward_ad_failed: 'Реклама не завершена',
   ref_reward_already_claimed: 'Награда уже получена',
