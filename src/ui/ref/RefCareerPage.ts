@@ -12,7 +12,7 @@ import { PLAYER_RANKS, rankProgress, rankName } from '../../game/PlayerRank'
 import { JOB_DEFS, EDUCATION_DEFS, LIFESTYLE_DEFS, profileJobLabel, educationLabel, lifestyleLabel } from '../../game/CharacterProfile'
 import {
   CAREER_JOBS, BINDABLE_CAREER_ACTION_IDS, careerJobDef, estimatedCareerActionPay, careerJobName,
-  type CareerJobId, type CareerActionId,
+  dailyCareerWage, type CareerJobId, type CareerActionId,
 } from '../../game/Career'
 import { WELLBEING_ACTIVITIES, wellbeingName, type WellbeingActivityId } from '../../game/Lifestyle'
 import { PRODUCERS, producerName } from '../../game/Economy'
@@ -65,8 +65,9 @@ export class RefCareerPage implements RefPage {
   private lastJobSig = ''
 
   constructor(vm?: RefCareerVM, state?: GameState) {
-    this.vm = vm ?? buildMockCareer()
     this.state = state
+    this.vm = vm ?? buildMockCareer()
+    if (state) this.vm = this.buildVMFromState(state)
 
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-career-page'
@@ -554,8 +555,8 @@ export class RefCareerPage implements RefPage {
       ...this.vm,
       jobTitle: `${rp.current.emoji} ${rankName(rp.current)}`,
       level: PLAYER_RANKS.indexOf(rp.current) + 1,
-      salaryDaily: Math.round(state.incomePerDay()),
-      stress: Math.round(state.lifestyle.stress),
+      salaryDaily: Math.round(dailyCareerWage(state.career)),
+      stress: Math.round(state.career.stress),
       xpPct: Math.round(rp.pct),
       xpText: rp.next ? `${fmtMoney(Math.round(state.totalEarned))} / ${fmtMoney(rp.next.minEarned)}` : `${i18n.t('ref_career_peak_label')} 🏆`,
       nextRank: rp.next ? `${rp.next.emoji} ${rankName(rp.next)}` : `🏆 ${i18n.t('ref_career_at_peak')}`,

@@ -7,6 +7,7 @@ import { fameLevelLabel, FAME_CAREERS, fameCareerName } from '../../game/Fame'
 import type { DiseaseId } from '../../game/Diseases'
 import { diseaseDef, diseaseName } from '../../game/Diseases'
 import { PLAYER_RANKS, rankProgress, rankName } from '../../game/PlayerRank'
+import { dailyCareerWage } from '../../game/Career'
 import { i18n, fmt as i18nFmt } from '../../i18n'
 
 /*
@@ -401,11 +402,12 @@ export function buildRefViewModel(state: GameState): RefViewModel {
 
   // Gerçek kariyer basamağı: PlayerRank (totalEarned tabanlı 10 kademe) — TEK KAYNAK
   const rp = rankProgress(state.totalEarned)
+  const careerWage = Math.round(dailyCareerWage(state.career))
   const career: RefCareerVM = {
     jobTitle: `${rp.current.emoji} ${rankName(rp.current)}`,
     level: PLAYER_RANKS.indexOf(rp.current) + 1,
-    salaryDaily: dailyIncome,
-    stress: Math.round(state.lifestyle.stress),
+    salaryDaily: careerWage,
+    stress: Math.round(state.career.stress),
     xpPct: Math.round(rp.pct),
     xpText: `₺${fmt(Math.round(state.totalEarned))} / ${rp.next ? '₺' + fmt(rp.next.minEarned) : i18n.t('ref_rank_at_apex')}`,
     nextRank: rp.next ? `${rp.next.emoji} ${rankName(rp.next)}` : i18n.t('ref_rank_at_apex'),
