@@ -2082,6 +2082,20 @@ export interface Translations {
   ref_career_net_worth_label: string
   ref_career_cash_label: string
   ref_career_stress_unit: string
+  ref_career_job_apply_button: string
+  ref_career_job_change_button: string
+  ref_career_current_job_badge: string
+  ref_career_leave_job_button: string
+  ref_career_requirements_not_met: string
+  ref_career_requirements_met: string
+  ref_career_open_label: string
+  ref_career_required_level_fmt: string
+  ref_career_current_level_fmt: string
+  ref_career_toast_job_started_fmt: string
+  ref_career_toast_job_changed_fmt: string
+  ref_career_toast_job_left: string
+  ref_career_toast_same_job: string
+  ref_career_toast_job_failed: string
   ref_career_bonus_suffix: string
   ref_career_health_per_day_unit: string
   ref_career_health_excellent_tip: string

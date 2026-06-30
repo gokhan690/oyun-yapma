@@ -11,8 +11,8 @@ import { diseaseDef, diseaseName } from '../../game/Diseases'
 import { PLAYER_RANKS, rankProgress, rankName } from '../../game/PlayerRank'
 import { JOB_DEFS, EDUCATION_DEFS, LIFESTYLE_DEFS, profileJobLabel, educationLabel, lifestyleLabel } from '../../game/CharacterProfile'
 import {
-  CAREER_JOBS, BINDABLE_CAREER_ACTION_IDS, careerJobDef, estimatedCareerActionPay, careerJobName,
-  dailyCareerWage, type CareerJobId, type CareerActionId,
+  CAREER_JOBS, BINDABLE_CAREER_ACTION_IDS, careerJobDef, estimatedCareerActionPay, careerJobName, careerJobDesc,
+  dailyCareerWage, type CareerJobId, type CareerActionId, type CareerJobChangeResult, type MissingCareerRequirement,
 } from '../../game/Career'
 import { WELLBEING_ACTIVITIES, wellbeingName, type WellbeingActivityId } from '../../game/Lifestyle'
 import { PRODUCERS, producerName } from '../../game/Economy'
@@ -61,11 +61,13 @@ export class RefCareerPage implements RefPage {
   private profileCard!: HTMLElement
   private vm: RefCareerVM
   private state?: GameState
+  private onPersist?: () => void
   private lastDynSig = ''
   private lastJobSig = ''
 
-  constructor(vm?: RefCareerVM, state?: GameState) {
+  constructor(vm?: RefCareerVM, state?: GameState, onPersist?: () => void) {
     this.state = state
+    this.onPersist = onPersist
     this.vm = vm ?? buildMockCareer()
     if (state) this.vm = this.buildVMFromState(state)
 
@@ -259,19 +261,12 @@ export class RefCareerPage implements RefPage {
     const s = this.state
     if (!s) return ''
     const career = s.career
-
-    if (!career.jobId) {
-      const cards = CAREER_JOBS.map((job) => `
-        <button class="ref-career-job-card" type="button" data-career-job="${job.id}">
-          <span class="ref-career-job-card__ico">${job.emoji}</span>
-          <span class="ref-career-job-card__name">${careerJobName(job)}</span>
-          <span class="ref-career-job-card__wage">${fmtMoney(job.baseDailyWage)}${i18n.t('ref_career_wage_per_day_unit')}</span>
-          <span class="ref-career-job-card__stress">😤 +${job.stressDelta} ${i18n.t('ref_career_stress_unit')}</span>
-        </button>`).join('')
-      return `
+    const jobCards = CAREER_JOBS.map((job) => this.careerJobCardHtml(job.id)).join('')
+    const jobsHtml = `
         <div class="ref-career-section-title">${i18n.t('ref_career_pick_job_section')}</div>
-        <div class="ref-career-job-grid">${cards}</div>`
-    }
+        <div class="ref-career-job-grid">${jobCards}</div>`
+
+    if (!career.jobId) return jobsHtml
 
     const _jobDef = careerJobDef(career.jobId)
     const jobName = _jobDef ? careerJobName(_jobDef) : i18n.t('ref_career_working_employee_label')
@@ -297,8 +292,87 @@ export class RefCareerPage implements RefPage {
         </button>`
     }).join('')
     return `
+      ${jobsHtml}
       <div class="ref-career-section-title">${jobName} · ${i18n.t('ref_career_daily_actions_section')}</div>
-      <div class="ref-career-action-grid">${buttons}</div>`
+      <div class="ref-career-action-grid">${buttons}</div>
+      <button class="ref-career-leave-btn" type="button" data-career-leave>${i18n.t('ref_career_leave_job_button')}</button>`
+  }
+
+  private careerJobCardHtml(jobId: CareerJobId): string {
+    const s = this.state
+    const job = careerJobDef(jobId)
+    if (!s || !job) return ''
+    const eligibility = s.careerJobEligibility(jobId)
+    const active = s.career.jobId === jobId
+    const locked = !eligibility.eligible
+    const actionLabel = active
+      ? i18n.t('ref_career_current_job_badge')
+      : s.career.jobId
+        ? i18n.t('ref_career_job_change_button')
+        : i18n.t('ref_career_job_apply_button')
+    const reqLine = job.requirements?.find((req) => req.kind === 'career_level')
+    const reqText = reqLine?.kind === 'career_level'
+      ? fmt('ref_career_required_level_fmt', { level: String(reqLine.min) })
+      : i18n.t('ref_career_requirements_met')
+    const missing = eligibility.missingRequirements
+      .map((req) => `<span>${this.missingRequirementText(req)}</span>`)
+      .join('')
+    const status = active
+      ? i18n.t('ref_career_current_job_badge')
+      : locked
+        ? i18n.t('ref_career_requirements_not_met')
+        : i18n.t('ref_career_open_label')
+    return `
+      <button class="ref-career-job-card${active ? ' is-active' : ''}${locked ? ' is-locked' : ''}" type="button"
+              data-career-job="${job.id}" ${active || locked ? 'disabled' : ''}>
+        <span class="ref-career-job-card__top">
+          <span class="ref-career-job-card__ico">${job.emoji}</span>
+          <span class="ref-career-job-card__name">${careerJobName(job)}</span>
+          <span class="ref-career-job-card__status">${status}</span>
+        </span>
+        <span class="ref-career-job-card__desc">${careerJobDesc(job)}</span>
+        <span class="ref-career-job-card__facts">
+          <span>${fmtMoney(job.baseDailyWage)}${i18n.t('ref_career_wage_per_day_unit')}</span>
+          <span>😤 +${job.stressDelta} ${i18n.t('ref_career_stress_unit')}</span>
+        </span>
+        <span class="ref-career-job-card__req">${reqText}</span>
+        ${locked ? `<span class="ref-career-job-card__missing">${missing}</span>` : ''}
+        <span class="ref-career-job-card__button">${actionLabel}</span>
+      </button>`
+  }
+
+  private missingRequirementText(req: MissingCareerRequirement): string {
+    if (req.kind === 'career_level') {
+      return `${fmt('ref_career_required_level_fmt', { level: String(req.required) })} · ${fmt('ref_career_current_level_fmt', { level: String(req.actual ?? 0) })}`
+    }
+    if (typeof req.required === 'number') {
+      return `${i18n.t('ref_career_requirements_not_met')} · ${fmtMoney(req.required)}`
+    }
+    return i18n.t('ref_career_requirements_not_met')
+  }
+
+  private careerJobResultToast(result: CareerJobChangeResult): void {
+    if (!result.ok) {
+      const message = result.code === 'same_job'
+        ? i18n.t('ref_career_toast_same_job')
+        : result.code === 'requirements_not_met'
+          ? i18n.t('ref_career_requirements_not_met')
+          : i18n.t('ref_career_toast_job_failed')
+      refToast(message, 'err')
+      return
+    }
+    if (!result.currentJobId) {
+      refToast(i18n.t('ref_career_toast_job_left'), 'ok')
+      return
+    }
+    const current = careerJobDef(result.currentJobId)
+    const previous = result.previousJobId ? careerJobDef(result.previousJobId) : null
+    const currentName = current ? careerJobName(current) : result.currentJobId
+    const previousName = previous ? careerJobName(previous) : ''
+    const message = result.previousJobId
+      ? fmt('ref_career_toast_job_changed_fmt', { previous: previousName, current: currentName })
+      : fmt('ref_career_toast_job_started_fmt', { job: currentName })
+    refToast(message, 'ok')
   }
 
   private renderDyn(c: RefCareerVM): void {
@@ -596,7 +670,7 @@ export class RefCareerPage implements RefPage {
   private handleClick(e: MouseEvent): void {
     if (!this.state) return
     const btn = (e.target as HTMLElement).closest<HTMLElement>(
-      '[data-action],[data-disease],[data-career-job],[data-career-action],[data-routine],[data-wellbeing],[data-career-goto-firms]',
+      '[data-action],[data-disease],[data-career-job],[data-career-action],[data-career-leave],[data-routine],[data-wellbeing],[data-career-goto-firms]',
     )
     if (!btn) return
     const s = this.state
@@ -610,9 +684,22 @@ export class RefCareerPage implements RefPage {
     // ── İş seçimi ──
     const careerJob = btn.dataset.careerJob as CareerJobId | undefined
     if (careerJob) {
-      s.setCareerJob(careerJob)
-      refToast('💼 ' + i18n.t('ref_career_toast_job_selected'), 'ok')
-      this.refresh(s)
+      const result = s.setCareerJob(careerJob)
+      if (result.ok) {
+        this.refresh(s)
+        this.onPersist?.()
+      }
+      this.careerJobResultToast(result)
+      return
+    }
+
+    if (btn.hasAttribute('data-career-leave')) {
+      const result = s.leaveCareerJob()
+      if (result.ok) {
+        this.refresh(s)
+        this.onPersist?.()
+      }
+      this.careerJobResultToast(result)
       return
     }
 

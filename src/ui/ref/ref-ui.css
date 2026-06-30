@@ -2659,17 +2659,38 @@ body.ref-sheet-open { overflow: hidden !important; }
 .ref-career-action-btn__xp { font-size: 10.5px; font-weight: 700; color: #7c3aed; margin-top: 1px; }
 
 /* İş seçim grid */
-.ref-career-job-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+.ref-career-job-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
 .ref-career-job-card {
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 5px;
   background: var(--r-card); border: 1.5px solid var(--r-border);
-  border-radius: 10px; padding: 10px 8px; cursor: pointer; text-align: center;
+  border-radius: 10px; padding: 10px 8px; cursor: pointer; text-align: left;
+  min-width: 0; width: 100%;
 }
 .ref-career-job-card:active { opacity: 0.8; }
-.ref-career-job-card__ico { font-size: 22px; }
-.ref-career-job-card__name { font-size: 11px; font-weight: 800; color: var(--r-text); }
-.ref-career-job-card__wage { font-size: 10px; font-weight: 700; color: var(--r-success); }
-.ref-career-job-card__stress { font-size: 9.5px; font-weight: 700; color: var(--r-muted); }
+.ref-career-job-card:disabled { cursor: default; }
+.ref-career-job-card.is-active { border-color: #0ea5e9; background: #e0f2fe; }
+.ref-career-job-card.is-locked { background: #f8fafc; }
+.ref-career-job-card__top { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 6px; align-items: center; }
+.ref-career-job-card__ico { font-size: 22px; grid-row: span 2; }
+.ref-career-job-card__name { font-size: 11px; font-weight: 800; color: var(--r-text); overflow-wrap: anywhere; }
+.ref-career-job-card__status { font-size: 9px; font-weight: 800; color: var(--r-muted); overflow-wrap: anywhere; }
+.ref-career-job-card__desc { font-size: 9.5px; font-weight: 600; color: var(--r-muted); line-height: 1.25; overflow-wrap: anywhere; }
+.ref-career-job-card__facts { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 10px; font-weight: 800; color: var(--r-success); }
+.ref-career-job-card__facts span:last-child { color: var(--r-muted); }
+.ref-career-job-card__req { font-size: 9.5px; font-weight: 700; color: var(--r-text2); overflow-wrap: anywhere; }
+.ref-career-job-card__missing { display: flex; flex-direction: column; gap: 2px; font-size: 9.5px; font-weight: 700; color: #b45309; overflow-wrap: anywhere; }
+.ref-career-job-card__button {
+  display: block; margin-top: auto; border-radius: 7px; padding: 5px 6px;
+  background: var(--r-text); color: #fff; font-size: 10px; font-weight: 900; text-align: center;
+}
+.ref-career-job-card.is-active .ref-career-job-card__button { background: #0ea5e9; }
+.ref-career-job-card.is-locked .ref-career-job-card__button { background: #cbd5e1; color: #475569; }
+.ref-career-leave-btn {
+  width: 100%; margin-top: 8px; border: 1.5px solid #fecaca; border-radius: 10px;
+  background: #fef2f2; color: #b91c1c; font-size: 12px; font-weight: 900;
+  padding: 10px 12px; cursor: pointer;
+}
+.ref-career-leave-btn:active { background: #fee2e2; }
 
 /* Girişimci bilgilendirme badge'i */
 .ref-career-entrepreneur-badge {

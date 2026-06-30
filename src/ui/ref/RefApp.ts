@@ -108,6 +108,7 @@ export class RefApp {
   private notifBridge?: RefNotificationBridge
   private settings?: RefSettingsPage
   private saveManager?: SaveManager
+  private onPersist?: () => void
   private onResetConfirmed?: () => void
   private readonly handleVisibilityChange = (): void => {
     if (document.hidden || !this.gameState) return
@@ -129,6 +130,7 @@ export class RefApp {
     this.vm = opts.data
     this.gameState = opts.state
     this.saveManager = opts.saveManager
+    this.onPersist = opts.onPersist
     this.onResetConfirmed = opts.onResetConfirmed
 
     // ── Shell ──
@@ -291,7 +293,7 @@ export class RefApp {
         firms.onOpenFirm = (f: FirmData, live) => this.detail.show(f, live)
         return firms
       }
-      case 'career': return new RefCareerPage(vm?.career, st)
+      case 'career': return new RefCareerPage(vm?.career, st, this.onPersist)
       case 'market': return new RefMarketPage(st)
       case 'empire': return new RefEmpirePage(st)
       case 'life':   return new RefLifePage(st)

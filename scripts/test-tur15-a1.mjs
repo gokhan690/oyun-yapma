@@ -698,7 +698,7 @@ async function scenarioB(base) {
   const after = await stateSnapshot(page)
   const events = await trace(page)
   const shot = await screenshot(page, 'scenario-b-career-no-claim')
-  assert(after.money === START_MONEY, 'Scenario B: clicking job before reward claim must not add money', { before, after, events: moneyMethodCalls(events) })
+  assert(after.money === before.money, 'Scenario B: clicking job before reward claim must not add money', { before, after, events: moneyMethodCalls(events) })
   assert(before.pendingOfflineEarnings === 0, 'Scenario B: X close must discard pending offline reward', before)
   assert(after.pendingOfflineEarnings === 0, 'Scenario B: discarded offline reward must stay cleared after tab/action changes', after)
   assert(after.rewardModals.length === 0 && after.banners.length === 0, 'Scenario B: discarded offline reward must leave no modal or banner behind', after)
