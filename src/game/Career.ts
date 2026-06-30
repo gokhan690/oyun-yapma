@@ -36,6 +36,55 @@ export interface CareerJobDef {
   stressDelta: number
   unlockHint: string
   careerPath?: string
+  requirements?: CareerJobRequirement[]
+}
+
+export type CareerRequirementKind =
+  | 'career_level'
+  | 'career_total_wage'
+  | 'total_earned'
+  | 'background'
+
+export type CareerJobRequirement =
+  | { kind: 'career_level'; min: number }
+  | { kind: 'career_total_wage'; min: number }
+  | { kind: 'total_earned'; min: number }
+  | { kind: 'background'; ids: CharacterBackgroundId[] }
+
+export interface CareerEligibilityContext {
+  totalEarned?: number
+  characterBackgroundId?: CharacterBackgroundId | null
+}
+
+export interface MissingCareerRequirement {
+  kind: CareerRequirementKind
+  required: number | CharacterBackgroundId[]
+  actual: number | CharacterBackgroundId | null
+  messageKey: string
+}
+
+export interface CareerJobEligibility {
+  jobId: CareerJobId
+  job: CareerJobDef
+  eligible: boolean
+  missingRequirements: MissingCareerRequirement[]
+}
+
+export type CareerJobChangeCode =
+  | 'ok'
+  | 'job_not_found'
+  | 'same_job'
+  | 'requirements_not_met'
+  | 'already_unemployed'
+
+export interface CareerJobChangeResult {
+  ok: boolean
+  code: CareerJobChangeCode
+  previousJobId: CareerJobId | null
+  currentJobId: CareerJobId | null
+  jobId: CareerJobId | null
+  missingRequirements: MissingCareerRequirement[]
+  messageKey: string
 }
 
 export interface CharacterBackgroundDef {
@@ -131,8 +180,9 @@ export const CAREER_JOBS: CareerJobDef[] = [
     bonusChance: 0.15,
     bonusMultiplier: 1.25,
     stressDelta: 4,
-    unlockHint: 'Başlangıç işi',
+    unlockHint: 'Kariyer seviye 2',
     careerPath: 'teknoloji',
+    requirements: [{ kind: 'career_level', min: 2 }],
   },
   {
     id: 'banka_calisani',
@@ -143,8 +193,9 @@ export const CAREER_JOBS: CareerJobDef[] = [
     bonusChance: 0.2,
     bonusMultiplier: 1.35,
     stressDelta: 5,
-    unlockHint: 'Başlangıç işi',
+    unlockHint: 'Kariyer seviye 2',
     careerPath: 'finans',
+    requirements: [{ kind: 'career_level', min: 2 }],
   },
   {
     id: 'belediye_asistani',
@@ -155,8 +206,9 @@ export const CAREER_JOBS: CareerJobDef[] = [
     bonusChance: 0.1,
     bonusMultiplier: 1.15,
     stressDelta: 2,
-    unlockHint: 'Başlangıç işi',
+    unlockHint: 'Kariyer seviye 2',
     careerPath: 'siyaset',
+    requirements: [{ kind: 'career_level', min: 2 }],
   },
 ]
 
@@ -236,6 +288,63 @@ export function createCareerState(): CareerState {
 export function careerJobDef(id: CareerJobId | null): CareerJobDef | null {
   if (!id) return null
   return CAREER_JOBS.find((j) => j.id === id) ?? null
+}
+
+export function isCareerJobId(value: unknown): value is CareerJobId {
+  return typeof value === 'string' && CAREER_JOBS.some((job) => job.id === value)
+}
+
+function missingRequirement(
+  requirement: CareerJobRequirement,
+  career: CareerState,
+  context: CareerEligibilityContext,
+): MissingCareerRequirement | null {
+  switch (requirement.kind) {
+    case 'career_level': {
+      const actual = Math.max(0, Number(career.level) || 0)
+      return actual >= requirement.min
+        ? null
+        : { kind: requirement.kind, required: requirement.min, actual, messageKey: 'career_req_career_level' }
+    }
+    case 'career_total_wage': {
+      const actual = Math.max(0, Math.floor(Number(career.totalWageEarned) || 0))
+      return actual >= requirement.min
+        ? null
+        : { kind: requirement.kind, required: requirement.min, actual, messageKey: 'career_req_total_wage' }
+    }
+    case 'total_earned': {
+      const actual = Math.max(0, Math.floor(Number(context.totalEarned) || 0))
+      return actual >= requirement.min
+        ? null
+        : { kind: requirement.kind, required: requirement.min, actual, messageKey: 'career_req_total_earned' }
+    }
+    case 'background': {
+      const actual = context.characterBackgroundId ?? career.backgroundId ?? null
+      return actual && requirement.ids.includes(actual)
+        ? null
+        : { kind: requirement.kind, required: requirement.ids, actual, messageKey: 'career_req_background' }
+    }
+  }
+}
+
+export function careerJobEligibility(
+  career: CareerState,
+  jobId: CareerJobId,
+  context: CareerEligibilityContext = {},
+): CareerJobEligibility {
+  const job = careerJobDef(jobId)
+  if (!job) {
+    throw new Error(`Unknown career job: ${jobId}`)
+  }
+  const missingRequirements = (job.requirements ?? [])
+    .map((requirement) => missingRequirement(requirement, career, context))
+    .filter((missing): missing is MissingCareerRequirement => missing !== null)
+  return {
+    jobId,
+    job,
+    eligible: missingRequirements.length === 0,
+    missingRequirements,
+  }
 }
 
 export function backgroundDef(id: CharacterBackgroundId | null): CharacterBackgroundDef | null {

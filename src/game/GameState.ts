@@ -103,7 +103,7 @@ import {
 } from './PrestigeTree'
 import { localDayKey, yesterdayLocalKey, calendarWeekKey } from './dateUtils'
 import { gameDay, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSecondsToGameMs, gameCalendarDate } from './GameClock'
-import { createCareerState, applyCareerAction, applyDailyWage, ensureCareerDay, FIRST_GOAL_TARGET, backgroundDef, careerStressPenalty, dailyCareerWage, type CareerState, type CareerActionId, type CareerJobId, type CharacterBackgroundId } from './Career'
+import { createCareerState, applyCareerAction, applyDailyWage, ensureCareerDay, FIRST_GOAL_TARGET, backgroundDef, careerStressPenalty, dailyCareerWage, careerJobEligibility, isCareerJobId, type CareerState, type CareerActionId, type CareerJobId, type CharacterBackgroundId, type CareerJobChangeResult, type CareerJobEligibility } from './Career'
 import { firmLevelIncomeMult, firmLevelUpCost, FIRM_MAX_LEVEL } from './FirmLevels'
 import { firmUpgradeDef, firmUpgradeIncomeBonus, firmUpgradeCost } from './FirmUpgrades'
 import { createDepartmentState, departmentUpgradeCost, departmentDef, isDepartmentTaskComplete, DEPARTMENTS, DEPARTMENT_MAX_LEVEL, operasyonLegalBonus, finansProducerBonus, pazarlamaGlobalBonus, hukukRaidReduction, argeBonus, aileOfisiInheritanceBonus, lojistikCostReduction, guvenlikRivalReduction, type DepartmentId } from './EmpireDepartments'
@@ -6413,13 +6413,67 @@ export class GameState {
 
   // ── Kariyer metodları ──────────────────────────────────────────────────────
 
-  setCareerJob(jobId: CareerJobId | null): void {
-    this.ensureDailyPlan()
+  private careerEligibilityContext(): { totalEarned: number; characterBackgroundId: CharacterBackgroundId | null } {
+    return {
+      totalEarned: this.totalEarned,
+      characterBackgroundId: this.characterBackground ?? this.career.backgroundId ?? null,
+    }
+  }
+
+  private careerJobChangeResult(
+    ok: boolean,
+    code: CareerJobChangeResult['code'],
+    previousJobId: CareerJobId | null,
+    currentJobId: CareerJobId | null,
+    missingRequirements: CareerJobChangeResult['missingRequirements'] = [],
+  ): CareerJobChangeResult {
+    return {
+      ok,
+      code,
+      previousJobId,
+      currentJobId,
+      jobId: currentJobId,
+      missingRequirements,
+      messageKey: `career_job_${code}`,
+    }
+  }
+
+  careerJobEligibility(jobId: CareerJobId): CareerJobEligibility {
+    return careerJobEligibility(this.career, jobId, this.careerEligibilityContext())
+  }
+
+  setCareerJob(jobId: CareerJobId | null): CareerJobChangeResult {
+    if (jobId === null) return this.leaveCareerJob()
     const prevJobId = this.career.jobId
+    if (!isCareerJobId(jobId)) {
+      return this.careerJobChangeResult(false, 'job_not_found', prevJobId, prevJobId)
+    }
+    if (prevJobId === jobId) {
+      return this.careerJobChangeResult(false, 'same_job', prevJobId, prevJobId)
+    }
+    const eligibility = this.careerJobEligibility(jobId)
+    if (!eligibility.eligible) {
+      return this.careerJobChangeResult(false, 'requirements_not_met', prevJobId, prevJobId, eligibility.missingRequirements)
+    }
+    this.ensureDailyPlan()
+    ensureCareerDay(this.career, gameDay(this.gameTimeMs))
     this.career.jobId = jobId
+    this.career.isEntrepreneur = false
     if (prevJobId == null && jobId != null && !this.career.isEntrepreneur) {
       this.recordDailyEvent('job_chosen')
     }
+    return this.careerJobChangeResult(true, 'ok', prevJobId, this.career.jobId)
+  }
+
+  leaveCareerJob(): CareerJobChangeResult {
+    const prevJobId = this.career.jobId
+    if (prevJobId === null) {
+      return this.careerJobChangeResult(false, 'already_unemployed', null, null)
+    }
+    this.ensureDailyPlan()
+    ensureCareerDay(this.career, gameDay(this.gameTimeMs))
+    this.career.jobId = null
+    return this.careerJobChangeResult(true, 'ok', prevJobId, null)
   }
 
   setCharacterBackground(backgroundId: CharacterBackgroundId | null): void {
@@ -6427,18 +6481,12 @@ export class GameState {
   }
 
   doCareerAction(actionId: CareerActionId): { money: number; xp: number; stressDelta: number; levelUp: boolean } {
-    this.ensureDailyPlan()
     if (actionId === 'isten_ayril') {
-      // Only a player who is actually employed can quit. Otherwise no-op:
-      // no event, no daily progress, no state change.
-      if (this.career.jobId === null || this.career.isEntrepreneur) {
-        return { money: 0, xp: 0, stressDelta: 0, levelUp: false }
-      }
-      this.recordDailyEvent('career_action_completed')
-      this.career.isEntrepreneur = true
-      this.emit({ type: 'career_phase_changed', isEntrepreneur: true })
+      const result = this.leaveCareerJob()
+      if (result.ok) this.recordDailyEvent('career_action_completed')
       return { money: 0, xp: 0, stressDelta: 0, levelUp: false }
     }
+    this.ensureDailyPlan()
     const currentDay = gameDay(this.gameTimeMs)
     const result = applyCareerAction(this.career, actionId, currentDay)
     if (result.money > 0) this.creditMoney(result.money, { source: 'career_action', countsAsEarned: true, metadata: { action: actionId } })
@@ -7063,6 +7111,7 @@ export class GameState {
       this.characterBackground = this.characterProfile.backgroundId
     }
     this.career = data.career ? { ...createCareerState(), ...data.career } : createCareerState()
+    if (!isCareerJobId(this.career.jobId)) this.career.jobId = null
     if (!Array.isArray(this.career.actionsUsedToday)) this.career.actionsUsedToday = []
     // Normalize career to the loaded game day: if the save is from a previous day,
     // immediately reset daily action/wage counters so the screen shows a fresh day

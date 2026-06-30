@@ -755,7 +755,7 @@ async function scenarioD(base) {
     return { before, result, after: window.__tur15State.money }
   }, FIXED_SETTLEMENT_AT)
   const saveAfter = await saved(page2)
-  assert(afterClaim.money === START_MONEY + OFFLINE_AMOUNT, 'Scenario D: first real claim should add exactly one offline amount', { beforeClaim, afterClaim, claimTrace: moneyMethodCalls(claimTrace) })
+  assert(afterClaim.money - beforeClaim.money === OFFLINE_AMOUNT, 'Scenario D: first real claim should add exactly one offline amount', { beforeClaim, afterClaim, delta: afterClaim.money - beforeClaim.money, claimTrace: moneyMethodCalls(claimTrace) })
   assert(afterClaim.pendingOfflineEarnings === 0, 'Scenario D: successful claim should clear pending reward', afterClaim)
   assert(repeat.result === 0 && repeat.after === repeat.before, 'Scenario D: repeated claim should add zero', repeat)
   assert(saveAfter.pendingOfflineEarnings === 0 && saveAfter.offlineRewardSettlementAt === null, 'Scenario D: saved state should clear claimed offline reward', saveAfter)
