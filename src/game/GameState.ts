@@ -491,6 +491,7 @@ import {
 import { obsolescenceMult, modernizeCost } from './TechObsolescence'
 import { pickDisaster, disasterDamage } from './NaturalDisasters'
 import { progressPathSnapshot, type ProgressPathSnapshot } from './ProgressPath'
+import { createEventPacingState, sanitizeEventPacingState, type EventPacingState } from './EventPacing'
 
 export interface PendingUndo {
   id: string
@@ -570,8 +571,13 @@ export interface SerializableState {
   heatProtectionUntil: number
   launderingUntil: number
   lastActiveAt: number
+  pendingOfflineEarnings?: number
+  offlineRewardSettlementAt?: number | null
+  offlineRewardPresentedSettlementAt?: number | null
   comebackClaimedDay: string | null
   comebackPending: number
+  comebackSettlementAt?: number | null
+  comebackPresentedSettlementAt?: number | null
   notificationPrefs: { dailyReward: boolean; passiveIncome: boolean; goalNear: boolean; webPush: boolean }
   surpriseInvestorUntil: number
   surpriseInvestorDay: string
@@ -643,6 +649,7 @@ export interface SerializableState {
   torpil?: TorpilContactState[]
   producerModernized?: Record<string, boolean>
   pendingUndo?: PendingUndo | null
+  eventPacing?: EventPacingState
   lastDisasterGameDay?: number
   lifestyle?: LifestyleState
   lifeEvents?: ActiveLifeEvent[]
@@ -936,6 +943,8 @@ export class GameState {
   lastActiveAt = Date.now()
   comebackClaimedDay: string | null = null
   comebackPending = 0
+  comebackSettlementAt: number | null = null
+  comebackPresentedSettlementAt: number | null = null
   notificationPrefs = { dailyReward: true, passiveIncome: true, goalNear: true, webPush: false }
   chestPityCounter = 0
   chestTickets = 0
@@ -1003,6 +1012,7 @@ export class GameState {
   torpil = createTorpilState()
   producerModernized: Record<string, boolean> = {}
   pendingUndo: PendingUndo | null = null
+  eventPacing = createEventPacingState()
   lastDisasterGameDay = 0
   dynastyPassiveIncome = 0
   peakIncomePerDay = 0
@@ -1016,8 +1026,10 @@ export class GameState {
   private lastIllegalRiskCheck = 0
   private lastHeatTick = 0
   private nudgeFlags = new Set<string>()
-  /** Yokken biriken — sadece reklamla toplanır */
+  /** Yokken biriken ? sadece reklamla toplan?r */
   pendingOfflineEarnings = 0
+  offlineRewardSettlementAt: number | null = null
+  offlineRewardPresentedSettlementAt: number | null = null
   bankruptcyRecoveryPool = 0
   bankruptcyRecoveryClaimed = false
   bankruptcySeizedSnapshot: SeizedBusiness[] = []
@@ -3577,6 +3589,8 @@ export class GameState {
     if (this.comebackPending <= 0) return 0
     const amount = this.comebackPending
     this.comebackPending = 0
+    this.comebackSettlementAt = null
+    this.comebackPresentedSettlementAt = null
     this.comebackClaimed = true
     this.comebackClaimedDay = todayKey()
     this.addMoney(amount)
@@ -3589,6 +3603,8 @@ export class GameState {
     if (this.comebackPending <= 0) return 0
     const amount = Math.floor(this.comebackPending * multiplier)
     this.comebackPending = 0
+    this.comebackSettlementAt = null
+    this.comebackPresentedSettlementAt = null
     this.comebackClaimed = true
     this.comebackClaimedDay = todayKey()
     this.addMoney(amount)
@@ -3601,54 +3617,136 @@ export class GameState {
     return this.comebackPending > 0
   }
 
-  /** Offline kazancı hesapla — otomatik verilmez */
-  applyOfflineEarnings(lastSaveTime: number): number {
-    const awayMs = Date.now() - lastSaveTime
-    this.lastActiveAt = Date.now()
-    this.pendingOfflineEarnings = 0
+  private validRewardSettlementIdentity(value: unknown): number | null {
+    return Number.isFinite(value) && Number(value) > 0 ? Number(value) : null
+  }
 
-    if (awayMs >= COMEBACK_MIN_AWAY_MS && this.comebackClaimedDay !== todayKey()) {
-      const elapsed = Math.min(awayMs, this.offlineCapMs())
+  shouldPresentComeback(): boolean {
+    return this.comebackPending > 0
+      && this.comebackSettlementAt !== null
+      && this.comebackPresentedSettlementAt !== this.comebackSettlementAt
+  }
+
+  markComebackPresented(): boolean {
+    if (!this.shouldPresentComeback()) return false
+    this.comebackPresentedSettlementAt = this.comebackSettlementAt
+    return true
+  }
+
+  hasPendingOfflineReward(): boolean {
+    return Number.isFinite(this.pendingOfflineEarnings)
+      && this.pendingOfflineEarnings > 0
+      && this.validRewardSettlementIdentity(this.offlineRewardSettlementAt) !== null
+  }
+
+  shouldPresentOfflineReward(): boolean {
+    return this.hasPendingOfflineReward()
+      && this.offlineRewardPresentedSettlementAt !== this.offlineRewardSettlementAt
+  }
+
+  markOfflineRewardPresented(): boolean {
+    if (!this.shouldPresentOfflineReward()) return false
+    this.offlineRewardPresentedSettlementAt = this.offlineRewardSettlementAt
+    return true
+  }
+
+  /** Offline kazanc? hesapla ? otomatik verilmez */
+  applyOfflineEarnings(lastSaveTime: number): number {
+    const now = Date.now()
+    const awayMs = now - lastSaveTime
+    this.lastActiveAt = now
+
+    if (this.hasPendingOfflineReward()) {
+      return this.pendingOfflineEarnings
+    }
+
+    this.pendingOfflineEarnings = 0
+    this.offlineRewardSettlementAt = null
+    this.offlineRewardPresentedSettlementAt = null
+
+    if (!Number.isFinite(lastSaveTime) || awayMs <= 0) return 0
+
+    const elapsed = Math.min(awayMs, this.offlineCapMs())
+    const offlineWindowReached = elapsed >= MS_PER_GAME_DAY
+    let shouldPersistSettlement = offlineWindowReached
+
+    if (awayMs >= COMEBACK_MIN_AWAY_MS && this.comebackPending <= 0 && this.comebackClaimedDay !== todayKey()) {
       const gameDaysAway = elapsed / MS_PER_GAME_DAY
       let base = 0
       for (const p of PRODUCERS) {
         base += this.producerIncome(p) * gameDaysAway
       }
-      const mult = awayMs >= 72 * 60 * 60 * 1000 ? 3 : awayMs >= 48 * 60 * 60 * 1000 ? 2 : 1.5
-      this.comebackPending = Math.floor(base * mult)
-      this.triggerStoryBeat('comeback')
-      this.emit({ type: 'comeback_ready', amount: this.comebackPending })
+      if (base > 0) {
+        const mult = awayMs >= 72 * 60 * 60 * 1000 ? 3 : awayMs >= 48 * 60 * 60 * 1000 ? 2 : 1.5
+        this.comebackPending = Math.floor(base * mult)
+        if (this.comebackPending > 0) {
+          this.comebackSettlementAt = now
+          this.comebackPresentedSettlementAt = null
+          this.triggerStoryBeat('comeback')
+          this.emit({ type: 'comeback_ready', amount: this.comebackPending })
+          shouldPersistSettlement = true
+        }
+      }
     }
 
-    const elapsed = Math.min(awayMs, this.offlineCapMs())
-    if (elapsed < MS_PER_GAME_DAY) return 0
-    const gameDaysAway = elapsed / MS_PER_GAME_DAY
-    let amount = 0
-    for (const p of PRODUCERS) {
-      amount += this.producerIncome(p) * gameDaysAway
+    if (offlineWindowReached) {
+      const gameDaysAway = elapsed / MS_PER_GAME_DAY
+      let amount = 0
+      for (const p of PRODUCERS) {
+        amount += this.producerIncome(p) * gameDaysAway
+      }
+      const pending = Math.floor(amount)
+      if (pending > 0) {
+        this.pendingOfflineEarnings = pending
+        this.offlineRewardSettlementAt = now
+        this.offlineRewardPresentedSettlementAt = null
+      }
     }
-    if (amount <= 0) return 0
-    this.pendingOfflineEarnings = Math.floor(amount)
+
+    if (shouldPersistSettlement) {
+      this.lastSaveTime = now
+    }
     return this.pendingOfflineEarnings
   }
 
   discardPendingOffline(): void {
     this.pendingOfflineEarnings = 0
+    this.offlineRewardSettlementAt = null
+    this.offlineRewardPresentedSettlementAt = null
   }
 
   discardComeback(): void {
     this.comebackPending = 0
+    this.comebackSettlementAt = null
+    this.comebackPresentedSettlementAt = null
     this.comebackClaimedDay = todayKey()
   }
 
-  /** Reklam izlendikten sonra offline kazancı topla */
-  claimOfflineViaAd(multiplier = 1): number {
-    if (this.pendingOfflineEarnings <= 0) return 0
-    const amount = Math.floor(this.pendingOfflineEarnings * multiplier)
+  claimOfflineReward(expectedSettlementAt: number, multiplier = 1): number {
+    const settlementAt = this.validRewardSettlementIdentity(expectedSettlementAt)
+    if (!this.hasPendingOfflineReward() || settlementAt === null || settlementAt !== this.offlineRewardSettlementAt) return 0
+
+    const baseAmount = Math.floor(this.pendingOfflineEarnings)
+    const safeMultiplier = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1
+    const amount = Math.floor(baseAmount * safeMultiplier)
+
     this.pendingOfflineEarnings = 0
-    this.addMoney(amount)
+    this.offlineRewardSettlementAt = null
+    this.offlineRewardPresentedSettlementAt = null
+
+    if (amount <= 0) return 0
+    this.addMoneyRaw(amount)
+    this.totalEarned += amount
+    this.lifetimeTotalEarned += amount
+    this.sessionEarned += amount
+    this.recordMoneyTx(amount, 'credit', 'offline_reward', true, { settlementAt })
     this.emit({ type: 'offline_earnings', amount })
     return amount
+  }
+
+  /** Reklam izlendikten sonra offline kazanc? topla */
+  claimOfflineViaAd(multiplier = 1): number {
+    return this.claimOfflineReward(this.offlineRewardSettlementAt ?? 0, multiplier)
   }
 
   activateAdBoost(): void {
@@ -3998,7 +4096,12 @@ export class GameState {
     this.heatShieldUntil = 0
     this.heatProtectionUntil = 0
     this.launderingUntil = 0
+    this.pendingOfflineEarnings = 0
+    this.offlineRewardSettlementAt = null
+    this.offlineRewardPresentedSettlementAt = null
     this.comebackPending = 0
+    this.comebackSettlementAt = null
+    this.comebackPresentedSettlementAt = null
     this.comebackClaimedDay = null
     this.comebackClaimed = false
     this.surpriseInvestorUntil = 0
@@ -5429,7 +5532,35 @@ export class GameState {
   annualFocusBonus: string | null = null
   annualFocusBonusUntilDay = 0
 
-  applyAnnualFocus(focus: 'work' | 'family' | 'health' | 'social'): void {
+  applyAnnualFocus(
+    focus: 'work' | 'family' | 'health' | 'social',
+    decision?:
+      | { type: 'annual_summary'; year: number }
+      | { type: 'age_milestone'; age: number },
+  ): boolean {
+    type FocusDecisionIdentity =
+      | { type: 'annual_summary'; year: number }
+      | { type: 'age_milestone'; age: number }
+
+    const toIdentity = (d: (typeof this.pendingDecisions)[number]): FocusDecisionIdentity | null => {
+      if (d.type === 'annual_summary') return { type: 'annual_summary', year: d.year }
+      if (d.type === 'age_milestone') return { type: 'age_milestone', age: d.age }
+      return null
+    }
+
+    const pendingFocus = this.pendingDecisions
+      .map(toIdentity)
+      .filter((d): d is FocusDecisionIdentity => d !== null)
+    const target = decision ?? (pendingFocus.length === 1 ? pendingFocus[0]! : null)
+    if (!target) return false
+
+    const hasTarget = this.pendingDecisions.some((d) => (
+      target.type === 'annual_summary'
+        ? d.type === 'annual_summary' && d.year === target.year
+        : d.type === 'age_milestone' && d.age === target.age
+    ))
+    if (!hasTarget) return false
+
     const day = gameDay(this.gameTimeMs)
     this.annualFocusBonus = focus
     this.annualFocusBonusUntilDay = day + 30
@@ -5447,11 +5578,14 @@ export class GameState {
     } else if (focus === 'work') {
       this.addGazette(requiredDomainText('gz_focus_work'), 'player')
     }
-    // Clear AFTER all effects applied — this method has no failure path, clear is always safe here
-    this.pendingDecisions = this.pendingDecisions.filter(d => d.type !== 'annual_summary' && d.type !== 'age_milestone')
+    this.pendingDecisions = this.pendingDecisions.filter((d) => (
+      target.type === 'annual_summary'
+        ? d.type !== 'annual_summary' || d.year !== target.year
+        : d.type !== 'age_milestone' || d.age !== target.age
+    ))
     this.emit({ type: 'money_changed' })
+    return true
   }
-
   buyResidence(id: ResidenceId, count: number = 1): boolean {
     this.ensureDailyPlan()
     const res = RESIDENCES.find((r) => r.id === id)
@@ -6699,8 +6833,13 @@ export class GameState {
       heatProtectionUntil: this.heatProtectionUntil,
       launderingUntil: this.launderingUntil,
       lastActiveAt: Date.now(),
+      pendingOfflineEarnings: this.pendingOfflineEarnings,
+      offlineRewardSettlementAt: this.offlineRewardSettlementAt,
+      offlineRewardPresentedSettlementAt: this.offlineRewardPresentedSettlementAt,
       comebackClaimedDay: this.comebackClaimedDay,
       comebackPending: this.comebackPending,
+      comebackSettlementAt: this.comebackSettlementAt,
+      comebackPresentedSettlementAt: this.comebackPresentedSettlementAt,
       notificationPrefs: { ...this.notificationPrefs },
       surpriseInvestorUntil: this.surpriseInvestorUntil,
       surpriseInvestorDay: this.surpriseInvestorDay,
@@ -6786,6 +6925,11 @@ export class GameState {
       torpil: this.torpil.map((t) => ({ ...t })),
       producerModernized: { ...this.producerModernized },
       pendingUndo: this.pendingUndo ? { ...this.pendingUndo } : null,
+      eventPacing: {
+        lastByDedupeKey: { ...this.eventPacing.lastByDedupeKey },
+        lastByFamily: { ...this.eventPacing.lastByFamily },
+        majorByDay: { ...this.eventPacing.majorByDay },
+      },
       lastDisasterGameDay: this.lastDisasterGameDay,
       dynastyPassiveIncome: this.dynastyPassiveIncome,
       peakIncomePerDay: this.peakIncomePerDay,
@@ -6998,8 +7142,34 @@ export class GameState {
     this.heatProtectionUntil = data.heatProtectionUntil ?? 0
     this.launderingUntil = data.launderingUntil ?? 0
     this.lastActiveAt = data.lastActiveAt ?? Date.now()
+    const loadedOfflineAmount = Number.isFinite(data.pendingOfflineEarnings) && (data.pendingOfflineEarnings ?? 0) > 0
+      ? Math.floor(data.pendingOfflineEarnings!)
+      : 0
+    const loadedOfflineSettlementAt = this.validRewardSettlementIdentity(data.offlineRewardSettlementAt)
+    const loadedOfflinePresentedAt = this.validRewardSettlementIdentity(data.offlineRewardPresentedSettlementAt)
+    this.pendingOfflineEarnings = loadedOfflineAmount > 0 && loadedOfflineSettlementAt !== null
+      ? loadedOfflineAmount
+      : 0
+    this.offlineRewardSettlementAt = this.pendingOfflineEarnings > 0
+      ? loadedOfflineSettlementAt
+      : null
+    this.offlineRewardPresentedSettlementAt = this.pendingOfflineEarnings > 0
+      ? loadedOfflinePresentedAt
+      : null
     this.comebackClaimedDay = data.comebackClaimedDay ?? null
     this.comebackPending = data.comebackPending ?? 0
+    const loadedComebackSettlementAt = Number.isFinite(data.comebackSettlementAt) && (data.comebackSettlementAt ?? 0) > 0
+      ? data.comebackSettlementAt!
+      : null
+    const loadedComebackPresentedAt = Number.isFinite(data.comebackPresentedSettlementAt) && (data.comebackPresentedSettlementAt ?? 0) > 0
+      ? data.comebackPresentedSettlementAt!
+      : null
+    this.comebackSettlementAt = this.comebackPending > 0
+      ? loadedComebackSettlementAt ?? data.lastSaveTime
+      : null
+    this.comebackPresentedSettlementAt = this.comebackPending > 0
+      ? loadedComebackPresentedAt
+      : null
     this.notificationPrefs = {
       dailyReward: data.notificationPrefs?.dailyReward ?? true,
       passiveIncome: data.notificationPrefs?.passiveIncome ?? true,
@@ -7148,6 +7318,7 @@ export class GameState {
     this.torpil = defaultTorpil.map((def) => loadedTorpil.find((lt) => lt.id === def.id) ?? def)
     this.producerModernized = data.producerModernized ?? {}
     this.pendingUndo = data.pendingUndo ?? null
+    this.eventPacing = sanitizeEventPacingState(data.eventPacing ?? null, gameDay(this.gameTimeMs))
     this.lastDisasterGameDay = data.lastDisasterGameDay ?? 0
     this.dynastyPassiveIncome = data.dynastyPassiveIncome ?? 0
     this.peakIncomePerDay = data.peakIncomePerDay ?? 0

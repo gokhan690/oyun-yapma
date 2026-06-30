@@ -24,20 +24,24 @@ interface RewardSpec {
   emoji: string
   title: string
   amount: number
+  settlementAt?: number
   desc: string
   warn?: string
   primaryLabel: string
   /** Tanımlıysa claim reklam izlendikten sonra yapılır. */
   ad?: RewardedAdType
   /** GameState claim metodu — verilen tutarı döndürür (0 = zaten alınmış). */
-  claim: () => number
+  claim: (settlementAt?: number) => number
   /** Açık "vazgeç" aksiyonu (yalnız bankruptcy). X ile kapatma ödülü SİLMEZ. */
   discard?: { label: string; run: () => void }
+  onShown?: () => void
 }
 
 export class RefRewardQueue {
   private queue: RewardId[] = []
   private overlay: HTMLElement | null = null
+  private offlineBanner: HTMLElement | null = null
+  private comebackBanner: HTMLElement | null = null
   /** Reklam beklerken ikinci aksiyonu engeller (çift claim koruması). */
   private busy = false
   private destroyed = false
@@ -68,8 +72,8 @@ export class RefRewardQueue {
 
   private isPending(id: RewardId): boolean {
     switch (id) {
-      case 'offline':    return this.state.pendingOfflineEarnings > 0
-      case 'comeback':   return this.state.hasPendingComeback()
+      case 'offline':    return this.state.shouldPresentOfflineReward()
+      case 'comeback':   return this.state.shouldPresentComeback()
       case 'daily':      return this.state.canClaimDaily() && this.state.canShowDailyRewardPrompt()
       case 'bankruptcy': return this.state.hasPendingBankruptcyRecovery()
     }
@@ -81,6 +85,8 @@ export class RefRewardQueue {
     // Sıraya alındıktan sonra state değişmiş olabilir — yeniden doğrula.
     while (next && !this.isPending(next)) next = this.queue.shift()
     if (!next) {
+      if (this.state.hasPendingOfflineReward()) this.showOfflineClaimBanner()
+      if (this.state.hasPendingComeback()) this.showComebackClaimBanner()
       // Kuyruk boş → bir sonraki modal sistemine (karar modalları) devret.
       if (!this.allDoneFired) {
         this.allDoneFired = true
@@ -88,20 +94,26 @@ export class RefRewardQueue {
       }
       return
     }
-    this.render(this.specFor(next))
+    this.render(this.specFor(next, true))
   }
 
-  private specFor(id: RewardId): RewardSpec {
+  private specFor(id: RewardId, autoPresent = false): RewardSpec {
     const s = this.state
     switch (id) {
       case 'offline':
         return {
           id, emoji: '💰', title: i18n.t('ref_reward_offline_title'),
           amount: s.pendingOfflineEarnings,
+          settlementAt: s.offlineRewardSettlementAt ?? 0,
           desc: i18n.t('ref_reward_offline_desc'),
           primaryLabel: i18n.t('ref_reward_offline_btn'),
           ad: 'offline_bonus',
-          claim: () => s.claimOfflineViaAd(1),
+          claim: (settlementAt) => s.claimOfflineReward(settlementAt ?? 0, 1),
+          onShown: autoPresent
+            ? () => {
+                if (s.markOfflineRewardPresented()) this.onClaimed()
+              }
+            : undefined,
         }
       case 'comeback':
         return {
@@ -111,6 +123,11 @@ export class RefRewardQueue {
           primaryLabel: i18n.t('ref_reward_comeback_btn'),
           ad: 'offline_bonus',
           claim: () => s.claimComebackViaAd(1),
+          onShown: autoPresent
+            ? () => {
+                if (s.markComebackPresented()) this.onClaimed()
+              }
+            : undefined,
         }
       case 'daily': {
         const warn = s.peekDailyStreakReset()
@@ -140,6 +157,7 @@ export class RefRewardQueue {
 
   private render(spec: RewardSpec): void {
     const overlay = document.createElement('div')
+    const settlementAttr = spec.settlementAt != null ? String(spec.settlementAt) : ''
     overlay.className = 'ref-reward-overlay'
     overlay.innerHTML = `
       <div class="ref-reward-card" role="dialog" aria-modal="true">
@@ -149,12 +167,13 @@ export class RefRewardQueue {
         <div class="ref-reward-amount">${fmtMoney(spec.amount)}</div>
         <p class="ref-reward-desc">${spec.desc}</p>
         ${spec.warn ? `<p class="ref-reward-warn">⚠️ ${spec.warn}</p>` : ''}
-        <button class="ref-reward-primary" type="button">${spec.primaryLabel}</button>
+        <button class="ref-reward-primary" type="button" data-reward-id="${spec.id}" data-settlement-at="${settlementAttr}">${spec.primaryLabel}</button>
         ${spec.discard ? `<button class="ref-reward-discard" type="button">${spec.discard.label}</button>` : ''}
       </div>
     `
     this.overlay = overlay
     document.body.appendChild(overlay)
+    spec.onShown?.()
 
     const primary = overlay.querySelector<HTMLButtonElement>('.ref-reward-primary')!
     const closeBtn = overlay.querySelector<HTMLButtonElement>('.ref-reward-close')!
@@ -174,6 +193,81 @@ export class RefRewardQueue {
     })
 
     primary.addEventListener('click', () => { void this.handlePrimary(spec, primary) })
+  }
+
+  private showOfflineClaimBanner(): void {
+    const settlementAt = this.state.offlineRewardSettlementAt
+    if (
+      this.destroyed
+      || this.offlineBanner
+      || this.overlay
+      || !this.state.hasPendingOfflineReward()
+      || settlementAt == null
+    ) return
+
+    const banner = document.createElement('div')
+    banner.className = 'ref-rival-offer-banner'
+    banner.style.position = 'fixed'
+    banner.style.left = '50%'
+    banner.style.bottom = 'calc(78px + env(safe-area-inset-bottom))'
+    banner.style.width = 'min(420px, calc(100vw - 28px))'
+    banner.style.margin = '0'
+    banner.style.transform = 'translateX(-50%)'
+    banner.style.zIndex = '3100'
+    banner.innerHTML = `
+      <div class="ref-rival-offer-banner__head">&#128176; ${i18n.t('ref_reward_offline_title')}</div>
+      <div class="ref-rival-offer-banner__msg">${i18n.t('ref_reward_offline_desc')} ${fmtMoney(this.state.pendingOfflineEarnings)}</div>
+      <div class="ref-rival-offer-banner__actions">
+        <button class="ref-world-btn" type="button" data-action="claim_offline_reward" data-settlement-at="${settlementAt}">${i18n.t('ref_reward_offline_btn')}</button>
+      </div>`
+    banner.querySelector<HTMLButtonElement>('[data-action="claim_offline_reward"]')?.addEventListener('click', () => {
+      if (
+        !this.state.hasPendingOfflineReward()
+        || this.state.offlineRewardSettlementAt !== settlementAt
+        || this.overlay
+        || document.querySelector('.ref-decision-overlay')
+      ) return
+      this.clearOfflineBanner()
+      this.render(this.specFor('offline'))
+    })
+    this.offlineBanner = banner
+    document.body.appendChild(banner)
+  }
+
+  private showComebackClaimBanner(): void {
+    if (this.destroyed || this.comebackBanner || this.overlay || !this.state.hasPendingComeback()) return
+    const banner = document.createElement('div')
+    banner.className = 'ref-rival-offer-banner'
+    banner.style.position = 'fixed'
+    banner.style.left = '50%'
+    banner.style.bottom = 'calc(78px + env(safe-area-inset-bottom))'
+    banner.style.width = 'min(420px, calc(100vw - 28px))'
+    banner.style.margin = '0'
+    banner.style.transform = 'translateX(-50%)'
+    banner.style.zIndex = '3100'
+    banner.innerHTML = `
+      <div class="ref-rival-offer-banner__head">🎁 ${i18n.t('ref_reward_comeback_title')}</div>
+      <div class="ref-rival-offer-banner__msg">${i18n.t('ref_reward_comeback_desc')}</div>
+      <div class="ref-rival-offer-banner__actions">
+        <button class="ref-world-btn" type="button" data-action="claim_comeback">${i18n.t('ref_reward_comeback_btn')}</button>
+      </div>`
+    banner.querySelector<HTMLButtonElement>('[data-action="claim_comeback"]')?.addEventListener('click', () => {
+      if (!this.state.hasPendingComeback() || this.overlay || document.querySelector('.ref-decision-overlay')) return
+      this.clearComebackBanner()
+      this.render(this.specFor('comeback'))
+    })
+    this.comebackBanner = banner
+    document.body.appendChild(banner)
+  }
+
+  private clearComebackBanner(): void {
+    this.comebackBanner?.remove()
+    this.comebackBanner = null
+  }
+
+  private clearOfflineBanner(): void {
+    this.offlineBanner?.remove()
+    this.offlineBanner = null
   }
 
   private async handlePrimary(spec: RewardSpec, btn: HTMLButtonElement): Promise<void> {
@@ -196,13 +290,17 @@ export class RefRewardQueue {
       }
     }
 
-    const amount = spec.claim()
+    const amount = spec.claim(spec.settlementAt)
     if (amount > 0) {
       refToast(`+${fmtMoney(amount)}`, 'ok')
+      if (spec.id === 'offline') this.clearOfflineBanner()
+      if (spec.id === 'comeback') this.clearComebackBanner()
       this.onClaimed()
     } else {
       // Guard: zaten alınmış (çift claim) — para uygulanmaz.
       refToast(i18n.t('ref_reward_already_claimed'), 'err')
+      if (spec.id === 'offline') this.clearOfflineBanner()
+      if (spec.id === 'comeback') this.clearComebackBanner()
     }
     this.busy = false
     this.close()
@@ -219,6 +317,8 @@ export class RefRewardQueue {
     this.destroyed = true
     this.overlay?.remove()
     this.overlay = null
+    this.clearOfflineBanner()
+    this.clearComebackBanner()
     this.queue = []
   }
 }

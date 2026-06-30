@@ -245,7 +245,10 @@ async function bootstrap(): Promise<void> {
         // Toast will be shown after mount
       }
 
-      state.applyOfflineEarnings(lastSaveTime)
+      const offlineAmount = state.applyOfflineEarnings(lastSaveTime)
+      if (state.lastSaveTime !== lastSaveTime || offlineAmount > 0 || state.shouldPresentComeback()) {
+        saveManager.save(state)
+      }
 
       if (state.isIntroFlowReady()) {
         state.startTick()

@@ -2,6 +2,16 @@ import type { GameState, GameEvent } from '../../game/GameState'
 import { crisisDef, crisisTitle, crisisDesc, crisisChoiceLabel, crisisChoiceDesc } from '../../game/CrisisEvents'
 import { LIFE_EVENTS, lifeEventTitle, lifeEventDesc, lifeChoiceLabel } from '../../game/LifeEvents'
 import type { LifeEventChoice } from '../../game/LifeEvents'
+import { gameDay } from '../../game/GameClock'
+import {
+  canConsumePacedEvent,
+  consumePacedEvent,
+  createRuntimeToastPacingState,
+  EVENT_TOAST_DEDUPE_MS,
+  EVENT_TOAST_MIN_INTERVAL_MS,
+  getEventPacingMeta,
+  type EventPacingMeta,
+} from '../../game/EventPacing'
 import { fmtMoney, refToast } from './refShared'
 import { i18n, fmt } from '../../i18n'
 import { achievementName } from '../../game/Achievements'
@@ -35,20 +45,45 @@ interface DecisionSpec {
   dismissable: boolean
 }
 
+interface QueuedDecision {
+  ev: GameEvent
+  key: string
+  meta: EventPacingMeta
+  sequence: number
+}
+
 interface QueuedToast {
   msg: string
   kind: 'ok' | 'err'
-  key?: string
+  key: string
+  meta: EventPacingMeta
+  sequence: number
 }
+
+type FocusDecisionIdentity =
+  | { type: 'annual_summary'; year: number }
+  | { type: 'age_milestone'; age: number }
+
+const MAX_TOAST_QUEUE = 8
 
 export class RefNotificationBridge {
   private readonly state: GameState
   /** Başarılı karar sonrası: aktif sayfayı tazele + kaydet. */
   private readonly onResolved: () => void
-  private queue: GameEvent[] = []
+  private queue: QueuedDecision[] = []
+  private queuedDecisionKeys = new Set<string>()
+  private currentDecisionKey: string | null = null
+  private nextDecisionSequence = 0
   private overlay: HTMLElement | null = null
   private toastQueue: QueuedToast[] = []
+  private queuedToastKeys = new Set<string>()
+  private nextToastSequence = 0
   private toastDrainTimer: ReturnType<typeof setTimeout> | null = null
+  private runtimeToast = createRuntimeToastPacingState()
+  private undoBanner: HTMLElement | null = null
+  private undoBannerKey: string | null = null
+  private undoBannerTimer: ReturnType<typeof setTimeout> | null = null
+  private lastSeenGameDay = -1
   private destroyed = false
 
   constructor(state: GameState, onResolved: () => void) {
@@ -56,35 +91,38 @@ export class RefNotificationBridge {
     this.onResolved = onResolved
   }
 
-  /**
-   * Reload sonrası yeniden gösterim. Bootstrap'ta bir kez çağrılır (reward
-   * kuyruğu boşaldıktan sonra → tek modal kuralı korunur).
-   *
-   * Sıra:
-   *  1. Aktif kriz (activeCrisis)
-   *  2. Aktif rakip saldırıları (activeRivalEvents[0])
-   *  3. Bekleyen geri alma (pendingUndo, süresi dolmamışsa)
-   *  4. Çözümlenmemiş yaşam olayları (lifeEvents − eventChoiceHistory)
-   *  5. pendingDecisions (marriage_crisis / annual_summary / age_milestone)
-   */
   start(): void {
     if (this.destroyed) return
+    this.lastSeenGameDay = this.currentGameDay()
+    this.syncPersistentDecisions()
+    this.pump()
+  }
+
+  handle(ev: GameEvent): void {
+    if (this.destroyed) return
+    if (ev.type === 'game_time') {
+      const day = this.currentGameDay()
+      if (this.lastSeenGameDay !== day) {
+        this.lastSeenGameDay = day
+        this.syncPersistentDecisions()
+        this.pump()
+      }
+    }
+    this.routeEvent(ev)
+  }
+
+  private syncPersistentDecisions(): void {
     const s = this.state
+    const day = this.currentGameDay()
 
     if (s.activeCrisis && !s.activeCrisis.resolved) {
-      this.enqueueCritical({ type: 'crisis_started', crisisId: s.activeCrisis.crisisId, title: crisisTitle(crisisDef(s.activeCrisis.crisisId)) })
-    }
-    if (s.activeRivalEvents.length > 0) {
-      this.enqueueCritical({ type: 'rival_event', event: s.activeRivalEvents[0]! })
-    }
-    const u = s.pendingUndo
-    if (u && Date.now() <= u.expiresAt) {
-      this.enqueueCritical({ type: 'undo_available', label: u.label, cost: u.cost, undoId: u.id })
+      this.routeEvent({ type: 'crisis_started', crisisId: s.activeCrisis.crisisId, title: crisisTitle(crisisDef(s.activeCrisis.crisisId)) })
     }
 
-    // Çözümlenmemiş yaşam olayları: lifeEvents içinde olup eventChoiceHistory'de seçim
-    // yapılmamış (latestChoice < latestSeen). Aynı definition ID'li tekrarlayan event'ler
-    // için her occurrence'ın en güncel seenAtGameDay'i ile en güncel choiceGameDay'i karşılaştırılır.
+    for (const event of s.activeRivalEvents) {
+      if (event.expiresAtDay > day) this.routeEvent({ type: 'rival_event', event })
+    }
+
     const latestSeen = new Map<string, number>()
     for (const e of s.lifeEvents) {
       const prev = latestSeen.get(e.eventId) ?? 0
@@ -98,107 +136,146 @@ export class RefNotificationBridge {
     for (const [eventId, seenDay] of latestSeen) {
       if ((latestChoice.get(eventId) ?? -1) < seenDay) {
         const def = LIFE_EVENTS.find(e => e.id === eventId)
-        // Definition bulunamazsa sessizce atla — uygulama kilitlenmez
-        if (def) this.enqueueCritical({ type: 'life_event_triggered', eventDef: def })
+        if (def) this.routeEvent({ type: 'life_event_triggered', eventDef: def })
       }
     }
 
-    // Serialize edilmiş bekleyen karar olayları (marriage/annual/age).
-    // marriage_crisis: spouseId kontrolü — evlilik bitmişse veya eş değişmişse atla.
     for (const pd of s.pendingDecisions) {
       if (pd.type === 'marriage_crisis') {
-        if (!s.dynasty.spouseId || pd.spouseId !== s.dynasty.spouseId) continue
+        if (s.dynasty.spouseId && pd.spouseId === s.dynasty.spouseId) {
+          this.routeEvent({ type: 'marriage_crisis' })
+        }
+      } else if (pd.type === 'annual_summary') {
+        this.routeEvent({
+          type: 'annual_summary',
+          year: pd.year,
+          playerAge: pd.playerAge,
+          totalEarned: pd.totalEarned,
+          businessCount: pd.businessCount,
+          incomePerDay: pd.incomePerDay,
+        })
+      } else if (pd.type === 'age_milestone') {
+        this.routeEvent({ type: 'age_milestone', age: pd.age, question: pd.question })
       }
-      this.enqueueCritical(pd as GameEvent)
+    }
+
+    const u = s.pendingUndo
+    if (u && Date.now() <= u.expiresAt) {
+      this.routeEvent({ type: 'undo_available', label: u.label, cost: u.cost, undoId: u.id })
     }
   }
 
-  /** RefApp aboneliğinden her event için çağrılır; köprü yalnız ilgili olanlara tepki verir. */
-  handle(ev: GameEvent): void {
-    if (this.destroyed) return
-    if (this.isCritical(ev.type)) {
-      this.enqueueCritical(ev)
+  private routeEvent(ev: GameEvent): void {
+    const meta = getEventPacingMeta(ev)
+    if (meta.requiresInput && meta.mayInterrupt) {
+      this.enqueueDecision(ev, meta)
       return
     }
-    const p = this.toastParams(ev)
-    if (!p) return
-    if (this.overlay) {
-      // Modal açık → kuyruğa al (dedup key + sınır 8)
-      if (p.key && this.toastQueue.some(t => t.key === p.key)) return
-      if (this.toastQueue.length < 8) this.toastQueue.push(p)
+    if (meta.actionable && !meta.mayInterrupt) {
+      this.showActionable(ev, meta)
       return
     }
-    refToast(p.msg, p.kind)
+    const toast = this.toastParams(ev, meta)
+    if (toast) this.enqueueToast(toast)
   }
 
-  // ─────────── Toast parametreleri ───────────
-  private toastParams(ev: GameEvent): QueuedToast | null {
-    switch (ev.type) {
-      case 'achievement':
-        return { msg: `${ev.def.emoji} ${achievementName(ev.def)}`, kind: 'ok', key: `ach:${ev.def.id}` }
-      case 'milestone_reached':
-        return { msg: fmt('ref_toast_milestone', { amount: fmtMoney(ev.amount) }), kind: 'ok', key: `ms:${ev.amount}` }
-      case 'reputation_changed':
-        if (ev.delta <= -5) return { msg: fmt('ref_toast_rep_down', { delta: ev.delta }), kind: 'err' }
-        if (ev.delta >= 5) return { msg: fmt('ref_toast_rep_up', { delta: ev.delta }), kind: 'ok' }
-        return null
-      case 'illegal_raid':
-        return { msg: fmt('ref_toast_raid', { fine: fmtMoney(ev.fine) }), kind: 'err' }
-      case 'disease_diagnosed': {
-        const dname = diseaseName(diseaseDef(ev.diseaseId))
-        return { msg: fmt('ref_toast_disease_diag', { emoji: ev.emoji, name: dname }), kind: 'err', key: `dis:${ev.diseaseId}` }
-      }
-      case 'disease_treated': {
-        const dname = diseaseName(diseaseDef(ev.diseaseId))
-        return { msg: fmt('ref_toast_disease_treated', { name: dname }), kind: 'ok', key: `cured:${ev.diseaseId}` }
-      }
-      case 'dynasty_update':
-        return ev.name ? { msg: fmt('ref_toast_dynasty', { name: ev.name }), kind: 'ok' } : null
-      default:
-        return null
-    }
-  }
-
-  private drainToastQueue(): void {
-    if (this.toastQueue.length === 0) return
-    const drainNext = () => {
-      this.toastDrainTimer = null
-      if (this.destroyed || this.overlay || this.toastQueue.length === 0) return
-      const item = this.toastQueue.shift()!
-      refToast(item.msg, item.kind)
-      if (this.toastQueue.length > 0) {
-        this.toastDrainTimer = setTimeout(drainNext, 1950)
-      }
-    }
-    drainNext()
-  }
-
-  // ─────────── Kritik / karar modalı ───────────
-  private isCritical(type: GameEvent['type']): boolean {
-    return type === 'crisis_started'
-      || type === 'life_event_triggered'
-      || type === 'marriage_crisis'
-      || type === 'annual_summary'
-      || type === 'age_milestone'
-      || type === 'rival_event'
-      || type === 'undo_available'
-  }
-
-  private enqueueCritical(ev: GameEvent): void {
-    this.queue.push(ev)
+  private enqueueDecision(ev: GameEvent, meta: EventPacingMeta): void {
+    const key = meta.dedupeKey
+    if (this.currentDecisionKey === key || this.queuedDecisionKeys.has(key)) return
+    this.queue.push({ ev, key, meta, sequence: this.nextDecisionSequence++ })
+    this.queuedDecisionKeys.add(key)
+    this.queue.sort((a, b) => a.meta.priority - b.meta.priority || a.sequence - b.sequence)
     this.pump()
   }
 
   private pump(): void {
     if (this.destroyed || this.overlay) return
-    const ev = this.queue.shift()
-    if (!ev) return
-    const spec = this.specFor(ev)
-    // specFor null döndürürse (guard fail, expired, definition yok) → event atlanır, app kilitlenmez
-    if (!spec) { this.pump(); return }
-    this.render(spec)
+    while (this.queue.length > 0) {
+      const item = this.queue.shift()!
+      this.queuedDecisionKeys.delete(item.key)
+      const spec = this.specFor(item.ev)
+      if (!spec) continue
+      const day = this.currentGameDay()
+      if (!canConsumePacedEvent(this.state.eventPacing, item.meta, day)) continue
+      consumePacedEvent(this.state.eventPacing, item.meta, day)
+      this.render(spec, item.key)
+      return
+    }
   }
 
+  private currentGameDay(): number {
+    return gameDay(this.state.gameTimeMs)
+  }
+  private toastParams(ev: GameEvent, meta: EventPacingMeta): QueuedToast | null {
+    switch (ev.type) {
+      case 'achievement':
+        return { msg: `${ev.def.emoji} ${achievementName(ev.def)}`, kind: 'ok', key: meta.dedupeKey, meta, sequence: this.nextToastSequence++ }
+      case 'milestone_reached':
+        return { msg: fmt('ref_toast_milestone', { amount: fmtMoney(ev.amount) }), kind: 'ok', key: meta.dedupeKey, meta, sequence: this.nextToastSequence++ }
+      case 'reputation_changed':
+        if (ev.delta <= -5) return { msg: fmt('ref_toast_rep_down', { delta: ev.delta }), kind: 'err', key: meta.dedupeKey, meta, sequence: this.nextToastSequence++ }
+        if (ev.delta >= 5) return { msg: fmt('ref_toast_rep_up', { delta: ev.delta }), kind: 'ok', key: meta.dedupeKey, meta, sequence: this.nextToastSequence++ }
+        return null
+      case 'illegal_raid':
+        return { msg: fmt('ref_toast_raid', { fine: fmtMoney(ev.fine) }), kind: 'err', key: meta.dedupeKey, meta, sequence: this.nextToastSequence++ }
+      case 'disease_diagnosed': {
+        const dname = diseaseName(diseaseDef(ev.diseaseId))
+        return { msg: fmt('ref_toast_disease_diag', { emoji: ev.emoji, name: dname }), kind: 'err', key: meta.dedupeKey, meta, sequence: this.nextToastSequence++ }
+      }
+      case 'disease_treated': {
+        const dname = diseaseName(diseaseDef(ev.diseaseId))
+        return { msg: fmt('ref_toast_disease_treated', { name: dname }), kind: 'ok', key: meta.dedupeKey, meta, sequence: this.nextToastSequence++ }
+      }
+      case 'dynasty_update':
+        return ev.name ? { msg: fmt('ref_toast_dynasty', { name: ev.name }), kind: 'ok', key: meta.dedupeKey, meta, sequence: this.nextToastSequence++ } : null
+      default:
+        return null
+    }
+  }
+
+  private enqueueToast(item: QueuedToast): void {
+    const now = Date.now()
+    this.pruneRuntimeToastDedupe(now)
+    if (this.queuedToastKeys.has(item.key)) return
+    if ((this.runtimeToast.dedupeUntilMs[item.key] ?? 0) > now) return
+    this.toastQueue.push(item)
+    this.queuedToastKeys.add(item.key)
+    this.toastQueue.sort((a, b) => a.meta.priority - b.meta.priority || a.sequence - b.sequence)
+    if (this.toastQueue.length > MAX_TOAST_QUEUE) {
+      const dropped = this.toastQueue.pop()!
+      this.queuedToastKeys.delete(dropped.key)
+    }
+    this.drainToastQueue()
+  }
+
+  private drainToastQueue(): void {
+    if (this.toastDrainTimer !== null) return
+    if (this.destroyed || this.overlay || this.toastQueue.length === 0) return
+    const now = Date.now()
+    const waitMs = Math.max(0, EVENT_TOAST_MIN_INTERVAL_MS - (now - this.runtimeToast.lastToastAtMs))
+    this.toastDrainTimer = setTimeout(() => {
+      this.toastDrainTimer = null
+      if (this.destroyed || this.overlay || this.toastQueue.length === 0) return
+      const item = this.toastQueue.shift()!
+      this.queuedToastKeys.delete(item.key)
+      const day = this.currentGameDay()
+      if (canConsumePacedEvent(this.state.eventPacing, item.meta, day)) {
+        consumePacedEvent(this.state.eventPacing, item.meta, day)
+        const shownAt = Date.now()
+        this.runtimeToast.lastToastAtMs = shownAt
+        this.runtimeToast.dedupeUntilMs[item.key] = shownAt + EVENT_TOAST_DEDUPE_MS
+        refToast(item.msg, item.kind)
+      }
+      this.pruneRuntimeToastDedupe(Date.now())
+      this.drainToastQueue()
+    }, waitMs)
+  }
+
+  private pruneRuntimeToastDedupe(now = Date.now()): void {
+    for (const [key, until] of Object.entries(this.runtimeToast.dedupeUntilMs)) {
+      if (!Number.isFinite(until) || until <= now) delete this.runtimeToast.dedupeUntilMs[key]
+    }
+  }
   /** Yaşam olayı seçeneğinin etki önizlemesi (HUD ile aynı kalemler). */
   private lifePreview(c: LifeEventChoice): string {
     const parts: string[] = []
@@ -209,101 +286,233 @@ export class RefNotificationBridge {
     return parts.join(' · ')
   }
 
-  /** annual_summary ve age_milestone ortak odak seçenekleri (applyAnnualFocus). */
-  private focusOptions(): DecisionOption[] {
+  private focusOptions(decision: FocusDecisionIdentity): DecisionOption[] {
     const s = this.state
     return [
-      { label: i18n.t('ref_focus_work_label'), sub: i18n.t('ref_focus_work_sub'), resolve: () => { s.applyAnnualFocus('work'); return true } },
-      { label: i18n.t('ref_focus_family_label'), sub: i18n.t('ref_focus_family_sub'), resolve: () => { s.applyAnnualFocus('family'); return true } },
-      { label: i18n.t('ref_focus_health_label'), sub: i18n.t('ref_focus_health_sub'), resolve: () => { s.applyAnnualFocus('health'); return true } },
-      { label: i18n.t('ref_focus_social_label'), sub: i18n.t('ref_focus_social_sub'), resolve: () => { s.applyAnnualFocus('social'); return true } },
+      { label: i18n.t('ref_focus_work_label'), sub: i18n.t('ref_focus_work_sub'), resolve: () => s.applyAnnualFocus('work', decision) },
+      { label: i18n.t('ref_focus_family_label'), sub: i18n.t('ref_focus_family_sub'), resolve: () => s.applyAnnualFocus('family', decision) },
+      { label: i18n.t('ref_focus_health_label'), sub: i18n.t('ref_focus_health_sub'), resolve: () => s.applyAnnualFocus('health', decision) },
+      { label: i18n.t('ref_focus_social_label'), sub: i18n.t('ref_focus_social_sub'), resolve: () => s.applyAnnualFocus('social', decision) },
     ]
   }
 
-  /**
-   * Event → modal spec. State mutation YOK — options.resolve mevcut GameState
-   * resolve metotlarını çağırır. Tüm karar modalları dismissable:false → kullanıcı
-   * seçim yapmadan kapatamaz.
-   *
-   * Guard'lar: specFor null döndürürse pump() bu event'i sessizce atlar → app kilitlenmez.
-   */
+  private isLatestLifeEventUnresolved(eventId: string): boolean {
+    const s = this.state
+    const lastSeen = s.lifeEvents
+      .filter(e => e.eventId === eventId)
+      .reduce((max, e) => Math.max(max, e.seenAtGameDay), -1)
+    const lastChoice = s.eventChoiceHistory
+      .filter(r => r.eventId === eventId)
+      .reduce((max, r) => Math.max(max, r.gameDay), -1)
+    return lastSeen >= 0 && lastChoice < lastSeen
+  }
+
+  private pendingFocusDecisionExists(decision: FocusDecisionIdentity): boolean {
+    return this.state.pendingDecisions.some((d) => (
+      decision.type === 'annual_summary'
+        ? d.type === 'annual_summary' && d.year === decision.year
+        : d.type === 'age_milestone' && d.age === decision.age
+    ))
+  }
   private specFor(ev: GameEvent): DecisionSpec | null {
     const s = this.state
     switch (ev.type) {
       case 'crisis_started': {
-        if (!s.activeCrisis || s.activeCrisis.resolved) return null
+        if (!s.activeCrisis || s.activeCrisis.resolved || s.activeCrisis.crisisId !== ev.crisisId) return null
         const def = crisisDef(ev.crisisId)
         return {
-          emoji: def.emoji, title: crisisTitle(def), body: crisisDesc(def), dismissable: false,
-          options: def.choices.map((c) => ({ label: crisisChoiceLabel(def.id, c), sub: crisisChoiceDesc(def.id, c), resolve: () => s.resolveCrisis(c.id) })),
+          emoji: def.emoji,
+          title: crisisTitle(def),
+          body: crisisDesc(def),
+          dismissable: false,
+          options: def.choices.map((choice) => ({
+            label: crisisChoiceLabel(def.id, choice),
+            sub: crisisChoiceDesc(def.id, choice),
+            resolve: () => {
+              const live = s.activeCrisis
+              if (!live || live.resolved || live.crisisId !== ev.crisisId) return false
+              const liveDef = crisisDef(live.crisisId)
+              if (!liveDef.choices.some(candidate => candidate.id === choice.id)) return false
+              return s.resolveCrisis(choice.id)
+            },
+          })),
         }
       }
       case 'life_event_triggered': {
         const def = ev.eventDef
-        // Guard: eğer modalı göstermeden önce zaten çözümlenmiş ise (seçim >= en son görülme),
-        // tekrar gösterme. Definition kaynaklı, not null here.
-        const lastSeen = s.lifeEvents
-          .filter(e => e.eventId === def.id)
-          .reduce((max, e) => Math.max(max, e.seenAtGameDay), -1)
-        const lastChoice = s.eventChoiceHistory
-          .filter(r => r.eventId === def.id)
-          .reduce((max, r) => Math.max(max, r.gameDay), -1)
-        if (lastSeen >= 0 && lastChoice >= lastSeen) return null
+        if (!this.isLatestLifeEventUnresolved(def.id)) return null
         return {
-          emoji: def.emoji, title: lifeEventTitle(def), body: lifeEventDesc(def), dismissable: false,
+          emoji: def.emoji,
+          title: lifeEventTitle(def),
+          body: lifeEventDesc(def),
+          dismissable: false,
           options: def.choices.map((c) => ({
-            label: `${c.emoji} ${lifeChoiceLabel(def.id, c)}`, sub: this.lifePreview(c),
-            resolve: () => { s.resolveLifeEventChoice(def.id, c.id); return true },
+            label: `${c.emoji} ${lifeChoiceLabel(def.id, c)}`,
+            sub: this.lifePreview(c),
+            resolve: () => {
+              const choice = def.choices.find((candidate) => candidate.id === c.id)
+              if (!choice || !this.isLatestLifeEventUnresolved(def.id)) return false
+              s.resolveLifeEventChoice(def.id, choice.id)
+              return true
+            },
           })),
         }
       }
       case 'marriage_crisis': {
-        if (!s.dynasty.spouseId) return null
+        const renderedSpouseId = s.dynasty.spouseId
+        if (!renderedSpouseId || !s.pendingDecisions.some(d => d.type === 'marriage_crisis' && d.spouseId === renderedSpouseId)) return null
+        const canResolveRenderedMarriage = (): boolean =>
+          s.dynasty.spouseId === renderedSpouseId
+          && s.pendingDecisions.some(
+            decision =>
+              decision.type === 'marriage_crisis'
+              && decision.spouseId === renderedSpouseId,
+          )
         const name = s.dynasty.spouseName ?? i18n.t('ref_marriage_crisis_spouse_fallback')
         return {
-          emoji: '💔', title: i18n.t('ref_marriage_crisis_title'), body: fmt('ref_marriage_crisis_body', { name }), dismissable: false,
+          emoji: '💔',
+          title: i18n.t('ref_marriage_crisis_title'),
+          body: fmt('ref_marriage_crisis_body', { name }),
+          dismissable: false,
           options: [
-            { label: i18n.t('ref_marriage_crisis_gift_label'), sub: i18n.t('ref_marriage_crisis_gift_sub'), resolve: () => { s.resolveMarriageCrisis(true); return true } },
-            { label: i18n.t('ref_marriage_crisis_time_label'), sub: i18n.t('ref_marriage_crisis_time_sub'), resolve: () => { s.resolveMarriageCrisis(false); return true } },
+            {
+              label: i18n.t('ref_marriage_crisis_gift_label'),
+              sub: i18n.t('ref_marriage_crisis_gift_sub'),
+              resolve: () => {
+                if (!canResolveRenderedMarriage()) return false
+                s.resolveMarriageCrisis(true)
+                return true
+              },
+            },
+            {
+              label: i18n.t('ref_marriage_crisis_time_label'),
+              sub: i18n.t('ref_marriage_crisis_time_sub'),
+              resolve: () => {
+                if (!canResolveRenderedMarriage()) return false
+                s.resolveMarriageCrisis(false)
+                return true
+              },
+            },
           ],
         }
       }
-      case 'annual_summary':
+      case 'annual_summary': {
+        const decision = { type: 'annual_summary' as const, year: ev.year }
+        if (!this.pendingFocusDecisionExists(decision)) return null
         return {
-          emoji: '📅', title: fmt('ref_annual_title', { year: ev.year }),
+          emoji: '📅',
+          title: fmt('ref_annual_title', { year: ev.year }),
           body: fmt('ref_annual_body', { age: ev.playerAge, biz: ev.businessCount, income: fmtMoney(ev.incomePerDay) }),
-          dismissable: false, options: this.focusOptions(),
+          dismissable: false,
+          options: this.focusOptions(decision),
         }
-      case 'age_milestone':
-        return { emoji: '🎂', title: `${ev.age} ${i18n.t('ref_age_suffix')}`, body: ev.question, dismissable: false, options: this.focusOptions() }
-      case 'rival_event': {
-        const e = ev.event
+      }
+      case 'age_milestone': {
+        const decision = { type: 'age_milestone' as const, age: ev.age }
+        if (!this.pendingFocusDecisionExists(decision)) return null
         return {
-          emoji: '⚔️', title: e.rivalName,
+          emoji: '🎂',
+          title: `${ev.age} ${i18n.t('ref_age_suffix')}`,
+          body: ev.question,
+          dismissable: false,
+          options: this.focusOptions(decision),
+        }
+      }
+      case 'rival_event': {
+        const e = s.activeRivalEvents.find((event) => event.id === ev.event.id)
+        if (!e || e.expiresAtDay <= this.currentGameDay()) return null
+        return {
+          emoji: '⚔️',
+          title: e.rivalName,
           body: `${e.headline} — ${e.description}<br><b>${i18n.t('ref_rival_risk_label')}</b> ${fmt('ref_rival_rep_damage', { amount: e.reputationDamage })} · ${fmtMoney(e.moneyDamage)}`,
           dismissable: false,
           options: e.responses.map((r) => ({
             label: `${r.emoji} ${r.label}`,
             sub: [r.cost > 0 ? fmtMoney(r.cost) : null, r.reputationDelta !== 0 ? `${i18n.t('ref_preview_rep')} ${r.reputationDelta > 0 ? '+' : ''}${r.reputationDelta}` : null].filter(Boolean).join(' · '),
-            resolve: () => { s.resolveRivalEvent(e.id, r.id); return true },
+            resolve: () => {
+              const live = s.activeRivalEvents.find((event) => event.id === e.id)
+              if (!live || live.expiresAtDay <= this.currentGameDay()) return false
+              if (!live.responses.some((response) => response.id === r.id)) return false
+              s.resolveRivalEvent(live.id, r.id)
+              return true
+            },
           })),
-        }
-      }
-      case 'undo_available': {
-        if (!s.pendingUndo || Date.now() > s.pendingUndo.expiresAt) return null
-        return {
-          emoji: '↩️', title: i18n.t('ref_undo_modal_title'), body: ev.label, dismissable: false,
-          options: [
-            { label: `${i18n.t('ref_undo_confirm_label')} — ${fmtMoney(ev.cost)}`, resolve: () => s.executeUndo() },
-            { label: i18n.t('ref_undo_dismiss_label'), resolve: () => { s.dismissUndo(); return true } },
-          ],
         }
       }
     }
     return null
   }
+  private showActionable(ev: GameEvent, meta: EventPacingMeta): void {
+    if (ev.type !== 'undo_available') return
+    const u = this.state.pendingUndo
+    if (!u || u.id !== ev.undoId || Date.now() > u.expiresAt) return
+    if (this.undoBannerKey === meta.dedupeKey && this.undoBanner) return
+    const day = this.currentGameDay()
+    if (!canConsumePacedEvent(this.state.eventPacing, meta, day)) return
+    consumePacedEvent(this.state.eventPacing, meta, day)
+    this.renderUndoBanner(ev, meta.dedupeKey)
+  }
 
-  private render(spec: DecisionSpec): void {
+  private renderUndoBanner(ev: Extract<GameEvent, { type: 'undo_available' }>, key: string): void {
+    this.clearUndoBanner()
+    const banner = document.createElement('div')
+    banner.className = 'ref-rival-offer-banner'
+    banner.style.position = 'fixed'
+    banner.style.left = '50%'
+    banner.style.bottom = 'calc(78px + env(safe-area-inset-bottom))'
+    banner.style.width = 'min(420px, calc(100vw - 28px))'
+    banner.style.margin = '0'
+    banner.style.transform = 'translateX(-50%)'
+    banner.style.zIndex = '3200'
+    banner.innerHTML = `
+      <div class="ref-rival-offer-banner__head">↩️ ${i18n.t('ref_undo_modal_title')}</div>
+      <div class="ref-rival-offer-banner__msg">${ev.label}</div>
+      <div class="ref-rival-offer-banner__actions">
+        <button class="ref-world-btn" type="button" data-action="undo_exec">${fmt('ref_undo_confirm_label', { cost: fmtMoney(ev.cost) })}</button>
+        <button class="ref-world-btn danger" type="button" data-action="undo_dismiss">${i18n.t('ref_undo_dismiss_label')}</button>
+      </div>`
+    banner.querySelector<HTMLButtonElement>('[data-action="undo_exec"]')?.addEventListener('click', () => {
+      const pending = this.state.pendingUndo
+      if (!pending || pending.id !== ev.undoId || Date.now() > pending.expiresAt) {
+        this.clearUndoBanner()
+        return
+      }
+      const ok = this.state.executeUndo()
+      if (ok) {
+        this.onResolved()
+        refToast(fmt('ref_undo_confirm_label', { cost: fmtMoney(ev.cost) }), 'ok')
+        this.clearUndoBanner()
+      } else {
+        refToast(i18n.t('ref_action_failed'), 'err')
+      }
+    })
+    banner.querySelector<HTMLButtonElement>('[data-action="undo_dismiss"]')?.addEventListener('click', () => {
+      const pending = this.state.pendingUndo
+      if (!pending || pending.id !== ev.undoId || Date.now() > pending.expiresAt) {
+        this.clearUndoBanner()
+        return
+      }
+      this.state.dismissUndo()
+      this.onResolved()
+      this.clearUndoBanner()
+    })
+    this.undoBanner = banner
+    this.undoBannerKey = key
+    document.body.appendChild(banner)
+    const ttl = Math.max(0, (this.state.pendingUndo?.expiresAt ?? Date.now()) - Date.now())
+    this.undoBannerTimer = setTimeout(() => this.clearUndoBanner(), ttl)
+  }
+
+  private clearUndoBanner(): void {
+    if (this.undoBannerTimer !== null) {
+      clearTimeout(this.undoBannerTimer)
+      this.undoBannerTimer = null
+    }
+    this.undoBanner?.remove()
+    this.undoBanner = null
+    this.undoBannerKey = null
+  }
+  private render(spec: DecisionSpec, key: string): void {
     const overlay = document.createElement('div')
     overlay.className = 'ref-decision-overlay'
     overlay.innerHTML = `
@@ -325,21 +534,24 @@ export class RefNotificationBridge {
         const ok = opt.resolve()
         if (ok) {
           this.onResolved()
-          this.close()
+          this.close(true)
         } else {
           refToast(i18n.t('ref_action_failed'), 'err')
         }
       })
       optWrap.appendChild(b)
     })
-    overlay.querySelector('.ref-decision-close')?.addEventListener('click', () => this.close())
+    overlay.querySelector('.ref-decision-close')?.addEventListener('click', () => this.close(false))
+    this.currentDecisionKey = key
     this.overlay = overlay
     document.body.appendChild(overlay)
   }
 
-  private close(): void {
+  private close(syncPersistent: boolean): void {
     this.overlay?.remove()
     this.overlay = null
+    this.currentDecisionKey = null
+    if (syncPersistent) this.syncPersistentDecisions()
     this.drainToastQueue()
     this.pump()
   }
@@ -350,9 +562,13 @@ export class RefNotificationBridge {
       clearTimeout(this.toastDrainTimer)
       this.toastDrainTimer = null
     }
+    this.clearUndoBanner()
     this.overlay?.remove()
     this.overlay = null
+    this.currentDecisionKey = null
     this.queue = []
+    this.queuedDecisionKeys.clear()
     this.toastQueue = []
+    this.queuedToastKeys.clear()
   }
 }

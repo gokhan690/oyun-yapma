@@ -45,6 +45,12 @@ export interface AchievementContext {
   isEntrepreneur?: boolean
 }
 
+const BUILT_IN_THEME_IDS = new Set(['default', 'light', 'dark'])
+
+function unlockedSeasonThemeCount(themes: string[]): number {
+  return themes.filter((theme) => !BUILT_IN_THEME_IDS.has(theme)).length
+}
+
 export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'first_100', name: 'İlk Adım', description: '100₺ kazan', emoji: '🌱', reward: 50, check: (c) => c.totalEarned >= 100 },
   { id: 'first_1k', name: 'Girişimci', description: '1.000₺ kazan', emoji: '💼', reward: 200, check: (c) => c.totalEarned >= 1000 },
@@ -99,7 +105,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'siyah_fabrika_1', name: 'Siyah Baron', description: 'Siyah fabrika kur', emoji: '🏭', reward: 35_000, check: (c) => (c.producers.siyah_fabrika ?? 0) >= 1 },
   { id: 'superlig_club', name: 'Süper Lig Patronu', description: 'Süper Lig kulübü edin', emoji: '🏟️', reward: 80_000, check: (c) => (c.producers.futbol_superlig ?? 0) >= 1 },
   { id: 'bakan', name: 'Bakan', description: 'Bakanlık bütçesine sahip ol', emoji: '👔', reward: 250_000, check: (c) => (c.producers.siyaset_bakan ?? 0) >= 1 },
-  { id: 'theme_3', name: 'Tema Koleksiyoncusu', description: '3 sezon temasını aç', emoji: '🎨', reward: 75_000, check: (c) => c.unlockedThemes.length >= 3 },
+  { id: 'theme_3', name: 'Tema Koleksiyoncusu', description: '3 sezon temasını aç', emoji: '🎨', reward: 75_000, check: (c) => unlockedSeasonThemeCount(c.unlockedThemes) >= 3 },
   { id: 'underground_lawyer', name: 'Avukatlık', description: 'Avukat tut aksiyonunu kullan', emoji: '⚖️', reward: 10_000, check: (c) => c.undergroundLawyerUsed },
   { id: 'data_center_1', name: 'Bulut Baronu', description: 'Veri merkezi kur', emoji: '🖥️', reward: 12_000, check: (c) => (c.producers.data_center ?? 0) >= 1 },
   { id: 'drone_10', name: 'Gökyüzü Lojistiği', description: '10 drone filosu', emoji: '🚁', reward: 45_000, check: (c) => (c.producers.drone ?? 0) >= 10 },
