@@ -491,7 +491,12 @@ import {
 import { obsolescenceMult, modernizeCost } from './TechObsolescence'
 import { pickDisaster, disasterDamage } from './NaturalDisasters'
 import { progressPathSnapshot, type ProgressPathSnapshot } from './ProgressPath'
-import { createEventPacingState, sanitizeEventPacingState, type EventPacingState } from './EventPacing'
+import {
+  createEventPacingState,
+  MINOR_RIVAL_NOTICE_COOLDOWN_DAYS,
+  sanitizeEventPacingState,
+  type EventPacingState,
+} from './EventPacing'
 
 export interface PendingUndo {
   id: string
@@ -4460,6 +4465,7 @@ export class GameState {
       this.totalEarned,
     )
     for (const ev of events) {
+      if (!this.shouldShowMinorRivalNotice(ev.rivalId, ev.kind, day)) continue
       this.addGazette(ev.headline, ev.kind === 'alliance' ? 'rival' : 'rival')
       this.emit({ type: 'rival_action', rivalId: ev.rivalId, headline: ev.headline })
     }
@@ -4490,6 +4496,14 @@ export class GameState {
     this.tickRivalEvents()
     this.checkWorldStage()
     this.checkVictoryConditions()
+  }
+
+  private shouldShowMinorRivalNotice(rivalId: string, kind: string, day: number): boolean {
+    const key = `rival_minor:${rivalId}:${kind}`
+    const lastDay = this.eventPacing.lastByDedupeKey[key]
+    if (lastDay != null && day - lastDay < MINOR_RIVAL_NOTICE_COOLDOWN_DAYS) return false
+    this.eventPacing.lastByDedupeKey[key] = day
+    return true
   }
 
   private tickRivalEvents(): void {
@@ -6508,6 +6522,15 @@ export class GameState {
     return this.producerLevels[id] ?? 1
   }
 
+  highestOwnedFirmLevel(): number {
+    let max = 1
+    for (const p of PRODUCERS) {
+      if ((this.producers[p.id] ?? 0) <= 0) continue
+      max = Math.max(max, this.producerLevel(p.id))
+    }
+    return max
+  }
+
   firmLevelUpCostFor(def: ProducerDef): number {
     const owned = this.producers[def.id] ?? 0
     return firmLevelUpCost(def, this.producerLevel(def.id), owned)
@@ -6938,6 +6961,10 @@ export class GameState {
         lastByDedupeKey: { ...this.eventPacing.lastByDedupeKey },
         lastByFamily: { ...this.eventPacing.lastByFamily },
         majorByDay: { ...this.eventPacing.majorByDay },
+        lastSeriousDecisionDay: this.eventPacing.lastSeriousDecisionDay,
+        nextSeriousDecisionDay: this.eventPacing.nextSeriousDecisionDay,
+        lastSeriousDecisionByEventId: { ...this.eventPacing.lastSeriousDecisionByEventId },
+        lastSeriousDecisionByFamily: { ...this.eventPacing.lastSeriousDecisionByFamily },
       },
       lastDisasterGameDay: this.lastDisasterGameDay,
       dynastyPassiveIncome: this.dynastyPassiveIncome,

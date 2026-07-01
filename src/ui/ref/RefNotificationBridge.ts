@@ -10,6 +10,8 @@ import {
   EVENT_TOAST_DEDUPE_MS,
   EVENT_TOAST_MIN_INTERVAL_MS,
   getEventPacingMeta,
+  isCriticalInputRequiredEvent,
+  isNormalSeriousDecision,
   type EventPacingMeta,
 } from '../../game/EventPacing'
 import { fmtMoney, refToast } from './refShared'
@@ -65,11 +67,24 @@ type FocusDecisionIdentity =
   | { type: 'age_milestone'; age: number }
 
 const MAX_TOAST_QUEUE = 8
+const MAX_DECISION_QUEUE = 1
+const MAX_SERIOUS_DECISIONS_PER_SESSION = 2
+const SESSION_START_DECISION_SUPPRESS_MS = 90_000
+const DECISION_CLOSE_GAP_MS = 15_000
+const DECISION_INPUT_LOCK_MS = 1_000
+
+export interface RefDecisionGateOptions {
+  canShowDecision?: () => boolean
+  now?: () => number
+}
 
 export class RefNotificationBridge {
   private readonly state: GameState
   /** Başarılı karar sonrası: aktif sayfayı tazele + kaydet. */
   private readonly onResolved: () => void
+  private readonly canShowDecision: () => boolean
+  private readonly now: () => number
+  private readonly sessionStartedAt: number
   private queue: QueuedDecision[] = []
   private queuedDecisionKeys = new Set<string>()
   private currentDecisionKey: string | null = null
@@ -84,17 +99,32 @@ export class RefNotificationBridge {
   private undoBannerKey: string | null = null
   private undoBannerTimer: ReturnType<typeof setTimeout> | null = null
   private lastSeenGameDay = -1
+  private lastDecisionClosedAtMs = 0
+  private lastExternalModalClosedAtMs = 0
+  private seriousDecisionsShownThisSession = 0
+  private decisionUnlockTimer: ReturnType<typeof setTimeout> | null = null
+  private decisionInputLockedUntilMs = 0
+  private decisionBusy = false
   private destroyed = false
 
-  constructor(state: GameState, onResolved: () => void) {
+  constructor(state: GameState, onResolved: () => void, opts: RefDecisionGateOptions = {}) {
     this.state = state
     this.onResolved = onResolved
+    this.canShowDecision = opts.canShowDecision ?? (() => true)
+    this.now = opts.now ?? (() => Date.now())
+    this.sessionStartedAt = this.now()
   }
 
   start(): void {
     if (this.destroyed) return
     this.lastSeenGameDay = this.currentGameDay()
     this.syncPersistentDecisions()
+    this.pump()
+  }
+
+  notifyExternalModalClosed(): void {
+    if (this.destroyed) return
+    this.lastExternalModalClosedAtMs = this.now()
     this.pump()
   }
 
@@ -105,8 +135,8 @@ export class RefNotificationBridge {
       if (this.lastSeenGameDay !== day) {
         this.lastSeenGameDay = day
         this.syncPersistentDecisions()
-        this.pump()
       }
+      this.pump()
     }
     this.routeEvent(ev)
   }
@@ -182,6 +212,7 @@ export class RefNotificationBridge {
   private enqueueDecision(ev: GameEvent, meta: EventPacingMeta): void {
     const key = meta.dedupeKey
     if (this.currentDecisionKey === key || this.queuedDecisionKeys.has(key)) return
+    if (isNormalSeriousDecision(meta) && this.queue.filter(item => isNormalSeriousDecision(item.meta)).length >= MAX_DECISION_QUEUE) return
     this.queue.push({ ev, key, meta, sequence: this.nextDecisionSequence++ })
     this.queuedDecisionKeys.add(key)
     this.queue.sort((a, b) => a.meta.priority - b.meta.priority || a.sequence - b.sequence)
@@ -196,10 +227,50 @@ export class RefNotificationBridge {
       const spec = this.specFor(item.ev)
       if (!spec) continue
       const day = this.currentGameDay()
-      if (!canConsumePacedEvent(this.state.eventPacing, item.meta, day)) continue
-      consumePacedEvent(this.state.eventPacing, item.meta, day)
+      if (!this.canShowDecision()) {
+        this.requeueDecisionFront(item)
+        return
+      }
+      if (isNormalSeriousDecision(item.meta)) {
+        if (this.seriousDecisionsShownThisSession >= MAX_SERIOUS_DECISIONS_PER_SESSION) continue
+        if (!this.canOpenNormalDecisionNow()) {
+          this.requeueDecisionFront(item)
+          return
+        }
+      }
+      const pacingOpts = this.decisionPacingOptions(item)
+      if (!canConsumePacedEvent(this.state.eventPacing, item.meta, day, pacingOpts)) {
+        if (isCriticalInputRequiredEvent(item.meta)) {
+          this.requeueDecisionFront(item)
+          return
+        }
+        continue
+      }
+      consumePacedEvent(this.state.eventPacing, item.meta, day, pacingOpts)
+      if (isNormalSeriousDecision(item.meta)) this.seriousDecisionsShownThisSession++
       this.render(spec, item.key)
       return
+    }
+  }
+
+  private requeueDecisionFront(item: QueuedDecision): void {
+    if (this.currentDecisionKey === item.key || this.queuedDecisionKeys.has(item.key)) return
+    this.queue.unshift(item)
+    this.queuedDecisionKeys.add(item.key)
+  }
+
+  private canOpenNormalDecisionNow(): boolean {
+    const now = this.now()
+    if (now - this.sessionStartedAt < SESSION_START_DECISION_SUPPRESS_MS) return false
+    const lastModalClosedAt = Math.max(this.lastDecisionClosedAtMs, this.lastExternalModalClosedAtMs)
+    if (now - lastModalClosedAt < DECISION_CLOSE_GAP_MS) return false
+    return this.canShowDecision()
+  }
+
+  private decisionPacingOptions(item: QueuedDecision): { firmLevel: number; seedKey: string } {
+    return {
+      firmLevel: this.state.highestOwnedFirmLevel(),
+      seedKey: `${item.key}:${this.currentGameDay()}:${this.state.highestOwnedFirmLevel()}`,
     }
   }
 
@@ -515,6 +586,8 @@ export class RefNotificationBridge {
   private render(spec: DecisionSpec, key: string): void {
     const overlay = document.createElement('div')
     overlay.className = 'ref-decision-overlay'
+    this.decisionBusy = false
+    this.decisionInputLockedUntilMs = this.now() + DECISION_INPUT_LOCK_MS
     overlay.innerHTML = `
       <div class="ref-decision-card" role="dialog" aria-modal="true">
         ${spec.dismissable ? `<button class="ref-decision-close" type="button" aria-label="${i18n.t('ref_decision_close')}">✕</button>` : ''}
@@ -524,36 +597,77 @@ export class RefNotificationBridge {
         <div class="ref-decision-options"></div>
       </div>
     `
+    for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click'] as const) {
+      overlay.addEventListener(type, (ev) => {
+        ev.preventDefault()
+        ev.stopPropagation()
+      })
+    }
     const optWrap = overlay.querySelector('.ref-decision-options')!
     spec.options.forEach((opt) => {
       const b = document.createElement('button')
       b.className = 'ref-decision-opt'
       b.type = 'button'
+      b.disabled = true
       b.innerHTML = `<span>${opt.label}</span>${opt.sub ? `<span class="ref-decision-opt__sub">${opt.sub}</span>` : ''}`
-      b.addEventListener('click', () => {
-        const ok = opt.resolve()
+      b.addEventListener('click', (ev) => {
+        ev.preventDefault()
+        ev.stopPropagation()
+        if (this.decisionBusy || this.now() < this.decisionInputLockedUntilMs) return
+        this.decisionBusy = true
+        this.setDecisionOptionsDisabled(true)
+        let ok = false
+        try {
+          ok = opt.resolve()
+        } catch (err) {
+          console.error('Ref decision resolve failed:', err)
+        }
         if (ok) {
           this.onResolved()
           this.close(true)
         } else {
+          this.decisionBusy = false
+          this.setDecisionOptionsDisabled(false)
           refToast(i18n.t('ref_action_failed'), 'err')
         }
       })
       optWrap.appendChild(b)
     })
-    overlay.querySelector('.ref-decision-close')?.addEventListener('click', () => this.close(false))
+    overlay.querySelector('.ref-decision-close')?.addEventListener('click', (ev) => {
+      ev.preventDefault()
+      ev.stopPropagation()
+      if (this.decisionBusy || this.now() < this.decisionInputLockedUntilMs) return
+      this.close(false)
+    })
     this.currentDecisionKey = key
     this.overlay = overlay
     document.body.appendChild(overlay)
+    this.decisionUnlockTimer = setTimeout(() => {
+      this.decisionUnlockTimer = null
+      if (!this.overlay || this.decisionBusy) return
+      this.setDecisionOptionsDisabled(false)
+    }, DECISION_INPUT_LOCK_MS)
   }
 
   private close(syncPersistent: boolean): void {
+    if (this.decisionUnlockTimer !== null) {
+      clearTimeout(this.decisionUnlockTimer)
+      this.decisionUnlockTimer = null
+    }
     this.overlay?.remove()
     this.overlay = null
     this.currentDecisionKey = null
+    this.decisionBusy = false
+    this.decisionInputLockedUntilMs = 0
+    this.lastDecisionClosedAtMs = this.now()
     if (syncPersistent) this.syncPersistentDecisions()
     this.drainToastQueue()
     this.pump()
+  }
+
+  private setDecisionOptionsDisabled(disabled: boolean): void {
+    this.overlay?.querySelectorAll<HTMLButtonElement>('.ref-decision-opt, .ref-decision-close')
+      .forEach((btn) => { btn.disabled = disabled })
   }
 
   destroy(): void {
@@ -561,6 +675,10 @@ export class RefNotificationBridge {
     if (this.toastDrainTimer !== null) {
       clearTimeout(this.toastDrainTimer)
       this.toastDrainTimer = null
+    }
+    if (this.decisionUnlockTimer !== null) {
+      clearTimeout(this.decisionUnlockTimer)
+      this.decisionUnlockTimer = null
     }
     this.clearUndoBanner()
     this.overlay?.remove()

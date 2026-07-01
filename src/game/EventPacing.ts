@@ -24,6 +24,7 @@ export interface EventPacingMeta {
   mayInterrupt: boolean
   showInRecentActivities: boolean
   majorFamily?: string
+  seriousFamilyKey?: string
   actionable?: boolean
 }
 
@@ -31,6 +32,10 @@ export interface EventPacingState {
   lastByDedupeKey: Record<string, number>
   lastByFamily: Record<string, number>
   majorByDay: Record<string, number>
+  lastSeriousDecisionDay: number | null
+  nextSeriousDecisionDay: number | null
+  lastSeriousDecisionByEventId: Record<string, number>
+  lastSeriousDecisionByFamily: Record<string, number>
 }
 
 export interface RuntimeToastPacingState {
@@ -44,6 +49,9 @@ export const EVENT_MAJOR_PER_DAY_LIMIT = 1
 export const EVENT_PACING_RETENTION_DAYS = 90
 export const EVENT_MAJOR_BY_DAY_COUNT_CAP = 8
 export const EVENT_MAJOR_FINANCIAL_CRISIS_COOLDOWN_DAYS = 3
+export const SERIOUS_DECISION_EVENT_COOLDOWN_DAYS = 90
+export const SERIOUS_DECISION_FAMILY_COOLDOWN_DAYS = 45
+export const MINOR_RIVAL_NOTICE_COOLDOWN_DAYS = 30
 
 export const EVENT_PRIORITY = {
   immediateDecision: 1,
@@ -87,6 +95,10 @@ export function createEventPacingState(): EventPacingState {
     lastByDedupeKey: {},
     lastByFamily: {},
     majorByDay: {},
+    lastSeriousDecisionDay: null,
+    nextSeriousDecisionDay: null,
+    lastSeriousDecisionByEventId: {},
+    lastSeriousDecisionByFamily: {},
   }
 }
 
@@ -105,6 +117,10 @@ export function sanitizeEventPacingState(
     lastByDedupeKey: sanitizeDayValueMap(data?.lastByDedupeKey),
     lastByFamily: sanitizeDayValueMap(data?.lastByFamily),
     majorByDay: sanitizeMajorByDayMap(data?.majorByDay),
+    lastSeriousDecisionDay: isValidGameDay(data?.lastSeriousDecisionDay ?? -1) ? data!.lastSeriousDecisionDay! : null,
+    nextSeriousDecisionDay: isValidGameDay(data?.nextSeriousDecisionDay ?? -1) ? data!.nextSeriousDecisionDay! : null,
+    lastSeriousDecisionByEventId: sanitizeDayValueMap(data?.lastSeriousDecisionByEventId),
+    lastSeriousDecisionByFamily: sanitizeDayValueMap(data?.lastSeriousDecisionByFamily),
   }
 
   if (isValidGameDay(currentDay)) {
@@ -120,6 +136,8 @@ export function pruneEventPacingState(state: EventPacingState, currentDay: numbe
   const minDay = currentDay - EVENT_PACING_RETENTION_DAYS
   pruneDayValueMap(state.lastByDedupeKey, minDay)
   pruneDayValueMap(state.lastByFamily, minDay)
+  pruneDayValueMap(state.lastSeriousDecisionByEventId, minDay)
+  pruneDayValueMap(state.lastSeriousDecisionByFamily, minDay)
   pruneMajorByDayMap(state.majorByDay, minDay)
 }
 
@@ -167,11 +185,53 @@ export function isMajorEventCategory(category: EventCategory): boolean {
   return MAJOR_CATEGORIES.includes(category)
 }
 
+export function seriousDecisionDelayRangeForFirmLevel(level: number): { min: number; max: number } {
+  const lv = Math.max(1, Math.min(5, Math.floor(level)))
+  if (lv >= 5) return { min: 15, max: 25 }
+  if (lv >= 4) return { min: 20, max: 35 }
+  if (lv >= 3) return { min: 30, max: 50 }
+  return { min: 45, max: 75 }
+}
+
+function hashStable(value: string): number {
+  let hash = 2166136261
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+export function seriousDecisionDelayForFirmLevel(level: number, seedKey: string): number {
+  const range = seriousDecisionDelayRangeForFirmLevel(level)
+  const span = range.max - range.min + 1
+  return range.min + (hashStable(seedKey) % span)
+}
+
+export function isNormalSeriousDecision(meta: EventPacingMeta): boolean {
+  if (!meta.requiresInput || !meta.mayInterrupt) return false
+  return meta.majorFamily === 'rival'
+    || meta.majorFamily === 'rival_financial'
+}
+
+export function isCriticalInputRequiredEvent(meta: EventPacingMeta): boolean {
+  if (!meta.requiresInput || !meta.mayInterrupt) return false
+  return meta.category === 'critical_decision'
+    || meta.majorFamily === 'war'
+    || meta.majorFamily === 'major_crisis'
+    || meta.majorFamily === 'major_financial_crisis'
+    || meta.majorFamily === 'bankruptcy'
+    || meta.majorFamily === 'insolvency'
+    || meta.majorFamily === 'recovery'
+    || meta.majorFamily === 'bankruptcy_recovery'
+}
+
 function consumesMajorDailyQuota(meta: EventPacingMeta): boolean {
   return meta.requiresInput
     && meta.mayInterrupt
     && isMajorEventCategory(meta.category)
     && meta.majorFamily != null
+    && !isCriticalInputRequiredEvent(meta)
 }
 
 export function crisisEventCategory(id: CrisisId): EventCategory {
@@ -213,6 +273,7 @@ export function getEventPacingMeta(ev: GameEvent): EventPacingMeta {
           : category === 'financial'
             ? 'major_financial_crisis'
             : 'major_crisis',
+        seriousFamilyKey: `crisis:${ev.crisisId}`,
       }
     }
 
@@ -229,6 +290,7 @@ export function getEventPacingMeta(ev: GameEvent): EventPacingMeta {
         mayInterrupt: true,
         showInRecentActivities: true,
         majorFamily: category === 'financial' ? 'rival_financial' : 'rival',
+        seriousFamilyKey: `rival:${ev.event.rivalId}:${ev.event.kind}`,
       }
     }
 
@@ -429,12 +491,28 @@ export function canConsumePacedEvent(
   state: EventPacingState,
   meta: EventPacingMeta,
   day: number,
+  opts: { firmLevel?: number; seedKey?: string } = {},
 ): boolean {
   pruneEventPacingState(state, day)
   if (!isValidGameDay(day)) return true
 
   const lastKeyDay = state.lastByDedupeKey[meta.dedupeKey]
   if (lastKeyDay != null && day - lastKeyDay < meta.cooldownDays) return false
+
+  if (isNormalSeriousDecision(meta)) {
+    const lastEventDay = state.lastSeriousDecisionByEventId[meta.dedupeKey]
+    if (lastEventDay != null && day - lastEventDay < SERIOUS_DECISION_EVENT_COOLDOWN_DAYS) return false
+
+    const familyKeys = seriousDecisionFamilyKeys(meta)
+    for (const key of familyKeys) {
+      const lastFamilyDay = state.lastSeriousDecisionByFamily[key]
+      if (lastFamilyDay != null && day - lastFamilyDay < SERIOUS_DECISION_FAMILY_COOLDOWN_DAYS) return false
+    }
+
+    const nextDay = state.nextSeriousDecisionDay
+    if (nextDay != null && day < nextDay) return false
+    void opts
+  }
 
   if (meta.majorFamily) {
     const lastFamilyDay = state.lastByFamily[meta.majorFamily]
@@ -449,16 +527,39 @@ export function canConsumePacedEvent(
   return true
 }
 
-export function consumePacedEvent(state: EventPacingState, meta: EventPacingMeta, day: number): void {
+export function consumePacedEvent(
+  state: EventPacingState,
+  meta: EventPacingMeta,
+  day: number,
+  opts: { firmLevel?: number; seedKey?: string } = {},
+): void {
   pruneEventPacingState(state, day)
   if (!isValidGameDay(day)) return
 
   state.lastByDedupeKey[meta.dedupeKey] = day
   if (meta.majorFamily) state.lastByFamily[meta.majorFamily] = day
 
+  if (isNormalSeriousDecision(meta)) {
+    state.lastSeriousDecisionDay = day
+    state.lastSeriousDecisionByEventId[meta.dedupeKey] = day
+    for (const key of seriousDecisionFamilyKeys(meta)) {
+      state.lastSeriousDecisionByFamily[key] = day
+    }
+    const firmLevel = opts.firmLevel ?? 1
+    const seed = opts.seedKey ?? `${meta.dedupeKey}:${day}:${firmLevel}`
+    state.nextSeriousDecisionDay = day + seriousDecisionDelayForFirmLevel(firmLevel, seed)
+  }
+
   if (consumesMajorDailyQuota(meta)) {
     const key = String(day)
     const nextCount = (state.majorByDay[key] ?? 0) + 1
     state.majorByDay[key] = Math.min(nextCount, EVENT_MAJOR_BY_DAY_COUNT_CAP)
   }
+}
+
+function seriousDecisionFamilyKeys(meta: EventPacingMeta): string[] {
+  const keys: string[] = []
+  if (meta.majorFamily) keys.push(`family:${meta.majorFamily}`)
+  if (meta.seriousFamilyKey) keys.push(meta.seriousFamilyKey)
+  return keys
 }

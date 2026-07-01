@@ -183,6 +183,8 @@ export class RefApp {
       this.notifBridge = new RefNotificationBridge(st, () => {
         this.refreshActive(st)
         onPersistNotif?.()
+      }, {
+        canShowDecision: () => st.isIntroFlowReady() && !this.rewardQueue?.isOpen(),
       })
       this.unsub = st.subscribe((ev) => {
         this.notifBridge?.handle(ev)
@@ -223,6 +225,7 @@ export class RefApp {
         // Reward kuyruğu boşalınca karar modalı on-load kontrolünü çalıştır
         // (aynı anda tek modal kuralı: önce ödüller, sonra kritik durumlar).
         () => this.notifBridge?.start(),
+        (open) => { if (!open) this.notifBridge?.notifyExternalModalClosed() },
       )
       requestAnimationFrame(() => this.rewardQueue?.start())
     } else if (st) {

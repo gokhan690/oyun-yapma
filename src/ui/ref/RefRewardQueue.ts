@@ -49,16 +49,28 @@ export class RefRewardQueue {
   private readonly onClaimed: () => void
   /** Kuyruk tamamen boşalınca bir kez çağrılır (sonraki modal sistemine devir). */
   private readonly onAllDone?: () => void
+  private readonly onOpenChange?: (open: boolean) => void
   private allDoneFired = false
 
-  constructor(state: GameState, ads: AdManager, onClaimed: () => void, onAllDone?: () => void) {
+  constructor(
+    state: GameState,
+    ads: AdManager,
+    onClaimed: () => void,
+    onAllDone?: () => void,
+    onOpenChange?: (open: boolean) => void,
+  ) {
     this.state = state
     this.ads = ads
     this.onClaimed = onClaimed
     this.onAllDone = onAllDone
+    this.onOpenChange = onOpenChange
   }
 
   /** Bootstrap sonrası bir kez çağrılır. Pending ödülleri sıraya alır. */
+  isOpen(): boolean {
+    return !!this.overlay
+  }
+
   start(): void {
     if (this.destroyed) return
     const order: RewardId[] = ['offline', 'daily', 'bankruptcy']
@@ -155,6 +167,7 @@ export class RefRewardQueue {
     `
     this.overlay = overlay
     document.body.appendChild(overlay)
+    this.onOpenChange?.(true)
     spec.onShown?.()
 
     const primary = overlay.querySelector<HTMLButtonElement>('.ref-reward-primary')!
@@ -214,16 +227,20 @@ export class RefRewardQueue {
   }
 
   private close(): void {
+    const wasOpen = this.overlay !== null
     this.overlay?.remove()
     this.overlay = null
     this.busy = false
+    if (wasOpen) this.onOpenChange?.(false)
     this.pump()
   }
 
   destroy(): void {
     this.destroyed = true
+    const wasOpen = this.overlay !== null
     this.overlay?.remove()
     this.overlay = null
+    if (wasOpen) this.onOpenChange?.(false)
     this.queue = []
   }
 }
