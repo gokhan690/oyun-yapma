@@ -1644,6 +1644,18 @@ export const en: Translations = {
   ref_detail_upg_marketing: 'Marketing',
   ref_detail_upg_training: 'Training',
   ref_detail_upg_automation: 'Automation',
+  ref_detail_upgrade_buy: 'Buy',
+  ref_detail_upgrade_owned: 'Purchased',
+  ref_detail_upgrade_not_owned: 'Own this firm first',
+  ref_detail_upgrade_insufficient: 'Not enough balance',
+  ref_detail_upgrade_missing_fmt: 'Missing {amount}',
+  ref_detail_upgrade_current_income: 'Current daily income',
+  ref_detail_upgrade_after_income: 'Income after purchase',
+  ref_detail_upgrade_daily_delta: 'Daily income gain',
+  ref_detail_upgrade_payback: 'Estimated payback',
+  ref_detail_upgrade_payback_never: 'No payback',
+  ref_detail_upgrade_bought_toast: 'Upgrade purchased',
+  ref_detail_upgrade_already_owned: 'Already purchased',
 
   // Market
   ref_market_sentiment_title: 'Market Sentiment',

@@ -1828,6 +1828,18 @@ export interface Translations {
   ref_detail_upg_marketing: string
   ref_detail_upg_training: string
   ref_detail_upg_automation: string
+  ref_detail_upgrade_buy: string
+  ref_detail_upgrade_owned: string
+  ref_detail_upgrade_not_owned: string
+  ref_detail_upgrade_insufficient: string
+  ref_detail_upgrade_missing_fmt: string
+  ref_detail_upgrade_current_income: string
+  ref_detail_upgrade_after_income: string
+  ref_detail_upgrade_daily_delta: string
+  ref_detail_upgrade_payback: string
+  ref_detail_upgrade_payback_never: string
+  ref_detail_upgrade_bought_toast: string
+  ref_detail_upgrade_already_owned: string
 
   // Market — labels, toasts
   ref_market_sentiment_title: string

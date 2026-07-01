@@ -1631,6 +1631,18 @@ export const ar: Translations = {
   ref_detail_upg_marketing: 'التسويق',
   ref_detail_upg_training: 'التدريب',
   ref_detail_upg_automation: 'الأتمتة',
+  ref_detail_upgrade_buy: 'شراء',
+  ref_detail_upgrade_owned: 'تم الشراء',
+  ref_detail_upgrade_not_owned: 'امتلك هذه الشركة أولاً',
+  ref_detail_upgrade_insufficient: 'رصيد غير كاف',
+  ref_detail_upgrade_missing_fmt: 'ينقص {amount}',
+  ref_detail_upgrade_current_income: 'الدخل اليومي الحالي',
+  ref_detail_upgrade_after_income: 'الدخل بعد الشراء',
+  ref_detail_upgrade_daily_delta: 'زيادة الدخل اليومية',
+  ref_detail_upgrade_payback: 'استرداد تقديري',
+  ref_detail_upgrade_payback_never: 'لا استرداد',
+  ref_detail_upgrade_bought_toast: 'تم شراء التطوير',
+  ref_detail_upgrade_already_owned: 'تم شراؤه بالفعل',
 
   // Market
   ref_market_sentiment_title: 'معنويات السوق',

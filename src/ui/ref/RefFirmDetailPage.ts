@@ -1,7 +1,5 @@
 import './ref-ui.css'
 import { type FirmData, type FirmStatus, firmHeroSrc } from './RefCard'
-import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
-import { assetUrl } from '../../utils/assetUrl'
 import { areaChartSvg, gaugeSvg, donutSvg, refToast, registerSheetDismiss, formatSignedMoneyPerDay, fmtMoneyTrim } from './refShared'
 import { i18n } from '../../i18n'
 import type { GameState } from '../../game/GameState'
@@ -9,6 +7,7 @@ import { PRODUCERS, producerName, type ProducerDef } from '../../game/Economy'
 import { fmt } from '../../i18n'
 import { FIRM_MAX_LEVEL, firmLevelIncomeMult } from '../../game/FirmLevels'
 import { hasManager, MANAGER_BONUS } from '../../game/Managers'
+import { firmUpgradesForProducer } from '../../game/FirmUpgrades'
 import {
   NAMED_MANAGERS, namedManagerDef, namedManagerFirmBonus,
   managerDisplayName, managerSpecialty, type NamedManagerId,
@@ -21,6 +20,7 @@ export interface FirmDetailLiveCtx {
   /** Canlı aksiyon (level-up/manager/modernize) sonrası FirmData'yı güncel
    *  state'ten yeniden üretir → açık detay ekranı stale snapshot göstermez. */
   rebuild?: () => FirmData
+  onPersist?: () => void
 }
 
 /*
@@ -34,7 +34,7 @@ export interface FirmDetailLiveCtx {
  *   - Müşteri memnuniyeti      → performanstan türetilmiş tahmin
  *   - Gider dağılımı            → tipik sektör dağılımı (tahmini yüzde)
  *   - Şubeler                   → GERÇEK firma gelirinden tahmini bölüşüm (toplam ≤ gelir)
- *   - Geliştirme/Şube fiyatları → firma gelirine göre tahmini, deterministik
+ *   - Şube fiyatları            → firma gelirine göre tahmini, deterministik
  * Hepsi UI'da 'tahmini' etiketiyle işaretlenir; aksiyon butonları işlem YAPMAZ (önizleme).
  */
 
@@ -69,10 +69,6 @@ function perfClass(pct: number): string {
   if (pct >= 70) return 'high'
   if (pct >= 45) return 'medium'
   return 'low'
-}
-
-function ua(p: string): string {
-  return assetUrl(p.startsWith('/') ? p.slice(1) : p)
 }
 
 // Deterministik hash (firma id → sayı) — firmaya özgü tahmini değerler için
@@ -110,15 +106,6 @@ function firmBranches(f: FirmData): { name: string; perf: number; income: number
     perf: Math.max(40, Math.min(96, f.performance - i * 9)),
   }))
 }
-
-/** Detay sayfasında gösterilen "geliştirme" kartları (görsel/önizleme — işlem yapmaz).
- *  Fiyat firmanın GERÇEK gelirine göre tahmini ve deterministiktir (Math.random YOK). */
-const UPGRADE_TILES: { asset: string; labelKey: string; mult: number }[] = [
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.quality,       labelKey: 'ref_detail_upg_quality',    mult: 0.6 },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.marketing,     labelKey: 'ref_detail_upg_marketing',  mult: 1.0 },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.staffTraining, labelKey: 'ref_detail_upg_training',   mult: 1.6 },
-  { asset: REF_ASSETS_V2_GENERIC.upgrades.automation,    labelKey: 'ref_detail_upg_automation', mult: 2.4 },
-]
 
 export class RefFirmDetailPage {
   readonly el: HTMLElement
@@ -270,17 +257,7 @@ export class RefFirmDetailPage {
           </div>
         </div>
 
-        <!-- Upgrades (önizleme) -->
-        <div class="ref-detail-section-title">${i18n.t('ref_detail_upgrades_section')} <span class="ref-est-tag">${i18n.t('ref_detail_est_price_tag')}</span></div>
-        <div class="ref-detail-upgrades">
-          ${UPGRADE_TILES.map(u => `
-            <div class="ref-detail-upg">
-              <img src="${ua(u.asset)}" alt="" class="ref-detail-upg__img">
-              <span class="ref-detail-upg__lbl">${i18n.t(u.labelKey as Parameters<typeof i18n.t>[0])}</span>
-              <span class="ref-detail-upg__price">${fmtMoney(Math.max(10_000, Math.round(f.income * u.mult)))}</span>
-            </div>
-          `).join('')}
-        </div>
+        ${this.live ? this.liveUpgradeHtml() : ''}
 
         <!-- Şubeler (gerçek gelirden tahmini bölüşüm) -->
         <div class="ref-detail-section-title">${i18n.t('ref_detail_branches_section')} <span class="ref-est-tag">${i18n.t('ref_detail_est_tag')}</span></div>
@@ -325,6 +302,57 @@ export class RefFirmDetailPage {
   }
 
   /** Gerçek veriye bağlı yönetim paneli — firma seviyesi + işlevsel aksiyonlar. */
+  private liveUpgradeHtml(): string {
+    const def = this.liveDef()
+    const s = this.live?.state
+    if (!def || !s) return ''
+    const upgrades = firmUpgradesForProducer(def)
+    if (upgrades.length === 0) return ''
+    return `
+      <div class="ref-detail-section-title">${i18n.t('ref_detail_upgrades_section')}</div>
+      <div class="ref-detail-upgrades live">
+        ${upgrades.map((u) => {
+          const st = s.firmUpgradeStatus(def.id, u.id)
+          const statusText = this.upgradeStatusText(st)
+          const payback = st.paybackDays == null
+            ? i18n.t('ref_detail_upgrade_payback_never')
+            : `${st.paybackDays} ${i18n.t('time_days')}`
+          return `
+            <div class="ref-detail-upg live ${st.purchased ? 'owned' : ''}" data-upgrade-id="${u.id}">
+              <div class="ref-detail-upg__head">
+                <span class="ref-detail-upg__emoji">${u.emoji}</span>
+                <div>
+                  <div class="ref-detail-upg__lbl">${u.name}</div>
+                  <div class="ref-detail-upg__desc">${u.description}</div>
+                </div>
+              </div>
+              <div class="ref-detail-upg__metrics">
+                <div><span>${i18n.t('ref_detail_upgrade_current_income')}</span><b>${fmtMoney(st.incomeBefore)}/${i18n.t('time_day')}</b></div>
+                <div><span>${i18n.t('ref_detail_upgrade_after_income')}</span><b>${fmtMoney(st.incomeAfter)}/${i18n.t('time_day')}</b></div>
+                <div><span>${i18n.t('ref_detail_upgrade_daily_delta')}</span><b class="inc">+${fmtMoney(st.dailyIncomeDelta)}/${i18n.t('time_day')}</b></div>
+                <div><span>${i18n.t('ref_detail_upgrade_payback')}</span><b>${payback}</b></div>
+              </div>
+              <div class="ref-detail-upg__foot">
+                <span class="ref-detail-upg__price">${fmtMoney(st.cost)}</span>
+                <button class="ref-btn develop ref-detail-upg__buy" type="button" data-upgrade-buy="${u.id}" ${st.canBuy ? '' : 'disabled'}>${statusText}</button>
+              </div>
+            </div>
+          `
+        }).join('')}
+      </div>`
+  }
+
+  private upgradeStatusText(st: ReturnType<GameState['firmUpgradeStatus']>): string {
+    if (st.purchased) return i18n.t('ref_detail_upgrade_owned')
+    if (st.code === 'not_owned') return i18n.t('ref_detail_upgrade_not_owned')
+    if (st.code === 'insufficient_money') {
+      return `${i18n.t('ref_detail_upgrade_insufficient')} · ${fmt('ref_detail_upgrade_missing_fmt', { amount: fmtMoney(st.missingMoney) })}`
+    }
+    if (st.code === 'already_purchased') return i18n.t('ref_detail_upgrade_already_owned')
+    if (!st.canBuy) return i18n.t('ref_detail_upgrade_failed')
+    return i18n.t('ref_detail_upgrade_buy')
+  }
+
   private liveManageHtml(): string {
     const ctx = this.live!
     const def = this.liveDef()
@@ -460,6 +488,25 @@ export class RefFirmDetailPage {
     })
     this.el.querySelector<HTMLButtonElement>('[data-act="sell"]')?.addEventListener('click', () => {
       this.openSalePanel(s, def)
+    })
+    this.el.querySelectorAll<HTMLButtonElement>('[data-upgrade-buy]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const upgradeId = btn.dataset.upgradeBuy
+        if (!upgradeId) return
+        const status = s.firmUpgradeStatus(def.id, upgradeId)
+        if (!status.canBuy) {
+          refToast(this.upgradeStatusText(status), 'err')
+          return
+        }
+        const ok = s.buyFirmUpgrade(def.id, upgradeId)
+        if (ok) {
+          this.refreshLive()
+          ctx.onPersist?.()
+          refToast(i18n.t('ref_detail_upgrade_bought_toast'), 'ok')
+        } else {
+          refToast(i18n.t('ref_detail_upgrade_failed'), 'err')
+        }
+      })
     })
   }
 

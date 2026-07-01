@@ -6603,6 +6603,97 @@ export class GameState {
     return firmUpgradeCost(def, up, owned)
   }
 
+  firmUpgradeStatus(producerId: string, upgradeId: string): {
+    producerId: string
+    upgradeId: string
+    owned: boolean
+    purchased: boolean
+    cost: number
+    canBuy: boolean
+    code: 'ok' | 'producer_not_found' | 'invalid_upgrade' | 'not_owned' | 'already_purchased' | 'insufficient_money'
+    missingMoney: number
+    incomeBefore: number
+    incomeAfter: number
+    dailyIncomeDelta: number
+    paybackDays: number | null
+  } {
+    const def = PRODUCERS.find((p) => p.id === producerId)
+    if (!def) {
+      return {
+        producerId,
+        upgradeId,
+        owned: false,
+        purchased: false,
+        cost: 0,
+        canBuy: false,
+        code: 'producer_not_found',
+        missingMoney: 0,
+        incomeBefore: 0,
+        incomeAfter: 0,
+        dailyIncomeDelta: 0,
+        paybackDays: null,
+      }
+    }
+
+    const ownedCount = this.producers[producerId] ?? 0
+    const owned = ownedCount > 0
+    const purchased = this.firmUpgradesPurchased(producerId).includes(upgradeId)
+    const up = firmUpgradeDef(def, upgradeId)
+    const incomeBefore = Math.round(this.producerIncome(def))
+    if (!up) {
+      return {
+        producerId,
+        upgradeId,
+        owned,
+        purchased,
+        cost: 0,
+        canBuy: false,
+        code: 'invalid_upgrade',
+        missingMoney: 0,
+        incomeBefore,
+        incomeAfter: incomeBefore,
+        dailyIncomeDelta: 0,
+        paybackDays: null,
+      }
+    }
+
+    const cost = firmUpgradeCost(def, up, ownedCount)
+    let incomeAfter = incomeBefore
+    if (owned && !purchased) {
+      const had = Object.prototype.hasOwnProperty.call(this.producerUpgrades, producerId)
+      const prev = this.producerUpgrades[producerId]
+      this.producerUpgrades[producerId] = [...(prev ?? []), upgradeId]
+      try {
+        incomeAfter = Math.round(this.producerIncome(def))
+      } finally {
+        if (had) this.producerUpgrades[producerId] = prev!
+        else delete this.producerUpgrades[producerId]
+      }
+    }
+
+    const dailyIncomeDelta = Math.max(0, incomeAfter - incomeBefore)
+    const paybackDays = dailyIncomeDelta > 0 && isFinite(cost) ? Math.ceil(cost / dailyIncomeDelta) : null
+    let code: 'ok' | 'not_owned' | 'already_purchased' | 'insufficient_money' = 'ok'
+    if (!owned) code = 'not_owned'
+    else if (purchased) code = 'already_purchased'
+    else if (this.money < cost) code = 'insufficient_money'
+    const canBuy = code === 'ok'
+    return {
+      producerId,
+      upgradeId,
+      owned,
+      purchased,
+      cost,
+      canBuy,
+      code,
+      missingMoney: code === 'insufficient_money' ? Math.max(0, cost - this.money) : 0,
+      incomeBefore,
+      incomeAfter,
+      dailyIncomeDelta,
+      paybackDays,
+    }
+  }
+
   buyFirmUpgrade(producerId: string, upgradeId: string): boolean {
     const def = PRODUCERS.find((p) => p.id === producerId)
     if (!def) return false

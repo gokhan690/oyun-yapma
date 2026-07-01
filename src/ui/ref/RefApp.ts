@@ -293,7 +293,7 @@ export class RefApp {
         // hasRealData=!!vm: gerçek (ama boş) GameState'i saf-önizleme mock'undan
         // ayır → 0 firmalı oyuncuda dashboard ₺0 ile firmalar listesi çelişmez.
         const firms = new RefFirmsPage(vm?.firms, !!vm, st)
-        firms.onOpenFirm = (f: FirmData, live) => this.detail.show(f, live)
+        firms.onOpenFirm = (f: FirmData, live) => this.detail.show(f, live ? { ...live, onPersist: this.onPersist } : live)
         return firms
       }
       case 'career': return new RefCareerPage(vm?.career, st, this.onPersist)

@@ -1644,6 +1644,18 @@ export const tr: Translations = {
   ref_detail_upg_marketing: 'Pazarlama',
   ref_detail_upg_training: 'Eğitim',
   ref_detail_upg_automation: 'Otomasyon',
+  ref_detail_upgrade_buy: 'SatÄ±n Al',
+  ref_detail_upgrade_owned: 'SatÄ±n AlÄ±ndÄ±',
+  ref_detail_upgrade_not_owned: 'Firmaya sahip olmalÄ±sÄ±n',
+  ref_detail_upgrade_insufficient: 'Yetersiz bakiye',
+  ref_detail_upgrade_missing_fmt: 'Eksik {amount}',
+  ref_detail_upgrade_current_income: 'Mevcut gÃ¼nlÃ¼k gelir',
+  ref_detail_upgrade_after_income: 'SatÄ±n alma sonrasÄ± gelir',
+  ref_detail_upgrade_daily_delta: 'GÃ¼nlÃ¼k gelir artÄ±ÅŸÄ±',
+  ref_detail_upgrade_payback: 'Tahmini geri dÃ¶nÃ¼ÅŸ',
+  ref_detail_upgrade_payback_never: 'Geri dÃ¶nÃ¼ÅŸ yok',
+  ref_detail_upgrade_bought_toast: 'GeliÅŸtirme satÄ±n alÄ±ndÄ±',
+  ref_detail_upgrade_already_owned: 'Bu geliÅŸtirme zaten satÄ±n alÄ±nmÄ±ÅŸ',
 
   // Market
   ref_market_sentiment_title: 'Piyasa Duyarlılığı',
