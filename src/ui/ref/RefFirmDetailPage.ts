@@ -484,7 +484,7 @@ export class RefFirmDetailPage {
       this.openManagerPanel(s, def)
     })
     this.el.querySelector<HTMLButtonElement>('[data-act="manager-dismiss"]')?.addEventListener('click', () => {
-      if (s.unassignFirmManager(def.id)) { refToast(i18n.t('ref_mgr_dismissed_toast'), 'ok'); this.refreshLive() }
+      if (s.unassignFirmManager(def.id)) { this.refreshLive(); ctx.onPersist?.(); refToast(i18n.t('ref_mgr_dismissed_toast'), 'ok') }
     })
     this.el.querySelector<HTMLButtonElement>('[data-act="sell"]')?.addEventListener('click', () => {
       this.openSalePanel(s, def)
@@ -536,9 +536,10 @@ export class RefFirmDetailPage {
       if (assignBtn && !assignBtn.disabled) {
         const r = s.assignFirmManager(def.id, assignBtn.dataset.mgrAssign as NamedManagerId)
         if (r.ok) {
-          refToast(i18n.t('ref_mgr_assigned_toast'), 'ok')
           this.closeManagerPanel()
           this.refreshLive()
+          this.live?.onPersist?.()
+          refToast(i18n.t('ref_mgr_assigned_toast'), 'ok')
         } else {
           refToast(this.managerReasonText(r.reason), 'err')
           render() // yetersiz bakiye vb. durumda paneli güncel tut
@@ -553,11 +554,12 @@ export class RefFirmDetailPage {
     if (reason === 'insufficient') return i18n.t('ref_mgr_reason_insufficient')
     if (reason === 'not_owned') return i18n.t('ref_mgr_reason_not_owned')
     if (reason === 'already_here') return i18n.t('ref_mgr_reason_already_here')
+    if (reason === 'not_eligible') return i18n.t('ref_mgr_reason_not_eligible')
     return i18n.t('ref_detail_manager_failed')
   }
 
   /** Tek bir menajer kartı (uygunluk grubuna göre filtrelenmiş listede gösterilir). */
-  private managerCardHtml(def: ProducerDef, m: typeof NAMED_MANAGERS[number], pv: ReturnType<GameState['previewManagerAssignment']>): string {
+  private managerCardHtml(def: ProducerDef, m: typeof NAMED_MANAGERS[number], pv: ReturnType<GameState['managerHireStatus']>): string {
     let statusLbl: string, statusCls: string
     if (pv.assignedFirmId === def.id) { statusLbl = i18n.t('ref_mgr_status_here'); statusCls = 'here' }
     else if (pv.assignedFirmId) { statusLbl = i18n.t('ref_mgr_status_other'); statusCls = 'other' }
@@ -567,16 +569,19 @@ export class RefFirmDetailPage {
     const applLbl = pv.applicabilityType === 'specific' ? i18n.t('ref_mgr_appl_specific') : i18n.t('ref_mgr_appl_general')
     const firmBonus = namedManagerFirmBonus(m, def.id)
     const bonusLine = firmBonus > 0
-      ? fmt('ref_mgr_firm_income_fmt', { from: fmtMoneyTrim(pv.currentIncome), to: fmtMoneyTrim(pv.projectedIncome) })
+      ? fmt('ref_mgr_firm_income_fmt', { from: fmtMoneyTrim(pv.incomeBefore), to: fmtMoneyTrim(pv.incomeAfter) })
       : `<span class="ref-mgr-nobonus">${i18n.t('ref_mgr_no_firm_bonus')}</span>`
     const netCls = pv.netDailyDelta > 0 ? 'up' : pv.netDailyDelta < 0 ? 'down' : 'muted'
     const hireLine = pv.alreadyHired
       ? i18n.t('ref_mgr_already_hired')
       : fmt('ref_mgr_hire_cost_fmt', { cost: fmtMoneyTrim(pv.hireCost) })
+    const paybackLine = pv.paybackDays == null
+      ? i18n.t(pv.netDailyDelta <= 0 ? 'ref_mgr_inefficient' : 'ref_mgr_payback_none')
+      : fmt('ref_mgr_payback_fmt', { days: String(pv.paybackDays) })
     const lossWarn = pv.netDailyDelta < 0
       ? `<div class="ref-mgr-card__loss">${fmt('ref_mgr_loss_warn', { amount: fmtMoneyTrim(Math.abs(pv.netDailyDelta)) })}</div>` : ''
-    const reasonNote = (!pv.canAssign && pv.reason === 'insufficient')
-      ? `<div class="ref-mgr-card__reason">${i18n.t('ref_mgr_reason_insufficient')}</div>` : ''
+    const reasonNote = (!pv.canAssign && pv.reason !== 'already_here')
+      ? `<div class="ref-mgr-card__reason">${this.managerReasonText(pv.reason)}</div>` : ''
     const btnLbl = pv.assignedFirmId === def.id ? i18n.t('ref_mgr_status_here')
       : pv.alreadyHired ? i18n.t('ref_mgr_move_here') : i18n.t('ref_mgr_assign_here')
     return `
@@ -590,9 +595,11 @@ export class RefFirmDetailPage {
           <span class="ref-mgr-card__status ${statusCls}">${statusLbl}</span>
         </div>
         <div class="ref-mgr-card__rows">
-          <div class="ref-mgr-row"><span>${hireLine}</span><span>${i18n.t('ref_mgr_daily_salary')}: ${fmtMoneyTrim(m.dailySalary)}</span></div>
+          <div class="ref-mgr-row"><span>${hireLine}</span><span>${i18n.t('ref_mgr_daily_salary')}: ${fmtMoneyTrim(pv.salaryPerDay)}</span></div>
           <div class="ref-mgr-row firm">${bonusLine}</div>
+          <div class="ref-mgr-row gross"><span>${i18n.t('ref_mgr_gross_daily')}</span><b>${formatSignedMoneyPerDay(pv.grossDailyDelta)}</b></div>
           <div class="ref-mgr-row net"><span>${i18n.t('ref_mgr_net_daily')}</span><b class="ref-pl-${netCls}">${formatSignedMoneyPerDay(pv.netDailyDelta)}</b></div>
+          <div class="ref-mgr-row payback"><span>${i18n.t('ref_mgr_payback_label')}</span><span>${paybackLine}</span></div>
         </div>
         ${lossWarn}
         ${reasonNote}
@@ -604,7 +611,7 @@ export class RefFirmDetailPage {
     // Yalnız bu firmada ANLAMLI menajerler: firmaya özel + genel bonus (gerçek
     // bonus tanımından türetilir; alakasız menajer panelde GÖSTERİLMEZ).
     const entries = NAMED_MANAGERS
-      .map((m) => ({ m, pv: s.previewManagerAssignment(def.id, m.id) }))
+      .map((m) => ({ m, pv: s.managerHireStatus(def.id, m.id) }))
       .filter((e) => e.pv.appliesToFirm)
     const specific = entries.filter((e) => e.pv.applicabilityType === 'specific')
     const general = entries.filter((e) => e.pv.applicabilityType === 'general')

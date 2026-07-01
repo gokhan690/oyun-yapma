@@ -221,10 +221,14 @@ async function goFirms(page) {
   await page.waitForSelector('.ref-prod-card', { timeout: 15000 })
 }
 
-async function openStajyerDetail(page) {
+async function openFirmDetail(page, producerId) {
   await goFirms(page)
-  await page.locator('.ref-prod-card[data-id="stajyer"] .ref-prod-card__head').click()
+  await page.locator(`.ref-prod-card[data-id="${producerId}"] .ref-prod-card__head`).click()
   await page.waitForSelector('.ref-detail-upg.live', { timeout: 15000 })
+}
+
+async function openStajyerDetail(page) {
+  await openFirmDetail(page, 'stajyer')
 }
 
 async function reloadToStajyerDetail(page) {
@@ -264,6 +268,49 @@ async function snapshot(page) {
       innerWidth: window.innerWidth,
     }
   })
+}
+
+async function openManagerPanel(page) {
+  await page.locator('[data-act="manager-panel"]').first().click()
+  await page.waitForSelector('.ref-mgr-sheet .ref-mgr-card', { timeout: 15000 })
+}
+
+async function managerSnapshot(page, producerId = 'fabrika', managerId = 'fatma') {
+  return page.evaluate(async ({ producerId, managerId }) => {
+    const s = window.__tur15State
+    const economy = await import('/src/game/Economy.ts')
+    const named = await import('/src/game/NamedManagers.ts')
+    const def = economy.PRODUCERS.find((p) => p.id === producerId)
+    const status = s?.managerHireStatus?.(producerId, managerId)
+    const expectedIds = def
+      ? named.NAMED_MANAGERS
+          .filter((m) => named.managerApplicability(m, producerId, !!def.illegal) !== null)
+          .map((m) => m.id)
+      : []
+    const visibleIds = [...document.querySelectorAll('[data-mgr-assign]')].map((el) => el.dataset.mgrAssign)
+    const settlement = s?.dailySettlementBreakdown?.()
+    const upgradeStatus = s?.firmUpgradeStatus?.(producerId, 'kalite')
+    return {
+      money: Number(s?.money ?? 0),
+      owned: Number(s?.producers?.[producerId] ?? 0),
+      assignedManager: s?.firmManagerAssignments?.[producerId] ?? null,
+      otherAssignedManager: s?.firmManagerAssignments?.stajyer ?? null,
+      namedManagers: [...(s?.namedManagers ?? [])],
+      status,
+      income: def && s ? Math.round(s.producerIncome(def)) : 0,
+      managerSalary: Number(settlement?.managerSalary ?? 0),
+      upgradeStatus,
+      expectedIds,
+      visibleIds,
+      managerCardCount: document.querySelectorAll('.ref-mgr-card').length,
+      fatmaButtonDisabled: document.querySelector('[data-mgr-assign="fatma"]')?.disabled ?? null,
+      text: document.body.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+      levelButtonCount: document.querySelectorAll('[data-act="level"], .ref-detail-actions.live .ref-btn.develop').length,
+      sellButtonCount: document.querySelectorAll('[data-act="sell"]').length,
+      scrollWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+      innerWidth: window.innerWidth,
+    }
+  }, { producerId, managerId })
 }
 
 async function scenarioOwnedUpgradePurchasePersists(base) {
@@ -332,13 +379,98 @@ async function scenarioInsufficientAndLegacySave(base) {
   await unownedRun.context.close()
 }
 
+async function scenarioManagerHirePersistsAndAffectsEconomy(base) {
+  const save = normalizeFixture(base)
+  save.money = 500_000
+  save.totalEarned = 1_000_000
+  save.producers.fabrika = 100
+  save.producerUpgrades.fabrika = ['kalite']
+  save.producerLevels.fabrika = 1
+  save.producerModernized.fabrika = false
+  save.firmManagerAssignments = {}
+  save.namedManagers = []
+
+  const { context, page } = await launchWithSave(save, { width: 430, height: 860 })
+  await openFirmDetail(page, 'fabrika')
+  await openManagerPanel(page)
+  let shot = await managerSnapshot(page)
+  assert(shot.managerCardCount === shot.expectedIds.length && shot.expectedIds.includes('fatma'), 'manager panel should render real domain manager list', shot)
+  assert(shot.visibleIds.includes('fatma') && !shot.visibleIds.includes('zara'), 'manager panel should filter by domain applicability', shot)
+  assert(shot.status.canHire && shot.status.code === 'ok', 'eligible owned firm should allow manager hire', shot.status)
+  assert(shot.status.grossDailyDelta > 0, 'manager status should expose gross firm income contribution', shot.status)
+  assert(shot.status.netDailyDelta === shot.status.grossDailyDelta - shot.status.salaryPerDay, 'net contribution should subtract daily salary', shot.status)
+  assert(shot.status.paybackDays === Math.ceil(shot.status.hireCost / shot.status.netDailyDelta), 'payback should be derived from hire cost and net daily delta', shot.status)
+  assert(shot.scrollWidth <= shot.innerWidth + 1, '430px manager panel must not horizontally overflow', { scrollWidth: shot.scrollWidth, innerWidth: shot.innerWidth })
+  assert(shot.levelButtonCount > 0 && shot.sellButtonCount > 0, 'level and sell sections should remain visible with manager panel changes', shot)
+
+  const before = shot
+  await page.locator('[data-mgr-assign="fatma"]').click()
+  await page.waitForTimeout(250)
+  shot = await managerSnapshot(page)
+  assert(shot.money === before.money - before.status.hireCost, 'manager hire should debit one-time cost exactly once', { before: before.money, after: shot.money, cost: before.status.hireCost })
+  assert(shot.namedManagers.filter((m) => m.id === 'fatma').length === 1, 'namedManagers should contain hired manager once', shot.namedManagers)
+  assert(shot.assignedManager === 'fatma', 'firm should store assigned manager id', shot)
+  assert(shot.income === before.status.incomeAfter, 'actual income after manager hire should match preview incomeAfter', { expected: before.status.incomeAfter, actual: shot.income })
+  assert(shot.managerSalary === before.status.salaryPerDay, 'daily settlement should include assigned manager salary', shot)
+  assert(shot.status.hired && shot.status.code === 'already_here' && shot.fatmaButtonDisabled === null, 'assigned manager should be in current firm after panel closes', shot.status)
+  assert(shot.upgradeStatus.incomeBefore === shot.income, 'upgrade preview should include active manager income without double counting', shot.upgradeStatus)
+  assert(shot.otherAssignedManager == null, 'another firm manager state must not be affected', shot.otherAssignedManager)
+
+  const persisted = await saved(page)
+  assert(persisted.firmManagerAssignments?.fabrika === 'fatma', 'manager assignment should persist immediately', persisted.firmManagerAssignments)
+  assert((persisted.namedManagers ?? []).filter((m) => m.id === 'fatma').length === 1, 'persisted namedManagers should contain manager once', persisted.namedManagers)
+  assert(persisted.money === shot.money, 'persisted money should match post-hire money', { saved: persisted.money, live: shot.money })
+
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 })
+  await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {})
+  await waitForShell(page)
+  await openFirmDetail(page, 'fabrika')
+  const afterReload = await managerSnapshot(page)
+  assert(afterReload.assignedManager === 'fatma', 'manager assignment should survive reload', afterReload)
+  assert(afterReload.money === shot.money, 'reload should not debit manager hire cost again', { beforeReload: shot.money, afterReload: afterReload.money })
+  assert(afterReload.income === shot.income, 'reload should preserve manager income effect', { beforeReload: shot.income, afterReload: afterReload.income })
+  assert(afterReload.managerSalary === shot.managerSalary, 'reload should preserve manager salary effect', afterReload)
+  await openManagerPanel(page)
+  const panelAfterReload = await managerSnapshot(page)
+  assert(panelAfterReload.fatmaButtonDisabled === true && panelAfterReload.status.code === 'already_here', 'assigned manager cannot be hired twice after reload', panelAfterReload.status)
+  await context.close()
+
+  const poor = normalizeFixture(base)
+  poor.money = 1
+  poor.producers.fabrika = 100
+  const poorRun = await launchWithSave(poor, { width: 430, height: 860 })
+  await openFirmDetail(poorRun.page, 'fabrika')
+  await openManagerPanel(poorRun.page)
+  const poorShot = await managerSnapshot(poorRun.page)
+  assert(poorShot.status.code === 'insufficient_money' && poorShot.fatmaButtonDisabled === true, 'insufficient money should disable manager hire', poorShot.status)
+  await poorRun.context.close()
+
+  const oldSave = normalizeFixture(base)
+  oldSave.producers.fabrika = 100
+  delete oldSave.namedManagers
+  delete oldSave.firmManagerAssignments
+  const legacyRun = await launchWithSave(oldSave)
+  await openFirmDetail(legacyRun.page, 'fabrika')
+  const legacyShot = await managerSnapshot(legacyRun.page)
+  assert(legacyShot.assignedManager == null && legacyShot.status.hired === false, 'legacy save without manager fields should default safely', legacyShot.status)
+  await legacyRun.context.close()
+
+  const unowned = normalizeFixture(base)
+  unowned.producers.fabrika = 0
+  const unownedRun = await launchWithSave(unowned)
+  const unownedStatus = await unownedRun.page.evaluate(() => window.__tur15State.managerHireStatus('fabrika', 'fatma'))
+  assert(unownedStatus.code === 'not_owned' && unownedStatus.canHire === false, 'unowned firm status should block manager hire', unownedStatus)
+  await unownedRun.context.close()
+}
+
 async function main() {
   browser = await chromium.launch()
   try {
     const base = await makeBaseSave()
     await scenarioOwnedUpgradePurchasePersists(base)
     await scenarioInsufficientAndLegacySave(base)
-    console.log('TUR15-A3 firm upgrade scenarios passed')
+    await scenarioManagerHirePersistsAndAffectsEconomy(base)
+    console.log('TUR15-A3 firm upgrade and manager scenarios passed')
   } finally {
     await browser?.close()
   }

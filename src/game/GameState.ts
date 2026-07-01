@@ -5992,23 +5992,38 @@ export class GameState {
    * formülünü yazmaz; bu API tek kaynaktır. `projectedIncome`, atama SONRASI
    * gerçek `producerIncome` ile BİREBİR eşleşir.
    */
-  previewManagerAssignment(producerId: string, managerId: NamedManagerId): {
+  managerHireStatus(producerId: string, managerId: NamedManagerId): {
+    producerId: string
+    managerId: NamedManagerId
+    owned: boolean
+    hired: boolean
+    eligible: boolean
+    canHire: boolean
+    code: 'ok' | 'not_found' | 'not_owned' | 'not_eligible' | 'already_here' | 'insufficient_money'
+    reason: 'ok' | 'not_found' | 'not_owned' | 'not_eligible' | 'already_here' | 'insufficient'
+    missingMoney: number
+    missingRequirement: string | null
+    salaryPerDay: number
+    hireCost: number
+    incomeBefore: number
+    incomeAfter: number
+    grossDailyDelta: number
+    netDailyDelta: number
+    paybackDays: number | null
     appliesToFirm: boolean
     applicabilityType: ManagerApplicability
     currentIncome: number
     projectedIncome: number
     incomeDelta: number
     dailySalary: number
-    netDailyDelta: number
-    hireCost: number
     alreadyHired: boolean
     assignedFirmId: string | null
     canAssign: boolean
-    reason: 'ok' | 'not_found' | 'not_owned' | 'already_here' | 'insufficient'
   } {
     const def = namedManagerDef(managerId)
     const prod = PRODUCERS.find((p) => p.id === producerId)
-    const owned = this.producers[producerId] ?? 0
+    const ownedCount = this.producers[producerId] ?? 0
+    const owned = ownedCount > 0
     const alreadyHired = this.isNamedManagerHired(managerId)
     const assignedFirmId = this.namedManagerAssignedFirm(managerId) ?? null
     const dailySalary = def?.dailySalary ?? 0
@@ -6016,37 +6031,63 @@ export class GameState {
     const applicabilityType: ManagerApplicability = def && prod
       ? managerApplicability(def, producerId, !!prod.illegal)
       : null
-    const currentIncome = prod ? Math.round(this.producerIncome(prod)) : 0
-    let projectedIncome = currentIncome
-    if (def && prod && owned > 0) {
+    const incomeBefore = prod ? Math.round(this.producerIncome(prod)) : 0
+    let incomeAfter = incomeBefore
+    if (def && prod && owned && applicabilityType !== null) {
       const prev = this.firmManagerAssignments[producerId]
       this.firmManagerAssignments[producerId] = managerId
       try {
-        projectedIncome = Math.round(this.producerIncome(prod))
+        incomeAfter = Math.round(this.producerIncome(prod))
       } finally {
         if (prev === undefined) delete this.firmManagerAssignments[producerId]
         else this.firmManagerAssignments[producerId] = prev
       }
     }
-    let reason: 'ok' | 'not_found' | 'not_owned' | 'already_here' | 'insufficient' = 'ok'
+    let reason: 'ok' | 'not_found' | 'not_owned' | 'not_eligible' | 'already_here' | 'insufficient' = 'ok'
+    let code: 'ok' | 'not_found' | 'not_owned' | 'not_eligible' | 'already_here' | 'insufficient_money' = 'ok'
     if (!def) reason = 'not_found'
-    else if (owned <= 0) reason = 'not_owned'
+    else if (!prod || ownedCount <= 0) reason = 'not_owned'
+    else if (applicabilityType === null) reason = 'not_eligible'
     else if (assignedFirmId === producerId) reason = 'already_here'
     else if (!alreadyHired && !this.canAfford(hireCost)) reason = 'insufficient'
+    if (reason === 'insufficient') code = 'insufficient_money'
+    else code = reason
+    const grossDailyDelta = incomeAfter - incomeBefore
+    const netDailyDelta = grossDailyDelta - dailySalary
+    const missingMoney = reason === 'insufficient' ? Math.max(0, hireCost - Math.floor(this.money)) : 0
+    const paybackDays = hireCost > 0 && netDailyDelta > 0 ? Math.ceil(hireCost / netDailyDelta) : null
     return {
+      producerId,
+      managerId,
+      owned,
+      hired: alreadyHired,
+      eligible: !!def && !!prod && owned && applicabilityType !== null,
+      canHire: reason === 'ok',
+      code,
+      reason,
+      missingMoney,
+      missingRequirement: reason === 'not_eligible' ? 'manager_not_applicable' : null,
+      salaryPerDay: dailySalary,
+      hireCost,
+      incomeBefore,
+      incomeAfter,
+      grossDailyDelta,
+      netDailyDelta,
+      paybackDays,
       appliesToFirm: applicabilityType !== null,
       applicabilityType,
-      currentIncome,
-      projectedIncome,
-      incomeDelta: projectedIncome - currentIncome,
+      currentIncome: incomeBefore,
+      projectedIncome: incomeAfter,
+      incomeDelta: grossDailyDelta,
       dailySalary,
-      netDailyDelta: (projectedIncome - currentIncome) - dailySalary,
-      hireCost,
       alreadyHired,
       assignedFirmId,
       canAssign: reason === 'ok',
-      reason,
     }
+  }
+
+  previewManagerAssignment(producerId: string, managerId: NamedManagerId): ReturnType<GameState['managerHireStatus']> {
+    return this.managerHireStatus(producerId, managerId)
   }
 
   /**
@@ -6057,8 +6098,10 @@ export class GameState {
   assignFirmManager(producerId: string, managerId: NamedManagerId): { ok: boolean; reason: string } {
     const def = namedManagerDef(managerId)
     if (!def) return { ok: false, reason: 'not_found' }
+    const prod = PRODUCERS.find((p) => p.id === producerId)
     const owned = this.producers[producerId] ?? 0
     if (owned <= 0) return { ok: false, reason: 'not_owned' }
+    if (!prod || managerApplicability(def, producerId, !!prod.illegal) === null) return { ok: false, reason: 'not_eligible' }
     if (this.firmManagerAssignments[producerId] === managerId) return { ok: false, reason: 'already_here' }
     const alreadyHired = this.isNamedManagerHired(managerId)
     if (!alreadyHired) {

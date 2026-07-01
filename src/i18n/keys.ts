@@ -1755,10 +1755,16 @@ export interface Translations {
   ref_mgr_already_hired: string
   ref_mgr_hire_cost_fmt: string
   ref_mgr_daily_salary: string
+  ref_mgr_gross_daily: string
   ref_mgr_net_daily: string
+  ref_mgr_payback_label: string
+  ref_mgr_payback_fmt: string
+  ref_mgr_payback_none: string
+  ref_mgr_inefficient: string
   ref_mgr_move_here: string
   ref_mgr_assign_here: string
   ref_mgr_panel_title: string
+  ref_mgr_reason_not_eligible: string
   ref_mgr_group_specific: string
   ref_mgr_group_general: string
   ref_mgr_appl_specific: string

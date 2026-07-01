@@ -1251,20 +1251,21 @@ body.ref-sheet-open { overflow: hidden !important; }
 .ref-mgr-sheet { max-width: 560px; }
 .ref-mgr-list { display: flex; flex-direction: column; gap: 9px; }
 .ref-mgr-card { background: var(--r-card-soft); border: 1px solid var(--r-border-lt); border-radius: var(--r-md); padding: 11px 12px; }
-.ref-mgr-card__head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.ref-mgr-card__head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
 .ref-mgr-card__emoji { font-size: 26px; }
 .ref-mgr-card__id { flex: 1; min-width: 0; }
-.ref-mgr-card__name { font-size: 14px; font-weight: 900; color: var(--r-text); }
-.ref-mgr-card__spec { font-size: 11.5px; font-weight: 600; color: var(--r-muted); }
+.ref-mgr-card__name { font-size: 14px; font-weight: 900; color: var(--r-text); overflow-wrap: anywhere; }
+.ref-mgr-card__spec { font-size: 11.5px; font-weight: 600; color: var(--r-muted); overflow-wrap: anywhere; }
 .ref-mgr-card__status { font-size: 10.5px; font-weight: 800; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
 .ref-mgr-card__status.here { background: rgba(40,199,111,0.15); color: var(--r-success); }
 .ref-mgr-card__status.other { background: rgba(246,166,9,0.15); color: #d98a00; }
 .ref-mgr-card__status.idle { background: var(--r-border-lt); color: var(--r-muted); }
 .ref-mgr-card__status.new { background: rgba(37,99,235,0.12); color: #2563EB; }
 .ref-mgr-card__rows { display: flex; flex-direction: column; gap: 4px; }
-.ref-mgr-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 600; color: var(--r-text2); }
+.ref-mgr-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 600; color: var(--r-text2); min-width: 0; }
+.ref-mgr-row > span, .ref-mgr-row > b { min-width: 0; overflow-wrap: anywhere; }
 .ref-mgr-row.firm { color: var(--r-text); font-weight: 700; }
-.ref-mgr-row.net b { font-weight: 900; }
+.ref-mgr-row.gross b, .ref-mgr-row.net b { font-weight: 900; }
 .ref-mgr-nobonus { color: var(--r-muted); font-style: italic; font-weight: 600; }
 .ref-mgr-card__reason { font-size: 11.5px; font-weight: 700; color: var(--r-danger); margin-top: 6px; }
 .ref-mgr-card__loss { font-size: 11.5px; font-weight: 700; color: var(--r-danger); background: var(--r-danger-bg); border-radius: var(--r-sm); padding: 5px 8px; margin-top: 7px; }
