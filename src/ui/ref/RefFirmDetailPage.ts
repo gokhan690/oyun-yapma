@@ -17,6 +17,7 @@ import {
 export interface FirmDetailLiveCtx {
   state: GameState
   producerId: string
+  initialPanel?: 'manager'
   /** Canlı aksiyon (level-up/manager/modernize) sonrası FirmData'yı güncel
    *  state'ten yeniden üretir → açık detay ekranı stale snapshot göstermez. */
   rebuild?: () => FirmData
@@ -128,6 +129,10 @@ export class RefFirmDetailPage {
     this.render()
     this.el.hidden = false
     this.el.scrollTop = 0
+    if (live?.initialPanel === 'manager') {
+      const def = this.liveDef()
+      if (def) this.openManagerPanel(live.state, def)
+    }
   }
 
   private liveDef(): ProducerDef | undefined {
@@ -406,7 +411,6 @@ export class RefFirmDetailPage {
           </div>
           <div class="ref-mgr-current__actions">
             <button class="ref-btn manager sm" type="button" data-act="manager-panel">${i18n.t('ref_mgr_change')}</button>
-            <button class="ref-btn manager sm ghost" type="button" data-act="manager-dismiss">${i18n.t('ref_mgr_dismiss')}</button>
           </div>
         </div>`
     } else if (genericManager) {
@@ -483,9 +487,6 @@ export class RefFirmDetailPage {
     this.el.querySelector<HTMLButtonElement>('[data-act="manager-panel"]')?.addEventListener('click', () => {
       this.openManagerPanel(s, def)
     })
-    this.el.querySelector<HTMLButtonElement>('[data-act="manager-dismiss"]')?.addEventListener('click', () => {
-      if (s.unassignFirmManager(def.id)) { this.refreshLive(); ctx.onPersist?.(); refToast(i18n.t('ref_mgr_dismissed_toast'), 'ok') }
-    })
     this.el.querySelector<HTMLButtonElement>('[data-act="sell"]')?.addEventListener('click', () => {
       this.openSalePanel(s, def)
     })
@@ -528,10 +529,23 @@ export class RefFirmDetailPage {
     overlay.appendChild(sheet)
     this.mgrOverlay = overlay
     this.mgrDismiss = registerSheetDismiss(() => this.closeManagerPanel())
-    const render = () => { sheet.innerHTML = this.managerPanelHtml(s, def) }
+    let confirmingDismiss = false
+    const render = () => { sheet.innerHTML = this.managerPanelHtml(s, def, confirmingDismiss) }
     overlay.addEventListener('click', (ev) => {
       const target = ev.target as HTMLElement
       if (target === overlay || target.closest('[data-mgr-close]')) { this.closeManagerPanel(); return }
+      const dismissBtn = target.closest<HTMLButtonElement>('[data-mgr-dismiss]')
+      if (dismissBtn && !dismissBtn.disabled) {
+        if (!confirmingDismiss) { confirmingDismiss = true; render(); return }
+        if (s.unassignFirmManager(def.id)) {
+          confirmingDismiss = false
+          this.refreshLive()
+          this.live?.onPersist?.()
+          render()
+          refToast(i18n.t('ref_mgr_dismissed_toast'), 'ok')
+        }
+        return
+      }
       const assignBtn = target.closest<HTMLButtonElement>('[data-mgr-assign]')
       if (assignBtn && !assignBtn.disabled) {
         const r = s.assignFirmManager(def.id, assignBtn.dataset.mgrAssign as NamedManagerId)
@@ -555,11 +569,14 @@ export class RefFirmDetailPage {
     if (reason === 'not_owned') return i18n.t('ref_mgr_reason_not_owned')
     if (reason === 'already_here') return i18n.t('ref_mgr_reason_already_here')
     if (reason === 'not_eligible') return i18n.t('ref_mgr_reason_not_eligible')
+    if (reason === 'firm_level_required') return i18n.t('ref_mgr_reason_firm_level')
+    if (reason === 'firm_has_manager') return i18n.t('ref_mgr_reason_firm_has_manager')
+    if (reason === 'assigned_elsewhere') return i18n.t('ref_mgr_reason_assigned_elsewhere')
     return i18n.t('ref_detail_manager_failed')
   }
 
   /** Tek bir menajer kartı (uygunluk grubuna göre filtrelenmiş listede gösterilir). */
-  private managerCardHtml(def: ProducerDef, m: typeof NAMED_MANAGERS[number], pv: ReturnType<GameState['managerHireStatus']>): string {
+  private managerCardHtml(def: ProducerDef, m: typeof NAMED_MANAGERS[number], pv: ReturnType<GameState['managerHireStatus']>, showAssignButton = true): string {
     let statusLbl: string, statusCls: string
     if (pv.assignedFirmId === def.id) { statusLbl = i18n.t('ref_mgr_status_here'); statusCls = 'here' }
     else if (pv.assignedFirmId) { statusLbl = i18n.t('ref_mgr_status_other'); statusCls = 'other' }
@@ -582,8 +599,7 @@ export class RefFirmDetailPage {
       ? `<div class="ref-mgr-card__loss">${fmt('ref_mgr_loss_warn', { amount: fmtMoneyTrim(Math.abs(pv.netDailyDelta)) })}</div>` : ''
     const reasonNote = (!pv.canAssign && pv.reason !== 'already_here')
       ? `<div class="ref-mgr-card__reason">${this.managerReasonText(pv.reason)}</div>` : ''
-    const btnLbl = pv.assignedFirmId === def.id ? i18n.t('ref_mgr_status_here')
-      : pv.alreadyHired ? i18n.t('ref_mgr_move_here') : i18n.t('ref_mgr_assign_here')
+    const btnLbl = pv.assignedFirmId === def.id ? i18n.t('ref_mgr_status_here') : i18n.t('ref_mgr_assign_here')
     return `
       <div class="ref-mgr-card">
         <div class="ref-mgr-card__head">
@@ -603,27 +619,47 @@ export class RefFirmDetailPage {
         </div>
         ${lossWarn}
         ${reasonNote}
-        <button class="ref-btn manager mgr-assign" type="button" data-mgr-assign="${m.id}" ${pv.canAssign ? '' : 'disabled'}>${btnLbl}</button>
+        ${showAssignButton ? `<button class="ref-btn manager mgr-assign" type="button" data-mgr-assign="${m.id}" ${pv.canAssign ? '' : 'disabled'}>${btnLbl}</button>` : ''}
       </div>`
   }
 
-  private managerPanelHtml(s: GameState, def: ProducerDef): string {
+  private currentManagerHtml(s: GameState, def: ProducerDef, confirmingDismiss: boolean): string {
+    const assignedId = s.firmAssignedManager(def.id)
+    const m = assignedId ? namedManagerDef(assignedId) : undefined
+    if (!m) return ''
+    const pv = s.managerHireStatus(def.id, m.id)
+    const dismissLabel = confirmingDismiss ? i18n.t('ref_mgr_dismiss_confirm') : i18n.t('ref_mgr_dismiss')
+    return `
+      <div class="ref-mgr-current-section" data-testid="manager-current-section">
+        <div class="ref-mgr-group-title">${i18n.t('ref_mgr_current_section')}</div>
+        ${this.managerCardHtml(def, m, pv, false)}
+        <button class="ref-btn manager mgr-dismiss" type="button" data-mgr-dismiss>${dismissLabel}</button>
+      </div>`
+  }
+
+  private managerPanelHtml(s: GameState, def: ProducerDef, confirmingDismiss = false): string {
     // Yalnız bu firmada ANLAMLI menajerler: firmaya özel + genel bonus (gerçek
     // bonus tanımından türetilir; alakasız menajer panelde GÖSTERİLMEZ).
+    const assignedId = s.firmAssignedManager(def.id)
     const entries = NAMED_MANAGERS
       .map((m) => ({ m, pv: s.managerHireStatus(def.id, m.id) }))
       .filter((e) => e.pv.appliesToFirm)
+      .filter((e) => e.m.id !== assignedId)
     const specific = entries.filter((e) => e.pv.applicabilityType === 'specific')
     const general = entries.filter((e) => e.pv.applicabilityType === 'general')
     // Küçük firma uyarısı: gösterilen tüm uygun seçenekler net-negatifse.
     const allNegative = entries.length > 0 && entries.every((e) => e.pv.netDailyDelta < 0)
     const smallWarn = allNegative ? `<div class="ref-mgr-toosmall">⚠️ ${i18n.t('ref_mgr_firm_too_small')}</div>` : ''
-    const group = (title: string, list: typeof entries) => list.length === 0 ? '' : `
+    const group = (title: string, testId: string, list: typeof entries) => list.length === 0 ? '' : `
+      <div class="ref-mgr-group" data-testid="${testId}">
       <div class="ref-mgr-group-title">${title}</div>
       ${list.map((e) => this.managerCardHtml(def, e.m, e.pv)).join('')}`
+      + '</div>'
     const body = entries.length === 0
       ? `<div class="ref-mgr-empty">${i18n.t('ref_mgr_none_applicable')}</div>`
-      : group(i18n.t('ref_mgr_group_specific'), specific) + group(i18n.t('ref_mgr_group_general'), general)
+      : this.currentManagerHtml(s, def, confirmingDismiss)
+        + group(i18n.t('ref_mgr_group_specific'), 'manager-group-specific', specific)
+        + group(i18n.t('ref_mgr_group_general'), 'manager-group-general', general)
     return `
       <div class="ref-trade-handle"></div>
       <div class="ref-trade-head">

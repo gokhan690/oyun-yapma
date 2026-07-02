@@ -9,6 +9,8 @@ export interface NamedManagerDef {
   specialty: string
   dailySalary: number
   hireCost: number
+  requiredFirmLevel?: number
+  requiredFirmLevelByProducer?: Record<string, number>
   passiveMult?: number
   producerMult?: Record<string, number>
   illegalHeatReduce?: number
@@ -23,7 +25,8 @@ export const NAMED_MANAGERS: NamedManagerDef[] = [
     specialty: 'Lojistik +%30',
     dailySalary: 750,
     hireCost: 25_000,
-    producerMult: { fabrika: 0.3, liman: 0.25 },
+    producerMult: { stajyer: 0.12, fabrika: 0.3, liman: 0.25, kargo: 0.18, drone: 0.18, fulfillment: 0.18 },
+    requiredFirmLevelByProducer: { stajyer: 2 },
   },
   {
     id: 'mehmet',
@@ -32,7 +35,7 @@ export const NAMED_MANAGERS: NamedManagerDef[] = [
     specialty: 'Yazılım +%25',
     dailySalary: 1250,
     hireCost: 80_000,
-    producerMult: { holding: 0.25, ai: 0.2 },
+    producerMult: { robot: 0.16, mobil_app: 0.20, holding: 0.25, ai: 0.2, oyun_studio: 0.22, data_center: 0.20, streaming: 0.18, fitness_app: 0.16, online_egitim: 0.16 },
   },
   {
     id: 'ahmet',
@@ -59,7 +62,7 @@ export const NAMED_MANAGERS: NamedManagerDef[] = [
     specialty: 'Sağlık & İlaç +%35',
     dailySalary: 1200,
     hireCost: 95_000,
-    producerMult: { hastane: 0.35, ilac: 0.25, gen_terapi: 0.20 },
+    producerMult: { berber: 0.16, guzellik: 0.18, gym: 0.12, hastane: 0.35, ilac: 0.25, gen_terapi: 0.20 },
   },
   {
     id: 'kemal',
@@ -68,7 +71,7 @@ export const NAMED_MANAGERS: NamedManagerDef[] = [
     specialty: 'Tarım & Gıda +%30',
     dailySalary: 750,
     hireCost: 60_000,
-    producerMult: { tarim_tek: 0.30, cikolata: 0.20, catering: 0.15 },
+    producerMult: { stajyer: 0.16, firin: 0.18, kafe: 0.18, ofis: 0.18, cikolata: 0.20, catering: 0.15, tarim_tek: 0.30 },
   },
   {
     id: 'leyla',
@@ -86,7 +89,8 @@ export const NAMED_MANAGERS: NamedManagerDef[] = [
     specialty: 'Lüks İmparatorluk +%25',
     dailySalary: 1500,
     hireCost: 180_000,
-    producerMult: { kuyumcu: 0.25, tatil_koyu: 0.20, yacht_filo: 0.25, saat_marka: 0.20 },
+    producerMult: { berber: 0.12, kuyumcu: 0.25, tatil_koyu: 0.20, yacht_filo: 0.25, saat_marka: 0.20, moda_evi: 0.20, sanat_galeri: 0.18 },
+    requiredFirmLevelByProducer: { berber: 2 },
   },
 ]
 
@@ -115,6 +119,10 @@ export function managerSpecialty(m: NamedManagerDef): string {
  */
 export function namedManagerFirmBonus(def: NamedManagerDef, producerId: string): number {
   return def.producerMult?.[producerId] ?? def.globalPassiveMult ?? 0
+}
+
+export function managerRequiredFirmLevel(def: NamedManagerDef, producerId: string): number {
+  return Math.max(1, Math.floor(def.requiredFirmLevelByProducer?.[producerId] ?? def.requiredFirmLevel ?? 1))
 }
 
 export type ManagerApplicability = 'specific' | 'general' | null

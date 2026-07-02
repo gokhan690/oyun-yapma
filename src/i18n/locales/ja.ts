@@ -1554,6 +1554,9 @@ export const ja: Translations = {
   ref_mgr_reason_insufficient: '残高不足',
   ref_mgr_reason_not_owned: 'この企業を所有していません',
   ref_mgr_reason_already_here: 'すでにこの企業にいます',
+  ref_mgr_reason_firm_level: 'Firm level is too low',
+  ref_mgr_reason_assigned_elsewhere: 'This manager is assigned to another firm',
+  ref_mgr_reason_firm_has_manager: 'Dismiss the current manager first',
   ref_mgr_status_here: 'ここ',
   ref_mgr_status_other: '他の企業',
   ref_mgr_status_idle: '待機中',
@@ -1576,6 +1579,8 @@ export const ja: Translations = {
   // TUR14 (kalan iş) — Menajer uygunluk filtresi + uyarılar
   ref_mgr_group_specific: '企業専属マネージャー',
   ref_mgr_group_general: '汎用マネージャー',
+  ref_mgr_current_section: 'Current Manager',
+  ref_mgr_dismiss_confirm: 'Confirm: Dismiss',
   ref_mgr_appl_specific: '企業専属',
   ref_mgr_appl_general: '汎用ボーナス',
   ref_mgr_firm_too_small: 'この企業はまだマネージャーを雇うには小さすぎます。',

@@ -1,10 +1,13 @@
 import { chromium } from 'playwright'
+import fs from 'node:fs'
+import path from 'node:path'
 
 const url = process.argv[2] || 'http://127.0.0.1:5173/'
 const SAVE_KEY = 'is_imparatorlugu_save_v10'
 const OBFUSCATION_KEY = 'PT2026x'
 const VERSION = 10
 const START_MONEY = 1500
+const SCREENSHOT_DIR = path.resolve('test-results/tur15-a3-etap3')
 
 function computeChecksum(text) {
   let hash = 2166136261
@@ -90,26 +93,28 @@ async function instrumentContext(context) {
   })
 }
 
-async function newContext(save = null, viewport = { width: 1280, height: 900 }) {
+async function newContext(save = null, viewport = { width: 1280, height: 900 }, lang = null) {
   const context = await browser.newContext({ serviceWorkers: 'block', viewport })
   await instrumentContext(context)
   if (save) {
     const encoded = encodeSave(save)
-    await context.addInitScript(({ key, encodedSave }) => {
+    await context.addInitScript(({ key, encodedSave, lang }) => {
       if (sessionStorage.getItem('__tur15_a3_seeded')) return
       localStorage.clear()
       sessionStorage.clear()
       localStorage.setItem(key, encodedSave)
       localStorage.setItem('baron_setup_done', '1')
+      if (lang) localStorage.setItem('baron_lang', lang)
       sessionStorage.setItem('__tur15_a3_seeded', '1')
-    }, { key: SAVE_KEY, encodedSave: encoded })
+    }, { key: SAVE_KEY, encodedSave: encoded, lang })
   } else {
-    await context.addInitScript(() => {
+    await context.addInitScript((lang) => {
       if (sessionStorage.getItem('__tur15_a3_seeded')) return
       localStorage.clear()
       sessionStorage.clear()
+      if (lang) localStorage.setItem('baron_lang', lang)
       sessionStorage.setItem('__tur15_a3_seeded', '1')
-    })
+    }, lang)
   }
   return context
 }
@@ -209,15 +214,20 @@ function normalizeFixture(save) {
   return out
 }
 
-async function launchWithSave(save, viewport = { width: 1280, height: 900 }) {
-  const context = await newContext(save, viewport)
+async function launchWithSave(save, viewport = { width: 1280, height: 900 }, lang = null) {
+  const context = await newContext(save, viewport, lang)
   const page = await openPage(context)
   await waitForShell(page)
   return { context, page }
 }
 
 async function goFirms(page) {
-  await page.locator('.ref-bottom-nav .ref-nav-btn').filter({ hasText: /Firms|Firmalar/i }).first().click()
+  const detailBack = page.locator('.ref-detail:not([hidden]) .ref-detail-back').first()
+  if (await detailBack.isVisible().catch(() => false)) {
+    await detailBack.click()
+  } else {
+    await page.locator('.ref-bottom-nav .ref-nav-btn').filter({ hasText: /Firms|Firmalar/i }).first().click()
+  }
   await page.waitForSelector('.ref-prod-card', { timeout: 15000 })
 }
 
@@ -275,6 +285,24 @@ async function openManagerPanel(page) {
   await page.waitForSelector('.ref-mgr-sheet .ref-mgr-card', { timeout: 15000 })
 }
 
+async function openManagerFromFirmCard(page, producerId) {
+  await goFirms(page)
+  await page.locator(`.ref-prod-card[data-id="${producerId}"] [data-manager-panel]`).click()
+  await page.waitForSelector('.ref-mgr-sheet .ref-mgr-card', { timeout: 15000 })
+}
+
+async function closeManagerPanel(page) {
+  await page.locator('[data-mgr-close]').first().click()
+  await page.waitForSelector('.ref-mgr-sheet', { state: 'detached', timeout: 15000 }).catch(() => {})
+}
+
+async function saveShot(page, name) {
+  fs.mkdirSync(SCREENSHOT_DIR, { recursive: true })
+  const file = path.join(SCREENSHOT_DIR, name)
+  await page.screenshot({ path: file, fullPage: true })
+  return file
+}
+
 async function managerSnapshot(page, producerId = 'fabrika', managerId = 'fatma') {
   return page.evaluate(async ({ producerId, managerId }) => {
     const s = window.__tur15State
@@ -288,6 +316,8 @@ async function managerSnapshot(page, producerId = 'fabrika', managerId = 'fatma'
           .map((m) => m.id)
       : []
     const visibleIds = [...document.querySelectorAll('[data-mgr-assign]')].map((el) => el.dataset.mgrAssign)
+    const specificIds = [...document.querySelectorAll('[data-testid="manager-group-specific"] [data-mgr-assign]')].map((el) => el.dataset.mgrAssign)
+    const generalIds = [...document.querySelectorAll('[data-testid="manager-group-general"] [data-mgr-assign]')].map((el) => el.dataset.mgrAssign)
     const settlement = s?.dailySettlementBreakdown?.()
     const upgradeStatus = s?.firmUpgradeStatus?.(producerId, 'kalite')
     return {
@@ -302,8 +332,13 @@ async function managerSnapshot(page, producerId = 'fabrika', managerId = 'fatma'
       upgradeStatus,
       expectedIds,
       visibleIds,
+      specificIds,
+      generalIds,
       managerCardCount: document.querySelectorAll('.ref-mgr-card').length,
       fatmaButtonDisabled: document.querySelector('[data-mgr-assign="fatma"]')?.disabled ?? null,
+      currentSectionVisible: !!document.querySelector('[data-testid="manager-current-section"]'),
+      currentSectionText: document.querySelector('[data-testid="manager-current-section"]')?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+      undoText: document.body.textContent?.includes('Geri Al?') || document.body.textContent?.includes('Undo?') || false,
       text: document.body.textContent?.replace(/\s+/g, ' ').trim() ?? '',
       levelButtonCount: document.querySelectorAll('[data-act="level"], .ref-detail-actions.live .ref-btn.develop').length,
       sellButtonCount: document.querySelectorAll('[data-act="sell"]').length,
@@ -432,7 +467,7 @@ async function scenarioManagerHirePersistsAndAffectsEconomy(base) {
   assert(afterReload.managerSalary === shot.managerSalary, 'reload should preserve manager salary effect', afterReload)
   await openManagerPanel(page)
   const panelAfterReload = await managerSnapshot(page)
-  assert(panelAfterReload.fatmaButtonDisabled === true && panelAfterReload.status.code === 'already_here', 'assigned manager cannot be hired twice after reload', panelAfterReload.status)
+  assert(panelAfterReload.currentSectionVisible && panelAfterReload.status.code === 'already_here' && !panelAfterReload.visibleIds.includes('fatma'), 'assigned manager cannot be hired twice after reload', panelAfterReload)
   await context.close()
 
   const poor = normalizeFixture(base)
@@ -463,6 +498,106 @@ async function scenarioManagerHirePersistsAndAffectsEconomy(base) {
   await unownedRun.context.close()
 }
 
+async function scenarioManagerUxAndFirmSpecificPools(base) {
+  const save = normalizeFixture(base)
+  save.money = 1_000_000
+  save.totalEarned = 1_000_000
+  save.producers.stajyer = 100
+  save.producers.berber = 100
+  save.producerLevels.stajyer = 1
+  save.producerLevels.berber = 1
+  save.firmManagerAssignments = {}
+  save.namedManagers = []
+
+  const { context, page } = await launchWithSave(save, { width: 430, height: 860 }, 'tr')
+
+  await openManagerFromFirmCard(page, 'stajyer')
+  let lemon = await managerSnapshot(page, 'stajyer', 'fatma')
+  assert(lemon.assignedManager == null, 'firm card manager click should not unassign or assign directly', lemon)
+  assert(!lemon.undoText, 'firm card manager click must not open undo panel', lemon.text)
+  assert(lemon.specificIds.includes('fatma') && lemon.specificIds.includes('kemal'), 'lemonade firm should show food/logistics specific candidates', lemon.specificIds)
+  assert(lemon.generalIds.includes('ahmet'), 'Ahmet Bey should be in general managers for lemonade', lemon.generalIds)
+  assert(!lemon.specificIds.includes('ahmet'), 'Ahmet Bey should not appear as a firm-specific candidate', lemon.specificIds)
+  assert(lemon.status.code === 'firm_level_required' && lemon.fatmaButtonDisabled === true, 'eligible but locked manager should remain visible and disabled', lemon.status)
+  assert(lemon.text.includes('Firma seviyesi yetersiz'), 'locked manager should show user-friendly firm level reason', lemon.text)
+  const lemonadeShot = await saveShot(page, '01-limonata-manager-modal.png')
+  await closeManagerPanel(page)
+
+  await openManagerFromFirmCard(page, 'berber')
+  const barber = await managerSnapshot(page, 'berber', 'orhan')
+  assert(barber.specificIds.includes('ayse') && barber.specificIds.includes('orhan'), 'barber should show personal-care/luxury candidates', barber.specificIds)
+  assert(barber.generalIds.includes('ahmet'), 'Ahmet Bey should be in general managers for barber', barber.generalIds)
+  assert(!barber.specificIds.includes('ahmet'), 'Ahmet Bey should not appear in barber specific pool', barber.specificIds)
+  assert(!barber.specificIds.includes('kemal') && !barber.specificIds.includes('fatma'), 'lemonade specific candidates should not appear in barber pool', barber.specificIds)
+  assert(!lemon.specificIds.includes('ayse') && !lemon.specificIds.includes('orhan'), 'barber specific candidates should not appear in lemonade pool', lemon.specificIds)
+  assert(JSON.stringify(lemon.specificIds) !== JSON.stringify(barber.specificIds), 'lemonade and barber candidate pools should differ', { lemon: lemon.specificIds, barber: barber.specificIds })
+  assert(barber.status.code === 'firm_level_required', 'barber locked manager should be represented in status', barber.status)
+  const barberShot = await saveShot(page, '02-berber-manager-modal.png')
+  await closeManagerPanel(page)
+
+  await openManagerFromFirmCard(page, 'stajyer')
+  await page.locator('[data-mgr-assign="ahmet"]').click()
+  await page.waitForSelector('.ref-mgr-sheet', { state: 'detached', timeout: 15000 })
+  let afterAssign = await managerSnapshot(page, 'stajyer', 'ahmet')
+  assert(afterAssign.assignedManager === 'ahmet', 'Ahmet should be assigned through the real UI action', afterAssign)
+  const persisted = await saved(page)
+  assert(persisted.firmManagerAssignments?.stajyer === 'ahmet', 'firm-card manager assignment should persist immediately', persisted.firmManagerAssignments)
+
+  await openManagerFromFirmCard(page, 'stajyer')
+  afterAssign = await managerSnapshot(page, 'stajyer', 'ahmet')
+  assert(afterAssign.currentSectionVisible && afterAssign.currentSectionText.includes('Mevcut Yönetici') && afterAssign.currentSectionText.includes('Görevde'), 'assigned manager should render as current manager with active badge', afterAssign.currentSectionText)
+  assert(!afterAssign.visibleIds.includes('ahmet'), 'assigned manager should not be duplicated in candidate lists', afterAssign.visibleIds)
+  const assignedShot = await saveShot(page, '03-atanmis-manager-modal.png')
+  await closeManagerPanel(page)
+
+  await openManagerFromFirmCard(page, 'berber')
+  const elsewhere = await managerSnapshot(page, 'berber', 'ahmet')
+  assert(elsewhere.status.code === 'assigned_elsewhere' && elsewhere.generalIds.includes('ahmet'), 'manager assigned to another firm should stay visible but disabled', elsewhere.status)
+  const domainReject = await page.evaluate(() => window.__tur15State.assignFirmManager('berber', 'ahmet'))
+  assert(domainReject.ok === false && domainReject.reason === 'assigned_elsewhere', 'domain API should reject assigning the same manager to a second firm', domainReject)
+  await closeManagerPanel(page)
+
+  await openManagerFromFirmCard(page, 'stajyer')
+  await page.locator('[data-mgr-dismiss]').click()
+  await page.waitForTimeout(100)
+  let stillAssigned = await managerSnapshot(page, 'stajyer', 'ahmet')
+  assert(stillAssigned.assignedManager === 'ahmet' && stillAssigned.text.includes('Onayla: Görevden Al'), 'first dismiss click should only ask for confirmation', stillAssigned)
+  await page.locator('[data-mgr-dismiss]').click()
+  await page.waitForTimeout(250)
+  const afterDismiss = await managerSnapshot(page, 'stajyer', 'ahmet')
+  assert(afterDismiss.assignedManager == null, 'confirmed dismiss should remove manager assignment', afterDismiss)
+  assert(afterDismiss.generalIds.includes('ahmet'), 'dismissed manager should become a candidate again', afterDismiss.generalIds)
+  const persistedDismiss = await saved(page)
+  assert(!persistedDismiss.firmManagerAssignments?.stajyer, 'dismissed manager state should persist immediately', persistedDismiss.firmManagerAssignments)
+
+  await context.close()
+  return { lemonadeShot, barberShot, assignedShot }
+}
+
+async function scenarioTurkishA3TextAndScreenshots(base) {
+  const save = normalizeFixture(base)
+  save.money = 100_000
+  save.producers.stajyer = 100
+  const { context, page } = await launchWithSave(save, { width: 430, height: 860 }, 'tr')
+  await openStajyerDetail(page)
+  const text = await page.evaluate(() => {
+    const upgradeText = [...document.querySelectorAll('.ref-detail-upg.live')].map((el) => el.textContent ?? '').join(' ')
+    const managerText = document.querySelector('.ref-mgr-block')?.textContent ?? ''
+    return `${upgradeText} ${managerText}`.replace(/\s+/g, ' ').trim()
+  })
+  for (const bad of ['Ã', 'Ä', 'Å', 'Â']) {
+    assert(!text.includes(bad), `A3 Turkish text should not contain mojibake ${bad}`, text)
+  }
+  for (const label of ['Mevcut günlük gelir', 'Satın alma sonrası gelir', 'Günlük gelir artışı', 'Tahmini geri dönüş', 'Satın Al']) {
+    assert(text.includes(label), `Turkish A3 label should be visible: ${label}`, text)
+  }
+  const upgradeShot = await saveShot(page, '04-turkce-gelistirme-kartlari.png')
+  const shot = await snapshot(page)
+  assert(shot.scrollWidth <= shot.innerWidth + 1, '430px Turkish detail view must not horizontally overflow', { scrollWidth: shot.scrollWidth, innerWidth: shot.innerWidth })
+  await context.close()
+  return { upgradeShot }
+}
+
 async function main() {
   browser = await chromium.launch()
   try {
@@ -470,6 +605,9 @@ async function main() {
     await scenarioOwnedUpgradePurchasePersists(base)
     await scenarioInsufficientAndLegacySave(base)
     await scenarioManagerHirePersistsAndAffectsEconomy(base)
+    const uxShots = await scenarioManagerUxAndFirmSpecificPools(base)
+    const trShots = await scenarioTurkishA3TextAndScreenshots(base)
+    console.log('TUR15-A3 screenshots', { ...uxShots, ...trShots })
     console.log('TUR15-A3 firm upgrade and manager scenarios passed')
   } finally {
     await browser?.close()

@@ -7,6 +7,7 @@ import type { GameState } from '../../game/GameState'
 import { PRODUCERS, isProducerUnlocked, producerName, producerDesc, type ProducerDef } from '../../game/Economy'
 import { FIRM_MAX_LEVEL, firmLevelIncomeMult, isFirmMaxLevel } from '../../game/FirmLevels'
 import { hasManager } from '../../game/Managers'
+import { namedManagerDef, managerDisplayName } from '../../game/NamedManagers'
 import { modernizeCost } from '../../game/TechObsolescence'
 
 /* ── Mock data (gerçek veri/state yoksa saf önizleme) ──────────────────── */
@@ -80,7 +81,7 @@ export class RefFirmsPage implements RefPage {
   readonly el: HTMLElement
   get title() { return i18n.t('ref_firms_title') }
 
-  onOpenFirm?: (firm: FirmData, live?: { state: GameState; producerId: string; rebuild?: () => FirmData }) => void
+  onOpenFirm?: (firm: FirmData, live?: { state: GameState; producerId: string; rebuild?: () => FirmData; initialPanel?: 'manager' }) => void
 
   private activeCategory: CategoryKey = 'tumu'
   private cardEls = new Map<string, RefCard>()
@@ -345,9 +346,9 @@ export class RefFirmsPage implements RefPage {
     const lv       = s.firmLevelUpStatus(def)
     const canLevelUp = lv.canLevelUp
 
-    const managerHired = hasManager(s.managers, def.id)
-    const manCost      = owned > 0 && !managerHired ? s.managerCostFor(def) : 0
-    const canManager   = owned > 0 && !managerHired && s.money >= manCost && manCost > 0
+    const assignedManagerId = owned > 0 ? s.firmAssignedManager(def.id) : null
+    const assignedManagerDef = assignedManagerId ? namedManagerDef(assignedManagerId) : undefined
+    const genericManagerHired = hasManager(s.managers, def.id)
 
     const isModernized = !!s.producerModernized[def.id]
     const modCost      = owned > 0 && !isModernized && s.ipoCount > 0 ? modernizeCost(def.tier, owned) : 0
@@ -401,13 +402,14 @@ export class RefFirmsPage implements RefPage {
         </button>`
       : ''
 
-    const manBtn = owned > 0 && !managerHired
-      ? `<button class="ref-prod-action-btn manager${canManager ? '' : ' disabled'}" type="button" data-manager="${def.id}" ${canManager ? '' : 'disabled'}>
-           👔 ${i18n.t('firms_manager_button')} · ${fmtMoney(manCost)}
-         </button>`
-      : owned > 0 && managerHired
-        ? `<span class="ref-prod-badge-ok">✓ ${i18n.t('firms_manager_owned')}</span>`
-        : ''
+    const manLabel = assignedManagerDef
+      ? `${assignedManagerDef.emoji} ${managerDisplayName(assignedManagerDef)} - ${i18n.t('firms_manager_owned')}`
+      : genericManagerHired
+        ? `${i18n.t('ref_mgr_generic_name')} - ${i18n.t('firms_manager_owned')}`
+        : i18n.t('firms_manager_button')
+    const manBtn = owned > 0
+      ? `<button class="ref-prod-action-btn manager" type="button" data-manager-panel="${def.id}">${manLabel}</button>`
+      : ''
 
     const modBtn = owned > 0 && s.ipoCount > 0 && !isModernized
       ? `<button class="ref-prod-action-btn modernize${canModernize ? '' : ' disabled'}" type="button" data-modernize="${def.id}" ${canModernize ? '' : 'disabled'}>
@@ -486,17 +488,16 @@ export class RefFirmsPage implements RefPage {
       }
     })
 
-    card.querySelector<HTMLButtonElement>('[data-manager]')?.addEventListener('click', (e) => {
+    card.querySelector<HTMLButtonElement>('[data-manager-panel]')?.addEventListener('click', (e) => {
       e.stopPropagation()
-      const ok = this.state?.hireManager(def.id)
-      if (ok) {
-        refToast(`👔 ${fmt('firms_toast_manager_hired_fmt', { name: producerName(def) })}`, 'ok')
-        const newCard = this.buildOneProducerCard(def, this.state!)
-        card.replaceWith(newCard)
-        this.producerCards.set(def.id, newCard)
-      } else {
-        refToast(i18n.t('firms_toast_manager_failed'), 'err')
-      }
+      const s2 = this.state
+      if (!s2) return
+      this.onOpenFirm?.(this.producerToFirmData(def, s2), {
+        state: s2,
+        producerId: def.id,
+        rebuild: () => this.producerToFirmData(def, s2),
+        initialPanel: 'manager',
+      })
     })
 
     card.querySelector<HTMLButtonElement>('[data-modernize]')?.addEventListener('click', (e) => {
@@ -521,7 +522,7 @@ export class RefFirmsPage implements RefPage {
     const cost     = s.producerCostFor(def as Parameters<typeof s.producerCostFor>[0], owned, 1)
     const canBuy   = unlocked && s.money >= cost
     const income   = owned > 0 ? Math.round(s.producerIncome(def as Parameters<typeof s.producerIncome>[0])) : 0
-    const mgr      = hasManager(s.managers, def.id) ? 1 : 0
+    const mgr      = s.firmAssignedManager(def.id) ?? (hasManager(s.managers, def.id) ? 'generic' : 'none')
     const mod      = s.producerModernized[def.id] ? 1 : 0
     const plock    = s.firmsPurchaseUnlocked() ? 1 : 0
     return `${owned}|${unlocked ? 1 : 0}|${canBuy ? 1 : 0}|${cost}|${income}|${mgr}|${mod}|${this.buyMode}|${plock}`

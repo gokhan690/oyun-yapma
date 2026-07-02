@@ -1554,6 +1554,9 @@ export const de: Translations = {
   ref_mgr_reason_insufficient: 'Unzureichendes Guthaben',
   ref_mgr_reason_not_owned: 'Du besitzt diese Firma nicht',
   ref_mgr_reason_already_here: 'Bereits in dieser Firma',
+  ref_mgr_reason_firm_level: 'Firm level is too low',
+  ref_mgr_reason_assigned_elsewhere: 'This manager is assigned to another firm',
+  ref_mgr_reason_firm_has_manager: 'Dismiss the current manager first',
   ref_mgr_status_here: 'Hier',
   ref_mgr_status_other: 'Andere Firma',
   ref_mgr_status_idle: 'Untätig',
@@ -1576,6 +1579,8 @@ export const de: Translations = {
   // TUR14 (kalan iş) — Menajer uygunluk filtresi + uyarılar
   ref_mgr_group_specific: 'Firmenspezifische Manager',
   ref_mgr_group_general: 'Allgemeine Manager',
+  ref_mgr_current_section: 'Current Manager',
+  ref_mgr_dismiss_confirm: 'Confirm: Dismiss',
   ref_mgr_appl_specific: 'Firmenspezifisch',
   ref_mgr_appl_general: 'Allgemeiner Bonus',
   ref_mgr_firm_too_small: 'Diese Firma ist noch nicht groß genug für einen Manager.',

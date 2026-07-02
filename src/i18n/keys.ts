@@ -1746,6 +1746,9 @@ export interface Translations {
   ref_mgr_reason_insufficient: string
   ref_mgr_reason_not_owned: string
   ref_mgr_reason_already_here: string
+  ref_mgr_reason_firm_level: string
+  ref_mgr_reason_assigned_elsewhere: string
+  ref_mgr_reason_firm_has_manager: string
   ref_mgr_status_here: string
   ref_mgr_status_other: string
   ref_mgr_status_idle: string
@@ -1767,6 +1770,8 @@ export interface Translations {
   ref_mgr_reason_not_eligible: string
   ref_mgr_group_specific: string
   ref_mgr_group_general: string
+  ref_mgr_current_section: string
+  ref_mgr_dismiss_confirm: string
   ref_mgr_appl_specific: string
   ref_mgr_appl_general: string
   ref_mgr_firm_too_small: string

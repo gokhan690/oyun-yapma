@@ -1554,6 +1554,9 @@ export const zh: Translations = {
   ref_mgr_reason_insufficient: '余额不足',
   ref_mgr_reason_not_owned: '你不拥有这家企业',
   ref_mgr_reason_already_here: '已在这家企业',
+  ref_mgr_reason_firm_level: 'Firm level is too low',
+  ref_mgr_reason_assigned_elsewhere: 'This manager is assigned to another firm',
+  ref_mgr_reason_firm_has_manager: 'Dismiss the current manager first',
   ref_mgr_status_here: '这里',
   ref_mgr_status_other: '其他企业',
   ref_mgr_status_idle: '空闲',
@@ -1576,6 +1579,8 @@ export const zh: Translations = {
   // TUR14 (kalan iş) — Menajer uygunluk filtresi + uyarılar
   ref_mgr_group_specific: '企业专属经理',
   ref_mgr_group_general: '通用经理',
+  ref_mgr_current_section: 'Current Manager',
+  ref_mgr_dismiss_confirm: 'Confirm: Dismiss',
   ref_mgr_appl_specific: '企业专属',
   ref_mgr_appl_general: '通用加成',
   ref_mgr_firm_too_small: '这家企业还不够大，无法配置经理。',

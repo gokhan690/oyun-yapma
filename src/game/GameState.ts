@@ -302,6 +302,7 @@ import {
   namedManagerDef,
   namedManagerFirmBonus,
   managerApplicability,
+  managerRequiredFirmLevel,
   type ManagerApplicability,
   type HiredNamedManager,
   type NamedManagerId,
@@ -5999,10 +6000,12 @@ export class GameState {
     hired: boolean
     eligible: boolean
     canHire: boolean
-    code: 'ok' | 'not_found' | 'not_owned' | 'not_eligible' | 'already_here' | 'insufficient_money'
-    reason: 'ok' | 'not_found' | 'not_owned' | 'not_eligible' | 'already_here' | 'insufficient'
+    code: 'ok' | 'not_found' | 'not_owned' | 'not_eligible' | 'firm_level_required' | 'already_here' | 'firm_has_manager' | 'assigned_elsewhere' | 'insufficient_money'
+    reason: 'ok' | 'not_found' | 'not_owned' | 'not_eligible' | 'firm_level_required' | 'already_here' | 'firm_has_manager' | 'assigned_elsewhere' | 'insufficient'
     missingMoney: number
     missingRequirement: string | null
+    requiredFirmLevel: number
+    firmLevel: number
     salaryPerDay: number
     hireCost: number
     incomeBefore: number
@@ -6026,11 +6029,14 @@ export class GameState {
     const owned = ownedCount > 0
     const alreadyHired = this.isNamedManagerHired(managerId)
     const assignedFirmId = this.namedManagerAssignedFirm(managerId) ?? null
+    const currentFirmManagerId = this.firmManagerAssignments[producerId] ?? null
     const dailySalary = def?.dailySalary ?? 0
     const hireCost = alreadyHired ? 0 : (def?.hireCost ?? 0)
     const applicabilityType: ManagerApplicability = def && prod
       ? managerApplicability(def, producerId, !!prod.illegal)
       : null
+    const requiredFirmLevel = def ? managerRequiredFirmLevel(def, producerId) : 1
+    const firmLevel = prod ? this.producerLevel(producerId) : 0
     const incomeBefore = prod ? Math.round(this.producerIncome(prod)) : 0
     let incomeAfter = incomeBefore
     if (def && prod && owned && applicabilityType !== null) {
@@ -6043,12 +6049,15 @@ export class GameState {
         else this.firmManagerAssignments[producerId] = prev
       }
     }
-    let reason: 'ok' | 'not_found' | 'not_owned' | 'not_eligible' | 'already_here' | 'insufficient' = 'ok'
-    let code: 'ok' | 'not_found' | 'not_owned' | 'not_eligible' | 'already_here' | 'insufficient_money' = 'ok'
+    let reason: 'ok' | 'not_found' | 'not_owned' | 'not_eligible' | 'firm_level_required' | 'already_here' | 'firm_has_manager' | 'assigned_elsewhere' | 'insufficient' = 'ok'
+    let code: 'ok' | 'not_found' | 'not_owned' | 'not_eligible' | 'firm_level_required' | 'already_here' | 'firm_has_manager' | 'assigned_elsewhere' | 'insufficient_money' = 'ok'
     if (!def) reason = 'not_found'
     else if (!prod || ownedCount <= 0) reason = 'not_owned'
     else if (applicabilityType === null) reason = 'not_eligible'
+    else if (firmLevel < requiredFirmLevel) reason = 'firm_level_required'
     else if (assignedFirmId === producerId) reason = 'already_here'
+    else if (currentFirmManagerId && currentFirmManagerId !== managerId) reason = 'firm_has_manager'
+    else if (assignedFirmId && assignedFirmId !== producerId) reason = 'assigned_elsewhere'
     else if (!alreadyHired && !this.canAfford(hireCost)) reason = 'insufficient'
     if (reason === 'insufficient') code = 'insufficient_money'
     else code = reason
@@ -6061,12 +6070,18 @@ export class GameState {
       managerId,
       owned,
       hired: alreadyHired,
-      eligible: !!def && !!prod && owned && applicabilityType !== null,
+      eligible: !!def && !!prod && owned && applicabilityType !== null && firmLevel >= requiredFirmLevel,
       canHire: reason === 'ok',
       code,
       reason,
       missingMoney,
-      missingRequirement: reason === 'not_eligible' ? 'manager_not_applicable' : null,
+      missingRequirement: reason === 'not_eligible' ? 'manager_not_applicable'
+        : reason === 'firm_level_required' ? 'firm_level'
+        : reason === 'firm_has_manager' ? 'firm_has_manager'
+        : reason === 'assigned_elsewhere' ? 'assigned_elsewhere'
+        : null,
+      requiredFirmLevel,
+      firmLevel,
       salaryPerDay: dailySalary,
       hireCost,
       incomeBefore,
@@ -6103,15 +6118,17 @@ export class GameState {
     if (owned <= 0) return { ok: false, reason: 'not_owned' }
     if (!prod || managerApplicability(def, producerId, !!prod.illegal) === null) return { ok: false, reason: 'not_eligible' }
     if (this.firmManagerAssignments[producerId] === managerId) return { ok: false, reason: 'already_here' }
+    if (this.producerLevel(producerId) < managerRequiredFirmLevel(def, producerId)) return { ok: false, reason: 'firm_level_required' }
+    if (this.firmManagerAssignments[producerId]) return { ok: false, reason: 'firm_has_manager' }
+    const prevFirm = this.namedManagerAssignedFirm(managerId)
+    if (prevFirm && prevFirm !== producerId) return { ok: false, reason: 'assigned_elsewhere' }
     const alreadyHired = this.isNamedManagerHired(managerId)
     if (!alreadyHired) {
       if (!this.canAfford(def.hireCost)) return { ok: false, reason: 'insufficient' }
       this.debitMoney(def.hireCost, { source: 'manager_hire', metadata: { manager: managerId, firm: producerId } })
       this.namedManagers.push({ id: managerId, hiredGameDay: gameDay(this.gameTimeMs) })
     }
-    // Menajeri eski firmasından çöz (tek firmada aktif olur).
-    const prevFirm = this.namedManagerAssignedFirm(managerId)
-    if (prevFirm && prevFirm !== producerId) delete this.firmManagerAssignments[prevFirm]
+    // Manager identity is exclusive; a manager must be dismissed before another firm can assign them.
     this.firmManagerAssignments[producerId] = managerId
     this.emit({ type: 'money_changed' })
     this.emit({ type: 'purchase' })
