@@ -1,4 +1,4 @@
-import type { ProducerDef } from './Economy'
+import { producerEconomyMult, producerCostExtraMult, type ProducerDef } from './Economy'
 
 /**
  * Firma seviye sistemi (Karar 7-9): tıklama yerine işletme geliştirme.
@@ -37,9 +37,15 @@ export function firmLevelBonusLabel(nextLevel: number): string {
 export function firmLevelUpCost(def: ProducerDef, currentLevel: number, owned: number): number {
   const nextLevel = currentLevel + 1
   if (nextLevel > FIRM_MAX_LEVEL) return Infinity
-  const base = def.baseCost * Math.max(1, owned) * 0.8
-  const levelScale = Math.pow(2.4, currentLevel)
-  return Math.floor(base * levelScale)
+
+  return Math.floor(
+    def.baseCost *
+    producerEconomyMult(def) *
+    producerCostExtraMult(def) *
+    0.05 *
+    Math.max(1, owned) *
+    Math.pow(2.4, currentLevel - 1)
+  )
 }
 
 /** Firma maks seviyede mi? */

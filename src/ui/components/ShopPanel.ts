@@ -1603,7 +1603,7 @@ export class ShopPanel {
         actionRow.appendChild(sellBtn)
       }
       if (showModernize) {
-        const modCost = modernizeCost(p.tier, owned)
+        const modCost = modernizeCost(p, owned)
         const modBtn = document.createElement('button')
         modBtn.type = 'button'
         modBtn.className = 'btn-primary biz-modernize-btn'

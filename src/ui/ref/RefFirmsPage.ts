@@ -351,7 +351,7 @@ export class RefFirmsPage implements RefPage {
     const genericManagerHired = hasManager(s.managers, def.id)
 
     const isModernized = !!s.producerModernized[def.id]
-    const modCost      = owned > 0 && !isModernized && s.ipoCount > 0 ? modernizeCost(def.tier, owned) : 0
+    const modCost      = owned > 0 && !isModernized && s.ipoCount > 0 ? modernizeCost(def, owned) : 0
     const canModernize = owned > 0 && !isModernized && s.ipoCount > 0 && s.money >= modCost && modCost > 0
 
     let stateClass: string

@@ -332,7 +332,7 @@ export function updateHeroBusinessCard(
     }
     extra.appendChild(sellWrap)
     if (obsLabel && !state.producerModernized[p.id]) {
-      const modCost = modernizeCost(p.tier, owned)
+      const modCost = modernizeCost(p, owned)
       const modBtn = document.createElement('button')
       modBtn.type = 'button'
       modBtn.className = 'btn-primary biz-modernize-btn'

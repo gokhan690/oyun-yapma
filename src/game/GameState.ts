@@ -4,6 +4,7 @@ import {
   selectDailyTasks, createDailyPlanState, sanitizeDailyPlanState,
 } from './DailyPlan'
 import { PRODUCERS, UPGRADES, producerCost, maxAffordable, isProducerUnlocked, earlyUnlockCost, formatMoney, formatIncomeRate, scaledBaseIncome, ECONOMY_UPGRADE_COST_SCALE, producerName, type ProducerDef, type UpgradeDef } from './Economy'
+import { buildCompanyEconomySnapshot, type CompanyEconomySnapshot, type IncomeFactor, type ProducerIncomeFactors } from './CompanyEconomy'
 import { requiredDomainText, fmt } from '../i18n'
 import { type MoneyTransaction, type MoneySource, MONEY_TX_LIMIT, moneySourceLabelKey } from './MoneyLedger'
 import { PRESTIGE_SHOP_ITEMS } from './PrestigeShop'
@@ -1920,56 +1921,70 @@ export class GameState {
     return mult
   }
 
-  producerIncome(def: ProducerDef): number {
+  /**
+   * TUR15-B — Gelir pipeline'ının faktör ayrıştırması. `producerIncome` bu
+   * listeyi AYNI çarpım sırasıyla katlar; snapshot ise aile bazında (manager,
+   * seviye, upgrade, eskime…) marjinal etkileri buradan türetir. Formül kopyası
+   * yoktur: pipeline'a eklenen her yeni bonus buraya faktör olarak eklenmelidir.
+   */
+  producerIncomeFactors(def: ProducerDef): ProducerIncomeFactors {
     const owned = this.producers[def.id] ?? 0
-    if (owned === 0) return 0
-    let mult = 1
+    const factors: IncomeFactor[] = []
+    if (owned === 0) return { base: 0, owned: 0, factors, passiveMult: 1 }
     for (const id of this.purchasedUpgrades) {
       const u = UPGRADES.find((x) => x.id === id)
-      if (u?.effect === 'producer_mult' && u.producerId === def.id) mult *= u.value
+      if (u?.effect === 'producer_mult' && u.producerId === def.id) factors.push({ id: 'upgrades', mult: u.value })
     }
-    mult *= 1 + producerSynergyBonus(def.id, this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult()
+    factors.push({ id: 'synergy', mult: 1 + producerSynergyBonus(def.id, this.producers) * researchSynergyMultiplier(this.research) * this.weeklySynergyMult() })
     // TUR14 P5 — Menajer bonusu: firmaya isimli menajer ATANMIŞSA yalnız onun
     // firmaya özel bonusu uygulanır; generic legacy müdür bonusu UYGULANMAZ
     // (iki bonus üst üste binmez). Atama yoksa generic müdür geçerlidir.
     const assignedMgrId = this.firmManagerAssignments[def.id]
     if (assignedMgrId) {
       const amdef = namedManagerDef(assignedMgrId)
-      if (amdef) mult *= 1 + namedManagerFirmBonus(amdef, def.id)
+      if (amdef) factors.push({ id: 'manager', mult: 1 + namedManagerFirmBonus(amdef, def.id) })
     } else {
-      mult *= managerMultiplier(this.managers, def.id)
+      factors.push({ id: 'manager', mult: managerMultiplier(this.managers, def.id) })
     }
-    mult *= this.weeklyProducerBonus(def.id)
-    if (def.illegal) mult *= traitIllegalMult(activeDynastyTrait(this.dynasty))
-    if (def.illegal) mult *= personalityIllegalMult(this.personality)
-    if (def.illegal) mult *= 1 + this.heirIllegalBonus()
-    mult *= this.marketNewsProducerMult(def.id)
-    mult *= spouseProducerBonus(this.dynasty, def.id, hasNode(this.prestigeTree, 'dynasty_1'))
-    if (def.illegal) mult *= illegalIncomeBonus(this.undergroundTree)
+    factors.push({ id: 'weekly', mult: this.weeklyProducerBonus(def.id) })
+    if (def.illegal) factors.push({ id: 'illegal_bonus', mult: traitIllegalMult(activeDynastyTrait(this.dynasty)) })
+    if (def.illegal) factors.push({ id: 'illegal_bonus', mult: personalityIllegalMult(this.personality) })
+    if (def.illegal) factors.push({ id: 'illegal_bonus', mult: 1 + this.heirIllegalBonus() })
+    factors.push({ id: 'market_news', mult: this.marketNewsProducerMult(def.id) })
+    factors.push({ id: 'spouse', mult: spouseProducerBonus(this.dynasty, def.id, hasNode(this.prestigeTree, 'dynasty_1')) })
+    if (def.illegal) factors.push({ id: 'underground', mult: illegalIncomeBonus(this.undergroundTree) })
     if (def.category === 'dark') {
-      mult *= empireDarkProductionMult(this.empire.darkIndustry, this.gameTimeMs)
+      factors.push({ id: 'empire_dark', mult: empireDarkProductionMult(this.empire.darkIndustry, this.gameTimeMs) })
     }
     if (def.category === 'sport') {
       const club = this.empire.football.find((c) => c.clubId === def.id)
-      if (club) mult *= empireFootballIncomeMult(club)
-      mult *= researchFootballBonus(this.research)
+      if (club) factors.push({ id: 'empire_sport', mult: empireFootballIncomeMult(club) })
+      factors.push({ id: 'empire_sport', mult: researchFootballBonus(this.research) })
     }
     // (TUR14 P5: eski global isimli-menajer producerMult döngüsü kaldırıldı —
     //  etki artık yalnız atanmış firmaya, yukarıda uygulanıyor.)
     if (!this.producerModernized[def.id]) {
-      mult *= obsolescenceMult(def.tier, this.ipoCount)
+      factors.push({ id: 'obsolescence', mult: obsolescenceMult(def.tier, this.ipoCount) })
     }
     const hobbyBonus = hobbyProducerBonus(this.hobby, def.id)
-    if (hobbyBonus > 0) mult *= 1 + hobbyBonus
+    if (hobbyBonus > 0) factors.push({ id: 'hobby', mult: 1 + hobbyBonus })
     const cityBonus = this.cities ? (cityProducerBonus(this.cities, def.category) ?? 0) : 0
-    if (cityBonus > 0) mult *= (1 + cityBonus)
+    if (cityBonus > 0) factors.push({ id: 'city', mult: 1 + cityBonus })
     const firmLv = this.producerLevels[def.id] ?? 1
-    if (firmLv > 1) mult *= firmLevelIncomeMult(firmLv)
+    if (firmLv > 1) factors.push({ id: 'firm_level', mult: firmLevelIncomeMult(firmLv) })
     const firmPurchased = this.producerUpgrades[def.id] ?? []
-    if (firmPurchased.length > 0) mult *= 1 + firmUpgradeIncomeBonus(def, firmPurchased)
-    if (!def.illegal) mult *= 1 + operasyonLegalBonus(this.departments['operasyon'] ?? 0)
-    if (def.category === 'finance') mult *= 1 + finansProducerBonus(this.departments['finans'] ?? 0)
-    return scaledBaseIncome(def.baseIncome, def) * owned * mult * this.passiveMultiplier()
+    if (firmPurchased.length > 0) factors.push({ id: 'firm_upgrades', mult: 1 + firmUpgradeIncomeBonus(def, firmPurchased) })
+    if (!def.illegal) factors.push({ id: 'departments', mult: 1 + operasyonLegalBonus(this.departments['operasyon'] ?? 0) })
+    if (def.category === 'finance') factors.push({ id: 'departments', mult: 1 + finansProducerBonus(this.departments['finans'] ?? 0) })
+    return { base: scaledBaseIncome(def.baseIncome, def), owned, factors, passiveMult: this.passiveMultiplier() }
+  }
+
+  producerIncome(def: ProducerDef): number {
+    const f = this.producerIncomeFactors(def)
+    if (f.owned === 0) return 0
+    let mult = 1
+    for (const factor of f.factors) mult *= factor.mult
+    return f.base * f.owned * mult * f.passiveMult
   }
 
   /**
@@ -4308,6 +4323,15 @@ export class GameState {
     return { lines, businessIncome, careerWage, managerSalary, total: businessIncome + careerWage - managerSalary }
   }
 
+  /**
+   * TUR15-B — Şirket ekonomisinin salt-okunur merkezi snapshot'ı (tek kaynak).
+   * State değiştirmez, hiçbir alanı save edilmez; UI ekonomik değerleri yalnız
+   * buradan okur. Ayrıntı: `CompanyEconomy.ts`.
+   */
+  companyEconomySnapshot(): CompanyEconomySnapshot {
+    return buildCompanyEconomySnapshot(this)
+  }
+
   incomeBreakdown(): { label: string; value: number; color: 'green' | 'blue' | 'cyan' | 'gold' | 'red' | 'purple' }[] {
     const legalTotal = this.legalIncomePerDay()
     const illegal = this.illegalIncomePerDay()
@@ -6030,7 +6054,9 @@ export class GameState {
     const alreadyHired = this.isNamedManagerHired(managerId)
     const assignedFirmId = this.namedManagerAssignedFirm(managerId) ?? null
     const currentFirmManagerId = this.firmManagerAssignments[producerId] ?? null
-    const dailySalary = def?.dailySalary ?? 0
+    // TUR15-B — Önizleme maaşı TEK KAYNAKTAN: atama gerçekleşseydi settlement'ın
+    // keseceği gerçek maaş (managerDailySalaryFor), geçici atama bloğunda ölçülür.
+    let dailySalary = 0
     const hireCost = alreadyHired ? 0 : (def?.hireCost ?? 0)
     const applicabilityType: ManagerApplicability = def && prod
       ? managerApplicability(def, producerId, !!prod.illegal)
@@ -6044,6 +6070,7 @@ export class GameState {
       this.firmManagerAssignments[producerId] = managerId
       try {
         incomeAfter = Math.round(this.producerIncome(prod))
+        dailySalary = this.managerDailySalaryFor(producerId)
       } finally {
         if (prev === undefined) delete this.firmManagerAssignments[producerId]
         else this.firmManagerAssignments[producerId] = prev
@@ -6144,14 +6171,76 @@ export class GameState {
     return true
   }
 
+  /**
+   * TUR15-B — Firma bazlı menajer maaşının TEK KAYNAĞI. Settlement, snapshot,
+   * önizleme ve UI hepsi bunu kullanır; maaş türetilmiş değerdir, save edilmez.
+   *
+   * 'economic' menajer: maaş = round(max(0, marjinal günlük brüt katkı) × salaryShare).
+   * Marjinal katkı state'e DOKUNMADAN hesaplanır: producerIncomeFactors çıktısı
+   * aynı çarpım sırasıyla, 'manager' faktörü atlanarak yeniden katlanır (managersız
+   * gelir). 'utility' menajer (zara) sabit dailySalary alır.
+   */
+  managerDailySalaryFor(firmId: string): number {
+    const mgrId = this.firmManagerAssignments[firmId]
+    if (!mgrId) return 0
+    if ((this.producers[firmId] ?? 0) <= 0) return 0
+    const mdef = namedManagerDef(mgrId)
+    if (!mdef) return 0
+    if (mdef.role === 'utility' || mdef.salaryShare === undefined) return mdef.dailySalary
+    const def = PRODUCERS.find((p) => p.id === firmId)
+    if (!def) return 0
+    const f = this.producerIncomeFactors(def)
+    if (f.owned === 0) return 0
+    let mult = 1
+    let multWithoutManager = 1
+    for (const factor of f.factors) {
+      mult *= factor.mult
+      if (factor.id !== 'manager') multWithoutManager *= factor.mult
+    }
+    const gross = f.base * f.owned * mult * f.passiveMult
+    const withoutManager = f.base * f.owned * multWithoutManager * f.passiveMult
+    return Math.round(Math.max(0, gross - withoutManager) * mdef.salaryShare)
+  }
+
   /** Atanmış (ve firması hâlâ ayakta olan) menajerlerin toplam günlük maaşı. */
   assignedManagerDailySalary(): number {
     let total = 0
-    for (const [firmId, mgrId] of Object.entries(this.firmManagerAssignments)) {
-      if ((this.producers[firmId] ?? 0) <= 0) continue
-      total += namedManagerDef(mgrId)?.dailySalary ?? 0
+    for (const firmId of Object.keys(this.firmManagerAssignments)) {
+      total += this.managerDailySalaryFor(firmId)
     }
     return total
+  }
+
+  /**
+   * TUR15-B — `producerId`'den `addedQty` kadar satın alınsaydı, TÜM atanmış
+   * menajerlerin toplam günlük maaşının ne olacağı (tek kaynak: `managerDailySalaryFor`
+   * / `assignedManagerDailySalary`, formül burada TEKRARLANMAZ). Yalnız satın alınan
+   * firmanın kendi menajerini değil — global synergy/passive çarpanlar üzerinden
+   * DİĞER firmalara atanmış ekonomik menajerlerin maaşını da etkileyebileceğinden
+   * toplam yeniden hesaplanır.
+   *
+   * `projectedProducerIncome` ile birebir aynı saflık deseni: adet + empire
+   * (politics.level, football) geçici olarak projeksiyona eşitlenir, okuma
+   * bittikten sonra `finally` içinde eksiksiz geri yüklenir.
+   */
+  projectedAssignedManagerDailySalary(producerId: string, addedQty: number): number {
+    const owned = this.producers[producerId] ?? 0
+    const target = Math.max(0, owned + addedQty)
+    const had = Object.prototype.hasOwnProperty.call(this.producers, producerId)
+    const prev = this.producers[producerId]
+    const prevPoliticsLevel = this.empire.politics.level
+    const prevFootball = this.empire.football
+    this.empire.football = prevFootball.map((c) => ({ ...c }))
+    this.producers[producerId] = target
+    try {
+      syncEmpireFromProducers(this.empire, this.producers)
+      return this.assignedManagerDailySalary()
+    } finally {
+      if (had) this.producers[producerId] = prev!
+      else delete this.producers[producerId]
+      this.empire.politics.level = prevPoliticsLevel
+      this.empire.football = prevFootball
+    }
   }
 
   acceptRivalAllianceOffer(): boolean {
@@ -6397,7 +6486,7 @@ export class GameState {
     const def = PRODUCERS.find((p) => p.id === id)
     if (!def || (this.producers[id] ?? 0) <= 0) return false
     if (this.producerModernized[id]) return false
-    const cost = modernizeCost(def.tier, this.producers[id] ?? 0)
+    const cost = modernizeCost(def, this.producers[id] ?? 0)
     if (!this.canAfford(cost)) return false
     this.money -= cost
     this.producerModernized[id] = true

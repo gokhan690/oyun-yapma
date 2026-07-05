@@ -1,4 +1,4 @@
-import type { ProducerDef } from './Economy'
+import { producerEconomyMult, producerCostExtraMult, type ProducerDef } from './Economy'
 
 /**
  * Kategoriye özel firma geliştirme türleri (Karar 8-10).
@@ -27,34 +27,34 @@ export interface FirmUpgradeDef {
 
 export const FIRM_UPGRADE_TRACKS: Record<FirmTrack, FirmUpgradeDef[]> = {
   general: [
-    { id: 'kalite', name: 'Kalite Artır', emoji: '⭐', description: 'Ürün/hizmet kalitesini yükselt', incomeBonus: 0.15, costMult: 6 },
-    { id: 'personel', name: 'Personel Eğitimi', emoji: '🎓', description: 'Çalışanları eğit, verim artsın', incomeBonus: 0.20, costMult: 12 },
-    { id: 'tedarik', name: 'Tedarik Anlaşması', emoji: '🤝', description: 'Maliyet düşür, marj artsın', incomeBonus: 0.30, costMult: 22 },
+    { id: 'kalite', name: 'Kalite Artır', emoji: '⭐', description: 'Ürün/hizmet kalitesini yükselt', incomeBonus: 0.15, costMult: 0.10 },
+    { id: 'personel', name: 'Personel Eğitimi', emoji: '🎓', description: 'Çalışanları eğit, verim artsın', incomeBonus: 0.20, costMult: 0.20 },
+    { id: 'tedarik', name: 'Tedarik Anlaşması', emoji: '🤝', description: 'Maliyet düşür, marj artsın', incomeBonus: 0.30, costMult: 0.36 },
   ],
   tech: [
-    { id: 'arge', name: 'Ar-Ge Yatırımı', emoji: '🔬', description: 'Araştırma ile ürün geliştir', incomeBonus: 0.20, costMult: 8 },
-    { id: 'otomasyon', name: 'Otomasyon', emoji: '🤖', description: 'Süreçleri otomatikleştir', incomeBonus: 0.30, costMult: 16 },
-    { id: 'abonelik', name: 'Abonelik Modeli', emoji: '🔁', description: 'Tekrarlayan gelir kur', incomeBonus: 0.25, costMult: 24 },
+    { id: 'arge', name: 'Ar-Ge Yatırımı', emoji: '🔬', description: 'Araştırma ile ürün geliştir', incomeBonus: 0.20, costMult: 0.14 },
+    { id: 'otomasyon', name: 'Otomasyon', emoji: '🤖', description: 'Süreçleri otomatikleştir', incomeBonus: 0.30, costMult: 0.30 },
+    { id: 'abonelik', name: 'Abonelik Modeli', emoji: '🔁', description: 'Tekrarlayan gelir kur', incomeBonus: 0.25, costMult: 0.30 },
   ],
   finance: [
-    { id: 'analiz', name: 'Veri Analizi', emoji: '📊', description: 'Yatırım kararlarını iyileştir', incomeBonus: 0.20, costMult: 9 },
-    { id: 'risk', name: 'Risk Yönetimi', emoji: '🛡️', description: 'Kayıpları azalt, getiriyi koru', incomeBonus: 0.28, costMult: 18 },
+    { id: 'analiz', name: 'Veri Analizi', emoji: '📊', description: 'Yatırım kararlarını iyileştir', incomeBonus: 0.20, costMult: 0.14 },
+    { id: 'risk', name: 'Risk Yönetimi', emoji: '🛡️', description: 'Kayıpları azalt, getiriyi koru', incomeBonus: 0.28, costMult: 0.31 },
   ],
   luxury: [
-    { id: 'premium', name: 'Premium Hizmet', emoji: '💎', description: 'Üst segment müşteri kazan', incomeBonus: 0.25, costMult: 10 },
-    { id: 'marka', name: 'Marka Değeri', emoji: '👑', description: 'Prestij ve fiyat gücü artır', incomeBonus: 0.35, costMult: 20 },
+    { id: 'premium', name: 'Premium Hizmet', emoji: '💎', description: 'Üst segment müşteri kazan', incomeBonus: 0.25, costMult: 0.19 },
+    { id: 'marka', name: 'Marka Değeri', emoji: '👑', description: 'Prestij ve fiyat gücü artır', incomeBonus: 0.35, costMult: 0.39 },
   ],
   sport: [
-    { id: 'sponsor', name: 'Sponsorluk', emoji: '🤝', description: 'Sponsor gelirleri ekle', incomeBonus: 0.20, costMult: 9 },
-    { id: 'taraftar', name: 'Taraftar Tabanı', emoji: '📣', description: 'Bilet/ürün satışını büyüt', incomeBonus: 0.30, costMult: 18 },
+    { id: 'sponsor', name: 'Sponsorluk', emoji: '🤝', description: 'Sponsor gelirleri ekle', incomeBonus: 0.20, costMult: 0.14 },
+    { id: 'taraftar', name: 'Taraftar Tabanı', emoji: '📣', description: 'Bilet/ürün satışını büyüt', incomeBonus: 0.30, costMult: 0.33 },
   ],
   politics: [
-    { id: 'lobi', name: 'Lobi Gücü', emoji: '🏛️', description: 'Düzenleme avantajı sağla', incomeBonus: 0.20, costMult: 9 },
-    { id: 'nufuz', name: 'Nüfuz Ağı', emoji: '🕸️', description: 'İlişki ağını genişlet', incomeBonus: 0.30, costMult: 18 },
+    { id: 'lobi', name: 'Lobi Gücü', emoji: '🏛️', description: 'Düzenleme avantajı sağla', incomeBonus: 0.20, costMult: 0.14 },
+    { id: 'nufuz', name: 'Nüfuz Ağı', emoji: '🕸️', description: 'İlişki ağını genişlet', incomeBonus: 0.30, costMult: 0.33 },
   ],
   illegal: [
-    { id: 'karaborsa', name: 'Karaborsa Ağı', emoji: '🕳️', description: 'Yüksek gelir ama daha çok heat', incomeBonus: 0.40, costMult: 12, heatBonus: 8 },
-    { id: 'aklama', name: 'Kara Para Aklama', emoji: '🪙', description: 'Geliri temizle, marjı koru', incomeBonus: 0.30, costMult: 20, heatBonus: 4 },
+    { id: 'karaborsa', name: 'Karaborsa Ağı', emoji: '🕳️', description: 'Yüksek gelir ama daha çok heat', incomeBonus: 0.40, costMult: 0.24, heatBonus: 8 },
+    { id: 'aklama', name: 'Kara Para Aklama', emoji: '🪙', description: 'Geliri temizle, marjı koru', incomeBonus: 0.30, costMult: 0.30, heatBonus: 4 },
   ],
 }
 
@@ -99,5 +99,11 @@ export function firmUpgradeHeatBonus(def: ProducerDef, purchased: string[]): num
 }
 
 export function firmUpgradeCost(def: ProducerDef, upgrade: FirmUpgradeDef, owned: number): number {
-  return Math.floor(def.baseCost * upgrade.costMult * Math.max(1, owned))
+  return Math.floor(
+    def.baseCost *
+    producerEconomyMult(def) *
+    producerCostExtraMult(def) *
+    upgrade.costMult *
+    Math.max(1, owned)
+  )
 }

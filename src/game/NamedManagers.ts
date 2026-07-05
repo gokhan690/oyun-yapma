@@ -9,6 +9,13 @@ export interface NamedManagerDef {
   specialty: string
   dailySalary: number
   hireCost: number
+  /**
+   * TUR15-B — Maaş modeli: 'economic' menajerde günlük maaş türetilmiştir:
+   * round(max(0, marjinal günlük brüt katkı) × salaryShare). 'utility' menajer
+   * (yalnız risk/heat faydası) sabit dailySalary alır; gelir ROI'si hesaplanmaz.
+   */
+  role: 'economic' | 'utility'
+  salaryShare?: number
   requiredFirmLevel?: number
   requiredFirmLevelByProducer?: Record<string, number>
   passiveMult?: number
@@ -25,6 +32,8 @@ export const NAMED_MANAGERS: NamedManagerDef[] = [
     specialty: 'Lojistik +%30',
     dailySalary: 750,
     hireCost: 25_000,
+    role: 'economic',
+    salaryShare: 0.22,
     producerMult: { stajyer: 0.12, fabrika: 0.3, liman: 0.25, kargo: 0.18, drone: 0.18, fulfillment: 0.18 },
     requiredFirmLevelByProducer: { stajyer: 2 },
   },
@@ -35,6 +44,8 @@ export const NAMED_MANAGERS: NamedManagerDef[] = [
     specialty: 'Yazılım +%25',
     dailySalary: 1250,
     hireCost: 80_000,
+    role: 'economic',
+    salaryShare: 0.27,
     producerMult: { robot: 0.16, mobil_app: 0.20, holding: 0.25, ai: 0.2, oyun_studio: 0.22, data_center: 0.20, streaming: 0.18, fitness_app: 0.16, online_egitim: 0.16 },
   },
   {
@@ -44,6 +55,8 @@ export const NAMED_MANAGERS: NamedManagerDef[] = [
     specialty: 'Tüm işletmeler +%5',
     dailySalary: 2500,
     hireCost: 200_000,
+    role: 'economic',
+    salaryShare: 0.30,
     globalPassiveMult: 0.05,
   },
   {
@@ -53,6 +66,7 @@ export const NAMED_MANAGERS: NamedManagerDef[] = [
     specialty: 'Illegal risk azaltır',
     dailySalary: 1500,
     hireCost: 150_000,
+    role: 'utility',
     illegalHeatReduce: 0.15,
   },
   {
@@ -62,6 +76,8 @@ export const NAMED_MANAGERS: NamedManagerDef[] = [
     specialty: 'Sağlık & İlaç +%35',
     dailySalary: 1200,
     hireCost: 95_000,
+    role: 'economic',
+    salaryShare: 0.28,
     producerMult: { berber: 0.16, guzellik: 0.18, gym: 0.12, hastane: 0.35, ilac: 0.25, gen_terapi: 0.20 },
   },
   {
@@ -71,6 +87,8 @@ export const NAMED_MANAGERS: NamedManagerDef[] = [
     specialty: 'Tarım & Gıda +%30',
     dailySalary: 750,
     hireCost: 60_000,
+    role: 'economic',
+    salaryShare: 0.22,
     producerMult: { stajyer: 0.16, firin: 0.18, kafe: 0.18, ofis: 0.18, cikolata: 0.20, catering: 0.15, tarim_tek: 0.30 },
   },
   {
@@ -80,6 +98,8 @@ export const NAMED_MANAGERS: NamedManagerDef[] = [
     specialty: 'Fintech +%30',
     dailySalary: 1500,
     hireCost: 120_000,
+    role: 'economic',
+    salaryShare: 0.32,
     producerMult: { kripto: 0.30, nft_borsa: 0.25, borsa_araci: 0.20 },
   },
   {
@@ -89,6 +109,8 @@ export const NAMED_MANAGERS: NamedManagerDef[] = [
     specialty: 'Lüks İmparatorluk +%25',
     dailySalary: 1500,
     hireCost: 180_000,
+    role: 'economic',
+    salaryShare: 0.32,
     producerMult: { berber: 0.12, kuyumcu: 0.25, tatil_koyu: 0.20, yacht_filo: 0.25, saat_marka: 0.20, moda_evi: 0.20, sanat_galeri: 0.18 },
     requiredFirmLevelByProducer: { berber: 2 },
   },

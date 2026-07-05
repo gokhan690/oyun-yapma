@@ -1,3 +1,5 @@
+import { producerEconomyMult, producerCostExtraMult, type ProducerDef } from './Economy'
+
 /** IPO sonrası düşük tier işletmelerin gelir çarpanı */
 export function obsolescenceMult(producerTier: number, ipoCount: number): number {
   if (ipoCount <= 0) return 1
@@ -10,6 +12,12 @@ export function obsolescenceMult(producerTier: number, ipoCount: number): number
 
 export const MODERNIZE_COST_BASE = 25_000
 
-export function modernizeCost(producerTier: number, owned: number): number {
-  return Math.floor(MODERNIZE_COST_BASE * producerTier * Math.max(1, owned * 0.5))
+export function modernizeCost(def: ProducerDef, owned: number): number {
+  return Math.floor(
+    def.baseCost *
+    producerEconomyMult(def) *
+    producerCostExtraMult(def) *
+    0.40 *
+    Math.max(1, owned * 0.5)
+  )
 }
