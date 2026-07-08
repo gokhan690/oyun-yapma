@@ -1914,6 +1914,31 @@ body.ref-sheet-open { overflow: hidden !important; }
 }
 .ref-prod-locked-lbl { font-size: 10.5px; font-weight: 700; color: var(--r-muted); }
 
+/* Tur 3 (B3): gerçek ekonomi satırı (net kâr / geri dönüş / menajer maaşı) */
+.ref-prod-econ-line {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 0 13px 4px; font-size: 10.5px; font-weight: 700;
+}
+.ref-prod-econ-line:empty { display: none; }
+.ref-prod-econ-item { color: var(--r-muted); }
+.ref-prod-econ-item.pos { color: var(--r-success); }
+.ref-prod-econ-item.neg { color: var(--r-danger); }
+
+/* Tur 3 (B3): yatırım etiketleri (maks. 2/kart) */
+.ref-prod-labels { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 13px 6px; }
+.ref-prod-labels:empty { display: none; }
+.ref-prod-label-chip {
+  font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: var(--r-pill);
+  color: #fff; white-space: nowrap; line-height: 1.5;
+}
+.ref-prod-label-chip--fastest_payback { background: var(--r-success); }
+.ref-prod-label-chip--best_net { background: var(--r-gold); color: #3a2c00; }
+.ref-prod-label-chip--affordable { background: var(--r-teal-dk); }
+.ref-prod-label-chip--long_term { background: var(--r-muted-lt); color: var(--r-text2); }
+.ref-prod-label-chip--low_reserve { background: var(--r-orange); }
+.ref-prod-label-chip--inefficient { background: var(--r-danger); }
+.ref-prod-label-chip--risk_manager { background: #7c3aed; }
+
 /* ===== İmparatorluk Yatırımları ===== */
 .ref-empire-inv { padding-bottom: 8px; }
 .ref-empire-tabs {
@@ -2597,6 +2622,21 @@ body.ref-sheet-open { overflow: hidden !important; }
   border: 1.5px solid var(--r-border-lt); background: var(--r-card-soft); color: var(--r-muted); cursor: pointer;
 }
 .ref-tier-btn.active { background: var(--r-teal-dk); color: #fff; border-color: transparent; }
+
+/* Tur 3 (B3): sıralama çip satırı — 430px'te kontrollü yatay scroll, sayfa taşmaz */
+.ref-sort-row { display: flex; align-items: center; gap: 6px; padding: 6px 14px 4px; max-width: 100%; }
+.ref-sort-lbl { font-size: 11px; font-weight: 700; color: var(--r-muted); margin-right: 2px; flex-shrink: 0; }
+.ref-sort-scroll {
+  display: flex; gap: 6px; overflow-x: auto; max-width: 100%;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.ref-sort-scroll::-webkit-scrollbar { display: none; }
+.ref-sort-btn {
+  font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 5px;
+  border: 1.5px solid var(--r-border-lt); background: var(--r-card-soft); color: var(--r-muted);
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.ref-sort-btn.active { background: var(--r-accent); color: #fff; border-color: transparent; }
 
 /* Tur 2: Producer action row (Manager + Modernize) */
 .ref-prod-action-row { display: flex; gap: 6px; padding: 0 12px 8px; }

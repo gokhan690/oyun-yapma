@@ -1485,6 +1485,29 @@ export interface Translations {
   firms_lock_banner_need_job: string
   firms_lock_banner_progress_fmt: string
 
+  // RefFirmsPage — B3 sıralama (opsiyonel: yalnız tr.ts'te dolu, diğer 9 dil bu turda
+  // dokunulmuyor — i18n.t()'in dict[key] ?? tr[key] ?? key fallback'i TR'ye düşürür)
+  firms_sort_label?: string
+  firms_sort_tier?: string
+  firms_sort_price_asc?: string
+  firms_sort_price_desc?: string
+  firms_sort_net_desc?: string
+  firms_sort_payback_asc?: string
+  firms_sort_affordable_first?: string
+
+  // RefFirmsPage — B3 gerçek ekonomi kart satırı + yatırım etiketleri (opsiyonel, bkz. yukarı)
+  eco_payback_days_fmt?: string
+  eco_payback_none?: string
+  eco_net_profit?: string
+  eco_manager_salary?: string
+  firm_label_fastest_payback?: string
+  firm_label_best_net?: string
+  firm_label_affordable?: string
+  firm_label_long_term?: string
+  firm_label_low_reserve?: string
+  firm_label_inefficient?: string
+  firm_label_risk_manager?: string
+
   // RefApp Market
   ref_market_title: string
   ref_market_tab_stocks: string

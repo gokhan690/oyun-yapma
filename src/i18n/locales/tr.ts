@@ -1328,6 +1328,29 @@ export const tr: Translations = {
   firms_lock_btn: 'Kariyer gerekli',
   firms_lock_banner_need_job: 'Firma açmak için önce bir iş seç ve birkaç kariyer aksiyonu yap.',
   firms_lock_banner_progress_fmt: 'İlerleme: {actions}/3 aksiyon · ₺{income}/₺1000 kariyer geliri',
+
+  // RefFirmsPage — B3 sıralama
+  firms_sort_label: 'Sırala:',
+  firms_sort_tier: 'Kademe',
+  firms_sort_price_asc: 'Fiyat ↑',
+  firms_sort_price_desc: 'Fiyat ↓',
+  firms_sort_net_desc: 'Net Kâr',
+  firms_sort_payback_asc: 'Hızlı Dönüş',
+  firms_sort_affordable_first: 'Alınabilir',
+
+  // RefFirmsPage — B3 gerçek ekonomi kart satırı + yatırım etiketleri
+  eco_payback_days_fmt: '{days} gün geri dönüş',
+  eco_payback_none: 'Geri dönüş yok',
+  eco_net_profit: 'Net',
+  eco_manager_salary: 'Yönetici maaşı',
+  firm_label_fastest_payback: '⚡ En Hızlı',
+  firm_label_best_net: '🏆 En Kârlı',
+  firm_label_affordable: '✅ Alınabilir',
+  firm_label_long_term: '⏳ Uzun Vade',
+  firm_label_low_reserve: '⚠️ Düşük Nakit',
+  firm_label_inefficient: '📉 Verimsiz',
+  firm_label_risk_manager: '🕶️ Risk Yön.',
+
   ref_market_title: 'PİYASA',
   ref_market_tab_stocks: 'Borsa',
   ref_market_tab_bank: 'Banka',

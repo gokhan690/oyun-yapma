@@ -9,6 +9,7 @@ import { FIRM_MAX_LEVEL, firmLevelIncomeMult, isFirmMaxLevel } from '../../game/
 import { hasManager } from '../../game/Managers'
 import { namedManagerDef, managerDisplayName } from '../../game/NamedManagers'
 import { modernizeCost } from '../../game/TechObsolescence'
+import type { FirmEconomyBreakdown, InvestmentLabel } from '../../game/CompanyEconomy'
 
 /* ── Mock data (gerçek veri/state yoksa saf önizleme) ──────────────────── */
 const MOCK_FIRMS: FirmData[] = [
@@ -28,6 +29,16 @@ const EMPIRE_PRODUCER_IDS = new Set(
     .map(p => p.id)
 )
 const NORMAL_PRODUCERS = PRODUCERS.filter(p => !EMPIRE_PRODUCER_IDS.has(p.id))
+
+/* ── B3: Firma sıralaması — yalnız görüntü sırası, PRODUCERS/state mutate edilmez ── */
+const FIRM_SORT_STORAGE_KEY = 'tur15b_firm_sort'
+const SORT_MODES = ['tier_asc', 'price_asc', 'price_desc', 'net_desc', 'payback_asc', 'affordable_first'] as const
+type SortMode = typeof SORT_MODES[number]
+const PRODUCERS_INDEX = new Map(PRODUCERS.map((p, i) => [p.id, i]))
+/** Deterministik tie-break: 1) tier artan, 2) orijinal PRODUCERS dizisindeki index. */
+function tieBreak(a: ProducerDef, b: ProducerDef): number {
+  return (a.tier - b.tier) || ((PRODUCERS_INDEX.get(a.id) ?? 0) - (PRODUCERS_INDEX.get(b.id) ?? 0))
+}
 
 /* ── Önizleme kategori filtreleri (mock mod) ───────────────────────────── */
 type CategoryKey = 'tumu' | 'gida' | 'hizmet' | 'teknoloji' | 'finans' | 'turizm' | 'medya' | 'illegal'
@@ -107,12 +118,18 @@ export class RefFirmsPage implements RefPage {
   private buyModeRow?: HTMLElement
   private tierFilterRow?: HTMLElement
 
+  // Tur 3 (B3): sıralama + gerçek ekonomi snapshot'ı (kart başına değil, refresh başına 1 kez)
+  private sortMode: SortMode = 'tier_asc'
+  private sortRow?: HTMLElement
+  private economyMap = new Map<string, FirmEconomyBreakdown>()
+
   private firms?: FirmData[]
   private state?: GameState
 
   constructor(firms?: FirmData[], _hasRealData = false, state?: GameState) {
     this.firms = firms
     this.state = state
+    this.loadSortMode()
 
     this.el = document.createElement('div')
     this.el.className = 'ref-page ref-firms-page'
@@ -221,6 +238,14 @@ export class RefFirmsPage implements RefPage {
       <button class="ref-tier-btn" data-tier-filter="large">T7+</button>`
     wrap.appendChild(this.tierFilterRow)
 
+    // Tur 3 (B3): sıralama çip satırı
+    this.sortRow = document.createElement('div')
+    this.sortRow.className = 'ref-sort-row'
+    this.sortRow.innerHTML = `
+      <span class="ref-sort-lbl">${i18n.t('firms_sort_label')}</span>
+      <div class="ref-sort-scroll">${this.buildSortRowHtml()}</div>`
+    wrap.appendChild(this.sortRow)
+
     // Erken oyun firma-alımı kilidi ilerleme bandı (kilitliyken görünür)
     this.lockBannerEl = document.createElement('div')
     this.lockBannerEl.className = 'ref-firms-lock-banner'
@@ -255,6 +280,18 @@ export class RefFirmsPage implements RefPage {
           b.classList.toggle('active', (b as HTMLElement).dataset.tierFilter === this.tierFilter)
         })
         this.applyTierFilter()
+        return
+      }
+      const sortBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-sort]')
+      if (sortBtn) {
+        const mode = sortBtn.dataset.sort as SortMode
+        this.sortMode = mode
+        localStorage.setItem(FIRM_SORT_STORAGE_KEY, mode)
+        this.sortRow?.querySelectorAll('.ref-sort-btn').forEach(b => {
+          b.classList.toggle('active', (b as HTMLElement).dataset.sort === mode)
+        })
+        this.buildProducerCards()  // rebuild in new order
+        this.applyTierFilter()
       }
     })
 
@@ -280,12 +317,96 @@ export class RefFirmsPage implements RefPage {
     this.producerCards.clear()
     this.producerCardsContainer.innerHTML = ''
     const s = this.state!
-    const sorted = [...NORMAL_PRODUCERS].sort((a, b) => a.tier - b.tier || a.unlockAt - b.unlockAt)
+    // TUR15-B3: snapshot BİR KEZ alınır (138 kart için 138 çağrı değil).
+    const snapshot = s.companyEconomySnapshot()
+    this.economyMap = new Map(snapshot.firmBreakdowns.map(b => [b.producerId, b]))
+    const sorted = this.sortedProducers(s)
     for (const def of sorted) {
-      const card = this.buildOneProducerCard(def, s)
+      const card = this.buildOneProducerCard(def, s, this.economyMap.get(def.id))
       this.producerCards.set(def.id, card)
       this.producerCardsContainer.appendChild(card)
     }
+  }
+
+  /** localStorage'daki sıralama tercihini okur; geçersiz/eski değer → tier_asc. Save şemasına dokunmaz. */
+  private loadSortMode(): void {
+    const raw = localStorage.getItem(FIRM_SORT_STORAGE_KEY)
+    this.sortMode = (raw && (SORT_MODES as readonly string[]).includes(raw)) ? (raw as SortMode) : 'tier_asc'
+  }
+
+  private buildSortRowHtml(): string {
+    const options: { id: SortMode; key: string }[] = [
+      { id: 'tier_asc', key: 'firms_sort_tier' },
+      { id: 'price_asc', key: 'firms_sort_price_asc' },
+      { id: 'price_desc', key: 'firms_sort_price_desc' },
+      { id: 'net_desc', key: 'firms_sort_net_desc' },
+      { id: 'payback_asc', key: 'firms_sort_payback_asc' },
+      { id: 'affordable_first', key: 'firms_sort_affordable_first' },
+    ]
+    return options.map(o =>
+      `<button class="ref-sort-btn${o.id === this.sortMode ? ' active' : ''}" data-sort="${o.id}">${requiredDomainText(o.key)}</button>`,
+    ).join('')
+  }
+
+  /**
+   * TUR15-B3 — Yalnız görüntü sırası: her zaman [...NORMAL_PRODUCERS] KOPYASI üzerinde
+   * sıralanır; NORMAL_PRODUCERS/PRODUCERS/save state hiç mutate edilmez. Ekonomi alanları
+   * (fiyat/net/payback/affordable) `this.economyMap`'teki (tek seferlik snapshot'tan
+   * türetilmiş) `FirmEconomyBreakdown`'dan okunur — formül burada tekrarlanmaz.
+   */
+  private sortedProducers(s: GameState): ProducerDef[] {
+    const list = [...NORMAL_PRODUCERS]
+    const bd = (id: string) => this.economyMap.get(id)
+    switch (this.sortMode) {
+      case 'price_asc':
+        list.sort((a, b) =>
+          (s.producerCostFor(a, s.producers[a.id] ?? 0, 1) - s.producerCostFor(b, s.producers[b.id] ?? 0, 1)) || tieBreak(a, b),
+        )
+        break
+      case 'price_desc':
+        list.sort((a, b) =>
+          (s.producerCostFor(b, s.producers[b.id] ?? 0, 1) - s.producerCostFor(a, s.producers[a.id] ?? 0, 1)) || tieBreak(a, b),
+        )
+        break
+      case 'net_desc':
+        list.sort((a, b) => {
+          const na = bd(a.id)?.netProfit ?? 0
+          const nb = bd(b.id)?.netProfit ?? 0
+          const pa = na > 0 ? 1 : 0
+          const pb = nb > 0 ? 1 : 0
+          if (pa !== pb) return pb - pa // pozitif net kâr önce
+          if (nb !== na) return nb - na
+          return tieBreak(a, b)
+        })
+        break
+      case 'payback_asc':
+        list.sort((a, b) => {
+          const pa = bd(a.id)?.paybackDays ?? null
+          const pb = bd(b.id)?.paybackDays ?? null
+          if (pa === null && pb === null) return tieBreak(a, b)
+          if (pa === null) return 1 // null sona
+          if (pb === null) return -1
+          if (pa !== pb) return pa - pb
+          return tieBreak(a, b)
+        })
+        break
+      case 'affordable_first':
+        list.sort((a, b) => {
+          const bucketOf = (br?: FirmEconomyBreakdown): number => {
+            if (!br || !br.unlocked) return 2 // kilitli sona
+            if (br.owned === 0 && br.affordability) return 0 // alınabilir önce
+            return 1 // sahipli / kilitsiz ama alınamaz
+          }
+          const diff = bucketOf(bd(a.id)) - bucketOf(bd(b.id))
+          return diff !== 0 ? diff : tieBreak(a, b)
+        })
+        break
+      case 'tier_asc':
+      default:
+        list.sort(tieBreak)
+        break
+    }
+    return list
   }
 
   /** ProducerDef + canlı state → detay ekranı için FirmData (gerçek değerler). */
@@ -329,7 +450,7 @@ export class RefFirmsPage implements RefPage {
     return lo
   }
 
-  private buildOneProducerCard(def: ProducerDef, s: GameState): HTMLElement {
+  private buildOneProducerCard(def: ProducerDef, s: GameState, breakdown?: FirmEconomyBreakdown): HTMLElement {
     const owned    = s.producers[def.id] ?? 0
     const unlocked = isProducerUnlocked(def, s.totalEarned, s.forcedUnlocks, s.ipoCount)
     const purchaseLocked = !s.firmsPurchaseUnlocked()
@@ -437,6 +558,8 @@ export class RefFirmsPage implements RefPage {
           : `<span class="ref-prod-stat"><small>${i18n.t('firms_one_unit_income')}</small><b class="inc">${fmtMoney(unitIncome)}</b></span>
              <span class="ref-prod-stat"><small>${i18n.t('firms_stat_cost')}</small><b>${fmtMoney(s.producerCostFor(def, owned, 1))}</b></span>`}
       </div>
+      <div class="ref-prod-econ-line">${unlocked ? this.economyLineHtml(owned, breakdown) : ''}</div>
+      <div class="ref-prod-labels">${unlocked ? this.labelsHtml(breakdown) : ''}</div>
       ${owned === 0 && canBuy ? `<div class="ref-prod-buy-gain">${fmt('firms_buy_gain_fmt', { amount: fmtMoney(buyDelta) })}${this.buyMode !== 1 ? ` (${qty}×)` : ''}</div>` : ''}
       <div class="ref-prod-card__foot">
         ${footRight}
@@ -474,7 +597,7 @@ export class RefFirmsPage implements RefPage {
       const ok = this.state?.levelUpFirm(def.id)
       if (ok) {
         refToast(`⬆️ ${def.emoji} ${fmt('firms_toast_levelup_fmt', { name: producerName(def), level: String(this.state!.producerLevel(def.id)) })}`, 'ok')
-        const newCard = this.buildOneProducerCard(def, this.state!)
+        const newCard = this.buildOneProducerCard(def, this.state!, this.freshBreakdownFor(def.id, this.state!))
         card.replaceWith(newCard)
         this.producerCards.set(def.id, newCard)
         this.updateSummary()
@@ -505,7 +628,7 @@ export class RefFirmsPage implements RefPage {
       const ok = this.state?.modernizeProducer(def.id)
       if (ok) {
         refToast(`🔧 ${fmt('firms_toast_modernized_fmt', { name: producerName(def) })}`, 'ok')
-        const newCard = this.buildOneProducerCard(def, this.state!)
+        const newCard = this.buildOneProducerCard(def, this.state!, this.freshBreakdownFor(def.id, this.state!))
         card.replaceWith(newCard)
         this.producerCards.set(def.id, newCard)
       } else {
@@ -514,6 +637,68 @@ export class RefFirmsPage implements RefPage {
     })
 
     return card
+  }
+
+  /** Kompakt ekonomi satırı: geri dönüş süresi (her zaman) + net kâr/menajer maaşı (owned>0). */
+  private economyLineHtml(owned: number, breakdown?: FirmEconomyBreakdown): string {
+    const paybackDays = breakdown?.paybackDays ?? null
+    const paybackText = paybackDays === null
+      ? i18n.t('eco_payback_none')
+      : fmt('eco_payback_days_fmt', { days: String(Math.round(paybackDays)) })
+    const parts = [`<span class="ref-prod-econ-item">⏱ ${paybackText}</span>`]
+    if (owned > 0) {
+      const netProfit = breakdown?.netProfit ?? 0
+      const netCls = netProfit > 0 ? 'pos' : netProfit < 0 ? 'neg' : ''
+      parts.push(`<span class="ref-prod-econ-item ${netCls}">${i18n.t('eco_net_profit')}: ${fmtMoney(Math.round(netProfit))}</span>`)
+      const managerSalary = breakdown?.managerSalary ?? 0
+      if (managerSalary > 0) {
+        parts.push(`<span class="ref-prod-econ-item neg">${i18n.t('eco_manager_salary')}: -${fmtMoney(Math.round(managerSalary))}</span>`)
+      }
+    }
+    return parts.join('')
+  }
+
+  /** Maks. 2 yatırım etiketi — CompanyEconomy.ts'in assignLabels() çıktısı aynen okunur. */
+  private labelsHtml(breakdown?: FirmEconomyBreakdown): string {
+    const labels = breakdown?.labels ?? []
+    if (!labels.length) return ''
+    return labels.map(l => `<span class="ref-prod-label-chip ref-prod-label-chip--${l}">${this.labelText(l)}</span>`).join('')
+  }
+
+  private labelText(label: InvestmentLabel): string {
+    switch (label) {
+      case 'fastest_payback': return i18n.t('firm_label_fastest_payback')
+      case 'best_net': return i18n.t('firm_label_best_net')
+      case 'affordable': return i18n.t('firm_label_affordable')
+      case 'long_term': return i18n.t('firm_label_long_term')
+      case 'low_reserve': return i18n.t('firm_label_low_reserve')
+      case 'inefficient': return i18n.t('firm_label_inefficient')
+      case 'risk_manager': return i18n.t('firm_label_risk_manager')
+      default: return ''
+    }
+  }
+
+  /**
+   * Tek bir kullanıcı aksiyonu (level-up/modernize) sonrası bu firmanın GÜNCEL
+   * breakdown'ını almak için tam snapshot'ı yeniden alır ve `this.economyMap`'i
+   * tazeler (sonraki hafif senkronizasyonlar da güncel veriyle çalışsın diye).
+   * Kart-başı döngüde KULLANILMAZ — yalnız tekil aksiyon geri bildirimi içindir.
+   */
+  private freshBreakdownFor(producerId: string, s: GameState): FirmEconomyBreakdown | undefined {
+    const snapshot = s.companyEconomySnapshot()
+    this.economyMap = new Map(snapshot.firmBreakdowns.map(b => [b.producerId, b]))
+    return this.economyMap.get(producerId)
+  }
+
+  /** Kart tam yeniden kurulmadan ekonomi satırı + etiketleri günceller (global etiketler için gerekli). */
+  private syncEconomyRow(card: HTMLElement, def: ProducerDef, s: GameState, breakdown?: FirmEconomyBreakdown): void {
+    const econEl = card.querySelector<HTMLElement>('.ref-prod-econ-line')
+    const labelsEl = card.querySelector<HTMLElement>('.ref-prod-labels')
+    if (!econEl || !labelsEl) return
+    const owned = s.producers[def.id] ?? 0
+    const unlocked = isProducerUnlocked(def, s.totalEarned, s.forcedUnlocks, s.ipoCount)
+    econEl.innerHTML = unlocked ? this.economyLineHtml(owned, breakdown) : ''
+    labelsEl.innerHTML = unlocked ? this.labelsHtml(breakdown) : ''
   }
 
   private cardSignature(def: { id: string }, s: GameState): string {
@@ -528,17 +713,29 @@ export class RefFirmsPage implements RefPage {
     return `${owned}|${unlocked ? 1 : 0}|${canBuy ? 1 : 0}|${cost}|${income}|${mgr}|${mod}|${this.buyMode}|${plock}`
   }
 
-  /** İmza tabanlı diff — yalnız durumu değişen kartı yeniden çizer. */
+  /**
+   * İmza tabanlı diff — yalnız durumu değişen kartı tam yeniden çizer.
+   * TUR15-B3: snapshot burada da BİR KEZ alınır (kart başına değil). `best_net`/
+   * `fastest_payback` gibi etiketler TÜM firmalara bağlı olduğundan, imza
+   * DEĞİŞMEYEN kartlarda bile ekonomi satırı + etiketler hafifçe (tam kart
+   * yeniden kurulmadan) senkronize edilir.
+   */
   private refreshProducerCards(): void {
     if (!this.state || !this.producerCardsContainer) return
     const s = this.state
+    const snapshot = s.companyEconomySnapshot()
+    this.economyMap = new Map(snapshot.firmBreakdowns.map(b => [b.producerId, b]))
     for (const def of NORMAL_PRODUCERS) {
       const existing = this.producerCards.get(def.id)
       if (!existing) continue
       const sig = this.cardSignature(def, s)
-      if (sig === this.cardSignatures.get(def.id)) continue
+      const breakdown = this.economyMap.get(def.id)
+      if (sig === this.cardSignatures.get(def.id)) {
+        this.syncEconomyRow(existing, def, s, breakdown)
+        continue
+      }
       this.cardSignatures.set(def.id, sig)
-      const newCard = this.buildOneProducerCard(def, s)
+      const newCard = this.buildOneProducerCard(def, s, breakdown)
       existing.replaceWith(newCard)
       this.producerCards.set(def.id, newCard)
     }
