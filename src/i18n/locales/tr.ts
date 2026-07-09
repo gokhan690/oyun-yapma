@@ -1339,8 +1339,6 @@ export const tr: Translations = {
   firms_sort_affordable_first: 'Alınabilir',
 
   // RefFirmsPage — B3 gerçek ekonomi kart satırı + yatırım etiketleri
-  eco_payback_days_fmt: '{days} gün geri dönüş',
-  eco_payback_none: 'Geri dönüş yok',
   eco_net_profit: 'Net',
   eco_manager_salary: 'Yönetici maaşı',
   firm_label_fastest_payback: '⚡ En Hızlı',

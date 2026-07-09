@@ -1496,8 +1496,6 @@ export interface Translations {
   firms_sort_affordable_first?: string
 
   // RefFirmsPage — B3 gerçek ekonomi kart satırı + yatırım etiketleri (opsiyonel, bkz. yukarı)
-  eco_payback_days_fmt?: string
-  eco_payback_none?: string
   eco_net_profit?: string
   eco_manager_salary?: string
   firm_label_fastest_payback?: string

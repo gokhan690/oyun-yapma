@@ -639,13 +639,9 @@ export class RefFirmsPage implements RefPage {
     return card
   }
 
-  /** Kompakt ekonomi satırı: geri dönüş süresi (her zaman) + net kâr/menajer maaşı (owned>0). */
+  /** Kompakt ekonomi satırı: net kâr/menajer maaşı (owned>0). Geri dönüş/amorti metni kaldırıldı. */
   private economyLineHtml(owned: number, breakdown?: FirmEconomyBreakdown): string {
-    const paybackDays = breakdown?.paybackDays ?? null
-    const paybackText = paybackDays === null
-      ? i18n.t('eco_payback_none')
-      : fmt('eco_payback_days_fmt', { days: String(Math.round(paybackDays)) })
-    const parts = [`<span class="ref-prod-econ-item">⏱ ${paybackText}</span>`]
+    const parts: string[] = []
     if (owned > 0) {
       const netProfit = breakdown?.netProfit ?? 0
       const netCls = netProfit > 0 ? 'pos' : netProfit < 0 ? 'neg' : ''
