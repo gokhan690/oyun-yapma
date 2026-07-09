@@ -162,6 +162,11 @@ export class RefCareerPage implements RefPage {
       return banner + this.buildEntrepreneurPanel()
     }
 
+    // İşsizken net yönlendirme: iş seç → 3 aksiyon → ilk firma.
+    const guidance = isUnemployed
+      ? `<div class="ref-career-guidance">🧭 ${i18n.t('ref_career_unemployed_guidance')}</div>`
+      : ''
+
     // 3. stat hücresi: işsizken rütbe yerine nötr yönlendirme.
     const thirdStat = isUnemployed
       ? `<span class="ref-job-stat__lbl">🎯 ${i18n.t('ref_career_starter_label')}</span>
@@ -169,7 +174,7 @@ export class RefCareerPage implements RefPage {
       : `<span class="ref-job-stat__lbl">🏆 ${i18n.t('ref_career_next_rank_label')}</span>
          <span class="ref-job-stat__val">${c.nextRank}</span>`
 
-    return banner + `
+    return banner + guidance + `
       <div class="ref-job-stats">
         <div class="ref-job-stat">
           <span class="ref-job-stat__lbl">💰 ${i18n.t('ref_career_daily_income_label')}</span>
@@ -235,6 +240,7 @@ export class RefCareerPage implements RefPage {
       : `<div class="ref-career-entrepreneur-badge">${i18n.t('ref_career_no_firms_hint')}</div>`
 
     return `
+      <div class="ref-career-entre-explainer">${i18n.t('ref_career_entre_explainer')}</div>
       <div class="ref-career-section-title">${i18n.t('ref_career_entrepreneur_panel_title')}</div>
       <div class="ref-entre-grid">
         <div class="ref-entre-stat"><span class="ref-entre-stat__lbl">🏢 ${i18n.t('ref_career_firms_count_label')}</span><span class="ref-entre-stat__val">${firmCount}</span></div>
@@ -295,7 +301,41 @@ export class RefCareerPage implements RefPage {
       ${jobsHtml}
       <div class="ref-career-section-title">${jobName} · ${i18n.t('ref_career_daily_actions_section')}</div>
       <div class="ref-career-action-grid">${buttons}</div>
+      ${this.buildFirstFirmGoalHtml(s)}
       <button class="ref-career-leave-btn" type="button" data-career-leave>${i18n.t('ref_career_leave_job_button')}</button>`
+  }
+
+  /**
+   * "İlk Firma Hedefi" bloğu — yalnız çalışan (iş seçilmiş, girişimci değil) modda.
+   * Veri kaynağı tek noktadan: state.firmsPurchaseLockStatus() (mevcut GameState
+   * getter'ı — eşik formülü burada TEKRARLANMAZ).
+   */
+  private buildFirstFirmGoalHtml(s: GameState): string {
+    const status = s.firmsPurchaseLockStatus()
+    if (!status.locked) {
+      return `
+        <div class="ref-career-section-title">${i18n.t('ref_career_first_firm_title')}</div>
+        <div class="ref-firm-goal ref-firm-goal--unlocked">
+          <div class="ref-firm-goal__unlocked-text">✅ ${i18n.t('ref_career_first_firm_unlocked')}</div>
+          <button class="ref-entre-cta" type="button" data-career-goto-firms>${i18n.t('ref_career_entrepreneur_cta')}</button>
+        </div>`
+    }
+    const actionsPct = Math.min(100, Math.round((status.actions / status.actionsNeeded) * 100))
+    const incomePct = Math.min(100, Math.round((status.income / status.incomeNeeded) * 100))
+    return `
+      <div class="ref-career-section-title">${i18n.t('ref_career_first_firm_title')}</div>
+      <div class="ref-firm-goal">
+        <div class="ref-firm-goal__row">
+          <span class="ref-firm-goal__lbl">${i18n.t('ref_career_first_firm_actions_label')}</span>
+          <span class="ref-firm-goal__val">${status.actions} / ${status.actionsNeeded}</span>
+        </div>
+        <div class="ref-perf-track sm"><div class="ref-perf-fill high" style="width:${actionsPct}%"></div></div>
+        <div class="ref-firm-goal__row">
+          <span class="ref-firm-goal__lbl">${i18n.t('ref_career_first_firm_income_label')}</span>
+          <span class="ref-firm-goal__val">${fmtMoney(status.income)} / ${fmtMoney(status.incomeNeeded)}</span>
+        </div>
+        <div class="ref-perf-track sm"><div class="ref-perf-fill medium" style="width:${incomePct}%"></div></div>
+      </div>`
   }
 
   private careerJobCardHtml(jobId: CareerJobId): string {
@@ -583,7 +623,10 @@ export class RefCareerPage implements RefPage {
     const entrePart = career?.isEntrepreneur
       ? `|${Math.round(this.state?.money ?? 0)}|${Math.round(this.state?.financeNetWorth() ?? 0)}`
       : ''
-    return `${c.jobTitle}|${c.level}|${Math.round(c.salaryDaily)}|${c.stress}|${c.xpPct}|${c.nextRank}|${career?.jobId ?? '-'}|${career?.level ?? 0}|${career?.isEntrepreneur ?? false}|${acts}${entrePart}`
+    // TUR15-C1 — İlk Firma Hedefi bloğu bu değerlere bağlı; bayat kalmasın.
+    const lock = this.state?.firmsPurchaseLockStatus()
+    const lockPart = lock ? `|${lock.locked}|${lock.actions}|${lock.income}` : ''
+    return `${c.jobTitle}|${c.level}|${Math.round(c.salaryDaily)}|${c.stress}|${c.xpPct}|${c.nextRank}|${career?.jobId ?? '-'}|${career?.level ?? 0}|${career?.isEntrepreneur ?? false}|${acts}${entrePart}${lockPart}`
   }
 
   refresh(state: GameState): void {

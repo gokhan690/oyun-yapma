@@ -366,6 +366,33 @@ export function buildRefViewModel(state: GameState): RefViewModel {
     })
   }
 
+  // TUR15-C1 — Kariyer/ilk-firma hedefi. Yalnız işsiz veya kilitli çalışan için;
+  // firma sahibi/girişimci bu hedefi geçmiş sayılır, dashboard'a eklenmez.
+  // Veri kaynağı: state.firmsPurchaseLockStatus() (formül burada tekrarlanmaz).
+  if (!state.career.isEntrepreneur) {
+    const lockStatus = state.firmsPurchaseLockStatus()
+    if (!lockStatus.jobSelected) {
+      goals.push({
+        ico: '💼',
+        name: i18n.t('ref_goal_pick_job'),
+        pct: 0,
+        metaA: i18n.t('ref_goal_pick_job_meta'),
+      })
+    } else if (lockStatus.locked) {
+      const actionsPct = Math.min(100, Math.round((lockStatus.actions / lockStatus.actionsNeeded) * 100))
+      const incomePct = Math.min(100, Math.round((lockStatus.income / lockStatus.incomeNeeded) * 100))
+      const metaA = actionsPct >= incomePct
+        ? `${lockStatus.actions} / ${lockStatus.actionsNeeded} ${i18n.t('ref_goal_first_firm_actions_unit')}`
+        : `₺${fmt(lockStatus.income)} / ₺${fmt(lockStatus.incomeNeeded)}`
+      goals.push({
+        ico: '🏢',
+        name: i18n.t('ref_goal_first_firm'),
+        pct: Math.max(actionsPct, incomePct),
+        metaA,
+      })
+    }
+  }
+
   // dailyExpense: gerçek gider yok; tüm firmaların estimatedExpense toplamı kullanılır.
   // Bu değer income × 0.32 mantığından türer (producerToFirm ile tutarlı).
   const dailyExpense = Math.round(dailyIncome * 0.32)

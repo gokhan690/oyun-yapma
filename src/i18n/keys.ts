@@ -1506,6 +1506,19 @@ export interface Translations {
   firm_label_inefficient?: string
   firm_label_risk_manager?: string
 
+  // TUR15-C1 — Career ekranı view-only: işsiz yönlendirme, ilk firma hedefi,
+  // girişimci açıklaması, dashboard kariyer hedefi (opsiyonel, yalnız tr.ts dolu)
+  ref_career_unemployed_guidance?: string
+  ref_career_first_firm_title?: string
+  ref_career_first_firm_actions_label?: string
+  ref_career_first_firm_income_label?: string
+  ref_career_first_firm_unlocked?: string
+  ref_career_entre_explainer?: string
+  ref_goal_pick_job?: string
+  ref_goal_pick_job_meta?: string
+  ref_goal_first_firm?: string
+  ref_goal_first_firm_actions_unit?: string
+
   // RefApp Market
   ref_market_title: string
   ref_market_tab_stocks: string

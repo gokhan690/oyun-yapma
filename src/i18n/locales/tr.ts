@@ -1349,6 +1349,18 @@ export const tr: Translations = {
   firm_label_inefficient: '📉 Verimsiz',
   firm_label_risk_manager: '🕶️ Risk Yön.',
 
+  // TUR15-C1 — Career ekranı view-only
+  ref_career_unemployed_guidance: 'Aşağıdan bir iş seç → 3 kariyer aksiyonu tamamla → ilk firmanı aç.',
+  ref_career_first_firm_title: 'İlk Firma Hedefi',
+  ref_career_first_firm_actions_label: 'Kariyer Aksiyonu',
+  ref_career_first_firm_income_label: 'Kariyer Geliri',
+  ref_career_first_firm_unlocked: 'Firmalar sekmesinden ilk firmanı alabilirsin.',
+  ref_career_entre_explainer: 'Artık gelirin şirketlerinden geliyor. Kariyer geçmişin ileride patronluk ve network kapılarına etki edecek.',
+  ref_goal_pick_job: 'İlk işini seç',
+  ref_goal_pick_job_meta: 'Kariyer sekmesinden bir iş seç',
+  ref_goal_first_firm: 'İlk Firma Hedefi',
+  ref_goal_first_firm_actions_unit: 'aksiyon',
+
   ref_market_title: 'PİYASA',
   ref_market_tab_stocks: 'Borsa',
   ref_market_tab_bank: 'Banka',
