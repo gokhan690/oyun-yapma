@@ -438,6 +438,21 @@ export function estimatedCareerActionPay(career: CareerState, actionId: CareerAc
   return Math.floor(dailyCareerWage(career) * ACTION_WAGE_MULT[actionId])
 }
 
+/**
+ * TUR15-C3 — UI önizlemesi: aksiyonun tahmini para/XP/stres etkisi (prim hariç).
+ * Salt-okunur, state değiştirmez; ACTION_XP/ACTION_STRESS tablolarını TEKRARLAMAZ.
+ */
+export function careerActionPreview(
+  career: CareerState,
+  actionId: CareerActionId,
+): { pay: number; xp: number; stress: number } {
+  return {
+    pay: estimatedCareerActionPay(career, actionId),
+    xp: ACTION_XP[actionId],
+    stress: ACTION_STRESS[actionId],
+  }
+}
+
 /** RefApp C4-lite: bağlanan günlük aksiyonlar. */
 export const BINDABLE_CAREER_ACTION_IDS: CareerActionId[] = [
   'mesai',

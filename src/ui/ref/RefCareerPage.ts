@@ -11,7 +11,7 @@ import { diseaseDef, diseaseName } from '../../game/Diseases'
 import { PLAYER_RANKS, rankProgress, rankName } from '../../game/PlayerRank'
 import { JOB_DEFS, EDUCATION_DEFS, LIFESTYLE_DEFS, profileJobLabel, educationLabel, lifestyleLabel } from '../../game/CharacterProfile'
 import {
-  CAREER_JOBS, BINDABLE_CAREER_ACTION_IDS, careerJobDef, estimatedCareerActionPay, careerJobName, careerJobDesc,
+  CAREER_JOBS, BINDABLE_CAREER_ACTION_IDS, careerJobDef, careerActionPreview, careerJobName, careerJobDesc,
   dailyCareerWage, backgroundDef, careerBgName, careerBgBonus,
   type CareerJobId, type CareerActionId, type CareerJobChangeResult, type MissingCareerRequirement,
 } from '../../game/Career'
@@ -299,10 +299,16 @@ export class RefCareerPage implements RefPage {
     const buttons = BINDABLE_CAREER_ACTION_IDS.map((actId) => {
       const meta = careerActionMeta[actId]
       const used = career.actionsUsedToday.includes(actId)
-      const pay = estimatedCareerActionPay(career, actId)
-      const earnLine = pay > 0
-        ? `<div class="ref-career-action-btn__earn">≈ ${fmtMoney(pay)} + ${i18n.t('ref_career_bonus_suffix')}</div>`
-        : `<div class="ref-career-action-btn__xp">${i18n.t('ref_career_action_xp_focused')}</div>`
+      const preview = careerActionPreview(career, actId)
+      const stressChip = preview.stress > 0
+        ? `😤 +${preview.stress}`
+        : preview.stress < 0
+          ? `😌 −${Math.abs(preview.stress)}`
+          : ''
+      const previewTail = [`+${preview.xp} XP`, stressChip].filter(Boolean).join(' · ')
+      const earnLine = preview.pay > 0
+        ? `<div class="ref-career-action-btn__earn">≈ ${fmtMoney(preview.pay)} + ${i18n.t('ref_career_bonus_suffix')} · ${previewTail}</div>`
+        : `<div class="ref-career-action-btn__xp">${previewTail}</div>`
       const sub = used
         ? `<div class="ref-career-action-btn__done">✓ ${i18n.t('ref_career_action_completed_today')}</div>`
         : earnLine
@@ -776,6 +782,8 @@ export class RefCareerPage implements RefPage {
       const parts: string[] = []
       if (r.money > 0) parts.push(`+${fmtMoney(r.money)}`)
       if (r.xp > 0) parts.push(`+${r.xp} XP`)
+      if (r.stressDelta > 0) parts.push(`😤 +${r.stressDelta}`)
+      else if (r.stressDelta < 0) parts.push(`😌 −${Math.abs(r.stressDelta)}`)
       if (r.levelUp) parts.push('🎉 ' + i18n.t('ref_career_toast_level_up'))
       refToast(gained ? `✅ ${parts.join(' · ')}` : '⚠️ ' + i18n.t('ref_career_toast_action_used'), gained ? 'ok' : 'err')
       this.refresh(s)
