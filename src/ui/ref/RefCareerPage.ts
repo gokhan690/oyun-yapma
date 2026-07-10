@@ -322,10 +322,16 @@ export class RefCareerPage implements RefPage {
           </span>
         </button>`
     }).join('')
+    const doneCount = BINDABLE_CAREER_ACTION_IDS.filter((id) => career.actionsUsedToday.includes(id)).length
+    const totalCount = BINDABLE_CAREER_ACTION_IDS.length
+    const xpLine = career.level >= 10
+      ? `<div class="ref-entre-note">📚 ${i18n.t('ref_career_level_label')} ${career.level} · MAX</div>`
+      : `<div class="ref-entre-note">📚 ${i18n.t('ref_career_level_label')} ${career.level} · ${career.xp}/${career.xpToNext} XP</div>`
     return `
       ${jobsHtml}
-      <div class="ref-career-section-title">${jobName} · ${i18n.t('ref_career_daily_actions_section')}</div>
+      <div class="ref-career-section-title">${jobName} · ${i18n.t('ref_career_daily_actions_section')} (${doneCount}/${totalCount})</div>
       <div class="ref-career-action-grid">${buttons}</div>
+      ${xpLine}
       ${this.buildFirstFirmGoalHtml(s)}
       <button class="ref-career-leave-btn" type="button" data-career-leave>${i18n.t('ref_career_leave_job_button')}</button>`
   }
@@ -654,7 +660,7 @@ export class RefCareerPage implements RefPage {
     // TUR15-C1 — İlk Firma Hedefi bloğu bu değerlere bağlı; bayat kalmasın.
     const lock = this.state?.firmsPurchaseLockStatus()
     const lockPart = lock ? `|${lock.locked}|${lock.actions}|${lock.income}` : ''
-    return `${c.jobTitle}|${c.level}|${Math.round(c.salaryDaily)}|${c.stress}|${c.xpPct}|${c.nextRank}|${career?.jobId ?? '-'}|${career?.level ?? 0}|${career?.isEntrepreneur ?? false}|${acts}${entrePart}${lockPart}`
+    return `${c.jobTitle}|${c.level}|${Math.round(c.salaryDaily)}|${c.stress}|${c.xpPct}|${c.nextRank}|${career?.jobId ?? '-'}|${career?.level ?? 0}|${career?.xp ?? 0}|${career?.isEntrepreneur ?? false}|${acts}${entrePart}${lockPart}`
   }
 
   refresh(state: GameState): void {
