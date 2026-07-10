@@ -104,7 +104,7 @@ import {
 } from './PrestigeTree'
 import { localDayKey, yesterdayLocalKey, calendarWeekKey } from './dateUtils'
 import { gameDay, gameYear, isGameNight, isGameWeekend, MS_PER_GAME_DAY, realSecondsToGameMs, gameCalendarDate } from './GameClock'
-import { createCareerState, applyCareerAction, applyDailyWage, ensureCareerDay, FIRST_GOAL_TARGET, backgroundDef, careerStressPenalty, dailyCareerWage, careerJobEligibility, isCareerJobId, type CareerState, type CareerActionId, type CareerJobId, type CharacterBackgroundId, type CareerJobChangeResult, type CareerJobEligibility } from './Career'
+import { createCareerState, applyCareerAction, applyDailyWage, ensureCareerDay, FIRST_GOAL_TARGET, backgroundDef, careerStressPenalty, dailyCareerWage, careerJobEligibility, isCareerJobId, formerJobFirmBonusMult, type CareerState, type CareerActionId, type CareerJobId, type CharacterBackgroundId, type CareerJobChangeResult, type CareerJobEligibility } from './Career'
 import { firmLevelIncomeMult, firmLevelUpCost, FIRM_MAX_LEVEL } from './FirmLevels'
 import { firmUpgradeDef, firmUpgradeIncomeBonus, firmUpgradeCost } from './FirmUpgrades'
 import { createDepartmentState, departmentUpgradeCost, departmentDef, isDepartmentTaskComplete, DEPARTMENTS, DEPARTMENT_MAX_LEVEL, operasyonLegalBonus, finansProducerBonus, pazarlamaGlobalBonus, hukukRaidReduction, argeBonus, aileOfisiInheritanceBonus, lojistikCostReduction, guvenlikRivalReduction, type DepartmentId } from './EmpireDepartments'
@@ -1976,6 +1976,15 @@ export class GameState {
     if (firmPurchased.length > 0) factors.push({ id: 'firm_upgrades', mult: 1 + firmUpgradeIncomeBonus(def, firmPurchased) })
     if (!def.illegal) factors.push({ id: 'departments', mult: 1 + operasyonLegalBonus(this.departments['operasyon'] ?? 0) })
     if (def.category === 'finance') factors.push({ id: 'departments', mult: 1 + finansProducerBonus(this.departments['finans'] ?? 0) })
+    // TUR15-C5 — Eski meslek → firma bonusu; yalnız girişimci modunda, yalnız
+    // legal firmalarda (helper zaten net eşleşmeyende 0 döner; illegal için
+    // burada ayrıca güvenlik kontrolü var — çift koruma).
+    const formerJobBonus = this.career.isEntrepreneur && !def.illegal
+      ? formerJobFirmBonusMult(this.career.jobId, def)
+      : 0
+    if (formerJobBonus > 0) {
+      factors.push({ id: 'former_job', mult: 1 + formerJobBonus })
+    }
     return { base: scaledBaseIncome(def.baseIncome, def), owned, factors, passiveMult: this.passiveMultiplier() }
   }
 

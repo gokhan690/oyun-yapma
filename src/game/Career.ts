@@ -439,6 +439,57 @@ export function estimatedCareerActionPay(career: CareerState, actionId: CareerAc
 }
 
 /**
+ * TUR15-C5 — Eski meslek → firma tipi küçük gelir bonusu. Yalnız Economy.ts
+ * PRODUCERS içinde GERÇEKTEN var olan id'lerle net eşleşen firma tiplerinde
+ * uygulanır (eşleşme yoksa 0/null — generic bonus YOK). Yalnız girişimci
+ * modunda kullanılmalıdır (çağıran taraf isEntrepreneur kontrol eder — bu
+ * dosya state'e dokunmaz, salt-okunur pure helper'dır). Illegal/dark
+ * firmalara kasıtlı olarak HİÇ bonus verilmez; bu turun kapsamı yalnız legal
+ * iş geçmişidir — mafya/kaçakçılık/torpil ayrı sistemlere aittir.
+ * Economy.ts'e tip düzeyinde bile bağlanmaz (döngüsel import/coupling riski
+ * olmasın diye producer parametresi `{ id, category? }` şeklinde alınır).
+ */
+const FORMER_JOB_BONUS_PCT = 3
+
+const FORMER_JOB_FIRM_IDS: Record<string, string[]> = {
+  lojistik:  ['fabrika', 'kargo', 'drone', 'liman', 'fulfillment'],
+  gida:      ['kafe', 'ofis', 'firin', 'cikolata', 'catering'],
+  satis:     ['robot', 'giyim', 'pet_shop', 'market_zincir'],
+  teknoloji: ['holding', 'mobil_app', 'data_center', 'oyun_studio', 'yazilim_outsource'],
+}
+
+const FORMER_JOB_TARGET_LABEL: Record<string, string> = {
+  lojistik: 'Lojistik/nakliye',
+  gida: 'Kafe/restoran',
+  satis: 'Perakende/e-ticaret',
+  teknoloji: 'Teknoloji/yazılım',
+  finans: 'Finansal verimlilik',
+}
+
+export interface FormerJobFirmBonusInfo {
+  bonusPct: number
+  targetLabel: string
+}
+
+/** UI önizlemesi — eski mesleğin genel bonus profili (hangi firma tipine, kaç %). */
+export function formerJobFirmBonus(jobId: CareerJobId | null): FormerJobFirmBonusInfo | null {
+  const path = jobId ? careerJobDef(jobId)?.careerPath : undefined
+  if (!path) return null
+  const targetLabel = FORMER_JOB_TARGET_LABEL[path]
+  return targetLabel ? { bonusPct: FORMER_JOB_BONUS_PCT, targetLabel } : null
+}
+
+/** Ekonomi pipeline'ı — belirli bir firmaya uygulanacak gerçek çarpan (0 = bonus yok). */
+export function formerJobFirmBonusMult(jobId: CareerJobId | null, def: { id: string; category?: string }): number {
+  const path = jobId ? careerJobDef(jobId)?.careerPath : undefined
+  if (!path) return 0
+  if (path === 'finans') return def.category === 'finance' ? FORMER_JOB_BONUS_PCT / 100 : 0
+  const ids = FORMER_JOB_FIRM_IDS[path]
+  if (!ids) return 0
+  return ids.includes(def.id) ? FORMER_JOB_BONUS_PCT / 100 : 0
+}
+
+/**
  * TUR15-C3 — UI önizlemesi: aksiyonun tahmini para/XP/stres etkisi (prim hariç).
  * Salt-okunur, state değiştirmez; ACTION_XP/ACTION_STRESS tablolarını TEKRARLAMAZ.
  */

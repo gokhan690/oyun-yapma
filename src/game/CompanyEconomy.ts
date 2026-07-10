@@ -32,6 +32,7 @@ export type IncomeFactorId =
   | 'firm_level'
   | 'firm_upgrades'
   | 'departments'
+  | 'former_job'
 
 export interface IncomeFactor {
   id: IncomeFactorId
