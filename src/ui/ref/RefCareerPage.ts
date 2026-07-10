@@ -12,7 +12,8 @@ import { PLAYER_RANKS, rankProgress, rankName } from '../../game/PlayerRank'
 import { JOB_DEFS, EDUCATION_DEFS, LIFESTYLE_DEFS, profileJobLabel, educationLabel, lifestyleLabel } from '../../game/CharacterProfile'
 import {
   CAREER_JOBS, BINDABLE_CAREER_ACTION_IDS, careerJobDef, estimatedCareerActionPay, careerJobName, careerJobDesc,
-  dailyCareerWage, type CareerJobId, type CareerActionId, type CareerJobChangeResult, type MissingCareerRequirement,
+  dailyCareerWage, backgroundDef, careerBgName, careerBgBonus,
+  type CareerJobId, type CareerActionId, type CareerJobChangeResult, type MissingCareerRequirement,
 } from '../../game/Career'
 import { WELLBEING_ACTIVITIES, wellbeingName, type WellbeingActivityId } from '../../game/Lifestyle'
 import { PRODUCERS, producerName } from '../../game/Economy'
@@ -42,6 +43,19 @@ const ROUTINE_META: { id: 'exercise' | 'meditate'; emoji: string; labelKey: stri
 
 /** Kariyer Sağlık sekmesinde gösterilen stres tedavileri (yalnız bu ikisi). */
 const CAREER_WELLBEING_IDS: WellbeingActivityId[] = ['terapi', 'meditasyon']
+
+/**
+ * TUR15-C2 — careerPath id → i18n key ("yol" chip'i, iş kartında). Career.ts'teki
+ * 6 sabit careerPath id'siyle eşleşir; unlock mantığını etkilemez, salt görünüm.
+ */
+const CAREER_PATH_LABEL_KEY: Record<string, string> = {
+  lojistik: 'career_path_lojistik',
+  gida: 'career_path_gida',
+  satis: 'career_path_satis',
+  teknoloji: 'career_path_teknoloji',
+  finans: 'career_path_finans',
+  siyaset: 'career_path_siyaset',
+}
 
 function buildMockCareer(): RefCareerVM {
   return {
@@ -101,19 +115,24 @@ export class RefCareerPage implements RefPage {
     this.el.addEventListener('click', (e) => this.handleClick(e))
   }
 
-  /** Onboarding'de seçilen meslek/eğitim/yaşam tarzı çipleri. */
+  /** Onboarding'de seçilen meslek/eğitim/yaşam tarzı/background çipleri. */
   private profileHtml(): string {
     const p = this.state?.characterProfile
     if (!p) return ''
     const job = JOB_DEFS[p.jobId]
     const edu = EDUCATION_DEFS[p.educationLevel]
     const life = LIFESTYLE_DEFS[p.lifestyleType]
+    const bg = backgroundDef(p.backgroundId)
+    const bgChip = bg
+      ? `<span class="ref-member-chip">${bg.emoji} ${careerBgName(bg)} · ${careerBgBonus(bg)}</span>`
+      : ''
     return `
       <div class="ref-career-profile__title">${i18n.t('ref_career_profile_section_title')}</div>
       <div class="ref-career-profile__chips">
         <span class="ref-member-chip">${job.emoji} ${profileJobLabel(p.jobId)}${job.incomeDailyBonus > 0 ? ` · +${fmtMoney(job.incomeDailyBonus)}/g` : ''}</span>
         <span class="ref-member-chip">${edu.emoji} ${educationLabel(p.educationLevel)}</span>
         <span class="ref-member-chip">${life.emoji} ${lifestyleLabel(p.lifestyleType)} ${i18n.t('ref_career_lifestyle_suffix')}</span>
+        ${bgChip}
       </div>`
   }
 
@@ -362,6 +381,8 @@ export class RefCareerPage implements RefPage {
       : locked
         ? i18n.t('ref_career_requirements_not_met')
         : i18n.t('ref_career_open_label')
+    const pathKey = job.careerPath ? CAREER_PATH_LABEL_KEY[job.careerPath] : undefined
+    const pathChip = pathKey ? `<span class="ref-career-job-card__path">→ ${i18n.t(pathKey as Parameters<typeof i18n.t>[0])}</span>` : ''
     return `
       <button class="ref-career-job-card${active ? ' is-active' : ''}${locked ? ' is-locked' : ''}" type="button"
               data-career-job="${job.id}" ${active || locked ? 'disabled' : ''}>
@@ -371,6 +392,7 @@ export class RefCareerPage implements RefPage {
           <span class="ref-career-job-card__status">${status}</span>
         </span>
         <span class="ref-career-job-card__desc">${careerJobDesc(job)}</span>
+        ${pathChip}
         <span class="ref-career-job-card__facts">
           <span>${fmtMoney(job.baseDailyWage)}${i18n.t('ref_career_wage_per_day_unit')}</span>
           <span>😤 +${job.stressDelta} ${i18n.t('ref_career_stress_unit')}</span>

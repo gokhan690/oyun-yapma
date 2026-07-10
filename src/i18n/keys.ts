@@ -1519,6 +1519,14 @@ export interface Translations {
   ref_goal_first_firm?: string
   ref_goal_first_firm_actions_unit?: string
 
+  // TUR15-C2 — Career job kartı "yol" chip'i (opsiyonel, yalnız tr.ts dolu)
+  career_path_lojistik?: string
+  career_path_gida?: string
+  career_path_satis?: string
+  career_path_teknoloji?: string
+  career_path_finans?: string
+  career_path_siyaset?: string
+
   // RefApp Market
   ref_market_title: string
   ref_market_tab_stocks: string

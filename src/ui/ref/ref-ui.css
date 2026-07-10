@@ -2756,6 +2756,12 @@ body.ref-sheet-open { overflow: hidden !important; }
 .ref-career-job-card__name { font-size: 11px; font-weight: 800; color: var(--r-text); overflow-wrap: anywhere; }
 .ref-career-job-card__status { font-size: 9px; font-weight: 800; color: var(--r-muted); overflow-wrap: anywhere; }
 .ref-career-job-card__desc { font-size: 9.5px; font-weight: 600; color: var(--r-muted); line-height: 1.25; overflow-wrap: anywhere; }
+.ref-career-job-card__path {
+  display: inline-flex; align-items: center; width: fit-content;
+  margin-top: 2px; padding: 2px 7px; border-radius: var(--r-pill);
+  background: rgba(7,139,131,0.08); border: 1px solid rgba(7,139,131,0.25);
+  font-size: 9.5px; font-weight: 700; color: var(--r-teal-dk); overflow-wrap: anywhere;
+}
 .ref-career-job-card__facts { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 10px; font-weight: 800; color: var(--r-success); }
 .ref-career-job-card__facts span:last-child { color: var(--r-muted); }
 .ref-career-job-card__req { font-size: 9.5px; font-weight: 700; color: var(--r-text2); overflow-wrap: anywhere; }

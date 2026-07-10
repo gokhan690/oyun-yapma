@@ -1361,6 +1361,14 @@ export const tr: Translations = {
   ref_goal_first_firm: 'İlk Firma Hedefi',
   ref_goal_first_firm_actions_unit: 'aksiyon',
 
+  // TUR15-C2 — Career job kartı "yol" chip'i
+  career_path_lojistik: 'Lojistik yolu',
+  career_path_gida: 'Gıda yolu',
+  career_path_satis: 'Satış yolu',
+  career_path_teknoloji: 'Teknoloji yolu',
+  career_path_finans: 'Finans yolu',
+  career_path_siyaset: 'Siyaset yolu',
+
   ref_market_title: 'PİYASA',
   ref_market_tab_stocks: 'Borsa',
   ref_market_tab_bank: 'Banka',
