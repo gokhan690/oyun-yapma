@@ -357,6 +357,7 @@ export class RefCareerPage implements RefPage {
         <div class="ref-firm-goal ref-firm-goal--unlocked">
           <div class="ref-firm-goal__unlocked-text">✅ ${i18n.t('ref_career_first_firm_unlocked')}</div>
           <button class="ref-entre-cta" type="button" data-career-goto-firms>${i18n.t('ref_career_entrepreneur_cta')}</button>
+          <button class="ref-entre-cta" type="button" data-career-become-entrepreneur>🚀 Patron moduna geç</button>
         </div>`
     }
     const actionsPct = Math.min(100, Math.round((status.actions / status.actionsNeeded) * 100))
@@ -755,7 +756,7 @@ export class RefCareerPage implements RefPage {
   private handleClick(e: MouseEvent): void {
     if (!this.state) return
     const btn = (e.target as HTMLElement).closest<HTMLElement>(
-      '[data-action],[data-disease],[data-career-job],[data-career-action],[data-career-leave],[data-routine],[data-wellbeing],[data-career-goto-firms]',
+      '[data-action],[data-disease],[data-career-job],[data-career-action],[data-career-leave],[data-routine],[data-wellbeing],[data-career-goto-firms],[data-career-become-entrepreneur]',
     )
     if (!btn) return
     const s = this.state
@@ -763,6 +764,21 @@ export class RefCareerPage implements RefPage {
     // ── Firmalara Git (girişimci paneli) ──
     if (btn.hasAttribute('data-career-goto-firms')) {
       this.navigateToFirms()
+      return
+    }
+
+    // ── Patron moduna geç (İlk Firma Hedefi bloğu) ──
+    // becomeEntrepreneur() void döner; başarı, çağrı sonrası isEntrepreneur'dan okunur.
+    if (btn.hasAttribute('data-career-become-entrepreneur')) {
+      s.becomeEntrepreneur()
+      const ok = s.career.isEntrepreneur
+      if (ok) {
+        this.refresh(s)
+        this.onPersist?.()
+        refToast('🚀 Patron moduna geçtin', 'ok')
+      } else {
+        refToast('⚠️ Patron moduna geçiş için hedef tamamlanmalı', 'err')
+      }
       return
     }
 
