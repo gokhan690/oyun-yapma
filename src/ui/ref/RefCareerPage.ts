@@ -258,8 +258,16 @@ export class RefCareerPage implements RefPage {
          </div>`
       : `<div class="ref-career-entrepreneur-badge">${i18n.t('ref_career_no_firms_hint')}</div>`
 
+    // TUR15-C5: meslek→firma bonusu bu kimlikten türeyecek; bonus hesabı domain
+    // tarafında (GameState/producerIncomeFactors) kalacak, UI yalnız gösterecek.
+    const formerJobDef = s.career.jobId ? careerJobDef(s.career.jobId) : null
+    const formerJobLine = formerJobDef
+      ? `<div class="ref-entre-note">💼 Eski meslek: ${formerJobDef.emoji} ${careerJobName(formerJobDef)} · ${i18n.t('ref_career_level_label')} ${s.career.level}</div>`
+      : ''
+
     return `
       <div class="ref-career-entre-explainer">${i18n.t('ref_career_entre_explainer')}</div>
+      ${formerJobLine}
       <div class="ref-career-section-title">${i18n.t('ref_career_entrepreneur_panel_title')}</div>
       <div class="ref-entre-grid">
         <div class="ref-entre-stat"><span class="ref-entre-stat__lbl">🏢 ${i18n.t('ref_career_firms_count_label')}</span><span class="ref-entre-stat__val">${firmCount}</span></div>
