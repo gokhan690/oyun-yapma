@@ -12,6 +12,31 @@ npm.cmd run dev
 
 Tarayıcı: http://localhost:5173
 
+## 🍉 Meyve Birleştir (reklamsız mini oyun)
+
+Suika tipi "düşür ve birleştir" oyunu — **reklam yok, satın alma yok, internet gerekmiyor.**
+
+| | |
+|---|---|
+| Sayfa | `merge.html` |
+| Kaynak | `src/merge-main.ts`, `src/merge/` |
+| Dev | `npm run dev` → http://localhost:5173/merge.html |
+| Prod | build sonrası `dist/merge.html` (ör. `/oyun-yapma/merge.html`) |
+
+- 11 meyve zinciri: Kiraz → Çilek → Üzüm → Mandalina → Portakal → Elma → Armut → Şeftali → Ananas → Kavun → **Karpuz**
+- Kendi yazdığımız daire fiziği (`src/merge/physics.ts`) — harici motor yok
+- Sürükle-bırak (dokunmatik + fare) ve klavye (← → boşluk) kontrolü
+- Skor, rekor ve yarım kalan oyun `localStorage`'da saklanır (sayfayı kapatsan da kaldığın yerden devam)
+- Ses efektleri WebAudio ile üretilir, tek tuşla kapatılır; ana uygulamanın AdMob/IAP kodundan tamamen ayrıktır
+
+Test:
+
+```cmd
+npm run build
+npx vite preview
+node scripts/test-merge.mjs http://localhost:4173/merge.html
+```
+
 ## Ortam değişkenleri
 
 `.env.example` dosyasını `.env` olarak kopyala:

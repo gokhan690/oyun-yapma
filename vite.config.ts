@@ -14,6 +14,7 @@ export default defineConfig({
       input: {
         main: 'index.html',
         firms: 'firms.html',
+        merge: 'merge.html',
       },
       output: {
         manualChunks(id) {
@@ -27,6 +28,7 @@ export default defineConfig({
             const m = id.match(/locales\/(\w+)\.ts/)
             return m ? `locale-${m[1]}` : 'i18n'
           }
+          if (id.includes('/src/merge/')) return 'merge-game'
           if (id.includes('/src/game/GameState')) return 'game-core'
           if (id.includes('/src/ui/components/ShopPanel')) return 'ui-shop'
           if (id.includes('/src/ui/components/LifestylePanel')) return 'ui-lifestyle'

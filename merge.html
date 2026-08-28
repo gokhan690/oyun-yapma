@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'none'; object-src 'none'"
+    />
+    <meta name="theme-color" content="#2b1c0f" />
+    <meta name="description" content="Meyve Birleştir — reklamsız, çevrimdışı çalışan meyve birleştirme oyunu." />
+    <title>Meyve Birleştir — Reklamsız</title>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="topbar">
+        <h1 class="title">🍉 Meyve Birleştir <span class="badge">REKLAMSIZ</span></h1>
+        <button id="sound" class="icon-btn" type="button" aria-label="Sesi kapat">🔊</button>
+        <button id="restart" class="icon-btn" type="button" aria-label="Yeniden başlat">↻</button>
+      </div>
+
+      <div class="hud">
+        <div>
+          <div class="stat-label">Skor</div>
+          <div class="stat-value" id="score">0</div>
+        </div>
+        <div>
+          <div class="stat-label">Rekor</div>
+          <div class="stat-value" id="best">0</div>
+        </div>
+        <div class="next-box">
+          <div class="stat-label">Sıradaki</div>
+          <div class="next-slot"><canvas id="next-fruit"></canvas></div>
+        </div>
+      </div>
+
+      <div class="board-wrap">
+        <canvas id="board"></canvas>
+        <div class="danger-bar"><div class="danger-fill" id="danger-fill"></div></div>
+        <div class="overlay" id="overlay">
+          <div class="card">
+            <h2>Oyun Bitti</h2>
+            <div class="final" id="final-score">0</div>
+            <p class="sub" id="final-sub"></p>
+            <button class="btn" id="again" type="button">Tekrar Oyna</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="chain" id="chain"></div>
+
+      <p class="hint">
+        Parmağını sürükle, bırakınca meyve düşer. Aynı iki meyve birleşir.<br />
+        Kırmızı çizgiyi aşarsan oyun biter. Hedef: <b>karpuz</b> 🍉
+      </p>
+    </div>
+    <div class="toast" id="toast"></div>
+    <script type="module" src="/src/merge-main.ts"></script>
+  </body>
+</html>
