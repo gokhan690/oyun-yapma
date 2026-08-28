@@ -21,6 +21,10 @@ export interface Body {
   age: number
   /** Birleşme sonrası "pop" animasyonu ilerlemesi (0→1). */
   pop: number
+  /** Çarpma anındaki dikey ezilme (0→~0.3), zamanla söner. */
+  squash: number
+  /** Göz kırpma zamanlayıcısı (sn). */
+  blink: number
   /** Bu adımda birleşip yok olacak mı? */
   dead: boolean
 }
@@ -65,6 +69,8 @@ export class World {
       angle: 0,
       age: 0,
       pop: 1,
+      squash: 0,
+      blink: 1.5 + Math.random() * 4,
       dead: false,
     }
     this.bodies.push(body)
@@ -81,6 +87,9 @@ export class World {
     for (const b of this.bodies) {
       b.age += dt
       if (b.pop < 1) b.pop = Math.min(1, b.pop + dt * 6)
+      if (b.squash > 0) b.squash = Math.max(0, b.squash - dt * 1.6)
+      b.blink -= dt
+      if (b.blink < -0.12) b.blink = 2 + Math.random() * 5
     }
 
     for (let s = 0; s < SUBSTEPS; s++) {
@@ -166,9 +175,14 @@ export class World {
         this.dampContact(a, nx, ny)
         this.dampContact(b, nx, ny)
 
-        // Hafif sekme
+        // Hafif sekme + çarpma ezilmesi
         if (overlap > 0.5) {
           const relN = (b.x - b.px - (a.x - a.px)) * nx + (b.y - b.py - (a.y - a.py)) * ny
+          if (relN < -1.2) {
+            const s = Math.min(0.24, -relN * 0.05) * Math.abs(ny)
+            if (s > a.squash) a.squash = s
+            if (s > b.squash) b.squash = s
+          }
           if (relN < 0) {
             const bounce = relN * RESTITUTION
             a.px += nx * bounce * shareA
@@ -202,6 +216,8 @@ export class World {
         b.px = b.x + (b.x - b.px) * WALL_FRICTION
       }
       if (b.y > WORLD_H - b.r) {
+        const impact = b.y - b.py
+        if (impact > 1.2) b.squash = Math.max(b.squash, Math.min(0.26, impact * 0.05))
         b.y = WORLD_H - b.r
         const vx = (b.x - b.px) * GROUND_FRICTION
         b.py = b.y + (b.y - b.py) * 0.3
@@ -220,6 +236,16 @@ export class World {
     const vx = b.x - b.px
     const vy = b.y - b.py
     return vx * vx + vy * vy < 0.09
+  }
+
+  /** Tehlike çizgisine en çok yaklaşan meyvenin çizgiye uzaklığı (0 = çizgide). */
+  dangerProximity(): number {
+    let best = Infinity
+    for (const b of this.bodies) {
+      if (b.age < 0.8) continue
+      best = Math.min(best, b.y - b.r - DANGER_Y)
+    }
+    return best
   }
 
   /** Tehlike çizgisini aşmış ve durulmuş bir meyve var mı? */

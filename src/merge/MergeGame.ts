@@ -12,8 +12,11 @@ import { Sfx } from './audio'
 const SAVE_KEY = 'fm_save_v1'
 const BEST_KEY = 'fm_best'
 const DROP_Y = 54
-const DROP_COOLDOWN = 0.36
+const DROP_COOLDOWN = 0.34
 const DANGER_LIMIT = 2.2
+const COMBO_WINDOW = 1.1
+
+type State = 'ready' | 'playing' | 'over'
 
 interface Particle {
   x: number
@@ -26,12 +29,21 @@ interface Particle {
   color: string
 }
 
+interface Ring {
+  x: number
+  y: number
+  r: number
+  life: number
+  color: string
+}
+
 interface Popup {
   x: number
   y: number
   life: number
+  maxLife: number
   text: string
-  big: boolean
+  size: number
 }
 
 interface SaveData {
@@ -44,38 +56,40 @@ interface SaveData {
 export interface GameCallbacks {
   onScore: (score: number, best: number) => void
   onNext: (tier: number) => void
-  onCurrent: (tier: number) => void
-  onGameOver: (score: number, best: number, isRecord: boolean) => void
-  onDanger: (ratio: number) => void
-  onUnlock: (tier: number) => void
+  onBiggest: (tier: number) => void
+  onCombo: (count: number) => void
+  onGameOver: (result: { score: number; best: number; isRecord: boolean; biggest: number }) => void
 }
 
 export class MergeGame {
   private world = new World()
   private ctx: CanvasRenderingContext2D
   private sfx = new Sfx()
+  private canvas: HTMLCanvasElement
+  private cb: GameCallbacks
 
   private score = 0
   private best = Number(localStorage.getItem(BEST_KEY) ?? 0)
+  private biggest = 0
   private current = 0
   private next = 0
   private aimX = WORLD_W / 2
   private cooldown = 0
   private dangerTime = 0
   private shake = 0
-  private running = false
-  private over = false
+  private flashScreen = 0
+  private state: State = 'ready'
   private raf = 0
   private last = 0
   private acc = 0
+  private time = 0
   private saveTimer = 0
+  private comboCount = 0
+  private comboTimer = 0
   private particles: Particle[] = []
+  private rings: Ring[] = []
   private popups: Popup[] = []
-  private seen = new Set<number>()
-  private scale = 1
-
-  private canvas: HTMLCanvasElement
-  private cb: GameCallbacks
+  private pointerActive = false
 
   constructor(canvas: HTMLCanvasElement, cb: GameCallbacks) {
     this.canvas = canvas
@@ -85,57 +99,69 @@ export class MergeGame {
     this.ctx = ctx
     this.bindInput()
     window.addEventListener('resize', this.resize)
-    if (typeof ResizeObserver !== 'undefined') {
-      new ResizeObserver(() => this.resize()).observe(canvas)
+    // Kabı gözlemliyoruz: tuvalin kendi boyutunu değiştirdiğimiz için döngü olmasın
+    const host = canvas.parentElement
+    if (typeof ResizeObserver !== 'undefined' && host) {
+      new ResizeObserver(() => this.resize()).observe(host)
     }
     window.addEventListener('pagehide', this.save)
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) this.save()
-    })
     this.resize()
   }
 
   // ---------------------------------------------------------------- yaşam döngüsü
 
-  start(): void {
-    if (!this.restore()) this.reset(false)
-    this.cb.onScore(this.score, this.best)
-    this.cb.onCurrent(this.current)
-    this.cb.onNext(this.next)
-    this.resume()
+  /** Kayıt varsa yükler, tahtayı çizer ama oyunu başlatmaz. Kayıt bulundu mu döner. */
+  boot(): boolean {
+    const restored = this.restore()
+    if (!restored) this.newRound()
+    this.emitAll()
+    this.draw()
+    return restored
   }
 
-  reset(autostart = true): void {
-    this.world.clear()
-    this.particles.length = 0
-    this.popups.length = 0
-    this.score = 0
-    this.dangerTime = 0
-    this.cooldown = 0
-    this.over = false
-    this.seen.clear()
-    this.current = randomTier()
-    this.next = randomTier()
-    this.aimX = WORLD_W / 2
-    localStorage.removeItem(SAVE_KEY)
-    this.cb.onScore(this.score, this.best)
-    this.cb.onCurrent(this.current)
-    this.cb.onNext(this.next)
-    this.cb.onDanger(0)
-    if (autostart) this.resume()
-  }
-
-  resume(): void {
-    if (this.running) return
-    this.running = true
+  play(): void {
+    if (this.state === 'over') return
+    this.state = 'playing'
     this.last = performance.now()
+    cancelAnimationFrame(this.raf)
     this.raf = requestAnimationFrame(this.frame)
   }
 
   pause(): void {
-    this.running = false
+    if (this.state !== 'playing') return
+    this.state = 'ready'
     cancelAnimationFrame(this.raf)
     this.save()
+  }
+
+  reset(): void {
+    this.newRound()
+    this.emitAll()
+    this.play()
+  }
+
+  private newRound(): void {
+    this.world.clear()
+    this.particles.length = 0
+    this.rings.length = 0
+    this.popups.length = 0
+    this.score = 0
+    this.biggest = 0
+    this.dangerTime = 0
+    this.cooldown = 0
+    this.comboCount = 0
+    this.comboTimer = 0
+    this.state = 'ready'
+    this.current = randomTier()
+    this.next = randomTier()
+    this.aimX = WORLD_W / 2
+    localStorage.removeItem(SAVE_KEY)
+  }
+
+  private emitAll(): void {
+    this.cb.onScore(this.score, Math.max(this.best, this.score))
+    this.cb.onNext(this.next)
+    this.cb.onBiggest(this.biggest)
   }
 
   toggleSound(): boolean {
@@ -147,27 +173,29 @@ export class MergeGame {
   }
 
   get isOver(): boolean {
-    return this.over
+    return this.state === 'over'
+  }
+
+  get isPlaying(): boolean {
+    return this.state === 'playing'
   }
 
   // ---------------------------------------------------------------- giriş
 
-  private pointerActive = false
-
   private bindInput(): void {
     const c = this.canvas
     c.addEventListener('pointerdown', (e) => {
-      if (this.over) return
+      if (this.state !== 'playing') return
       this.pointerActive = true
       c.setPointerCapture(e.pointerId)
       this.aimAt(e)
     })
     c.addEventListener('pointermove', (e) => {
-      if (this.over) return
+      if (this.state !== 'playing') return
       if (this.pointerActive || e.pointerType === 'mouse') this.aimAt(e)
     })
     c.addEventListener('pointerup', (e) => {
-      if (this.over) return
+      if (this.state !== 'playing') return
       if (this.pointerActive) {
         this.aimAt(e)
         this.drop()
@@ -180,9 +208,9 @@ export class MergeGame {
     c.addEventListener('contextmenu', (e) => e.preventDefault())
 
     window.addEventListener('keydown', (e) => {
-      if (this.over) return
-      if (e.key === 'ArrowLeft') this.moveAim(-18)
-      else if (e.key === 'ArrowRight') this.moveAim(18)
+      if (this.state !== 'playing') return
+      if (e.key === 'ArrowLeft') this.setAim(this.aimX - 18)
+      else if (e.key === 'ArrowRight') this.setAim(this.aimX + 18)
       else if (e.key === ' ' || e.key === 'ArrowDown' || e.key === 'Enter') {
         e.preventDefault()
         this.drop()
@@ -192,12 +220,7 @@ export class MergeGame {
 
   private aimAt(e: PointerEvent): void {
     const rect = this.canvas.getBoundingClientRect()
-    const x = (e.clientX - rect.left) / (rect.width / WORLD_W)
-    this.setAim(x)
-  }
-
-  private moveAim(dx: number): void {
-    this.setAim(this.aimX + dx)
+    this.setAim((e.clientX - rect.left) / (rect.width / WORLD_W))
   }
 
   private setAim(x: number): void {
@@ -206,7 +229,7 @@ export class MergeGame {
   }
 
   private drop(): void {
-    if (this.over || this.cooldown > 0) return
+    if (this.state !== 'playing' || this.cooldown > 0) return
     const jitter = (Math.random() - 0.5) * 1.6
     this.world.add(this.current, this.aimX + jitter, DROP_Y, (Math.random() - 0.5) * 0.06, 0.6)
     this.sfx.drop()
@@ -215,14 +238,13 @@ export class MergeGame {
     this.current = this.next
     this.next = randomTier()
     this.setAim(this.aimX)
-    this.cb.onCurrent(this.current)
     this.cb.onNext(this.next)
   }
 
   // ---------------------------------------------------------------- döngü
 
   private frame = (now: number): void => {
-    if (!this.running) return
+    if (this.state !== 'playing') return
     const dt = Math.min(0.05, (now - this.last) / 1000)
     this.last = now
     this.acc += dt
@@ -232,59 +254,92 @@ export class MergeGame {
     while (this.acc >= STEP && guard++ < 5) {
       this.update(STEP)
       this.acc -= STEP
+      if (this.state !== 'playing') break
     }
     this.draw()
-    this.raf = requestAnimationFrame(this.frame)
+    if (this.state === 'playing') this.raf = requestAnimationFrame(this.frame)
   }
 
   private update(dt: number): void {
+    this.time += dt
     if (this.cooldown > 0) this.cooldown = Math.max(0, this.cooldown - dt)
     if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 3)
+    if (this.flashScreen > 0) this.flashScreen = Math.max(0, this.flashScreen - dt * 2.5)
 
-    const merges = this.world.step(dt, MAX_TIER)
-    for (const m of merges) {
+    if (this.comboTimer > 0) {
+      this.comboTimer -= dt
+      if (this.comboTimer <= 0 && this.comboCount > 0) {
+        this.comboCount = 0
+        this.cb.onCombo(0)
+      }
+    }
+
+    for (const m of this.world.step(dt, MAX_TIER)) {
+      this.comboCount++
+      this.comboTimer = COMBO_WINDOW
+      const multiplier = Math.min(5, Math.max(1, this.comboCount))
+      if (multiplier > 1) this.cb.onCombo(multiplier)
+
       if (m.tier >= 0) {
         const body = this.world.add(m.tier, m.x, m.y)
         body.pop = 0
-        this.score += mergeScore(m.tier)
-        this.sfx.merge(m.tier)
-        this.burst(m.x, m.y, FRUITS[m.tier].color, 10 + m.tier)
-        this.popups.push({ x: m.x, y: m.y, life: 1, text: `+${mergeScore(m.tier)}`, big: m.tier >= 7 })
+        const gained = mergeScore(m.tier) * multiplier
+        this.score += gained
+        this.sfx.merge(m.tier, this.comboCount)
+        this.splash(m.x, m.y, FRUITS[m.tier].color, 8 + m.tier * 2)
+        this.rings.push({ x: m.x, y: m.y, r: FRUITS[m.tier].radius * 0.7, life: 1, color: FRUITS[m.tier].light })
+        this.popups.push({
+          x: m.x,
+          y: m.y,
+          life: 0.9,
+          maxLife: 0.9,
+          text: multiplier > 1 ? `+${gained} ×${multiplier}` : `+${gained}`,
+          size: m.tier >= 6 ? 32 : 24,
+        })
         vibrate(m.tier >= 6 ? 24 : 12)
-        if (m.tier >= 6) this.shake = Math.min(1, 0.3 + m.tier * 0.05)
-        if (!this.seen.has(m.tier)) {
-          this.seen.add(m.tier)
-          this.cb.onUnlock(m.tier)
+        if (m.tier >= 6) this.shake = Math.min(1, 0.25 + m.tier * 0.05)
+        if (m.tier > this.biggest) {
+          this.biggest = m.tier
+          this.cb.onBiggest(m.tier)
+          if (m.tier >= 6) this.flashScreen = 0.5
         }
       } else {
-        // İki karpuz birleşti: ikisi de patlar
-        const bonus = mergeScore(MAX_TIER) * 2
+        const bonus = mergeScore(MAX_TIER) * 2 * multiplier
         this.score += bonus
         this.sfx.watermelon()
-        this.burst(m.x, m.y, FRUITS[MAX_TIER].color, 40)
-        this.popups.push({ x: m.x, y: m.y, life: 1.4, text: `KARPUZ! +${bonus}`, big: true })
+        this.splash(m.x, m.y, FRUITS[MAX_TIER].color, 44)
+        this.rings.push({ x: m.x, y: m.y, r: 40, life: 1.4, color: '#ffe9a8' })
+        this.popups.push({ x: m.x, y: m.y, life: 1.4, maxLife: 1.4, text: `KARPUZ! +${bonus}`, size: 34 })
         this.shake = 1
+        this.flashScreen = 1
         vibrate([20, 40, 20])
       }
       this.cb.onScore(this.score, Math.max(this.best, this.score))
     }
 
-    // Parçacıklar
     for (const p of this.particles) {
       p.vy += 900 * dt
       p.x += p.vx * dt
       p.y += p.vy * dt
       p.life -= dt
     }
-    this.particles = this.particles.filter((p) => p.life > 0)
-    for (const p of this.popups) p.life -= dt
-    this.popups = this.popups.filter((p) => p.life > 0)
+    if (this.particles.length > 0) this.particles = this.particles.filter((p) => p.life > 0)
 
-    // Tehlike çizgisi
+    for (const r of this.rings) {
+      r.life -= dt * 1.9
+      r.r += dt * 320
+    }
+    if (this.rings.length > 0) this.rings = this.rings.filter((r) => r.life > 0)
+
+    for (const p of this.popups) p.life -= dt
+    if (this.popups.length > 0) this.popups = this.popups.filter((p) => p.life > 0)
+
     if (this.world.overDangerLine()) this.dangerTime += dt
     else this.dangerTime = Math.max(0, this.dangerTime - dt * 2)
-    this.cb.onDanger(Math.min(1, this.dangerTime / DANGER_LIMIT))
-    if (this.dangerTime >= DANGER_LIMIT) this.endGame()
+    if (this.dangerTime >= DANGER_LIMIT) {
+      this.endGame()
+      return
+    }
 
     this.saveTimer += dt
     if (this.saveTimer > 3) {
@@ -294,8 +349,7 @@ export class MergeGame {
   }
 
   private endGame(): void {
-    this.over = true
-    this.running = false
+    this.state = 'over'
     cancelAnimationFrame(this.raf)
     this.sfx.gameOver()
     const isRecord = this.score > this.best
@@ -304,19 +358,20 @@ export class MergeGame {
       localStorage.setItem(BEST_KEY, String(this.best))
     }
     localStorage.removeItem(SAVE_KEY)
+    this.shake = 0.8
     this.draw()
-    this.cb.onGameOver(this.score, this.best, isRecord)
+    this.cb.onGameOver({ score: this.score, best: this.best, isRecord, biggest: this.biggest })
   }
 
-  private burst(x: number, y: number, color: string, count: number): void {
+  private splash(x: number, y: number, color: string, count: number): void {
     for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2
-      const sp = 60 + Math.random() * 220
+      const sp = 70 + Math.random() * 240
       this.particles.push({
         x,
         y,
         vx: Math.cos(a) * sp,
-        vy: Math.sin(a) * sp - 60,
+        vy: Math.sin(a) * sp - 80,
         life: 0.4 + Math.random() * 0.5,
         maxLife: 0.9,
         r: 2 + Math.random() * 5,
@@ -328,74 +383,77 @@ export class MergeGame {
   // ---------------------------------------------------------------- çizim
 
   private resize = (): void => {
-    const cssW = this.canvas.clientWidth || WORLD_W
+    const host = this.canvas.parentElement
+    const availW = host?.clientWidth || WORLD_W
+    const availH = host?.clientHeight || WORLD_H
+    const fit = Math.min(availW / WORLD_W, availH / WORLD_H)
+    const cssW = Math.max(120, Math.floor(WORLD_W * fit))
+    const cssH = Math.floor(WORLD_H * fit)
+    this.canvas.style.width = `${cssW}px`
+    this.canvas.style.height = `${cssH}px`
+    host?.style.setProperty('--board-w', `${cssW}px`)
+    host?.style.setProperty('--board-h', `${cssH}px`)
+
     const dpr = Math.min(window.devicePixelRatio || 1, 3)
-    this.scale = cssW / WORLD_W
     this.canvas.width = Math.round(cssW * dpr)
-    this.canvas.height = Math.round(cssW * (WORLD_H / WORLD_W) * dpr)
-    this.ctx.setTransform(dpr * this.scale, 0, 0, dpr * this.scale, 0, 0)
-    if (!this.running) this.draw()
+    this.canvas.height = Math.round(cssH * dpr)
+    const scale = (cssW / WORLD_W) * dpr
+    this.ctx.setTransform(scale, 0, 0, scale, 0, 0)
+    if (this.state !== 'playing') this.draw()
   }
 
   private draw(): void {
     const ctx = this.ctx
     ctx.save()
     if (this.shake > 0) {
-      const s = this.shake * 6
+      const s = this.shake * 7
       ctx.translate((Math.random() - 0.5) * s, (Math.random() - 0.5) * s)
     }
-    ctx.clearRect(-20, -20, WORLD_W + 40, WORLD_H + 40)
 
-    // Arka plan
-    const bg = ctx.createLinearGradient(0, 0, 0, WORLD_H)
-    bg.addColorStop(0, '#fff6e2')
-    bg.addColorStop(1, '#ffe6c0')
-    ctx.fillStyle = bg
-    ctx.fillRect(0, 0, WORLD_W, WORLD_H)
+    this.drawBoard(ctx)
 
-    // Tehlike çizgisi
-    const danger = Math.min(1, this.dangerTime / DANGER_LIMIT)
-    ctx.save()
-    ctx.setLineDash([12, 10])
-    ctx.lineWidth = 3
-    ctx.strokeStyle = danger > 0 ? `rgba(220,50,50,${0.35 + danger * 0.65})` : 'rgba(200,120,60,0.45)'
-    ctx.beginPath()
-    ctx.moveTo(0, DANGER_Y)
-    ctx.lineTo(WORLD_W, DANGER_Y)
-    ctx.stroke()
-    ctx.restore()
+    const holding = this.state === 'playing' || this.state === 'ready'
+    const look = { x: 0, y: 0 }
 
-    // Nişan çizgisi + tutulan meyve
-    if (!this.over) {
-      const def = FRUITS[this.current]
-      ctx.save()
-      ctx.setLineDash([6, 10])
-      ctx.strokeStyle = 'rgba(90,60,30,0.28)'
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.moveTo(this.aimX, DROP_Y + def.radius)
-      ctx.lineTo(this.aimX, WORLD_H)
-      ctx.stroke()
-      ctx.restore()
-      ctx.globalAlpha = this.cooldown > 0 ? 0.35 : 1
-      drawFruit(ctx, def, this.aimX, DROP_Y, def.radius, 0)
-      ctx.globalAlpha = 1
-    }
-
-    // Meyveler
+    // Meyveler (gözler tutulan meyveye bakar)
     for (const b of this.world.bodies) {
-      const r = b.r * (0.6 + 0.4 * easeOutBack(b.pop))
+      const scale = 0.55 + 0.45 * easeOutBack(b.pop)
+      const r = b.r * scale
+      const dx = this.aimX - b.x
+      const dy = DROP_Y - b.y
+      const d = Math.hypot(dx, dy) || 1
+      look.x = dx / d
+      look.y = dy / d
+
       ctx.save()
-      ctx.globalAlpha = 0.18
-      ctx.fillStyle = '#8a5a20'
+      ctx.globalAlpha = 0.16
+      ctx.fillStyle = '#7a4a18'
       ctx.beginPath()
-      ctx.ellipse(b.x, Math.min(WORLD_H - 4, b.y + b.r * 0.92), r * 0.8, r * 0.18, 0, 0, Math.PI * 2)
+      ctx.ellipse(b.x, Math.min(WORLD_H - 5, b.y + b.r * 0.94), r * 0.82, r * 0.16, 0, 0, Math.PI * 2)
       ctx.fill()
       ctx.restore()
-      drawFruit(ctx, FRUITS[b.tier], b.x, b.y, r, b.angle)
+
+      drawFruit(ctx, FRUITS[b.tier], b.x, b.y, r, {
+        angle: b.angle,
+        squash: b.squash,
+        look,
+        flash: b.pop < 1 ? (1 - b.pop) * 0.8 : 0,
+        blink: b.blink < 0 && b.pop >= 1,
+      })
     }
 
-    // Parçacıklar
+    // Halkalar
+    for (const ring of this.rings) {
+      ctx.globalAlpha = Math.max(0, ring.life) * 0.5
+      ctx.strokeStyle = ring.color
+      ctx.lineWidth = 6 * Math.max(0.2, ring.life)
+      ctx.beginPath()
+      ctx.arc(ring.x, ring.y, ring.r, 0, Math.PI * 2)
+      ctx.stroke()
+    }
+    ctx.globalAlpha = 1
+
+    // Meyve suyu damlaları
     for (const p of this.particles) {
       ctx.globalAlpha = Math.max(0, p.life / p.maxLife)
       ctx.fillStyle = p.color
@@ -405,37 +463,124 @@ export class MergeGame {
     }
     ctx.globalAlpha = 1
 
+    // Nişan çizgisi + tutulan meyve
+    if (holding && this.state !== 'over') {
+      const def = FRUITS[this.current]
+      const beam = ctx.createLinearGradient(0, DROP_Y, 0, WORLD_H)
+      beam.addColorStop(0, 'rgba(255,255,255,0.42)')
+      beam.addColorStop(0.75, 'rgba(255,255,255,0.06)')
+      beam.addColorStop(1, 'rgba(255,255,255,0)')
+      ctx.fillStyle = beam
+      ctx.fillRect(this.aimX - def.radius * 0.18, DROP_Y, def.radius * 0.36, WORLD_H - DROP_Y)
+
+      const bob = Math.sin(this.time * 4) * 2
+      ctx.globalAlpha = this.cooldown > 0 ? 0.3 : 1
+      drawFruit(ctx, def, this.aimX, DROP_Y + bob, def.radius, { look: { x: 0, y: 1 } })
+      ctx.globalAlpha = 1
+    }
+
     // Puan baloncukları
     ctx.textAlign = 'center'
     for (const p of this.popups) {
-      const t = 1 - p.life / (p.big ? 1.4 : 1)
-      ctx.globalAlpha = Math.min(1, p.life * 2)
-      ctx.font = `800 ${p.big ? 34 : 24}px system-ui, sans-serif`
-      ctx.fillStyle = '#ffffff'
-      ctx.strokeStyle = 'rgba(120,60,10,0.85)'
-      ctx.lineWidth = 5
+      const t = 1 - p.life / p.maxLife
+      ctx.globalAlpha = Math.min(1, p.life * 2.5)
+      ctx.font = `800 ${p.size}px system-ui, sans-serif`
+      ctx.strokeStyle = 'rgba(110,55,10,0.9)'
+      ctx.lineWidth = 6
       ctx.lineJoin = 'round'
-      ctx.strokeText(p.text, p.x, p.y - t * 46)
-      ctx.fillText(p.text, p.x, p.y - t * 46)
+      ctx.strokeText(p.text, p.x, p.y - t * 52)
+      ctx.fillStyle = '#fffdf4'
+      ctx.fillText(p.text, p.x, p.y - t * 52)
     }
     ctx.globalAlpha = 1
 
-    // Kenarlıklar
-    ctx.strokeStyle = 'rgba(140,90,40,0.55)'
-    ctx.lineWidth = 6
-    ctx.strokeRect(3, 3, WORLD_W - 6, WORLD_H - 6)
-
-    if (this.over) {
-      ctx.fillStyle = 'rgba(30,20,10,0.45)'
+    if (this.flashScreen > 0) {
+      ctx.fillStyle = `rgba(255,255,255,${this.flashScreen * 0.28})`
+      ctx.fillRect(0, 0, WORLD_W, WORLD_H)
+    }
+    if (this.state === 'over') {
+      ctx.fillStyle = 'rgba(28,16,6,0.5)'
       ctx.fillRect(0, 0, WORLD_W, WORLD_H)
     }
     ctx.restore()
   }
 
+  private drawBoard(ctx: CanvasRenderingContext2D): void {
+    ctx.clearRect(-30, -30, WORLD_W + 60, WORLD_H + 60)
+
+    const bg = ctx.createLinearGradient(0, 0, 0, WORLD_H)
+    bg.addColorStop(0, '#fffaf0')
+    bg.addColorStop(0.55, '#fff3dc')
+    bg.addColorStop(1, '#ffe4bd')
+    ctx.fillStyle = bg
+    ctx.fillRect(0, 0, WORLD_W, WORLD_H)
+
+    // Hafif noktalı doku
+    ctx.fillStyle = 'rgba(190,140,80,0.07)'
+    for (let y = 30; y < WORLD_H; y += 44) {
+      for (let x = 24; x < WORLD_W; x += 44) {
+        ctx.beginPath()
+        ctx.arc(x + (y % 88 === 30 ? 0 : 22), y, 2.4, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
+
+    // Kenar gölgesi (kap hissi)
+    const vig = ctx.createRadialGradient(WORLD_W / 2, WORLD_H * 0.45, WORLD_W * 0.3, WORLD_W / 2, WORLD_H * 0.5, WORLD_W * 0.95)
+    vig.addColorStop(0, 'rgba(120,70,20,0)')
+    vig.addColorStop(1, 'rgba(120,70,20,0.18)')
+    ctx.fillStyle = vig
+    ctx.fillRect(0, 0, WORLD_W, WORLD_H)
+
+    // Tehlike çizgisi — meyveler yaklaşınca belirginleşir
+    const proximity = this.world.dangerProximity()
+    const near = proximity < 150 ? Math.min(1, (150 - proximity) / 150) : 0
+    const danger = Math.min(1, this.dangerTime / DANGER_LIMIT)
+    const alpha = 0.18 + near * 0.4 + danger * 0.42
+    ctx.save()
+    ctx.setLineDash([14, 12])
+    ctx.lineDashOffset = -this.time * 26
+    ctx.lineWidth = 3
+    ctx.strokeStyle = danger > 0.02 ? `rgba(226,60,60,${alpha})` : `rgba(196,120,50,${alpha})`
+    ctx.beginPath()
+    ctx.moveTo(0, DANGER_Y)
+    ctx.lineTo(WORLD_W, DANGER_Y)
+    ctx.stroke()
+    ctx.restore()
+
+    if (danger > 0.25) {
+      ctx.globalAlpha = 0.35 + Math.sin(this.time * 12) * 0.25 * danger
+      ctx.fillStyle = '#e23c3c'
+      ctx.font = '800 20px system-ui, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText('DİKKAT!', WORLD_W / 2, DANGER_Y - 14)
+      ctx.globalAlpha = 1
+    }
+
+    // Tehlike sayacı — tahtanın tepesinde ince şerit
+    if (danger > 0.01) {
+      const barW = WORLD_W - 40
+      ctx.fillStyle = 'rgba(150,95,40,0.16)'
+      roundRect(ctx, 20, 16, barW, 6, 3)
+      ctx.fill()
+      const grd = ctx.createLinearGradient(20, 0, 20 + barW, 0)
+      grd.addColorStop(0, '#f4a62c')
+      grd.addColorStop(1, '#e23c3c')
+      ctx.fillStyle = grd
+      roundRect(ctx, 20, 16, Math.max(6, barW * danger), 6, 3)
+      ctx.fill()
+    }
+
+    // Kap kenarı
+    ctx.strokeStyle = 'rgba(150,95,40,0.5)'
+    ctx.lineWidth = 5
+    ctx.strokeRect(2.5, 2.5, WORLD_W - 5, WORLD_H - 5)
+  }
+
   // ---------------------------------------------------------------- kayıt
 
   private save = (): void => {
-    if (this.over) return
+    if (this.state === 'over' || this.world.bodies.length === 0) return
     const data: SaveData = {
       score: this.score,
       current: this.current,
@@ -454,21 +599,33 @@ export class MergeGame {
     if (!raw) return false
     try {
       const data = JSON.parse(raw) as SaveData
-      if (!Array.isArray(data.bodies)) return false
+      if (!Array.isArray(data.bodies) || data.bodies.length === 0) return false
       this.world.clear()
+      this.biggest = 0
       for (const b of data.bodies) {
         if (typeof b.t !== 'number' || b.t < 0 || b.t > MAX_TIER) continue
         this.world.add(b.t, b.x, b.y)
+        if (b.t > this.biggest) this.biggest = b.t
       }
       this.score = Number(data.score) || 0
       this.current = clampTier(data.current)
       this.next = clampTier(data.next)
-      this.over = false
+      this.state = 'ready'
       return true
     } catch {
       return false
     }
   }
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x, y + h, r)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.closePath()
 }
 
 function randomTier(): number {

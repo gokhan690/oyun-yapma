@@ -51,8 +51,9 @@ export class Sfx {
     this.tone(220, 0.08, 'sine', 0.08, 140)
   }
 
-  merge(tier: number): void {
-    const base = 300 + tier * 55
+  merge(tier: number, combo = 1): void {
+    // Combo yükseldikçe perde tırmanır — zincir hissi
+    const base = (300 + tier * 55) * Math.pow(1.09, Math.max(0, combo - 1))
     this.tone(base, 0.12, 'triangle', 0.12, base * 1.6)
     setTimeout(() => this.tone(base * 1.5, 0.1, 'sine', 0.08), 55)
   }

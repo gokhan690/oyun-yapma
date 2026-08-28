@@ -26,8 +26,11 @@ Suika tipi "düşür ve birleştir" oyunu — **reklam yok, satın alma yok, int
 - 11 meyve zinciri: Kiraz → Çilek → Üzüm → Mandalina → Portakal → Elma → Armut → Şeftali → Ananas → Kavun → **Karpuz**
 - Kendi yazdığımız daire fiziği (`src/merge/physics.ts`) — harici motor yok
 - Sürükle-bırak (dokunmatik + fare) ve klavye (← → boşluk) kontrolü
+- Zincirleme birleşmelerde combo çarpanı (×5'e kadar), çarpma ezilmesi, meyve suyu sıçraması, göz kırpma
+- Ekranda sadece skor, tahta ve iki düğme var; açılış/devam kartı ve oyun sonu kartı tahtanın üstünde
 - Skor, rekor ve yarım kalan oyun `localStorage`'da saklanır (sayfayı kapatsan da kaldığın yerden devam)
 - Ses efektleri WebAudio ile üretilir, tek tuşla kapatılır; ana uygulamanın AdMob/IAP kodundan tamamen ayrıktır
+- Tek dosya sürüm: `node scripts/build-merge-standalone.mjs cikti.html` (CSS+JS gömülü, ağ isteği yok)
 
 Test:
 

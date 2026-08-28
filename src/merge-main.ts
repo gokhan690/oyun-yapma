@@ -3,7 +3,7 @@
  */
 
 import './merge/merge.css'
-import { FRUITS, MAX_TIER } from './merge/fruits'
+import { FRUITS } from './merge/fruits'
 import { MergeGame } from './merge/MergeGame'
 import { drawFruitPreview } from './merge/render'
 
@@ -17,91 +17,101 @@ const canvas = $<HTMLCanvasElement>('board')
 const scoreEl = $<HTMLElement>('score')
 const bestEl = $<HTMLElement>('best')
 const nextCanvas = $<HTMLCanvasElement>('next-fruit')
-const dangerFill = $<HTMLElement>('danger-fill')
-const overlay = $<HTMLElement>('overlay')
+const biggestBox = $<HTMLElement>('biggest-box')
+const biggestCanvas = $<HTMLCanvasElement>('biggest-fruit')
+const comboEl = $<HTMLElement>('combo')
+const startOverlay = $<HTMLElement>('start-overlay')
+const overOverlay = $<HTMLElement>('over-overlay')
+const startBtn = $<HTMLButtonElement>('start')
+const freshBtn = $<HTMLButtonElement>('fresh')
+const againBtn = $<HTMLButtonElement>('again')
+const soundBtn = $<HTMLButtonElement>('sound')
+const restartBtn = $<HTMLButtonElement>('restart')
+const overTitle = $<HTMLElement>('over-title')
 const finalEl = $<HTMLElement>('final-score')
 const finalSub = $<HTMLElement>('final-sub')
-const againBtn = $<HTMLButtonElement>('again')
-const restartBtn = $<HTMLButtonElement>('restart')
-const soundBtn = $<HTMLButtonElement>('sound')
-const chainEl = $<HTMLElement>('chain')
-const toastEl = $<HTMLElement>('toast')
+const resultCanvas = $<HTMLCanvasElement>('result-fruit')
+const resultName = $<HTMLElement>('result-name')
 
-// --- Meyve zinciri şeridi ---
-const chainCanvases: HTMLCanvasElement[] = []
-FRUITS.forEach((f, i) => {
-  if (i > 0) {
-    const arrow = document.createElement('span')
-    arrow.className = 'chain-arrow'
-    arrow.textContent = '›'
-    chainEl.appendChild(arrow)
-  }
-  const item = document.createElement('div')
-  item.className = 'chain-item'
-  item.title = f.name
-  const c = document.createElement('canvas')
-  item.appendChild(c)
-  chainEl.appendChild(item)
-  chainCanvases.push(c)
-  if (i < 5) item.classList.add('seen')
-})
+let nextTier = 0
+let biggestTier = -1
+let scoreTimer = 0
+let startingBest = Number(localStorage.getItem('fm_best') ?? 0)
+let recordShown = false
 
-let toastTimer = 0
-function toast(text: string): void {
-  toastEl.textContent = text
-  toastEl.classList.add('show')
-  window.clearTimeout(toastTimer)
-  toastTimer = window.setTimeout(() => toastEl.classList.remove('show'), 1800)
+function flash(text: string): void {
+  comboEl.textContent = text
+  comboEl.classList.remove('show')
+  void comboEl.offsetWidth
+  comboEl.classList.add('show')
 }
 
-function bump(el: HTMLElement): void {
-  el.classList.remove('bump')
-  void el.offsetWidth
-  el.classList.add('bump')
+function bumpScore(): void {
+  scoreEl.classList.add('bump')
+  window.clearTimeout(scoreTimer)
+  scoreTimer = window.setTimeout(() => scoreEl.classList.remove('bump'), 180)
 }
 
 const game = new MergeGame(canvas, {
   onScore(score, best) {
-    if (scoreEl.textContent !== String(score)) bump(scoreEl)
+    if (scoreEl.textContent !== String(score)) bumpScore()
     scoreEl.textContent = String(score)
     bestEl.textContent = String(best)
+    // Rekoru geçtiğin an kutlansın
+    if (!recordShown && startingBest > 0 && score > startingBest) {
+      recordShown = true
+      flash('REKOR KIRILDI!')
+    }
   },
   onNext(tier) {
+    nextTier = tier
     drawFruitPreview(nextCanvas, tier, 2)
   },
-  onCurrent() {
-    /* tutulan meyve tuvalde çiziliyor */
+  onBiggest(tier) {
+    biggestTier = tier
+    if (tier <= 0) {
+      biggestBox.hidden = true
+      return
+    }
+    biggestBox.hidden = false
+    drawFruitPreview(biggestCanvas, tier, 1)
   },
-  onDanger(ratio) {
-    dangerFill.style.width = `${Math.round(ratio * 100)}%`
+  onCombo(count) {
+    if (count < 2) return
+    flash(`COMBO ×${count}`)
   },
-  onUnlock(tier) {
-    const item = chainCanvases[tier]?.parentElement
-    item?.classList.add('seen')
-    if (tier >= 5) toast(`🎉 Yeni meyve: ${FRUITS[tier].name}!`)
-    if (tier === MAX_TIER) toast('🍉 KARPUZ! Efsanesin!')
-  },
-  onGameOver(score, best, isRecord) {
+  onGameOver({ score, best, isRecord, biggest }) {
+    overTitle.textContent = isRecord ? 'Yeni Rekor!' : 'Oyun Bitti'
     finalEl.textContent = String(score)
     finalSub.innerHTML = isRecord
-      ? '<span class="record">🏆 Yeni rekor!</span>'
-      : `Rekorun: <b>${best}</b>`
-    overlay.classList.add('show')
+      ? '<span class="record">Şimdiye kadarki en iyin 🏆</span>'
+      : `En iyin: <b>${best}</b>`
+    drawFruitPreview(resultCanvas, biggest, 1)
+    resultName.textContent = `En büyük meyven: ${FRUITS[biggest].name}`
+    overOverlay.classList.add('show')
   },
 })
 
-function restart(): void {
-  overlay.classList.remove('show')
-  dangerFill.style.width = '0%'
-  for (let i = 0; i < chainCanvases.length; i++) {
-    chainCanvases[i].parentElement?.classList.toggle('seen', i < 5)
-  }
+function beginPlay(): void {
+  startOverlay.classList.remove('show')
+  overOverlay.classList.remove('show')
+  game.play()
+}
+
+function newGame(): void {
+  startingBest = Number(localStorage.getItem('fm_best') ?? 0)
+  recordShown = false
+  startOverlay.classList.remove('show')
+  overOverlay.classList.remove('show')
   game.reset()
 }
 
-againBtn.addEventListener('click', restart)
+startBtn.addEventListener('click', beginPlay)
+freshBtn.addEventListener('click', newGame)
+againBtn.addEventListener('click', newGame)
+
 restartBtn.addEventListener('click', () => {
-  if (game.isOver || window.confirm('Oyunu baştan başlatmak istiyor musun?')) restart()
+  if (game.isOver || !game.isPlaying || window.confirm('Oyunu baştan başlatmak istiyor musun?')) newGame()
 })
 
 function paintSoundBtn(): void {
@@ -115,15 +125,21 @@ soundBtn.addEventListener('click', () => {
 })
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) game.pause()
-  else if (!game.isOver) game.resume()
+  if (document.hidden) {
+    game.pause()
+  } else if (!game.isOver && !startOverlay.classList.contains('show')) {
+    game.play()
+  }
 })
 
-function paintChain(): void {
-  chainCanvases.forEach((c, i) => drawFruitPreview(c, i, 1))
-}
+window.addEventListener('resize', () => {
+  drawFruitPreview(nextCanvas, nextTier, 2)
+  if (biggestTier > 0) drawFruitPreview(biggestCanvas, biggestTier, 1)
+})
 
-window.addEventListener('resize', paintChain)
-paintChain()
+// Kayıt varsa "Devam Et", yoksa "Başla"
+const hasSave = game.boot()
+startBtn.textContent = hasSave ? 'Devam Et' : 'Başla'
+freshBtn.hidden = !hasSave
+startOverlay.classList.add('show')
 paintSoundBtn()
-game.start()

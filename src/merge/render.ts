@@ -1,9 +1,22 @@
 /**
- * Canvas çizim yardımcıları — meyveler prosedürel çizilir, dosya/asset yok.
+ * Canvas çizim yardımcıları — meyveler prosedürel çizilir, asset yok.
  */
 
 import type { FruitDef } from './fruits'
 import { FRUITS } from './fruits'
+
+export interface FruitDrawOpts {
+  /** Yuvarlanma açısı */
+  angle?: number
+  /** 0..0.3 — çarpma anındaki dikey ezilme */
+  squash?: number
+  /** Göz bebeklerinin bakacağı yön (birim vektör) */
+  look?: { x: number; y: number }
+  /** 0..1 — birleşme anındaki beyaz parlama */
+  flash?: number
+  /** Göz kırpma karesi */
+  blink?: boolean
+}
 
 export function drawFruit(
   ctx: CanvasRenderingContext2D,
@@ -11,16 +24,20 @@ export function drawFruit(
   x: number,
   y: number,
   r: number,
-  angle: number,
+  opts: FruitDrawOpts = {},
 ): void {
+  const angle = opts.angle ?? 0
+  const squash = opts.squash ?? 0
+
   ctx.save()
   ctx.translate(x, y)
+  if (squash !== 0) ctx.scale(1 + squash, 1 - squash)
   ctx.rotate(angle)
 
   // Gövde
-  const grad = ctx.createRadialGradient(-r * 0.32, -r * 0.36, r * 0.1, 0, 0, r)
+  const grad = ctx.createRadialGradient(-r * 0.32, -r * 0.36, r * 0.08, 0, 0, r * 1.05)
   grad.addColorStop(0, def.light)
-  grad.addColorStop(0.55, def.color)
+  grad.addColorStop(0.5, def.color)
   grad.addColorStop(1, def.shade)
   ctx.fillStyle = grad
   ctx.beginPath()
@@ -29,22 +46,37 @@ export function drawFruit(
 
   drawDeco(ctx, def, r)
 
-  // Parlama
-  ctx.globalAlpha = 0.45
+  // Üst parlama
+  ctx.globalAlpha = 0.5
   ctx.fillStyle = '#ffffff'
   ctx.beginPath()
-  ctx.ellipse(-r * 0.34, -r * 0.4, r * 0.24, r * 0.16, -0.6, 0, Math.PI * 2)
+  ctx.ellipse(-r * 0.34, -r * 0.42, r * 0.26, r * 0.16, -0.6, 0, Math.PI * 2)
+  ctx.fill()
+  // Alttan yansıma
+  ctx.globalAlpha = 0.16
+  ctx.beginPath()
+  ctx.ellipse(r * 0.18, r * 0.55, r * 0.34, r * 0.14, 0.3, 0, Math.PI * 2)
   ctx.fill()
   ctx.globalAlpha = 1
 
-  drawFace(ctx, r)
+  drawFace(ctx, r, opts.look, angle, opts.blink === true)
 
-  // Kenar çizgisi
-  ctx.strokeStyle = 'rgba(0,0,0,0.16)'
-  ctx.lineWidth = Math.max(1, r * 0.045)
+  // Kenar
+  ctx.strokeStyle = 'rgba(60,30,10,0.18)'
+  ctx.lineWidth = Math.max(1, r * 0.04)
   ctx.beginPath()
   ctx.arc(0, 0, r - ctx.lineWidth / 2, 0, Math.PI * 2)
   ctx.stroke()
+
+  // Birleşme parlaması
+  if (opts.flash && opts.flash > 0.01) {
+    ctx.globalAlpha = opts.flash * 0.85
+    ctx.fillStyle = '#ffffff'
+    ctx.beginPath()
+    ctx.arc(0, 0, r, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.globalAlpha = 1
+  }
 
   ctx.restore()
 }
@@ -53,7 +85,6 @@ function drawDeco(ctx: CanvasRenderingContext2D, def: FruitDef, r: number): void
   switch (def.deco) {
     case 'cherry':
     case 'apple':
-      // Sap + yaprak
       ctx.strokeStyle = '#7a4a21'
       ctx.lineWidth = r * 0.11
       ctx.lineCap = 'round'
@@ -84,7 +115,7 @@ function drawDeco(ctx: CanvasRenderingContext2D, def: FruitDef, r: number): void
       }
       break
     case 'citrus':
-      ctx.strokeStyle = 'rgba(255,255,255,0.28)'
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)'
       ctx.lineWidth = r * 0.06
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * Math.PI * 2
@@ -163,31 +194,65 @@ function leaf(ctx: CanvasRenderingContext2D, x: number, y: number, size: number,
   ctx.save()
   ctx.translate(x, y)
   ctx.rotate(rot)
-  ctx.fillStyle = '#4ea64e'
+  const g = ctx.createLinearGradient(-size, 0, size, 0)
+  g.addColorStop(0, '#5cb85c')
+  g.addColorStop(1, '#3d8b3d')
+  ctx.fillStyle = g
   ctx.beginPath()
   ctx.ellipse(0, 0, size, size * 0.45, 0.3, 0, Math.PI * 2)
   ctx.fill()
   ctx.restore()
 }
 
-function drawFace(ctx: CanvasRenderingContext2D, r: number): void {
+function drawFace(
+  ctx: CanvasRenderingContext2D,
+  r: number,
+  look: { x: number; y: number } | undefined,
+  angle: number,
+  blink: boolean,
+): void {
   const ex = r * 0.3
   const ey = -r * 0.02
-  ctx.fillStyle = '#2b2118'
-  ctx.beginPath()
-  ctx.ellipse(-ex, ey, r * 0.085, r * 0.11, 0, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.beginPath()
-  ctx.ellipse(ex, ey, r * 0.085, r * 0.11, 0, 0, Math.PI * 2)
-  ctx.fill()
 
-  ctx.fillStyle = 'rgba(255,255,255,0.85)'
-  ctx.beginPath()
-  ctx.arc(-ex + r * 0.03, ey - r * 0.04, r * 0.03, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.beginPath()
-  ctx.arc(ex + r * 0.03, ey - r * 0.04, r * 0.03, 0, Math.PI * 2)
-  ctx.fill()
+  if (blink) {
+    ctx.strokeStyle = '#2b2118'
+    ctx.lineWidth = Math.max(1, r * 0.06)
+    ctx.lineCap = 'round'
+    for (const sx of [-ex, ex]) {
+      ctx.beginPath()
+      ctx.moveTo(sx - r * 0.09, ey)
+      ctx.quadraticCurveTo(sx, ey + r * 0.06, sx + r * 0.09, ey)
+      ctx.stroke()
+    }
+  } else {
+    // Göz akı + bakış yönüne kayan bebek
+    let lx = 0
+    let ly = 0
+    if (look) {
+      const cos = Math.cos(-angle)
+      const sin = Math.sin(-angle)
+      lx = (look.x * cos - look.y * sin) * r * 0.035
+      ly = (look.x * sin + look.y * cos) * r * 0.035
+    }
+    ctx.fillStyle = '#fffdf7'
+    for (const sx of [-ex, ex]) {
+      ctx.beginPath()
+      ctx.ellipse(sx, ey, r * 0.13, r * 0.155, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    ctx.fillStyle = '#2b2118'
+    for (const sx of [-ex, ex]) {
+      ctx.beginPath()
+      ctx.ellipse(sx + lx, ey + ly, r * 0.075, r * 0.095, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'
+    for (const sx of [-ex, ex]) {
+      ctx.beginPath()
+      ctx.arc(sx + lx + r * 0.03, ey + ly - r * 0.04, r * 0.028, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
 
   ctx.strokeStyle = '#2b2118'
   ctx.lineWidth = Math.max(1, r * 0.055)
@@ -196,17 +261,15 @@ function drawFace(ctx: CanvasRenderingContext2D, r: number): void {
   ctx.arc(0, r * 0.12, r * 0.2, 0.25 * Math.PI, 0.75 * Math.PI)
   ctx.stroke()
 
-  // Yanaklar
-  ctx.fillStyle = 'rgba(255,120,120,0.28)'
-  ctx.beginPath()
-  ctx.arc(-ex - r * 0.16, r * 0.2, r * 0.11, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.beginPath()
-  ctx.arc(ex + r * 0.16, r * 0.2, r * 0.11, 0, Math.PI * 2)
-  ctx.fill()
+  ctx.fillStyle = 'rgba(255,120,120,0.26)'
+  for (const sx of [-ex - r * 0.16, ex + r * 0.16]) {
+    ctx.beginPath()
+    ctx.arc(sx, r * 0.2, r * 0.11, 0, Math.PI * 2)
+    ctx.fill()
+  }
 }
 
-/** Küçük önizleme (sıradaki meyve, evrim şeridi) için tek meyve çizer. */
+/** Küçük önizleme (sıradaki / en büyük meyve) için tek meyve çizer. */
 export function drawFruitPreview(canvas: HTMLCanvasElement, tier: number, pad = 3): void {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -216,5 +279,5 @@ export function drawFruitPreview(canvas: HTMLCanvasElement, tier: number, pad = 
   canvas.height = Math.round(size * dpr)
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, size, size)
-  drawFruit(ctx, FRUITS[tier], size / 2, size / 2, size / 2 - pad, 0)
+  drawFruit(ctx, FRUITS[tier], size / 2, size / 2, size / 2 - pad, { look: { x: 0, y: 0.3 } })
 }
