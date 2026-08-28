@@ -52,6 +52,20 @@ body {
   gap: 10px;
 }
 
+/* Betikler kapalıyken (ör. iOS Dosyalar önizlemesi) görünen açıklama */
+.noscript-card {
+  max-width: 340px;
+  margin: 40px auto;
+  padding: 22px 20px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #fffaf0, #ffeccd);
+  color: var(--ink);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+}
+.noscript-card h2 { margin: 0 0 10px; font-size: 19px; }
+.noscript-card p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.5; color: var(--ink-soft); }
+.noscript-card b { color: var(--ink); }
+
 /* ---------------------------------------------------------------- HUD */
 
 .hud {
