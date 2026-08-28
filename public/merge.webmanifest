@@ -1,0 +1,19 @@
+{
+  "name": "Meyve Birleştir",
+  "short_name": "Meyve",
+  "description": "Reklamsız, çevrimdışı çalışan meyve birleştirme oyunu.",
+  "lang": "tr",
+  "dir": "ltr",
+  "start_url": "./merge.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#241608",
+  "theme_color": "#241608",
+  "categories": ["games", "puzzle"],
+  "icons": [
+    { "src": "./merge-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./merge-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./merge-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

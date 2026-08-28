@@ -3,6 +3,8 @@
  * Ses kapalıysa hiç AudioContext açılmaz.
  */
 
+import { storageGet, storageSet } from './storage'
+
 const STORAGE_KEY = 'fm_sound'
 
 export class Sfx {
@@ -10,12 +12,12 @@ export class Sfx {
   enabled: boolean
 
   constructor() {
-    this.enabled = localStorage.getItem(STORAGE_KEY) !== '0'
+    this.enabled = storageGet(STORAGE_KEY) !== '0'
   }
 
   toggle(): boolean {
     this.enabled = !this.enabled
-    localStorage.setItem(STORAGE_KEY, this.enabled ? '1' : '0')
+    storageSet(STORAGE_KEY, this.enabled ? '1' : '0')
     if (!this.enabled) this.ctx?.suspend()
     return this.enabled
   }

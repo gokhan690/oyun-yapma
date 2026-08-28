@@ -30,7 +30,24 @@ Suika tipi "düşür ve birleştir" oyunu — **reklam yok, satın alma yok, int
 - Ekranda sadece skor, tahta ve iki düğme var; açılış/devam kartı ve oyun sonu kartı tahtanın üstünde
 - Skor, rekor ve yarım kalan oyun `localStorage`'da saklanır (sayfayı kapatsan da kaldığın yerden devam)
 - Ses efektleri WebAudio ile üretilir, tek tuşla kapatılır; ana uygulamanın AdMob/IAP kodundan tamamen ayrıktır
+- Açılış kartında meyve sıralaması (kiraz → karpuz) ve kaldığın oyuna devam seçeneği
 - Tek dosya sürüm: `node scripts/build-merge-standalone.mjs cikti.html` (CSS+JS gömülü, ağ isteği yok)
+
+### Telefona kurma
+
+| Yöntem | Nasıl | Not |
+|--------|-------|-----|
+| **Ana ekrana ekle (önerilen)** | Sayfayı telefonda aç → Android/Chrome: menü → "Uygulamayı yükle"; iPhone/Safari: Paylaş → "Ana Ekrana Ekle" | Tam ekran açılır, ikon gelir, servis çalışanı sayesinde ilk açılıştan sonra **çevrimdışı** oynanır |
+| **Tek dosya** | `node scripts/build-merge-standalone.mjs meyve-birlestir.html` → dosyayı telefona at, tarayıcıyla aç | Sunucu gerekmez; `file://` üzerinde de çalışır |
+| **APK** | `npm run cap:android` → Android Studio → Build | Capacitor projesi zaten kurulu |
+
+PWA parçaları: `public/merge.webmanifest`, `public/merge-sw.js` (yalnız oyunun kendi
+dosyalarını önbelleğe alır, ana uygulamaya dokunmaz), `public/merge-icon*.png`
+(`node scripts/gen-merge-icons.mjs` ile SVG'den üretilir).
+
+`file://` üzerinde ve "site verilerini engelle" açıkken `localStorage` istisna
+fırlatır; tüm depolama erişimi `src/merge/storage.ts` üzerinden korumalı yapılır,
+erişim yoksa skorlar oturum boyunca bellekte tutulur.
 
 Test:
 

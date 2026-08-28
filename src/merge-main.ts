@@ -6,6 +6,7 @@ import './merge/merge.css'
 import { FRUITS } from './merge/fruits'
 import { MergeGame } from './merge/MergeGame'
 import { drawFruitPreview } from './merge/render'
+import { storageGet, storagePersists } from './merge/storage'
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id)
@@ -32,11 +33,35 @@ const finalEl = $<HTMLElement>('final-score')
 const finalSub = $<HTMLElement>('final-sub')
 const resultCanvas = $<HTMLCanvasElement>('result-fruit')
 const resultName = $<HTMLElement>('result-name')
+const chainEl = $<HTMLElement>('chain')
+const fineEl = $<HTMLElement>('fine')
+
+// Açılış kartındaki meyve sıralaması (kiraz → karpuz)
+const chainCanvases: HTMLCanvasElement[] = []
+FRUITS.forEach((f, i) => {
+  if (i > 0) {
+    const sep = document.createElement('span')
+    sep.className = 'sep'
+    sep.textContent = '›'
+    chainEl.appendChild(sep)
+  }
+  const item = document.createElement('span')
+  item.title = f.name
+  if (i === FRUITS.length - 1) item.className = 'goal'
+  const c = document.createElement('canvas')
+  item.appendChild(c)
+  chainEl.appendChild(item)
+  chainCanvases.push(c)
+})
+
+function paintChain(): void {
+  chainCanvases.forEach((c, i) => drawFruitPreview(c, i, 1))
+}
 
 let nextTier = 0
 let biggestTier = -1
 let scoreTimer = 0
-let startingBest = Number(localStorage.getItem('fm_best') ?? 0)
+let startingBest = Number(storageGet('fm_best') ?? 0)
 let recordShown = false
 
 function flash(text: string): void {
@@ -99,7 +124,7 @@ function beginPlay(): void {
 }
 
 function newGame(): void {
-  startingBest = Number(localStorage.getItem('fm_best') ?? 0)
+  startingBest = Number(storageGet('fm_best') ?? 0)
   recordShown = false
   startOverlay.classList.remove('show')
   overOverlay.classList.remove('show')
@@ -135,7 +160,37 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('resize', () => {
   drawFruitPreview(nextCanvas, nextTier, 2)
   if (biggestTier > 0) drawFruitPreview(biggestCanvas, biggestTier, 1)
+  paintChain()
 })
+
+// Ana ekrana eklenip çevrimdışı açılabilsin diye servis çalışanı.
+// Sadece manifestli sayfada (yani gerçek sunucuda) çalışır; file:// ve
+// tek dosya sürümünde hiç denenmez.
+if (document.querySelector('link[rel="manifest"]') && location.protocol.startsWith('http') && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('merge-sw.js', { scope: './' })
+      .then(() => navigator.serviceWorker.ready)
+      .then((reg) => {
+        // Karma adlı JS/CSS dosyalarını servis çalışanına bildir
+        const urls = [
+          location.href.split('#')[0],
+          ...[...document.querySelectorAll<HTMLScriptElement>('script[src]')].map((el) => el.src),
+          ...[...document.querySelectorAll<HTMLLinkElement>('link[href]')].map((el) => el.href),
+        ].filter((url) => url.startsWith(location.origin))
+        reg.active?.postMessage({ type: 'cache', urls })
+      })
+      .catch(() => {
+        /* çevrimdışı desteği olmadan da oyun çalışır */
+      })
+  })
+}
+
+paintChain()
+if (!storagePersists()) {
+  // file:// veya veri kaydı kapalıyken skorlar sekme kapanınca kaybolur
+  fineEl.textContent = 'Reklamsız · çevrimdışı · skorlar bu oturumda tutulur'
+}
 
 // Kayıt varsa "Devam Et", yoksa "Başla"
 const hasSave = game.boot()

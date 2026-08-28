@@ -2,7 +2,13 @@
 <html lang="tr">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="merge-icon.svg" />
+    <link rel="apple-touch-icon" href="merge-icon-192.png" />
+    <link rel="manifest" href="merge.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Meyve" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta
       http-equiv="Content-Security-Policy"
@@ -39,9 +45,11 @@
             <div class="logo">🍒🍇🍉</div>
             <h1>Meyve Birleştir</h1>
             <p class="tag">Aynı meyveler birleşir. Hedef: <b>karpuz</b>.</p>
+            <div class="chain-label">SIRALAMA</div>
+            <div class="chain" id="chain"></div>
             <button class="btn" id="start" type="button">Başla</button>
             <button class="btn ghost" id="fresh" type="button" hidden>Yeni Oyun</button>
-            <p class="fine">Reklamsız · çevrimdışı · kaydın saklanır</p>
+            <p class="fine" id="fine">Reklamsız · çevrimdışı · kaydın saklanır</p>
           </div>
         </div>
 

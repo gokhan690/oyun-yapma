@@ -8,6 +8,7 @@ import { DANGER_Y, WORLD_H, WORLD_W, World } from './physics'
 import type { Body } from './physics'
 import { drawFruit } from './render'
 import { Sfx } from './audio'
+import { storageGet, storageRemove, storageSet } from './storage'
 
 const SAVE_KEY = 'fm_save_v1'
 const BEST_KEY = 'fm_best'
@@ -69,7 +70,7 @@ export class MergeGame {
   private cb: GameCallbacks
 
   private score = 0
-  private best = Number(localStorage.getItem(BEST_KEY) ?? 0)
+  private best = Number(storageGet(BEST_KEY) ?? 0)
   private biggest = 0
   private current = 0
   private next = 0
@@ -155,7 +156,7 @@ export class MergeGame {
     this.current = randomTier()
     this.next = randomTier()
     this.aimX = WORLD_W / 2
-    localStorage.removeItem(SAVE_KEY)
+    storageRemove(SAVE_KEY)
   }
 
   private emitAll(): void {
@@ -355,9 +356,9 @@ export class MergeGame {
     const isRecord = this.score > this.best
     if (isRecord) {
       this.best = this.score
-      localStorage.setItem(BEST_KEY, String(this.best))
+      storageSet(BEST_KEY, String(this.best))
     }
-    localStorage.removeItem(SAVE_KEY)
+    storageRemove(SAVE_KEY)
     this.shake = 0.8
     this.draw()
     this.cb.onGameOver({ score: this.score, best: this.best, isRecord, biggest: this.biggest })
@@ -587,15 +588,11 @@ export class MergeGame {
       next: this.next,
       bodies: this.world.bodies.map((b: Body) => ({ t: b.tier, x: Math.round(b.x), y: Math.round(b.y) })),
     }
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(data))
-    } catch {
-      /* kota dolu olabilir — kayıt kritik değil */
-    }
+    storageSet(SAVE_KEY, JSON.stringify(data))
   }
 
   private restore(): boolean {
-    const raw = localStorage.getItem(SAVE_KEY)
+    const raw = storageGet(SAVE_KEY)
     if (!raw) return false
     try {
       const data = JSON.parse(raw) as SaveData

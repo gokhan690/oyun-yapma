@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <radialGradient id="bg" cx="0.5" cy="0.1" r="1">
+      <stop offset="0" stop-color="#4a2b12"/>
+      <stop offset="1" stop-color="#241608"/>
+    </radialGradient>
+    <radialGradient id="flesh" cx="0.36" cy="0.32" r="0.85">
+      <stop offset="0" stop-color="#ff8b95"/>
+      <stop offset="0.55" stop-color="#e63946"/>
+      <stop offset="1" stop-color="#a4162a"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="268" r="168" fill="#2f7d3a"/>
+  <circle cx="256" cy="268" r="150" fill="#8fce6a"/>
+  <circle cx="256" cy="268" r="132" fill="url(#flesh)"/>
+  <ellipse cx="200" cy="222" rx="42" ry="26" fill="#ffffff" opacity="0.35" transform="rotate(-25 200 222)"/>
+  <g fill="#2b2118">
+    <ellipse cx="212" cy="262" rx="15" ry="19"/>
+    <ellipse cx="300" cy="262" rx="15" ry="19"/>
+  </g>
+  <g fill="#ffffff" opacity="0.9">
+    <circle cx="218" cy="255" r="5"/>
+    <circle cx="306" cy="255" r="5"/>
+  </g>
+  <path d="M214 312 q42 40 84 0" stroke="#2b2118" stroke-width="15" stroke-linecap="round" fill="none"/>
+  <path d="M256 136 q10 -46 60 -58 q4 46 -44 62 z" fill="#4ea64e"/>
+  <rect x="246" y="108" width="16" height="44" rx="8" fill="#7a4a21"/>
+</svg>
