@@ -1,7 +1,11 @@
 /**
- * Basit ama kararlı daire fiziği (Verlet + pozisyon rahatlatma).
- * Suika tipi yığınlarda titremeyi önlemek için her karede birden çok alt adım
- * çalışır; çarpışmalar kütle ağırlıklı pozisyon düzeltmesiyle çözülür.
+ * Daire fiziği — Verlet integrasyonu + pozisyon rahatlatma.
+ *
+ * Gerçekçilik için üç ek var:
+ *  1. Açısal hız: temas noktasındaki kayma sürtünmeye dönüşür, meyveler
+ *     birbirinin ve zeminin üstünde gerçekten yuvarlanır.
+ *  2. Çarpma olayları: darbe şiddeti dışarı verilir (ses + ezilme için).
+ *  3. Boyuta bağlı esneklik: küçük meyveler biraz daha zıplar.
  */
 
 import { FRUITS } from './fruits'
@@ -15,13 +19,15 @@ export interface Body {
   /** Bir önceki alt adımdaki konum — hız buradan türetilir. */
   px: number
   py: number
-  /** Görsel dönüş açısı (yuvarlanma hissi). */
+  /** Görsel dönüş açısı (rad). */
   angle: number
-  /** Doğduğu andan beri geçen süre (sn) — oyun sonu toleransı için. */
+  /** Açısal hız (rad / alt adım). */
+  av: number
+  /** Doğduğu andan beri geçen süre (sn). */
   age: number
   /** Birleşme sonrası "pop" animasyonu ilerlemesi (0→1). */
   pop: number
-  /** Çarpma anındaki dikey ezilme (0→~0.3), zamanla söner. */
+  /** Çarpma anındaki ezilme (0→~0.3), zamanla söner. */
   squash: number
   /** Göz kırpma zamanlayıcısı (sn). */
   blink: number
@@ -32,10 +38,28 @@ export interface Body {
 export interface MergeEvent {
   x: number
   y: number
-  /** Yeni oluşan meyvenin tier'ı; MAX_TIER birleşmesinde -1 (ikisi de yok olur). */
+  /** Yeni meyvenin devraldığı hız (momentum korunumu). */
+  vx: number
+  vy: number
+  /** Yeni oluşan meyvenin tier'ı; MAX_TIER birleşmesinde -1. */
   tier: number
   /** Birleşen meyvelerin tier'ı. */
   from: number
+}
+
+export interface ImpactEvent {
+  x: number
+  y: number
+  /** 0..1 arası darbe şiddeti. */
+  strength: number
+  tier: number
+  /** Zemine mi çarptı, meyveye mi? */
+  ground: boolean
+}
+
+export interface StepResult {
+  merges: MergeEvent[]
+  impacts: ImpactEvent[]
 }
 
 export const WORLD_W = 440
@@ -46,15 +70,23 @@ export const DANGER_Y = 108
 const SUBSTEPS = 8
 const GRAVITY = 0.0062
 const AIR_DRAG = 0.9995
-const WALL_FRICTION = 0.72
-const GROUND_FRICTION = 0.86
-const CONTACT_FRICTION = 0.985
-const RESTITUTION = 0.12
+const WALL_FRICTION = 0.7
+const GROUND_BOUNCE = 0.24
+const CONTACT_FRICTION = 0.42
+const ANGULAR_DAMPING = 0.994
+const MAX_SPIN = 0.22
 const SOLVER_ITERATIONS = 4
+const IMPACT_THRESHOLD = 1.1
+const MAX_IMPACTS = 4
+
+function byTopEdge(a: Body, b: Body): number {
+  return a.y - a.r - (b.y - b.r)
+}
 
 export class World {
   bodies: Body[] = []
   private nextId = 1
+  private impacts: ImpactEvent[] = []
 
   add(tier: number, x: number, y: number, vx = 0, vy = 0): Body {
     const def = FRUITS[tier]
@@ -66,7 +98,8 @@ export class World {
       y,
       px: x - vx,
       py: y - vy,
-      angle: 0,
+      angle: Math.random() * Math.PI * 2,
+      av: 0,
       age: 0,
       pop: 1,
       squash: 0,
@@ -79,11 +112,14 @@ export class World {
 
   clear(): void {
     this.bodies.length = 0
+    this.impacts.length = 0
   }
 
-  /** Bir kare ilerlet; oluşan birleşmeleri döndürür. */
-  step(dt: number, maxTier: number): MergeEvent[] {
+  /** Bir kare ilerlet; birleşme ve çarpma olaylarını döndürür. */
+  step(dt: number, maxTier: number): StepResult {
     const merges: MergeEvent[] = []
+    this.impacts.length = 0
+
     for (const b of this.bodies) {
       b.age += dt
       if (b.pop < 1) b.pop = Math.min(1, b.pop + dt * 6)
@@ -94,16 +130,18 @@ export class World {
 
     for (let s = 0; s < SUBSTEPS; s++) {
       this.integrate()
+      // Süpür-ve-ele: üst kenara göre sıralayıp uzak çiftleri hiç yoklamıyoruz
+      this.bodies.sort(byTopEdge)
       for (let i = 0; i < SOLVER_ITERATIONS; i++) {
         this.solveCollisions(i === 0 ? merges : null, maxTier)
-        this.solveWalls()
+        this.solveWalls(i === 0)
       }
     }
 
     if (merges.length > 0) {
       this.bodies = this.bodies.filter((b) => !b.dead)
     }
-    return merges
+    return { merges, impacts: this.impacts }
   }
 
   private integrate(): void {
@@ -114,9 +152,19 @@ export class World {
       b.py = b.y
       b.x += vx
       b.y += vy + GRAVITY
-      // Yatay hıza göre yuvarlanma efekti
-      b.angle += vx / b.r
+      b.av *= ANGULAR_DAMPING
+      if (b.av > MAX_SPIN) b.av = MAX_SPIN
+      else if (b.av < -MAX_SPIN) b.av = -MAX_SPIN
+      b.angle += b.av
     }
+  }
+
+  private pushImpact(b: Body, strength: number, ground: boolean): void {
+    const s = Math.min(1, strength / 9)
+    if (b.squash < s * 0.26) b.squash = s * 0.26
+    if (this.impacts.length >= MAX_IMPACTS) return
+    if (s < 0.12) return
+    this.impacts.push({ x: b.x, y: b.y + b.r * 0.8, strength: s, tier: b.tier, ground })
   }
 
   private solveCollisions(merges: MergeEvent[] | null, maxTier: number): void {
@@ -124,8 +172,11 @@ export class World {
     for (let i = 0; i < list.length; i++) {
       const a = list[i]
       if (a.dead) continue
+      const reach = a.y + a.r
       for (let j = i + 1; j < list.length; j++) {
         const b = list[j]
+        // Sıralı liste: bu gövdenin üstü a'nın altından aşağıdaysa gerisi de öyledir
+        if (b.y - b.r > reach) break
         if (b.dead) continue
         let dx = b.x - a.x
         let dy = b.y - a.y
@@ -135,7 +186,6 @@ export class World {
 
         let d = Math.sqrt(d2)
         if (d < 0.0001) {
-          // Tam üst üste: rastgele küçük bir yön ver
           dx = (Math.random() - 0.5) * 0.02 + 0.01
           dy = -0.01
           d = Math.hypot(dx, dy)
@@ -145,11 +195,15 @@ export class World {
         if (merges && a.tier === b.tier && a.pop >= 1 && b.pop >= 1) {
           a.dead = true
           b.dead = true
-          const mx = (a.x + b.x) / 2
-          const my = (a.y + b.y) / 2
+          const ma = a.r * a.r
+          const mb = b.r * b.r
+          const total = ma + mb
           merges.push({
-            x: mx,
-            y: my,
+            x: (a.x * ma + b.x * mb) / total,
+            y: (a.y * ma + b.y * mb) / total,
+            // Momentum korunumu: yeni meyve ağırlıklı ortalama hızı devralır
+            vx: ((a.x - a.px) * ma + (b.x - b.px) * mb) / total,
+            vy: ((a.y - a.py) * ma + (b.y - b.py) * mb) / total,
             tier: a.tier >= maxTier ? -1 : a.tier + 1,
             from: a.tier,
           })
@@ -171,58 +225,80 @@ export class World {
         b.x += nx * overlap * shareB
         b.y += ny * overlap * shareB
 
-        // Temas sürtünmesi: teğet hızları biraz söndür
-        this.dampContact(a, nx, ny)
-        this.dampContact(b, nx, ny)
+        const relN = (b.x - b.px - (a.x - a.px)) * nx + (b.y - b.py - (a.y - a.py)) * ny
 
-        // Hafif sekme + çarpma ezilmesi
-        if (overlap > 0.5) {
-          const relN = (b.x - b.px - (a.x - a.px)) * nx + (b.y - b.py - (a.y - a.py)) * ny
-          if (relN < -1.2) {
-            const s = Math.min(0.24, -relN * 0.05) * Math.abs(ny)
-            if (s > a.squash) a.squash = s
-            if (s > b.squash) b.squash = s
+        this.friction(a, b, nx, ny, shareA, shareB)
+
+        if (overlap > 0.4 && relN < 0) {
+          if (relN < -IMPACT_THRESHOLD) {
+            this.pushImpact(a.r >= b.r ? a : b, -relN, false)
           }
-          if (relN < 0) {
-            const bounce = relN * RESTITUTION
-            a.px += nx * bounce * shareA
-            a.py += ny * bounce * shareA
-            b.px -= nx * bounce * shareB
-            b.py -= ny * bounce * shareB
-          }
+          // Küçük meyveler biraz daha zıplasın
+          const restitution = 0.1 + 0.12 * (1 - Math.min(a.tier, b.tier) / 10)
+          const bounce = relN * restitution
+          a.px += nx * bounce * shareA
+          a.py += ny * bounce * shareA
+          b.px -= nx * bounce * shareB
+          b.py -= ny * bounce * shareB
         }
       }
     }
   }
 
-  private dampContact(b: Body, nx: number, ny: number): void {
-    const vx = b.x - b.px
-    const vy = b.y - b.py
-    const vn = vx * nx + vy * ny
-    const tx = vx - vn * nx
-    const ty = vy - vn * ny
-    b.px = b.x - (vn * nx + tx * CONTACT_FRICTION)
-    b.py = b.y - (vn * ny + ty * CONTACT_FRICTION)
+  /**
+   * Temas sürtünmesi: yüzeylerin birbirine göre kayması hem teğet hızı
+   * söndürür hem de dönmeye (yuvarlanmaya) dönüşür.
+   */
+  private friction(a: Body, b: Body, nx: number, ny: number, shareA: number, shareB: number): void {
+    const tx = -ny
+    const ty = nx
+    const vaT = (a.x - a.px) * tx + (a.y - a.py) * ty
+    const vbT = (b.x - b.px) * tx + (b.y - b.py) * ty
+    // Temas noktasındaki yüzey hızları (dönme dahil)
+    const surfaceA = vaT + a.av * a.r
+    const surfaceB = vbT - b.av * b.r
+    const slip = surfaceB - surfaceA
+    if (Math.abs(slip) < 0.0005) return
+
+    const j = slip * CONTACT_FRICTION * 0.5
+    a.px -= tx * j * shareA
+    a.py -= ty * j * shareA
+    b.px += tx * j * shareB
+    b.py += ty * j * shareB
+    // Kayma dönmeye dönüşür (küre için etkin kol ~ 2/5 m r²)
+    a.av += (j * 1.6) / a.r
+    b.av += (j * 1.6) / b.r
   }
 
-  private solveWalls(): void {
+  private solveWalls(reportImpacts: boolean): void {
     for (const b of this.bodies) {
       if (b.dead) continue
+
       if (b.x < b.r) {
+        const vx = b.x - b.px
         b.x = b.r
-        b.px = b.x + (b.x - b.px) * WALL_FRICTION
+        b.px = b.x + vx * WALL_FRICTION
+        b.av += (b.y - b.py) * 0.5 / b.r
       } else if (b.x > WORLD_W - b.r) {
+        const vx = b.x - b.px
         b.x = WORLD_W - b.r
-        b.px = b.x + (b.x - b.px) * WALL_FRICTION
+        b.px = b.x + vx * WALL_FRICTION
+        b.av -= (b.y - b.py) * 0.5 / b.r
       }
+
       if (b.y > WORLD_H - b.r) {
-        const impact = b.y - b.py
-        if (impact > 1.2) b.squash = Math.max(b.squash, Math.min(0.26, impact * 0.05))
+        const vy = b.y - b.py
+        if (reportImpacts && vy > IMPACT_THRESHOLD) this.pushImpact(b, vy, true)
         b.y = WORLD_H - b.r
-        const vx = (b.x - b.px) * GROUND_FRICTION
-        b.py = b.y + (b.y - b.py) * 0.3
-        b.px = b.x - vx
+        b.py = b.y + vy * GROUND_BOUNCE
+        // Zeminde kayma → yuvarlanma
+        const vx = b.x - b.px
+        const slip = vx - b.av * b.r
+        const j = slip * CONTACT_FRICTION
+        b.px += j
+        b.av += (j * 1.6) / b.r
       }
+
       // Tavan yok: meyveler tepeden taşabilir (oyun sonu koşulu bunu ölçer)
       if (b.y < -200) {
         b.y = -200
@@ -254,5 +330,24 @@ export class World {
       if (b.age > 1.2 && b.y - b.r < DANGER_Y && this.isSettled(b)) return true
     }
     return false
+  }
+
+  /** Verilen noktadaki (dünya koordinatı) meyveyi bulur — bomba için. */
+  pick(x: number, y: number): Body | null {
+    let best: Body | null = null
+    let bestD = Infinity
+    for (const b of this.bodies) {
+      const d = Math.hypot(b.x - x, b.y - y)
+      if (d <= b.r && d < bestD) {
+        best = b
+        bestD = d
+      }
+    }
+    return best
+  }
+
+  remove(body: Body): void {
+    const i = this.bodies.indexOf(body)
+    if (i >= 0) this.bodies.splice(i, 1)
   }
 }

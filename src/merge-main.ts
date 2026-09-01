@@ -6,7 +6,7 @@ import './merge/merge.css'
 import { FRUITS } from './merge/fruits'
 import { MergeGame } from './merge/MergeGame'
 import { drawFruitPreview } from './merge/render'
-import { storageGet, storagePersists } from './merge/storage'
+import { storageGet, storageSet, storagePersists } from './merge/storage'
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const el = document.getElementById(id)
@@ -35,6 +35,12 @@ const resultCanvas = $<HTMLCanvasElement>('result-fruit')
 const resultName = $<HTMLElement>('result-name')
 const chainEl = $<HTMLElement>('chain')
 const fineEl = $<HTMLElement>('fine')
+const statsEl = $<HTMLElement>('stats')
+const zenBox = $<HTMLInputElement>('zen')
+const bombBtn = $<HTMLButtonElement>('bomb')
+const swapBtn = $<HTMLButtonElement>('swap')
+const bombCount = $<HTMLElement>('bomb-count')
+const swapCount = $<HTMLElement>('swap-count')
 
 // Açılış kartındaki meyve sıralaması (kiraz → karpuz)
 const chainCanvases: HTMLCanvasElement[] = []
@@ -53,6 +59,16 @@ FRUITS.forEach((f, i) => {
   chainEl.appendChild(item)
   chainCanvases.push(c)
 })
+
+function paintStats(): void {
+  const { games, merges } = game.getStats()
+  if (games === 0 && merges === 0) {
+    statsEl.hidden = true
+    return
+  }
+  statsEl.hidden = false
+  statsEl.textContent = `${games} oyun · ${merges} birleşme`
+}
 
 function paintChain(): void {
   chainCanvases.forEach((c, i) => drawFruitPreview(c, i, 1))
@@ -105,8 +121,16 @@ const game = new MergeGame(canvas, {
     if (count < 2) return
     flash(`COMBO ×${count}`)
   },
+  onPowerups({ bomb, swap, armed }) {
+    bombCount.textContent = String(bomb)
+    swapCount.textContent = String(swap)
+    bombBtn.classList.toggle('empty', bomb <= 0)
+    swapBtn.classList.toggle('empty', swap <= 0)
+    bombBtn.classList.toggle('armed', armed)
+  },
   onGameOver({ score, best, isRecord, biggest }) {
     overTitle.textContent = isRecord ? 'Yeni Rekor!' : 'Oyun Bitti'
+    paintStats()
     finalEl.textContent = String(score)
     finalSub.innerHTML = isRecord
       ? '<span class="record">Şimdiye kadarki en iyin 🏆</span>'
@@ -130,6 +154,14 @@ function newGame(): void {
   overOverlay.classList.remove('show')
   game.reset()
 }
+
+bombBtn.addEventListener('click', () => game.armBomb())
+swapBtn.addEventListener('click', () => game.useSwap())
+
+zenBox.addEventListener('change', () => {
+  game.setZen(zenBox.checked)
+  storageSet('fm_zen', zenBox.checked ? '1' : '0')
+})
 
 startBtn.addEventListener('click', beginPlay)
 freshBtn.addEventListener('click', newGame)
@@ -187,6 +219,9 @@ if (document.querySelector('link[rel="manifest"]') && location.protocol.startsWi
 }
 
 paintChain()
+zenBox.checked = storageGet('fm_zen') === '1'
+game.setZen(zenBox.checked)
+paintStats()
 if (!storagePersists()) {
   // file:// veya veri kaydı kapalıyken skorlar sekme kapanınca kaybolur
   fineEl.textContent = 'Reklamsız · çevrimdışı · skorlar bu oturumda tutulur'
@@ -194,6 +229,8 @@ if (!storagePersists()) {
 
 // Kayıt varsa "Devam Et", yoksa "Başla"
 const hasSave = game.boot()
+// Kayıtlı oyunun modu neyse kutu onu göstersin
+zenBox.checked = game.isZen
 startBtn.textContent = hasSave ? 'Devam Et' : 'Başla'
 freshBtn.hidden = !hasSave
 startOverlay.classList.add('show')

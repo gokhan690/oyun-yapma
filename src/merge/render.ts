@@ -18,6 +18,100 @@ export interface FruitDrawOpts {
   blink?: boolean
 }
 
+/**
+ * Sprite önbelleği: gövde+desen ve ışık katmanı meyve başına bir kez çizilip
+ * saklanır, her karede yeniden gradyan üretilmez. Çok sayıda meyve varken
+ * kare hızını belirgin biçimde yükseltir.
+ */
+const PAD = 1.45
+const MAX_SPRITE_R = 90
+let spriteScale = 1
+const bodyCache = new Map<number, HTMLCanvasElement>()
+const lightCache = new Map<number, HTMLCanvasElement>()
+
+/** Tuval ölçeği değiştiğinde sprite'ları yeniden üret (dünya birimi → cihaz pikseli). */
+export function setSpriteScale(scale: number): void {
+  if (!Number.isFinite(scale) || scale <= 0) return
+  if (Math.abs(scale - spriteScale) / spriteScale < 0.12) return
+  spriteScale = scale
+  bodyCache.clear()
+  lightCache.clear()
+}
+
+function makeSprite(def: FruitDef, light: boolean): HTMLCanvasElement | null {
+  const r = def.radius * spriteScale
+  const size = Math.ceil(2 * PAD * r)
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const c = canvas.getContext('2d')
+  if (!c) return null
+  c.translate(size / 2, size / 2)
+  if (light) paintLight(c, r)
+  else paintBody(c, def, r)
+  return canvas
+}
+
+function sprite(def: FruitDef, light: boolean): HTMLCanvasElement | null {
+  if (def.radius * spriteScale > MAX_SPRITE_R) return null
+  const cache = light ? lightCache : bodyCache
+  const hit = cache.get(def.tier)
+  if (hit) return hit
+  const made = makeSprite(def, light)
+  if (made) cache.set(def.tier, made)
+  return made
+}
+
+/** Gövde + desen (meyveyle birlikte döner). */
+function paintBody(ctx: CanvasRenderingContext2D, def: FruitDef, r: number): void {
+  const grad = ctx.createRadialGradient(-r * 0.32, -r * 0.38, r * 0.06, 0, 0, r * 1.06)
+  grad.addColorStop(0, def.light)
+  grad.addColorStop(0.48, def.color)
+  grad.addColorStop(1, def.shade)
+  ctx.fillStyle = grad
+  ctx.beginPath()
+  ctx.arc(0, 0, r, 0, Math.PI * 2)
+  ctx.fill()
+  drawDeco(ctx, def, r)
+}
+
+/** Işık katmanı (dönmez: ışık hep tepeden gelir). */
+function paintLight(ctx: CanvasRenderingContext2D, r: number): void {
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(0, 0, r, 0, Math.PI * 2)
+  ctx.clip()
+
+  const edge = ctx.createRadialGradient(0, 0, r * 0.55, 0, 0, r)
+  edge.addColorStop(0, 'rgba(0,0,0,0)')
+  edge.addColorStop(1, 'rgba(40,15,0,0.34)')
+  ctx.fillStyle = edge
+  ctx.fillRect(-r, -r, r * 2, r * 2)
+
+  ctx.globalAlpha = 0.55
+  ctx.fillStyle = '#ffffff'
+  ctx.beginPath()
+  ctx.ellipse(-r * 0.34, -r * 0.44, r * 0.27, r * 0.15, -0.55, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.globalAlpha = 0.8
+  ctx.beginPath()
+  ctx.ellipse(-r * 0.4, -r * 0.5, r * 0.1, r * 0.06, -0.55, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.globalAlpha = 0.2
+  ctx.fillStyle = '#ffd9a0'
+  ctx.beginPath()
+  ctx.ellipse(r * 0.12, r * 0.62, r * 0.42, r * 0.16, 0.25, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.globalAlpha = 1
+  ctx.restore()
+
+  ctx.strokeStyle = 'rgba(60,30,10,0.2)'
+  ctx.lineWidth = Math.max(1, r * 0.04)
+  ctx.beginPath()
+  ctx.arc(0, 0, r - ctx.lineWidth / 2, 0, Math.PI * 2)
+  ctx.stroke()
+}
+
 export function drawFruit(
   ctx: CanvasRenderingContext2D,
   def: FruitDef,
@@ -29,44 +123,42 @@ export function drawFruit(
   const angle = opts.angle ?? 0
   const squash = opts.squash ?? 0
 
+  const body = sprite(def, false)
+  const light = body ? sprite(def, true) : null
+  if (body && light) {
+    const half = r * PAD
+    ctx.save()
+    ctx.translate(x, y)
+    if (squash !== 0) ctx.scale(1 + squash, 1 - squash)
+    ctx.save()
+    ctx.rotate(angle)
+    ctx.drawImage(body, -half, -half, half * 2, half * 2)
+    drawFace(ctx, r, opts.look, angle, opts.blink === true)
+    ctx.restore()
+    ctx.drawImage(light, -half, -half, half * 2, half * 2)
+    if (opts.flash && opts.flash > 0.01) {
+      ctx.globalAlpha = opts.flash * 0.85
+      ctx.fillStyle = '#ffffff'
+      ctx.beginPath()
+      ctx.arc(0, 0, r, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.globalAlpha = 1
+    }
+    ctx.restore()
+    return
+  }
+
+  // Sprite'a sığmayan büyük meyveler doğrudan çizilir (sayıları az)
   ctx.save()
   ctx.translate(x, y)
   if (squash !== 0) ctx.scale(1 + squash, 1 - squash)
+
+  paintBody(ctx, def, r)
+  ctx.save()
   ctx.rotate(angle)
-
-  // Gövde
-  const grad = ctx.createRadialGradient(-r * 0.32, -r * 0.36, r * 0.08, 0, 0, r * 1.05)
-  grad.addColorStop(0, def.light)
-  grad.addColorStop(0.5, def.color)
-  grad.addColorStop(1, def.shade)
-  ctx.fillStyle = grad
-  ctx.beginPath()
-  ctx.arc(0, 0, r, 0, Math.PI * 2)
-  ctx.fill()
-
-  drawDeco(ctx, def, r)
-
-  // Üst parlama
-  ctx.globalAlpha = 0.5
-  ctx.fillStyle = '#ffffff'
-  ctx.beginPath()
-  ctx.ellipse(-r * 0.34, -r * 0.42, r * 0.26, r * 0.16, -0.6, 0, Math.PI * 2)
-  ctx.fill()
-  // Alttan yansıma
-  ctx.globalAlpha = 0.16
-  ctx.beginPath()
-  ctx.ellipse(r * 0.18, r * 0.55, r * 0.34, r * 0.14, 0.3, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.globalAlpha = 1
-
   drawFace(ctx, r, opts.look, angle, opts.blink === true)
-
-  // Kenar
-  ctx.strokeStyle = 'rgba(60,30,10,0.18)'
-  ctx.lineWidth = Math.max(1, r * 0.04)
-  ctx.beginPath()
-  ctx.arc(0, 0, r - ctx.lineWidth / 2, 0, Math.PI * 2)
-  ctx.stroke()
+  ctx.restore()
+  paintLight(ctx, r)
 
   // Birleşme parlaması
   if (opts.flash && opts.flash > 0.01) {
@@ -214,6 +306,24 @@ function drawFace(
   const ex = r * 0.3
   const ey = -r * 0.02
 
+  // Ekranda küçük kalan meyvelerde ayrıntı görünmüyor: ucuz yüz çiz
+  if (r < 17) {
+    ctx.fillStyle = '#2b2118'
+    ctx.beginPath()
+    ctx.ellipse(-ex, ey, r * 0.1, r * 0.13, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.ellipse(ex, ey, r * 0.1, r * 0.13, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = '#2b2118'
+    ctx.lineWidth = Math.max(1, r * 0.07)
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.arc(0, r * 0.12, r * 0.2, 0.25 * Math.PI, 0.75 * Math.PI)
+    ctx.stroke()
+    return
+  }
+
   if (blink) {
     ctx.strokeStyle = '#2b2118'
     ctx.lineWidth = Math.max(1, r * 0.06)
@@ -267,6 +377,50 @@ function drawFace(
     ctx.arc(sx, r * 0.2, r * 0.11, 0, Math.PI * 2)
     ctx.fill()
   }
+}
+
+/**
+ * Zemine düşen yumuşak gölge — meyve yaklaştıkça koyulaşıp daralır.
+ * (Gerçek temas gölgesi hissi için mesafeye bağlı.)
+ */
+let shadowSprite: HTMLCanvasElement | null = null
+
+function getShadowSprite(): HTMLCanvasElement | null {
+  if (shadowSprite) return shadowSprite
+  const size = 128
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const c = canvas.getContext('2d')
+  if (!c) return null
+  const g = c.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
+  g.addColorStop(0, 'rgba(90,50,10,1)')
+  g.addColorStop(0.6, 'rgba(90,50,10,0.45)')
+  g.addColorStop(1, 'rgba(90,50,10,0)')
+  c.fillStyle = g
+  c.fillRect(0, 0, size, size)
+  shadowSprite = canvas
+  return shadowSprite
+}
+
+export function drawContactShadow(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  groundY: number,
+): void {
+  const gap = Math.max(0, groundY - (y + r))
+  const t = Math.max(0, 1 - gap / (r * 3))
+  if (t <= 0.02) return
+  const s = getShadowSprite()
+  if (!s) return
+  const rx = r * (0.55 + 0.45 * t)
+  const ry = r * (0.12 + 0.12 * t)
+  ctx.save()
+  ctx.globalAlpha = 0.3 * t
+  ctx.drawImage(s, x - rx, groundY - 2 - ry, rx * 2, ry * 2)
+  ctx.restore()
 }
 
 /** Küçük önizleme (sıradaki / en büyük meyve) için tek meyve çizer. */

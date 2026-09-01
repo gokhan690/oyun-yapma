@@ -49,7 +49,22 @@ const score = Number(await page.locator('#score').textContent())
 if (score <= 0) errors.push(`Birleşme olmadı, skor=${score}`)
 if (!(await page.locator('#biggest-box').isVisible())) errors.push('En büyük meyve rozeti görünmedi')
 
-// 3) Kayıt/geri yükleme (otomatik kayıt 3 sn'de bir)
+// 3) Yardımcılar: takas sıradaki meyveyi değiştirir, bomba kurulur
+const nextBefore = await page.locator('#next-fruit').screenshot()
+await page.locator('#swap').click()
+await page.waitForTimeout(300)
+const nextAfter = await page.locator('#next-fruit').screenshot()
+if (nextBefore.equals(nextAfter)) errors.push('Takas sıradaki meyveyi değiştirmedi')
+if ((await page.locator('#swap-count').textContent()) !== '2') errors.push('Takas hakkı düşmedi')
+
+await page.locator('#bomb').click()
+await page.waitForTimeout(200)
+if (!(await page.locator('#bomb').evaluate((e) => e.classList.contains('armed')))) errors.push('Bomba kurulmadı')
+await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.95)
+await page.waitForTimeout(500)
+if ((await page.locator('#bomb-count').textContent()) !== '0') errors.push('Bomba hakkı düşmedi')
+
+// 4) Kayıt/geri yükleme (otomatik kayıt 3 sn'de bir)
 await page.waitForTimeout(3300)
 const before = Number(await page.locator('#score').textContent())
 await page.reload({ waitUntil: 'networkidle' })
@@ -59,7 +74,7 @@ if (resumeText !== 'Devam Et') errors.push(`Kayıt sonrası düğme beklenmedik:
 const after = Number(await page.locator('#score').textContent())
 if (after < before) errors.push(`Kayıt geri yüklenemedi: ${before} → ${after}`)
 
-// 4) Reklam kodu sızmamış olmalı
+// 5) Reklam kodu sızmamış olmalı
 const adTraces = await page.evaluate(() =>
   [...document.querySelectorAll('script')].map((s) => s.src).filter((s) => /admob|googlesyndication|doubleclick/i.test(s)),
 )

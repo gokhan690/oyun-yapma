@@ -24,7 +24,15 @@ Suika tipi "düşür ve birleştir" oyunu — **reklam yok, satın alma yok, int
 | Prod | build sonrası `dist/merge.html` (ör. `/oyun-yapma/merge.html`) |
 
 - 11 meyve zinciri: Kiraz → Çilek → Üzüm → Mandalina → Portakal → Elma → Armut → Şeftali → Ananas → Kavun → **Karpuz**
-- Kendi yazdığımız daire fiziği (`src/merge/physics.ts`) — harici motor yok
+- Kendi yazdığımız daire fiziği (`src/merge/physics.ts`) — harici motor yok: açısal hız +
+  temas sürtünmesi (meyveler gerçekten yuvarlanır), momentum koruyan birleşmeler,
+  boyuta bağlı esneklik, darbe olayları (ses + ezilme)
+- Işık dünya uzayında sabit: parlama meyve dönerken yerinde kalır; temas gölgesi
+  meyve zemine yaklaştıkça koyulaşır
+- **Yardımcılar:** 💣 bomba (bir meyveyi patlatır) ve 🔄 takas (eldeki meyveyle sıradakini
+  değiştirir); skorla yeni hak kazanılır
+- **Zen modu:** tehlike çizgisi yok, oyun bitmez (rekor tablosuna yazılmaz)
+- Sprite önbelleği + statik zemin + süpür-ve-ele çarpışma taraması ile telefonda akıcı
 - Sürükle-bırak (dokunmatik + fare) ve klavye (← → boşluk) kontrolü
 - Zincirleme birleşmelerde combo çarpanı (×5'e kadar), çarpma ezilmesi, meyve suyu sıçraması, göz kırpma
 - Ekranda sadece skor, tahta ve iki düğme var; açılış/devam kartı ve oyun sonu kartı tahtanın üstünde

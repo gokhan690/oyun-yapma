@@ -243,6 +243,37 @@ canvas#board {
 .chain .goal canvas { width: 27px; height: 27px; }
 .chain .sep { font-size: 9px; color: #c9a878; margin: 0 1px; }
 
+.zen-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 14px;
+  padding: 9px 11px;
+  border-radius: 13px;
+  background: rgba(196, 140, 70, 0.1);
+  font-size: 11.5px;
+  line-height: 1.35;
+  text-align: left;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.zen-toggle b { color: var(--ink); }
+.zen-toggle input {
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.stats {
+  margin: 12px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.2px;
+  color: #a98a63;
+}
+.stats[hidden] { display: none; }
+
 .card .fine { margin: 12px 0 0; font-size: 10.5px; letter-spacing: 0.4px; color: #b08f66; }
 
 .result-fruit {
@@ -296,11 +327,40 @@ canvas#board {
   padding: 0 2px;
 }
 
-.tip {
-  font-size: 11px;
-  letter-spacing: 0.5px;
+.powerups { display: flex; gap: 8px; }
+
+.power-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 13px 7px 10px;
+  border-radius: 13px;
+  border: 1px solid var(--line);
+  background: rgba(246, 231, 210, 0.07);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.power-btn .count {
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
   color: var(--text-dim);
-  opacity: 0.75;
+}
+.power-btn:active { transform: scale(0.93); }
+.power-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.power-btn.empty { opacity: 0.32; }
+.power-btn.armed {
+  background: rgba(226, 60, 60, 0.22);
+  border-color: rgba(255, 120, 100, 0.8);
+  animation: armedPulse 1s ease-in-out infinite;
+}
+@keyframes armedPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(226, 60, 60, 0.5); }
+  50% { box-shadow: 0 0 0 7px rgba(226, 60, 60, 0); }
 }
 
 .icon-btn {
@@ -322,13 +382,13 @@ canvas#board {
 .icon-btn.off { opacity: 0.45; }
 
 @media (max-height: 680px) {
-  .footer .tip { display: none; }
+  .zen-toggle { margin-bottom: 10px; padding: 7px 9px; }
   .score { font-size: clamp(28px, 9vw, 38px); }
   .next-slot { width: 46px; height: 46px; }
   .next-slot canvas { width: 38px; height: 38px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card, .combo.show { animation: none; }
+  .card, .combo.show, .power-btn.armed { animation: none; }
   .score { transition: none; }
 }
