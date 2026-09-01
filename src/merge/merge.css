@@ -25,6 +25,7 @@
 html, body {
   margin: 0;
   height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -128,6 +129,77 @@ body {
 .biggest canvas { width: 36px; height: 36px; display: block; }
 .biggest[hidden] { display: none; }
 
+/* --------------------------------------------------- görevler ve fever */
+
+.missions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 5px;
+}
+
+.mission {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 5px 8px;
+  border-radius: 9px;
+  background: rgba(246, 231, 210, 0.07);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.25;
+  color: var(--text-dim);
+}
+.mission .fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgba(244, 132, 44, 0.28);
+  transition: width 0.25s ease;
+}
+.mission .mt { position: relative; }
+.mission.done {
+  color: #bff0cd;
+  border-color: rgba(95, 208, 138, 0.5);
+}
+.mission.done .fill { background: rgba(95, 208, 138, 0.24); }
+
+.fever-bar {
+  flex: 0 0 auto;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(246, 231, 210, 0.1);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.fever-bar.visible { opacity: 1; }
+.fever-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f4a62c, #ff5f2e);
+  transition: width 0.15s linear;
+}
+.fever-bar.active .fever-fill { animation: feverPulse 0.6s ease-in-out infinite; }
+@keyframes feverPulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.5); }
+}
+
+body.fever { background: radial-gradient(120% 80% at 50% -10%, #5c2a0d, var(--ground) 62%), var(--ground); }
+body.fever .score { color: #ffd27a; }
+
+.timer { flex: 0 0 auto; text-align: center; }
+.clock {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+  letter-spacing: -0.5px;
+}
+.clock.low { color: #ff9a8a; animation: feverPulse 0.8s ease-in-out infinite; }
+.timer[hidden] { display: none; }
+
 /* ---------------------------------------------------------------- tahta */
 
 .board-wrap {
@@ -193,24 +265,30 @@ canvas#board {
 
 .card {
   width: 100%;
-  max-width: 290px;
-  padding: 24px 20px 20px;
-  border-radius: 24px;
+  max-width: 300px;
+  padding: 18px 18px 16px;
+  border-radius: 22px;
   text-align: center;
   color: var(--ink);
   background: linear-gradient(180deg, #fffaf0, #ffeccd);
   box-shadow: 0 20px 44px rgba(0, 0, 0, 0.45), inset 0 1px 0 #fff;
   animation: cardIn 0.3s cubic-bezier(0.2, 1.3, 0.4, 1);
 }
+.card.scroll {
+  max-height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 @keyframes cardIn {
   from { transform: scale(0.86) translateY(10px); opacity: 0; }
   to { transform: scale(1) translateY(0); opacity: 1; }
 }
 
-.card .logo { font-size: 30px; letter-spacing: -6px; margin-bottom: 6px; }
-.card h1 { margin: 0 0 6px; font-size: 25px; letter-spacing: -0.6px; text-wrap: balance; }
+.card .logo { font-size: 24px; letter-spacing: -5px; margin-bottom: 4px; }
+.card h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.6px; text-wrap: balance; }
 .card h2 { margin: 0; font-size: 20px; letter-spacing: -0.3px; }
-.card .tag { margin: 0 0 16px; font-size: 13px; line-height: 1.45; color: var(--ink-soft); }
+.card .tag { margin: 0 0 12px; font-size: 12.5px; line-height: 1.45; color: var(--ink-soft); }
 .card .final {
   font-size: 46px;
   font-weight: 800;
@@ -221,7 +299,7 @@ canvas#board {
 }
 .card .record { color: #1f8a4c; font-weight: 800; }
 .chain-label {
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 1.4px;
   color: #b08f66;
@@ -234,37 +312,167 @@ canvas#board {
   align-items: center;
   justify-content: center;
   gap: 2px 1px;
-  margin-bottom: 16px;
-  padding: 8px 6px;
+  margin-bottom: 12px;
+  padding: 6px 5px;
   border-radius: 14px;
   background: rgba(196, 140, 70, 0.1);
 }
-.chain canvas { width: 21px; height: 21px; display: block; }
-.chain .goal canvas { width: 27px; height: 27px; }
+.chain canvas { width: 19px; height: 19px; display: block; }
+.chain .goal canvas { width: 24px; height: 24px; }
 .chain .sep { font-size: 9px; color: #c9a878; margin: 0 1px; }
 
-.zen-toggle {
+
+.modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.mode-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(138, 99, 56, 0.25);
+  background: rgba(196, 140, 70, 0.08);
+  color: var(--ink-soft);
+  font-family: var(--font);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+.mode-chip b { font-size: 12.5px; color: var(--ink); }
+.mode-chip span { font-size: 9.5px; line-height: 1.25; }
+.mode-chip.on {
+  background: rgba(244, 132, 44, 0.18);
+  border-color: var(--accent);
+}
+.mode-chip:active { transform: scale(0.97); }
+
+.daily-line {
+  margin: -6px 0 12px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  background: rgba(196, 140, 70, 0.1);
+  border-radius: 10px;
+  padding: 7px 9px;
+}
+.daily-line[hidden] { display: none; }
+
+.loadout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+.load-chip {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin: 0 0 14px;
-  padding: 9px 11px;
-  border-radius: 13px;
-  background: rgba(196, 140, 70, 0.1);
-  font-size: 11.5px;
-  line-height: 1.35;
-  text-align: left;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: 11px;
+  border: 1px solid rgba(138, 99, 56, 0.25);
+  background: rgba(196, 140, 70, 0.08);
   color: var(--ink-soft);
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 700;
   cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s ease, background 0.15s ease, transform 0.1s ease;
 }
-.zen-toggle b { color: var(--ink); }
-.zen-toggle input {
-  flex: 0 0 auto;
-  width: 19px;
-  height: 19px;
-  accent-color: var(--accent);
+.load-chip .ic { font-size: 14px; }
+.load-chip.on {
+  opacity: 1;
+  background: rgba(244, 132, 44, 0.18);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+.load-chip:active { transform: scale(0.94); }
+
+.menu-links {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+}
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 9px;
 }
+.link-btn:hover { background: rgba(196, 140, 70, 0.12); }
+
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 6px 0 12px;
+  text-align: left;
+}
+.report-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 9px;
+  border-radius: 9px;
+  background: rgba(196, 140, 70, 0.09);
+  font-size: 12px;
+}
+.report-row .ri { width: 16px; }
+.report-row .rl { flex: 1; color: var(--ink-soft); }
+.report-row .rv { font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.mission-result, .earned { text-align: left; margin-bottom: 12px; }
+.mission-line {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.mission-line.done { color: #1f8a4c; font-weight: 700; }
+
+.trophy-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.trophy {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  grid-template-areas: 'icon name' 'icon hint';
+  gap: 0 8px;
+  padding: 7px 9px;
+  border-radius: 11px;
+  background: rgba(196, 140, 70, 0.09);
+  text-align: left;
+  opacity: 0.5;
+}
+.trophy.got { opacity: 1; background: rgba(95, 208, 138, 0.14); }
+.trophy .ti { grid-area: icon; font-size: 19px; align-self: center; }
+.trophy .tn { grid-area: name; font-size: 12.5px; font-weight: 800; }
+.trophy .th { grid-area: hint; font-size: 10.5px; color: var(--ink-soft); }
+
+.album {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px 4px;
+  margin-bottom: 14px;
+}
+.album-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-size: 9.5px;
+  color: var(--ink-soft);
+}
+.album-cell canvas { width: 38px; height: 38px; display: block; }
+.album-cell.got { color: var(--ink); font-weight: 700; }
 
 .stats {
   margin: 12px 0 0;
@@ -290,7 +498,7 @@ canvas#board {
 
 .btn {
   width: 100%;
-  padding: 14px;
+  padding: 12px;
   border: none;
   border-radius: 15px;
   background: linear-gradient(180deg, #ffab5c, var(--accent));
@@ -381,9 +589,32 @@ canvas#board {
 .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .icon-btn.off { opacity: 0.45; }
 
+/* ---------------------------------------------------------------- bildirim */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translate(-50%, 18px);
+  max-width: min(88vw, 400px);
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(30, 18, 8, 0.95);
+  border: 1px solid rgba(255, 246, 210, 0.22);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 30;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
 @media (max-height: 680px) {
-  .zen-toggle { margin-bottom: 10px; padding: 7px 9px; }
-  .score { font-size: clamp(28px, 9vw, 38px); }
+    .score { font-size: clamp(28px, 9vw, 38px); }
   .next-slot { width: 46px; height: 46px; }
   .next-slot canvas { width: 38px; height: 38px; }
 }

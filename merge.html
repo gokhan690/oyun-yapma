@@ -44,6 +44,10 @@
           <div class="score" id="score">0</div>
           <div class="best">EN İYİ <b id="best">0</b></div>
         </div>
+        <div class="timer" id="timer" hidden>
+          <div class="label">SÜRE</div>
+          <div class="clock" id="clock">2:00</div>
+        </div>
         <div class="biggest" id="biggest-box" hidden>
           <canvas id="biggest-fruit"></canvas>
           <div class="label">EN BÜYÜK</div>
@@ -54,52 +58,85 @@
         </div>
       </div>
 
+      <div class="missions" id="missions"></div>
+      <div class="fever-bar" id="fever-bar"><div class="fever-fill" id="fever-fill"></div></div>
+
       <div class="board-wrap">
         <canvas id="board"></canvas>
         <div class="combo" id="combo"></div>
 
+        <!-- Açılış / ana menü -->
         <div class="overlay" id="start-overlay">
-          <div class="card">
+          <div class="card scroll">
             <div class="logo">🍒🍇🍉</div>
             <h1>Meyve Birleştir</h1>
             <p class="tag">Aynı meyveler birleşir. Hedef: <b>karpuz</b>.</p>
+
+            <div class="chain-label">MOD</div>
+            <div class="modes" id="modes"></div>
+            <p class="daily-line" id="daily-line" hidden></p>
+
             <div class="chain-label">SIRALAMA</div>
             <div class="chain" id="chain"></div>
-            <label class="zen-toggle">
-              <input type="checkbox" id="zen" />
-              <span><b>Zen modu</b> — tehlike çizgisi yok, canın istediği kadar oyna</span>
-            </label>
+
+            <div class="chain-label">YARDIMCILAR — <span id="loadout-count">3</span>/3 seçili</div>
+            <div class="loadout" id="loadout"></div>
+
             <button class="btn" id="start" type="button">Başla</button>
             <button class="btn ghost" id="fresh" type="button" hidden>Yeni Oyun</button>
+
+            <div class="menu-links">
+              <button class="link-btn" id="open-ach" type="button">🏆 Başarımlar</button>
+              <button class="link-btn" id="open-album" type="button">📖 Albüm</button>
+            </div>
+
             <p class="stats" id="stats" hidden></p>
             <p class="fine" id="fine">Reklamsız · çevrimdışı · kaydın saklanır</p>
           </div>
         </div>
 
+        <!-- Oyun sonu raporu -->
         <div class="overlay" id="over-overlay">
-          <div class="card">
+          <div class="card scroll">
             <h2 id="over-title">Oyun Bitti</h2>
             <div class="final" id="final-score">0</div>
             <p class="tag" id="final-sub"></p>
-            <div class="result-fruit"><canvas id="result-fruit"></canvas><span id="result-name"></span></div>
+            <div class="report" id="report"></div>
+            <div class="mission-result" id="mission-result"></div>
+            <div class="earned" id="earned"></div>
             <button class="btn" id="again" type="button">Tekrar Oyna</button>
+            <button class="btn ghost" id="to-menu" type="button">Menüye Dön</button>
+          </div>
+        </div>
+
+        <!-- Başarımlar -->
+        <div class="overlay" id="ach-overlay">
+          <div class="card scroll">
+            <h2>🏆 Başarımlar</h2>
+            <p class="tag" id="ach-count"></p>
+            <div class="trophy-list" id="trophies"></div>
+            <button class="btn" id="close-ach" type="button">Kapat</button>
+          </div>
+        </div>
+
+        <!-- Meyve albümü -->
+        <div class="overlay" id="album-overlay">
+          <div class="card scroll">
+            <h2>📖 Meyve Albümü</h2>
+            <p class="tag" id="album-count"></p>
+            <div class="album" id="album"></div>
+            <button class="btn" id="close-album" type="button">Kapat</button>
           </div>
         </div>
       </div>
 
       <div class="footer">
         <button id="sound" class="icon-btn" type="button" aria-label="Sesi kapat">🔊</button>
-        <div class="powerups">
-          <button id="bomb" class="power-btn" type="button" aria-label="Bomba: bir meyveyi patlat">
-            <span class="ic">💣</span><span class="count" id="bomb-count">1</span>
-          </button>
-          <button id="swap" class="power-btn" type="button" aria-label="Takas: eldeki meyveyle sıradakini değiştir">
-            <span class="ic">🔄</span><span class="count" id="swap-count">3</span>
-          </button>
-        </div>
+        <div class="powerups" id="powerups"></div>
         <button id="restart" class="icon-btn" type="button" aria-label="Yeniden başlat">↻</button>
       </div>
     </div>
+    <div class="toast" id="toast"></div>
     <script type="module" src="/src/merge-main.ts"></script>
   </body>
 </html>

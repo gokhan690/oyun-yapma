@@ -29,9 +29,18 @@ Suika tipi "düşür ve birleştir" oyunu — **reklam yok, satın alma yok, int
   boyuta bağlı esneklik, darbe olayları (ses + ezilme)
 - Işık dünya uzayında sabit: parlama meyve dönerken yerinde kalır; temas gölgesi
   meyve zemine yaklaştıkça koyulaşır
-- **Yardımcılar:** 💣 bomba (bir meyveyi patlatır) ve 🔄 takas (eldeki meyveyle sıradakini
-  değiştirir); skorla yeni hak kazanılır
-- **Zen modu:** tehlike çizgisi yok, oyun bitmez (rekor tablosuna yazılmaz)
+- **Modlar:** Klasik · Zen (tehlike çizgisi yok) · 2 Dakika · Günlük (tarihe göre
+  tohumlanmış aynı meyve sırası, günde 1 resmi deneme — `src/merge/rng.ts`)
+- **Yardımcılar (5'ten 3'ü seçilir):** 💣 bomba · 🔄 takas · ↩️ geri al · 🌀 salla · 🌈 joker;
+  skorla yeni hak kazanılır (`src/merge/powerups.ts`)
+- **Görevler:** her turda havuzdan 3 hedef, tamamlanınca 🪙 para/⭐ yıldız (`src/merge/missions.ts`)
+- **FEVER:** zincirleme birleşmeler göstergeyi doldurur; 10 saniye çift puan, konfeti ve
+  ısınan tahta
+- **Altın meyve:** %2 ihtimalle gelir, iki altın birleşirse 3× puan
+- **Mega Karpuz:** iki karpuz birleşince patlar, çevredeki meyveleri iter, büyük bonus verir
+- **Başarımlar ve meyve albümü:** 10 kupa + 11 meyvelik koleksiyon, ana menüden açılır
+- **Oyun sonu raporu:** en büyük meyve, en yüksek combo, birleştirme, süre, atılan meyve,
+  kazanılan para; rekora kalan puan
 - Sprite önbelleği + statik zemin + süpür-ve-ele çarpışma taraması ile telefonda akıcı
 - Sürükle-bırak (dokunmatik + fare) ve klavye (← → boşluk) kontrolü
 - Zincirleme birleşmelerde combo çarpanı (×5'e kadar), çarpma ezilmesi, meyve suyu sıçraması, göz kırpma

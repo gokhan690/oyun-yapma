@@ -31,6 +31,8 @@ export interface Body {
   squash: number
   /** Göz kırpma zamanlayıcısı (sn). */
   blink: number
+  /** Nadir "altın meyve" — iki altın birleşince ekstra puan. */
+  golden: boolean
   /** Bu adımda birleşip yok olacak mı? */
   dead: boolean
 }
@@ -45,6 +47,8 @@ export interface MergeEvent {
   tier: number
   /** Birleşen meyvelerin tier'ı. */
   from: number
+  /** İki altın meyve mi birleşti? */
+  golden: boolean
 }
 
 export interface ImpactEvent {
@@ -88,7 +92,7 @@ export class World {
   private nextId = 1
   private impacts: ImpactEvent[] = []
 
-  add(tier: number, x: number, y: number, vx = 0, vy = 0): Body {
+  add(tier: number, x: number, y: number, vx = 0, vy = 0, golden = false): Body {
     const def = FRUITS[tier]
     const body: Body = {
       id: this.nextId++,
@@ -104,6 +108,7 @@ export class World {
       pop: 1,
       squash: 0,
       blink: 1.5 + Math.random() * 4,
+      golden,
       dead: false,
     }
     this.bodies.push(body)
@@ -206,6 +211,7 @@ export class World {
             vy: ((a.y - a.py) * ma + (b.y - b.py) * mb) / total,
             tier: a.tier >= maxTier ? -1 : a.tier + 1,
             from: a.tier,
+            golden: a.golden && b.golden,
           })
           break
         }
@@ -344,6 +350,31 @@ export class World {
       }
     }
     return best
+  }
+
+  /** Patlama: yarıçap içindeki gövdeleri dışa doğru iter (mega karpuz). */
+  explode(x: number, y: number, radius: number, power: number): void {
+    for (const b of this.bodies) {
+      const dx = b.x - x
+      const dy = b.y - y
+      const d = Math.hypot(dx, dy)
+      if (d > radius || d < 0.001) continue
+      const falloff = 1 - d / radius
+      const push = (power * falloff * 900) / (b.r * b.r)
+      b.px -= (dx / d) * push
+      b.py -= (dy / d) * push
+      b.av += (Math.random() - 0.5) * 0.1
+      b.squash = Math.max(b.squash, 0.18 * falloff)
+    }
+  }
+
+  /** Kutuyu salla: her gövdeye küçük rastgele itme (sıkışmayı bozar). */
+  jolt(power: number): void {
+    for (const b of this.bodies) {
+      b.px -= (Math.random() - 0.5) * power
+      b.py -= Math.random() * power * 0.6
+      b.av += (Math.random() - 0.5) * 0.06
+    }
   }
 
   remove(body: Body): void {

@@ -16,6 +16,10 @@ export interface FruitDrawOpts {
   flash?: number
   /** Göz kırpma karesi */
   blink?: boolean
+  /** Nadir altın meyve — ışıltılı kaplama */
+  golden?: boolean
+  /** Altın ışıltının dönmesi için zaman (sn) */
+  time?: number
 }
 
 /**
@@ -112,6 +116,45 @@ function paintLight(ctx: CanvasRenderingContext2D, r: number): void {
   ctx.stroke()
 }
 
+/** Altın meyve kaplaması: sıcak bir tül + dönen ışıltılar. */
+function paintGolden(ctx: CanvasRenderingContext2D, r: number, time: number): void {
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(0, 0, r, 0, Math.PI * 2)
+  ctx.clip()
+  const g = ctx.createLinearGradient(-r, -r, r, r)
+  g.addColorStop(0, 'rgba(255,225,120,0.55)')
+  g.addColorStop(0.5, 'rgba(255,190,60,0.3)')
+  g.addColorStop(1, 'rgba(255,240,180,0.55)')
+  ctx.fillStyle = g
+  ctx.fillRect(-r, -r, r * 2, r * 2)
+  ctx.restore()
+
+  ctx.save()
+  ctx.strokeStyle = 'rgba(255,214,102,0.95)'
+  ctx.lineWidth = Math.max(1.5, r * 0.07)
+  ctx.beginPath()
+  ctx.arc(0, 0, r - ctx.lineWidth / 2, 0, Math.PI * 2)
+  ctx.stroke()
+
+  // Dönen küçük ışıltılar
+  ctx.fillStyle = '#fff6d0'
+  for (let i = 0; i < 3; i++) {
+    const a = time * 1.6 + (i / 3) * Math.PI * 2
+    const px = Math.cos(a) * r * 0.72
+    const py = Math.sin(a) * r * 0.72
+    const size = r * (0.09 + 0.03 * Math.sin(time * 6 + i))
+    ctx.beginPath()
+    ctx.moveTo(px, py - size)
+    ctx.lineTo(px + size * 0.4, py)
+    ctx.lineTo(px, py + size)
+    ctx.lineTo(px - size * 0.4, py)
+    ctx.closePath()
+    ctx.fill()
+  }
+  ctx.restore()
+}
+
 export function drawFruit(
   ctx: CanvasRenderingContext2D,
   def: FruitDef,
@@ -136,6 +179,7 @@ export function drawFruit(
     drawFace(ctx, r, opts.look, angle, opts.blink === true)
     ctx.restore()
     ctx.drawImage(light, -half, -half, half * 2, half * 2)
+    if (opts.golden) paintGolden(ctx, r, opts.time ?? 0)
     if (opts.flash && opts.flash > 0.01) {
       ctx.globalAlpha = opts.flash * 0.85
       ctx.fillStyle = '#ffffff'
@@ -159,6 +203,7 @@ export function drawFruit(
   drawFace(ctx, r, opts.look, angle, opts.blink === true)
   ctx.restore()
   paintLight(ctx, r)
+  if (opts.golden) paintGolden(ctx, r, opts.time ?? 0)
 
   // Birleşme parlaması
   if (opts.flash && opts.flash > 0.01) {
@@ -424,7 +469,7 @@ export function drawContactShadow(
 }
 
 /** Küçük önizleme (sıradaki / en büyük meyve) için tek meyve çizer. */
-export function drawFruitPreview(canvas: HTMLCanvasElement, tier: number, pad = 3): void {
+export function drawFruitPreview(canvas: HTMLCanvasElement, tier: number, pad = 3, golden = false): void {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
   const dpr = Math.min(window.devicePixelRatio || 1, 3)
@@ -433,5 +478,5 @@ export function drawFruitPreview(canvas: HTMLCanvasElement, tier: number, pad = 
   canvas.height = Math.round(size * dpr)
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, size, size)
-  drawFruit(ctx, FRUITS[tier], size / 2, size / 2, size / 2 - pad, { look: { x: 0, y: 0.3 } })
+  drawFruit(ctx, FRUITS[tier], size / 2, size / 2, size / 2 - pad, { look: { x: 0, y: 0.3 }, golden })
 }

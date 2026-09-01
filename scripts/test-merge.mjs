@@ -49,20 +49,30 @@ const score = Number(await page.locator('#score').textContent())
 if (score <= 0) errors.push(`Birleşme olmadı, skor=${score}`)
 if (!(await page.locator('#biggest-box').isVisible())) errors.push('En büyük meyve rozeti görünmedi')
 
-// 3) Yardımcılar: takas sıradaki meyveyi değiştirir, bomba kurulur
-const nextBefore = await page.locator('#next-fruit').screenshot()
-await page.locator('#swap').click()
-await page.waitForTimeout(300)
-const nextAfter = await page.locator('#next-fruit').screenshot()
-if (nextBefore.equals(nextAfter)) errors.push('Takas sıradaki meyveyi değiştirmedi')
-if ((await page.locator('#swap-count').textContent()) !== '2') errors.push('Takas hakkı düşmedi')
+// 3) Yardımcılar: sahada 3 düğme, kullanınca hak düşer
+const powerBtns = page.locator('.power-btn')
+const powerCount = await powerBtns.count()
+if (powerCount !== 3) errors.push(`Sahada 3 yardımcı bekleniyordu, ${powerCount} var`)
+const missionCount = await page.locator('.mission').count()
+if (missionCount !== 3) errors.push(`3 görev bekleniyordu, ${missionCount} var`)
 
-await page.locator('#bomb').click()
-await page.waitForTimeout(200)
-if (!(await page.locator('#bomb').evaluate((e) => e.classList.contains('armed')))) errors.push('Bomba kurulmadı')
-await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.95)
-await page.waitForTimeout(500)
-if ((await page.locator('#bomb-count').textContent()) !== '0') errors.push('Bomba hakkı düşmedi')
+const swapIndex = (await page.locator('.power-btn .ic').allTextContents()).indexOf('🔄')
+if (swapIndex < 0) errors.push('Takas düğmesi bulunamadı')
+else {
+  // Eldeki ile sıradaki aynı meyve çıkarsa takas bilerek çalışmaz; birkaç kez dene
+  let swapped = false
+  for (let attempt = 0; attempt < 4 && !swapped; attempt++) {
+    const before = Number(await page.locator('.power-btn .count').nth(swapIndex).textContent())
+    const nextBefore = await page.locator('#next-fruit').screenshot()
+    await powerBtns.nth(swapIndex).click()
+    await page.waitForTimeout(350)
+    const nextAfter = await page.locator('#next-fruit').screenshot()
+    const after = Number(await page.locator('.power-btn .count').nth(swapIndex).textContent())
+    if (!nextBefore.equals(nextAfter) && after === before - 1) swapped = true
+    else await drop(0.5)
+  }
+  if (!swapped) errors.push('Takas sıradaki meyveyi değiştirmedi')
+}
 
 // 4) Kayıt/geri yükleme (otomatik kayıt 3 sn'de bir)
 await page.waitForTimeout(3300)
