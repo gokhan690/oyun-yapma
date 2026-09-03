@@ -789,7 +789,11 @@ html.theme-red .skyline-sky {
   position: fixed;
   right: 12px;
   bottom: calc(60px + var(--safe-bottom));
-  z-index: 90;
+  /* body'de olmak yetmiyordu: RefApp overlay'i 9500 ve opak, 90 onun ALTINDA
+     kalıyordu — başarım/hastalık/yetenek/mentor bildirimleri yeni arayüzde hiç
+     görünmüyordu. .toast ile aynı banda alındı. */
+  z-index: 9700;
+  pointer-events: none;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1127,6 +1131,9 @@ html.theme-night body {
      olduğu için ikisinin de üstünde okunur kalır; onboarding/owner (9999) ve
      RefApp'in kendi toast'ı (10000) hâlâ daha üstte. */
   z-index: 9700;
+  /* .ref-toast gibi tıklamayı geçirir. Bu olmadan toast, 2.2–3.4 sn boyunca
+     altındaki RefApp içeriğinin ve karar penceresinin tıklamalarını yutar. */
+  pointer-events: none;
   font-weight: 600;
   font-size: 0.85rem;
   animation: toastIn 0.2s ease;
@@ -1134,11 +1141,20 @@ html.theme-night body {
   text-align: center;
 }
 
-/* RefApp açıkken toast, üstteki header'ı kapatmasın: RefApp'in kendi
-   .ref-toast'ıyla aynı yere (alt nav'ın üstüne) alınır. */
+/* RefApp açıkken toast üstteki header'ı kapatmasın diye aşağı alınır. AMA
+   .ref-toast'ın tam üstüne değil: o da bottom:calc(nav+18px) ve z-index 10000
+   ile daha üstte, ikisi aynı anda çıkarsa HUD toast'ı arkada kalıp taşardı.
+   Bir sıra yukarı konumlanır → iki bildirim üst üste değil, alt alta okunur. */
 body.ref-ui-open .toast {
   top: auto;
-  bottom: calc(var(--r-nav-h, 74px) + 18px);
+  bottom: calc(var(--r-nav-h, 74px) + 78px);
+}
+
+/* Üç bildirim kanalı RefApp'te ayrı satırlarda durur, üst üste binmez:
+   satır 1 = .ref-toast (nav+18), satır 2 = .toast (nav+78),
+   satır 3 = .achievement-toast (nav+138). */
+body.ref-ui-open .achievement-toast {
+  bottom: calc(var(--r-nav-h, 74px) + 138px);
 }
 
 @keyframes toastIn {

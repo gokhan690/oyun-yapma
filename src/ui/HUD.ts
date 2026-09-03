@@ -774,6 +774,15 @@ export class HUD {
     const IDLE_THRESHOLD_MS = 3 * 60 * 1000 // 3 minutes
     const check = (): void => {
       const elapsed = Date.now() - this.lastUserTapMs
+      // RefApp açıkken bu ipucu ATLANIR: lastUserTapMs yalnızca eski HUD'ın
+      // tap alanından tazeleniyor, o alan da gizli. Aksi hâlde ipucu her
+      // periyotta sonsuza kadar tetiklenirdi — üstelik tavsiyesi (tıklama
+      // yerine yönetici al) yeni arayüzde karşılığı olmayan bir öğüt.
+      if (document.body.classList.contains('ref-ui-open')) {
+        this.lastUserTapMs = Date.now()
+        window.setTimeout(check, IDLE_THRESHOLD_MS)
+        return
+      }
       if (elapsed >= IDLE_THRESHOLD_MS) {
         const passiveIncome = this.state.incomePerSecond()
         if (passiveIncome > 0) {
