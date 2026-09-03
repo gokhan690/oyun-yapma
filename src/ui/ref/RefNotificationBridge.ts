@@ -597,8 +597,18 @@ export class RefNotificationBridge {
         <div class="ref-decision-options"></div>
       </div>
     `
+    // Arka plandaki sayfaya dokunuş/scroll sızmasın diye overlay olayları yutar.
+    // AMA butonlara gelen dokunuşta preventDefault ÇAĞRILMAZ: touchstart'ta
+    // preventDefault demek tarayıcıya "bu dokunuşu yok say" demektir ve o
+    // dokunuştan click ÜRETİLMEZ. Seçenek butonları click bekliyor; bu yüzden
+    // dokunmatik cihazlarda karar pencereleri hiç yanıt vermiyordu (masaüstünde
+    // fareyle çalıştığı için gözden kaçmıştı).
     for (const type of ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click'] as const) {
       overlay.addEventListener(type, (ev) => {
+        if ((ev.target as HTMLElement | null)?.closest('button')) {
+          ev.stopPropagation()
+          return
+        }
         ev.preventDefault()
         ev.stopPropagation()
       })
