@@ -415,7 +415,12 @@ export class ModalManager {
     this.openLayer()
   }
 
-  showToast(root: HTMLElement, message: string, priority: 'normal' | 'important' = 'normal'): void {
+  /**
+   * Kısa bilgi baloncuğu. showAchievementToast gibi doğrudan body'ye eklenir:
+   * RefApp (yeni arayüz) açılırken #app display:none yapılıyor, toast #app'in
+   * içinde kalsaydı hiç görünmezdi.
+   */
+  showToast(message: string, priority: 'normal' | 'important' = 'normal'): void {
     const now = Date.now()
     if (priority === 'normal') {
       if (this.lastToastMessage === message && now - this.lastToastAt < 8000) return
@@ -431,7 +436,7 @@ export class ModalManager {
     const toast = document.createElement('div')
     toast.className = 'toast'
     toast.textContent = message
-    root.appendChild(toast)
+    document.body.appendChild(toast)
     window.setTimeout(() => toast.remove(), priority === 'important' ? 3400 : 2200)
   }
 

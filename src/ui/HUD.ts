@@ -171,7 +171,7 @@ export class HUD {
     this.skyline.setBuildingClickHandler((producerId) => {
       const p = PRODUCERS.find((x) => x.id === producerId)
       const income = this.state.producerIncome(p!)
-      this.modals.showToast(this.root, `${p?.emoji ?? ''} ${p ? producerName(p) : producerId}: ${formatIncomeRate(income)}`)
+      this.modals.showToast(`${p?.emoji ?? ''} ${p ? producerName(p) : producerId}: ${formatIncomeRate(income)}`)
     })
     this.particles = new ParticleSystem(this.tapArea.parentElement!)
     this.bindEvents()
@@ -738,7 +738,6 @@ export class HUD {
     this.state.seenStoryBeats.add('hint_first_manager')
     window.setTimeout(() => {
       this.modals.showToast(
-        this.root,
         '📊 İlk yönetici! Artık bu işletme otomatik çalışacak. Daha fazla yönetici al → pasif gelir artar.',
       )
     }, 1200)
@@ -755,8 +754,7 @@ export class HUD {
     this.state.seenStoryBeats.add('hint_synergy')
     window.setTimeout(() => {
       this.modals.showToast(
-        this.root,
-        '⚡ Sinerji! Bu işletmeler birlikte daha fazla kazandırıyor — Güçlendir → Sinerji sekmesini kontrol et.',
+        '⚡ Sinerji! Bu işletmeler birlikte daha fazla kazandırıyor.',
       )
     }, 800)
   }
@@ -767,8 +765,7 @@ export class HUD {
     this.state.seenStoryBeats.add('hint_prestige')
     window.setTimeout(() => {
       this.modals.showToast(
-        this.root,
-        '👑 IPO zamanı! 1 milyon kazandın. Prestij yaparak daha güçlü başlayabilirsin — Güçlendir → Prestij.',
+        '👑 IPO zamanı! 1 milyon kazandın. Prestij yaparak daha güçlü başlayabilirsin.',
       )
     }, 1000)
   }
@@ -781,7 +778,6 @@ export class HUD {
         const passiveIncome = this.state.incomePerSecond()
         if (passiveIncome > 0) {
           this.modals.showToast(
-            this.root,
             `💤 Pasif gelir birikiyor — yönetici alırsan tıklamasan da kazanırsın!`,
           )
         }
@@ -888,7 +884,7 @@ export class HUD {
       if (ev.type === 'illegal_raid') {
         const p = PRODUCERS.find((x) => x.id === ev.producerId)
         this.sound.playRaid()
-        this.modals.showToast(this.root, `🚨 Baskın! ${p?.name ?? 'Illegal iş'} — ${formatMoney(ev.fine)} ceza`)
+        this.modals.showToast(`🚨 Baskın! ${p?.name ?? 'Illegal iş'} — ${formatMoney(ev.fine)} ceza`)
         this.renderHeatMeter()
         this.renderAll()
       }
@@ -899,7 +895,7 @@ export class HUD {
         }
       }
       if (ev.type === 'producer_unlocked') {
-        this.modals.showToast(this.root, '🔓 Yeni işletme erken açıldı!')
+        this.modals.showToast('🔓 Yeni işletme erken açıldı!')
         this.refreshShop(true)
       }
       if (ev.type === 'passive_income') {
@@ -987,7 +983,7 @@ export class HUD {
       }
       if (ev.type === 'milestone_reached') this.showMilestone(ev.amount)
       if (ev.type === 'golden_event_preview') {
-        this.modals.showToast(this.root, `⏳ ${ev.hint}`)
+        this.modals.showToast(`⏳ ${ev.hint}`)
       }
       if (ev.type === 'golden_event') {
         this.sound.playEvent()
@@ -1013,7 +1009,7 @@ export class HUD {
         const msg = ev.event.rewardType === 'income_boost'
           ? `${ev.event.title} — bonus envantere eklendi`
           : `${ev.event.title} — +${formatMoney(ev.reward)}`
-        this.modals.showToast(this.root, msg)
+        this.modals.showToast(msg)
         this.eventsPanel.render(this.state)
         this.updateNavBadges()
       }
@@ -1041,11 +1037,11 @@ export class HUD {
         this.showLifeEventModal(ev.eventDef)
       }
       if (ev.type === 'life_event_consequence') {
-        this.modals.showToast(this.root, ev.headline)
+        this.modals.showToast(ev.headline)
         if (this.baronSubTab === 'lifestyle') this.lifestylePanel.render(this.state)
       }
       if (ev.type === 'life_event_risk_outcome') {
-        this.modals.showToast(this.root, ev.headline)
+        this.modals.showToast(ev.headline)
       }
       if (ev.type === 'disease_diagnosed') {
         this.modals.showAchievementToast(ev.emoji, `Yeni Hastalık: ${ev.name}`, 'Kariyer sayfasından tedavi edebilirsin')
@@ -1153,7 +1149,6 @@ export class HUD {
           priority: 4,
           run: () => {
             this.modals.showToast(
-              this.root,
               `⚠️ ${ev.rivalName} sizi geçti! Net servet: ${formatMoney(ev.rivalWorth)}`,
               'important',
             )
@@ -1263,7 +1258,6 @@ export class HUD {
         const icon = ev.won ? '⚽' : '🏟️'
         const bonus = ev.bonus > 0 ? ` · +${formatMoney(ev.bonus)}` : ''
         this.modals.showToast(
-          this.root,
           `${icon} ${ev.clubName} ${ev.score} · +${ev.fanGain.toLocaleString('tr-TR')} taraftar${bonus}`,
         )
         if (this.empirePanel.root && !this.empirePanel.root.hidden) {
@@ -1283,11 +1277,11 @@ export class HUD {
         this.showComebackPopup()
       }
       if (ev.type === 'theme_unlocked') {
-        this.modals.showToast(this.root, `🎨 Yeni tema: ${ev.themeId}!`)
+        this.modals.showToast(`🎨 Yeni tema: ${ev.themeId}!`)
         applyDocumentTheme(this.state.activeTheme)
       }
       if (ev.type === 'badge_earned') {
-        this.modals.showToast(this.root, '🏅 Yeni rozet kazandın!')
+        this.modals.showToast('🏅 Yeni rozet kazandın!')
         this.refreshBaronPanel()
       }
       if (ev.type === 'underground_action') {
@@ -1312,7 +1306,7 @@ export class HUD {
         this.refreshShop(true)
       }
       if (ev.type === 'calendar_event') {
-        this.modals.showToast(this.root, `${ev.emoji} ${ev.headline}`, 'important')
+        this.modals.showToast(`${ev.emoji} ${ev.headline}`, 'important')
       }
     })
   }
@@ -1455,7 +1449,7 @@ export class HUD {
           this.bottomNav.relabel()
           this.renderAll()
           this.settings.rebuild()
-          this.modals.showToast(this.root, `🌐 ${LANG_META[id as LangCode]?.nativeLabel ?? id}`)
+          this.modals.showToast(`🌐 ${LANG_META[id as LangCode]?.nativeLabel ?? id}`)
         }
         break
       }
@@ -1465,7 +1459,7 @@ export class HUD {
           applyCountry(id as CountryId)
           this.saveManager.save(this.state)
           this.settings.rebuild()
-          this.modals.showToast(this.root, `🌍 Ülke değiştirildi`)
+          this.modals.showToast(`🌍 Ülke değiştirildi`)
         }
         break
       }
@@ -1483,11 +1477,11 @@ export class HUD {
         break
       case 'daily': {
         if (!this.state.canShowDailyRewardPrompt()) {
-          this.modals.showToast(this.root, 'Önce ilk işletmeyi kur; günlük ödül birazdan açılacak.')
+          this.modals.showToast('Önce ilk işletmeyi kur; günlük ödül birazdan açılacak.')
           return
         }
         if (!this.state.canClaimDaily()) {
-          this.modals.showToast(this.root, 'Bugünkü ödül alındı')
+          this.modals.showToast('Bugünkü ödül alındı')
           return
         }
         const streakLost = this.state.peekDailyStreakReset()
@@ -1500,7 +1494,7 @@ export class HUD {
           formatMoney(preview),
           () => {
             const amount = this.state.claimDailyReward()
-            if (amount > 0) this.modals.showToast(this.root, `+${formatMoney(amount)}`)
+            if (amount > 0) this.modals.showToast(`+${formatMoney(amount)}`)
             this.renderAll()
           },
           streakLost,
@@ -1516,11 +1510,11 @@ export class HUD {
         break
       case 'underground-use':
         if (id && this.state.useUndergroundAction(id as 'lawyer' | 'bribe' | 'launder')) {
-          this.modals.showToast(this.root, 'Underground aksiyon kullanıldı')
+          this.modals.showToast('Underground aksiyon kullanıldı')
           this.undergroundSheet.render(this.state)
           this.renderHeatMeter()
         } else {
-          this.modals.showToast(this.root, 'Aksiyon kullanılamadı')
+          this.modals.showToast('Aksiyon kullanılamadı')
         }
         break
       case 'set-theme':
@@ -1553,7 +1547,7 @@ export class HUD {
         break
       case 'early-unlock':
         if (id && this.state.earlyUnlockProducer(id)) {
-          this.modals.showToast(this.root, '🔓 İşletme erken açıldı!')
+          this.modals.showToast('🔓 İşletme erken açıldı!')
           this.refreshShop(true)
         } else if (id) {
           const def = PRODUCERS.find((p) => p.id === id)
@@ -1561,7 +1555,6 @@ export class HUD {
           const wallet = this.state.money
           const short = Math.max(0, cost - wallet)
           this.modals.showToast(
-            this.root,
             `Erken aç: ${formatMoney(cost)} gerekli · Cüzdan: ${formatMoney(wallet)} · Eksik: ${formatMoney(short)}`,
           )
         }
@@ -1574,42 +1567,42 @@ export class HUD {
         break
       case 'empire-stadium':
         if (id && this.state.upgradeFootballStadium(id)) {
-          this.modals.showToast(this.root, 'Stadyum yükseltildi!')
+          this.modals.showToast('Stadyum yükseltildi!')
           this.empirePanel.render(this.state)
           this.renderAll()
         }
         break
       case 'empire-league':
         if (id && this.state.upgradeFootballLeague(id)) {
-          this.modals.showToast(this.root, 'Lig yükseltildi!')
+          this.modals.showToast('Lig yükseltildi!')
           this.empirePanel.render(this.state)
           this.renderAll()
         }
         break
       case 'empire-lobby':
         if (this.state.empireLobby()) {
-          this.modals.showToast(this.root, 'Lobi faaliyeti başarılı')
+          this.modals.showToast('Lobi faaliyeti başarılı')
           this.empirePanel.render(this.state)
           this.renderAll()
         }
         break
       case 'empire-donate':
         if (this.state.empireDonate(Math.max(5000, this.state.incomePerDay() * 0.1))) {
-          this.modals.showToast(this.root, 'Kampanyaya bağış yapıldı')
+          this.modals.showToast('Kampanyaya bağış yapıldı')
           this.empirePanel.render(this.state)
           this.renderAll()
         }
         break
       case 'empire-dark-boost':
         if (this.state.empireBoostDarkProduction()) {
-          this.modals.showToast(this.root, 'Üretim artırıldı')
+          this.modals.showToast('Üretim artırıldı')
           this.empirePanel.render(this.state)
           this.renderAll()
         }
         break
       case 'empire-dark-radar':
         if (this.state.empireReduceDarkHeat()) {
-          this.modals.showToast(this.root, 'Radar düşürüldü')
+          this.modals.showToast('Radar düşürüldü')
           this.empirePanel.render(this.state)
           this.renderHeatMeter()
           this.renderAll()
@@ -1633,14 +1626,14 @@ export class HUD {
         if (genderInput?.value === 'female' || genderInput?.value === 'male') {
           this.state.playerGender = genderInput.value
         }
-        this.modals.showToast(this.root, 'Profil kaydedildi')
+        this.modals.showToast('Profil kaydedildi')
         this.statsScreen.render()
         break
       }
       case 'export-legacy': {
         const code = this.saveManager.exportLegacyCode(this.state)
         void navigator.clipboard.writeText(code).then(() => {
-          this.modals.showToast(this.root, 'Miras kodu panoya kopyalandı')
+          this.modals.showToast('Miras kodu panoya kopyalandı')
         }).catch(() => {
           prompt('Miras kodunu kopyala:', code)
         })
@@ -1651,10 +1644,10 @@ export class HUD {
         const code = input?.value ?? prompt('Miras kodunu yapıştır:') ?? ''
         const result = this.saveManager.importLegacyCode(this.state, code)
         if (result.ok) {
-          this.modals.showToast(this.root, 'Miras kodu yüklendi!')
+          this.modals.showToast('Miras kodu yüklendi!')
           this.renderAll()
         } else {
-          this.modals.showToast(this.root, result.reason ?? 'Kod geçersiz')
+          this.modals.showToast(result.reason ?? 'Kod geçersiz')
         }
         break
       }
@@ -1677,7 +1670,7 @@ export class HUD {
             markRecentlyBought(id)
             this.shop.flashCard(id)
           } else {
-            this.modals.showToast(this.root, 'Satın alınamadı — yeterli para yok', 'important')
+            this.modals.showToast('Satın alınamadı — yeterli para yok', 'important')
           }
         }
         break
@@ -1693,12 +1686,12 @@ export class HUD {
       case 'claim-daily-goal': {
         const reward = this.state.claimDailyGoalReward()
         if (reward > 0) {
-          this.modals.showToast(this.root, `Günlük hedef: +${formatMoney(reward)}`)
+          this.modals.showToast(`Günlük hedef: +${formatMoney(reward)}`)
           this.renderDailyGoalBar()
           this.eventsPanel.render(this.state)
           this.updateNavBadges()
         } else {
-          this.modals.showToast(this.root, 'Henüz toplanamaz — hedefi tamamla veya zaten aldın')
+          this.modals.showToast('Henüz toplanamaz — hedefi tamamla veya zaten aldın')
         }
         break
       }
@@ -1771,7 +1764,7 @@ export class HUD {
           this.state.incrementAdvisorBuy()
           this.renderAll()
         } else {
-          this.modals.showToast(this.root, 'Satın alınamadı')
+          this.modals.showToast('Satın alınamadı')
         }
         break
       }
@@ -1852,7 +1845,7 @@ export class HUD {
       case 'bank-deposit': {
         const n = count === 'max' ? this.state.money : Number(count ?? 1000)
         if (this.state.bankDeposit(n)) this.refreshShop(true)
-        else this.modals.showToast(this.root, 'Yatırılamadı')
+        else this.modals.showToast('Yatırılamadı')
         break
       }
       case 'bank-withdraw': {
@@ -1863,7 +1856,7 @@ export class HUD {
       case 'bank-loan': {
         const n = count === 'max' ? this.state.maxAvailableLoan() : Number(count ?? 25000)
         if (this.state.bankTakeLoan(n)) this.refreshShop(true)
-        else this.modals.showToast(this.root, 'Kredi limiti dolu')
+        else this.modals.showToast('Kredi limiti dolu')
         break
       }
       case 'bank-repay': {
@@ -1893,7 +1886,7 @@ export class HUD {
       case 'claim-season-premium':
         if (id) {
           const ok = this.state.claimSeasonTier(Number(id), 'premium')
-          if (ok) this.modals.showToast(this.root, 'Premium sezon ödülü toplandı ✓')
+          if (ok) this.modals.showToast('Premium sezon ödülü toplandı ✓')
           this.eventsPanel.render(this.state)
           this.updateNavBadges()
         }
@@ -1908,10 +1901,10 @@ export class HUD {
         void iapManager.purchase('remove_ads').then((r) => {
           if (r.success) {
             this.state.removeAdsOwned = true
-            this.modals.showToast(this.root, '🚫📺 Reklamlar kaldırıldı!')
+            this.modals.showToast('🚫📺 Reklamlar kaldırıldı!')
             this.renderAll()
           } else {
-            this.modals.showToast(this.root, r.reason ?? 'Satın alma başarısız')
+            this.modals.showToast(r.reason ?? 'Satın alma başarısız')
           }
         })
         break
@@ -1920,10 +1913,10 @@ export class HUD {
         void iapManager.purchase('vip_pass').then((r) => {
           if (r.success) {
             this.state.vipPassActive = true
-            this.modals.showToast(this.root, '👑 VIP Baron Pasaportu aktif!')
+            this.modals.showToast('👑 VIP Baron Pasaportu aktif!')
             this.renderAll()
           } else {
-            this.modals.showToast(this.root, r.reason ?? 'Satın alma başarısız')
+            this.modals.showToast(r.reason ?? 'Satın alma başarısız')
           }
         })
         break
@@ -1933,7 +1926,7 @@ export class HUD {
         if (adBoostBtn) { adBoostBtn.disabled = true; adBoostBtn.textContent = t('ad_loading') }
         window.setTimeout(() => {
           this.state.lifestyle.stress = Math.max(0, this.state.lifestyle.stress - 10)
-          this.modals.showToast(this.root, '📺 Reklam izlendi! Stres -10 düştü 🧘')
+          this.modals.showToast('📺 Reklam izlendi! Stres -10 düştü 🧘')
           this.lifestylePanel.render(this.state)
         }, 1500)
         break
@@ -1941,8 +1934,8 @@ export class HUD {
       case 'buy-residence': {
         const qty = parseInt(count ?? '1') || 1
         const ok = id ? this.state.buyResidence(id as import('../game/Lifestyle').ResidenceId, qty) : false
-        if (ok) { this.modals.showToast(this.root, qty > 1 ? `🏠 ${qty} mülk satın alındı!` : '🏠 Mülk satın alındı!'); this.lifestylePanel.render(this.state) }
-        else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
+        if (ok) { this.modals.showToast(qty > 1 ? `🏠 ${qty} mülk satın alındı!` : '🏠 Mülk satın alındı!'); this.lifestylePanel.render(this.state) }
+        else if (id) this.modals.showToast('❌ Yeterli para yok')
         break
       }
       case 'move-to-residence': {
@@ -1952,7 +1945,7 @@ export class HUD {
       case 'sell-residence': {
         const qty = parseInt(count ?? '1') || 1
         const ok = id ? this.state.sellResidence(id as import('../game/Lifestyle').ResidenceId, qty) : false
-        if (ok) { this.modals.showToast(this.root, qty > 1 ? `💰 ${qty} mülk satıldı!` : '💰 Mülk satıldı!'); this.lifestylePanel.render(this.state); this.statsBar.render() }
+        if (ok) { this.modals.showToast(qty > 1 ? `💰 ${qty} mülk satıldı!` : '💰 Mülk satıldı!'); this.lifestylePanel.render(this.state); this.statsBar.render() }
         break
       }
       case 'rent-out-residence': {
@@ -1968,8 +1961,8 @@ export class HUD {
       case 'buy-vehicle': {
         const qty = parseInt(count ?? '1') || 1
         const ok = id ? this.state.buyVehicle(id as import('../game/Lifestyle').VehicleId, qty) : false
-        if (ok) { this.modals.showToast(this.root, qty > 1 ? `🚗 ${qty} araç alındı!` : '🚗 Araç alındı!'); this.lifestylePanel.render(this.state) }
-        else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
+        if (ok) { this.modals.showToast(qty > 1 ? `🚗 ${qty} araç alındı!` : '🚗 Araç alındı!'); this.lifestylePanel.render(this.state) }
+        else if (id) this.modals.showToast('❌ Yeterli para yok')
         break
       }
       case 'use-vehicle': {
@@ -1979,7 +1972,7 @@ export class HUD {
       case 'sell-vehicle': {
         const qty = parseInt(count ?? '1') || 1
         const ok = id ? this.state.sellVehicle(id as import('../game/Lifestyle').VehicleId, qty) : false
-        if (ok) { this.modals.showToast(this.root, qty > 1 ? `💰 ${qty} araç satıldı!` : '💰 Araç satıldı!'); this.lifestylePanel.render(this.state); this.statsBar.render() }
+        if (ok) { this.modals.showToast(qty > 1 ? `💰 ${qty} araç satıldı!` : '💰 Araç satıldı!'); this.lifestylePanel.render(this.state); this.statsBar.render() }
         break
       }
       case 'rent-out-vehicle': {
@@ -1994,14 +1987,14 @@ export class HUD {
       }
       case 'buy-pet': {
         const ok = id ? this.state.buyPet(id as import('../game/Lifestyle').PetId) : false
-        if (ok) { this.modals.showToast(this.root, '🐾 Evcil hayvan sahiplenildi!'); this.lifestylePanel.render(this.state) }
-        else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
+        if (ok) { this.modals.showToast('🐾 Evcil hayvan sahiplenildi!'); this.lifestylePanel.render(this.state) }
+        else if (id) this.modals.showToast('❌ Yeterli para yok')
         break
       }
       case 'buy-wellbeing': {
         const ok = id ? this.state.buyWellbeing(id as import('../game/Lifestyle').WellbeingActivityId) : false
-        if (ok) { this.modals.showToast(this.root, '🧘 Refah aktivitesi başladı!'); this.lifestylePanel.render(this.state) }
-        else if (id) this.modals.showToast(this.root, '❌ Yeterli para yok')
+        if (ok) { this.modals.showToast('🧘 Refah aktivitesi başladı!'); this.lifestylePanel.render(this.state) }
+        else if (id) this.modals.showToast('❌ Yeterli para yok')
         break
       }
       case 'open-free-chest':
@@ -2013,7 +2006,7 @@ export class HUD {
       case 'claim-campaign': {
         const reward = this.state.claimCampaignStep()
         if (reward) {
-          this.modals.showToast(this.root, `Kampanya: +${formatMoney(reward.money)}`)
+          this.modals.showToast(`Kampanya: +${formatMoney(reward.money)}`)
           this.eventsPanel.render(this.state)
           this.updateNavBadges()
         }
@@ -2022,7 +2015,7 @@ export class HUD {
       case 'claim-season':
         if (id) {
           const ok = this.state.claimSeasonTier(Number(id))
-          if (ok) this.modals.showToast(this.root, 'Sezon ödülü toplandı ✓')
+          if (ok) this.modals.showToast('Sezon ödülü toplandı ✓')
           this.eventsPanel.render(this.state)
           this.updateNavBadges()
         }
@@ -2036,9 +2029,9 @@ export class HUD {
       case 'claim-weekly': {
         const reward = this.state.claimWeeklyReward()
         if (reward > 0) {
-          this.modals.showToast(this.root, `Haftalık ödül: +${formatMoney(reward)}`)
+          this.modals.showToast(`Haftalık ödül: +${formatMoney(reward)}`)
         } else {
-          this.modals.showToast(this.root, 'Haftalık ödül henüz hazır değil')
+          this.modals.showToast('Haftalık ödül henüz hazır değil')
         }
         this.goalsSheet.render(this.state)
         this.eventsPanel.render(this.state)
@@ -2053,11 +2046,11 @@ export class HUD {
         if (id) {
           const result = this.state.claimMission(id)
           if (result.money > 0) {
-            this.modals.showToast(this.root, `Görev: +${formatMoney(result.money)}`)
+            this.modals.showToast(`Görev: +${formatMoney(result.money)}`)
           } else if (result.boostMinutes > 0) {
-            this.modals.showToast(this.root, `Görev: ${result.boostMinutes} dk bonus envantere eklendi`)
+            this.modals.showToast(`Görev: ${result.boostMinutes} dk bonus envantere eklendi`)
           } else {
-            this.modals.showToast(this.root, 'Görev ödülü alınamadı')
+            this.modals.showToast('Görev ödülü alınamadı')
           }
           this.eventsPanel.render(this.state)
           this.updateNavBadges()
@@ -2069,7 +2062,7 @@ export class HUD {
           // Visual feedback: flash the tap wrap
           this.tapWrap.classList.add('boost-activate-flash')
           window.setTimeout(() => this.tapWrap.classList.remove('boost-activate-flash'), 500)
-          this.modals.showToast(this.root, '⚡ Bonus aktifleştirildi! Gelir artıyor...')
+          this.modals.showToast('⚡ Bonus aktifleştirildi! Gelir artıyor...')
           this.eventsPanel.render(this.state)
           this.statsBar.updateMeta()
           this.refreshShop(true)
@@ -2079,13 +2072,13 @@ export class HUD {
         if (!id) break
         const result = await this.ads.showRewarded('mission_double')
         if (!result.success) {
-          this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+          this.modals.showToast(result.reason ?? 'Reklam yok')
           return
         }
         this.state.incrementRewardedAdCount()
         const claim = this.state.claimMission(id, true)
-        if (claim.money > 0) this.modals.showToast(this.root, `Görev x2: +${formatMoney(claim.money)}`)
-        else if (claim.boostMinutes > 0) this.modals.showToast(this.root, `Görev x2: ${claim.boostMinutes} dk bonus envantere eklendi`)
+        if (claim.money > 0) this.modals.showToast(`Görev x2: +${formatMoney(claim.money)}`)
+        else if (claim.boostMinutes > 0) this.modals.showToast(`Görev x2: ${claim.boostMinutes} dk bonus envantere eklendi`)
         this.renderAll()
         break
       }
@@ -2094,10 +2087,10 @@ export class HUD {
         break
       case 'prestige-shop-buy':
         if (id && this.state.buyPrestigeShopItem(id)) {
-          this.modals.showToast(this.root, 'Satın alındı!')
+          this.modals.showToast('Satın alındı!')
           this.refreshShop(true)
         } else {
-          this.modals.showToast(this.root, 'Satın alınamadı — yeterli puan yok veya zaten sahipsin.')
+          this.modals.showToast('Satın alınamadı — yeterli puan yok veya zaten sahipsin.')
         }
         break
       case 'ad-double':
@@ -2122,19 +2115,19 @@ export class HUD {
         break
       case 'dynasty-marry':
         if (id && this.state.marrySpouse(id)) {
-          this.modals.showToast(this.root, '💍 Evet! Hanedan kuruldu.')
+          this.modals.showToast('💍 Evet! Hanedan kuruldu.')
           this.statsScreen.render()
           this.renderEraStrip()
           this.renderCityStrip()
           this.renderAll()
         } else {
-          this.modals.showToast(this.root, 'Evlenilemedi — yeterli para yok veya zaten evlisin.')
+          this.modals.showToast('Evlenilemedi — yeterli para yok veya zaten evlisin.')
         }
         break
       case 'dynasty-succession':
         if (id && this.state.successionToChild(id)) {
           this.modals.close()
-          this.modals.showToast(this.root, `👑 ${this.state.playerName} imparatorluğu devraldı!`)
+          this.modals.showToast(`👑 ${this.state.playerName} imparatorluğu devraldı!`)
           this.statsScreen.render()
           this.renderEraStrip()
           this.renderCityStrip()
@@ -2161,27 +2154,27 @@ export class HUD {
       }
       case 'rival-lobby':
         if (id && this.state.rivalLobby(id)) {
-          this.modals.showToast(this.root, '🏛️ Lobi başarılı')
+          this.modals.showToast('🏛️ Lobi başarılı')
           this.statsScreen.render()
         } else {
-          this.modals.showToast(this.root, 'Lobi başarısız — yeterli para yok')
+          this.modals.showToast('Lobi başarısız — yeterli para yok')
         }
         break
       case 'rival-coop':
         if (id && this.state.rivalCooperate(id)) {
-          this.modals.showToast(this.root, '🤝 İşbirliği anlaşması imzalandı')
+          this.modals.showToast('🤝 İşbirliği anlaşması imzalandı')
           this.statsScreen.render()
         } else {
-          this.modals.showToast(this.root, 'İşbirliği başarısız')
+          this.modals.showToast('İşbirliği başarısız')
         }
         break
       case 'rival-merge':
         if (id && this.state.rivalMerge(id)) {
-          this.modals.showToast(this.root, '🛒 Rakip aile satın alındı!')
+          this.modals.showToast('🛒 Rakip aile satın alındı!')
           this.statsScreen.render()
           this.renderAll()
         } else {
-          this.modals.showToast(this.root, 'Satın alma başarısız — yeterli para yok')
+          this.modals.showToast('Satın alma başarısız — yeterli para yok')
         }
         break
       case 'crisis-choice':
@@ -2216,18 +2209,18 @@ export class HUD {
       case 'choose-personality':
         if (id) {
           this.state.setPersonality(id as PersonalityId)
-          this.modals.showToast(this.root, `🎭 Karakter seçildi! ${PERSONALITIES.find((p) => p.id === id)?.name}`)
+          this.modals.showToast(`🎭 Karakter seçildi! ${PERSONALITIES.find((p) => p.id === id)?.name}`)
           this.closeModalAndPump()
         }
         break
       case 'marriage-crisis-money':
         this.state.resolveMarriageCrisis(true)
-        this.modals.showToast(this.root, '💍 Evlilik krizi atlatıldı')
+        this.modals.showToast('💍 Evlilik krizi atlatıldı')
         this.closeModalAndPump()
         break
       case 'marriage-crisis-time':
         this.state.resolveMarriageCrisis(false)
-        this.modals.showToast(this.root, '🌹 Eşine zaman ayırdın — kriz çözüldü')
+        this.modals.showToast('🌹 Eşine zaman ayırdın — kriz çözüldü')
         this.closeModalAndPump()
         break
       case 'daily-routine':
@@ -2236,23 +2229,23 @@ export class HUD {
           if (ok) {
             this.renderHealthBar()
             this.renderDailyRoutine()
-            this.modals.showToast(this.root, '✅ Günlük aksiyon tamamlandı')
+            this.modals.showToast('✅ Günlük aksiyon tamamlandı')
           } else {
-            this.modals.showToast(this.root, 'Bugün hakkın kalmadı', 'important')
+            this.modals.showToast('Bugün hakkın kalmadı', 'important')
           }
         }
         break
       case 'spouse-gift':
         if (this.state.giveSpouseGift()) {
-          this.modals.showToast(this.root, '🎁 Hediye verildi — memnuniyet arttı')
+          this.modals.showToast('🎁 Hediye verildi — memnuniyet arttı')
           this.refreshBaronPanel()
         } else {
-          this.modals.showToast(this.root, 'Yeterli para yok', 'important')
+          this.modals.showToast('Yeterli para yok', 'important')
         }
         break
       case 'child-time':
         if (id && this.state.spendTimeWithChild(id)) {
-          this.modals.showToast(this.root, '👨‍👧 Çocuğunla vakit geçirdin')
+          this.modals.showToast('👨‍👧 Çocuğunla vakit geçirdin')
           this.refreshBaronPanel()
         }
         break
@@ -2278,7 +2271,7 @@ export class HUD {
         if (id) {
           this.state.setEducation(id as import('../game/Education').EducationId)
           const eDef = EDUCATIONS.find((e) => e.id === id)
-          this.modals.showToast(this.root, `🎓 Eğitim seçildi: ${eDef?.name ?? id}`)
+          this.modals.showToast(`🎓 Eğitim seçildi: ${eDef?.name ?? id}`)
           this.closeModalAndPump()
         }
         break
@@ -2286,7 +2279,7 @@ export class HUD {
         if (id) {
           this.state.setDifficulty(id as 'easy' | 'normal' | 'hard')
           const diffNames: Record<string, string> = { easy: '😌 Kolay', normal: '💼 Normal', hard: '🔥 Zor' }
-          this.modals.showToast(this.root, `⚙️ Zorluk: ${diffNames[id] ?? id}`)
+          this.modals.showToast(`⚙️ Zorluk: ${diffNames[id] ?? id}`)
           this.closeModalAndPump()
         }
         break
@@ -2294,7 +2287,7 @@ export class HUD {
         if (id) {
           this.state.setHobby(id as import('../game/Hobby').HobbyId)
           const hDef = HOBBIES.find((h) => h.id === id)
-          this.modals.showToast(this.root, `🎯 Hobi seçildi: ${hDef?.name ?? id}`)
+          this.modals.showToast(`🎯 Hobi seçildi: ${hDef?.name ?? id}`)
           this.refreshBaronPanel()
         }
         break
@@ -2307,16 +2300,16 @@ export class HUD {
       case 'friend-time':
         if (id) {
           this.state.spendTimeWithFriend(id as import('../game/Friendships').FriendTypeId)
-          this.modals.showToast(this.root, '🤝 Arkadaşınla vakit geçirdin')
+          this.modals.showToast('🤝 Arkadaşınla vakit geçirdin')
           this.refreshBaronPanel()
         }
         break
       case 'friend-money':
         if (id) {
           if (this.state.sendMoneyToFriend(id as import('../game/Friendships').FriendTypeId)) {
-            this.modals.showToast(this.root, '💸 Para gönderildi — ilişki güçlendi')
+            this.modals.showToast('💸 Para gönderildi — ilişki güçlendi')
           } else {
-            this.modals.showToast(this.root, 'Yeterli para yok', 'important')
+            this.modals.showToast('Yeterli para yok', 'important')
           }
           this.refreshBaronPanel()
         }
@@ -2324,9 +2317,9 @@ export class HUD {
       case 'resolve-enemy':
         if (id) {
           if (this.state.resolveEnemy(id)) {
-            this.modals.showToast(this.root, '✅ Düşman bertaraf edildi!')
+            this.modals.showToast('✅ Düşman bertaraf edildi!')
           } else {
-            this.modals.showToast(this.root, 'Yeterli para yok', 'important')
+            this.modals.showToast('Yeterli para yok', 'important')
           }
           this.refreshBaronPanel()
         }
@@ -2334,9 +2327,9 @@ export class HUD {
       case 'go-travel':
         if (id) {
           if (this.state.goTravel(id as import('../game/Travel').TravelDestinationId)) {
-            this.modals.showToast(this.root, '✈️ Tatile çıkıldı!')
+            this.modals.showToast('✈️ Tatile çıkıldı!')
           } else {
-            this.modals.showToast(this.root, 'Yeterli para veya kilidin açık değil', 'important')
+            this.modals.showToast('Yeterli para veya kilidin açık değil', 'important')
           }
           this.refreshBaronPanel()
         }
@@ -2344,9 +2337,9 @@ export class HUD {
       case 'buy-home-room':
         if (id) {
           if (this.state.buyHomeRoom(id as import('../game/Lifestyle').HomeRoomId)) {
-            this.modals.showToast(this.root, '🏠 Oda eklendi!')
+            this.modals.showToast('🏠 Oda eklendi!')
           } else {
-            this.modals.showToast(this.root, 'Yeterli para yok veya zaten mevcut', 'important')
+            this.modals.showToast('Yeterli para yok veya zaten mevcut', 'important')
           }
           this.refreshBaronPanel()
         }
@@ -2360,17 +2353,17 @@ export class HUD {
               this.state.spendMoney(cost)
               this.state.reputation = Math.min(100, this.state.reputation + 10)
               rv.relation = 'merged'
-              this.modals.showToast(this.root, `🏴 ${rv.name} varlıkları satın alındı! İtibar +10`)
+              this.modals.showToast(`🏴 ${rv.name} varlıkları satın alındı! İtibar +10`)
               this.refreshBaronPanel()
             } else {
-              this.modals.showToast(this.root, 'Yeterli para yok', 'important')
+              this.modals.showToast('Yeterli para yok', 'important')
             }
           }
         }
         break
       case 'rival-alliance-accept':
         if (this.state.acceptRivalAllianceOffer()) {
-          this.modals.showToast(this.root, '🤝 Sektör anlaşması imzalandı')
+          this.modals.showToast('🤝 Sektör anlaşması imzalandı')
           this.closeModalAndPump()
         }
         break
@@ -2400,7 +2393,7 @@ export class HUD {
         break
       case 'investment-accept':
         if (this.state.acceptInvestmentOffer()) {
-          this.modals.showToast(this.root, '💡 Yatırım yapıldı — 7 gün bekle')
+          this.modals.showToast('💡 Yatırım yapıldı — 7 gün bekle')
         }
         this.refreshShop(true)
         break
@@ -2410,7 +2403,7 @@ export class HUD {
         break
       case 'hire-named-manager':
         if (id && this.state.hireNamedManager(id as import('../game/NamedManagers').NamedManagerId)) {
-          this.modals.showToast(this.root, '👔 Yönetici işe alındı')
+          this.modals.showToast('👔 Yönetici işe alındı')
           this.refreshShop(true)
         }
         break
@@ -2424,11 +2417,11 @@ export class HUD {
         {
           const tip = this.state.payAdvisorTip()
           if (!tip) {
-            this.modals.showToast(this.root, 'Danışman ücreti ödenemedi')
+            this.modals.showToast('Danışman ücreti ödenemedi')
             break
           }
           const acc = Math.round(tip.accuracy * 100)
-          this.modals.showToast(this.root, `👨‍💼 Kemal (%${acc}): ${tip.headline}`)
+          this.modals.showToast(`👨‍💼 Kemal (%${acc}): ${tip.headline}`)
           if (tip.action === 'buy_stock' || tip.action === 'sell_stock') {
             this.setView('market')
             this.shop.setViewContext('market', this.state)
@@ -2454,11 +2447,11 @@ export class HUD {
         break
       case 'undo-exec':
         if (this.state.executeUndo()) {
-          this.modals.showToast(this.root, '↩️ Geri alındı')
+          this.modals.showToast('↩️ Geri alındı')
           this.modals.close()
           this.refreshShop(true)
         } else {
-          this.modals.showToast(this.root, 'Geri alınamadı')
+          this.modals.showToast('Geri alınamadı')
         }
         break
       case 'undo-dismiss':
@@ -2470,14 +2463,14 @@ export class HUD {
           const unlockedCityDef = EXPANSION_CITIES.find((c) => c.id === id)
           this.sound.playCityUnlock()
           if (unlockedCityDef) this.triggerCityUnlockCelebration(unlockedCityDef.label)
-          else this.modals.showToast(this.root, '🗺️ Yeni şehir açıldı!')
+          else this.modals.showToast('🗺️ Yeni şehir açıldı!')
           this.refreshSkyline()
           this.renderCityStrip()
           this.refreshBaronPanel()
           this.refreshShop(true)
         } else if (id) {
           const check = canUnlockCity(id as import('../game/ExpansionMap').CityId, this.state.cities, this.state.money, this.state.reputation, this.state.ipoCount)
-          if (check.reason) this.modals.showToast(this.root, check.reason)
+          if (check.reason) this.modals.showToast(check.reason)
         }
         break
       case 'set-active-city':
@@ -2485,18 +2478,18 @@ export class HUD {
           this.refreshSkyline()
           this.renderCityStrip()
           this.refreshBaronPanel()
-          this.modals.showToast(this.root, `📍 ${id} aktif`)
+          this.modals.showToast(`📍 ${id} aktif`)
         }
         break
       case 'hire-torpil':
         if (id && this.state.hireTorpil(id as import('../game/TorpilNetwork').TorpilId)) {
-          this.modals.showToast(this.root, '🤝 Torpil ağına katıldı')
+          this.modals.showToast('🤝 Torpil ağına katıldı')
           this.refreshShop(true)
         }
         break
       case 'pay-torpil-gift':
         if (id && this.state.payTorpilGift(id as import('../game/TorpilNetwork').TorpilId)) {
-          this.modals.showToast(this.root, '🎁 Hediye verildi')
+          this.modals.showToast('🎁 Hediye verildi')
           this.refreshShop(true)
         }
         break
@@ -2507,90 +2500,90 @@ export class HUD {
         break
       case 'modernize-producer':
         if (id && this.state.modernizeProducer(id)) {
-          this.modals.showToast(this.root, '🔧 İşletme modernize edildi')
+          this.modals.showToast('🔧 İşletme modernize edildi')
           this.refreshShop(true)
         }
         break
       case 'open-franchise': {
         const parsed = id ? parseFranchiseAction(id) : null
         if (!parsed) {
-          this.modals.showToast(this.root, 'Franchise seçimi geçersiz')
+          this.modals.showToast('Franchise seçimi geçersiz')
           break
         }
         const fail = franchiseOpenFailureReason(this.state, parsed.producerId, parsed.city)
         if (fail) {
-          this.modals.showToast(this.root, `🏪 ${fail}`)
+          this.modals.showToast(`🏪 ${fail}`)
           break
         }
         if (this.state.openFranchise(parsed.producerId, parsed.city)) {
           const city = FRANCHISE_CITIES.find((c) => c.id === parsed.city)
           const p = PRODUCERS.find((x) => x.id === parsed.producerId)
-          this.modals.showToast(this.root, `🏪 ${p?.name ?? 'İşletme'} — ${city?.label ?? parsed.city} franchise açıldı!`)
+          this.modals.showToast(`🏪 ${p?.name ?? 'İşletme'} — ${city?.label ?? parsed.city} franchise açıldı!`)
           this.refreshShop(true)
         } else {
-          this.modals.showToast(this.root, '🏪 Franchise açılamadı — tekrar dene')
+          this.modals.showToast('🏪 Franchise açılamadı — tekrar dene')
         }
         break
       }
       case 'iap-restore': {
         const restored = await iapManager.restorePurchases()
         if (restored.length > 0) {
-          this.modals.showToast(this.root, `✅ ${restored.length} satın alma geri yüklendi`)
+          this.modals.showToast(`✅ ${restored.length} satın alma geri yüklendi`)
           if (this.baronShowsEvents()) this.eventsPanel.render(this.state)
         } else {
-          this.modals.showToast(this.root, 'Geri yüklenecek satın alma yok')
+          this.modals.showToast('Geri yüklenecek satın alma yok')
         }
         break
       }
       case 'ability-click-burst':
         if (this.state.useAbility('click_burst', 300_000)) {
           this.state.grantPendingBoost('income_2x', 30_000, 'Tıklama Patlaması', '💥')
-          this.modals.showToast(this.root, '💥 Tıklama Patlaması! 30 saniyelik 2x boost aktif')
+          this.modals.showToast('💥 Tıklama Patlaması! 30 saniyelik 2x boost aktif')
           this.renderAbilityBar()
         } else {
-          this.modals.showToast(this.root, '⏳ Tıklama Patlaması bekleme süresinde')
+          this.modals.showToast('⏳ Tıklama Patlaması bekleme süresinde')
         }
         break
       case 'ability-tax-break':
         if (this.state.useAbility('tax_break', 480_000)) {
           this.state.grantPendingBoost('income_2x', 60_000, 'Vergi Tatili', '🧾')
-          this.modals.showToast(this.root, '🧾 Vergi Tatili! 60 saniyelik +20% gelir aktif')
+          this.modals.showToast('🧾 Vergi Tatili! 60 saniyelik +20% gelir aktif')
           this.renderAbilityBar()
         } else {
-          this.modals.showToast(this.root, '⏳ Vergi Tatili bekleme süresinde')
+          this.modals.showToast('⏳ Vergi Tatili bekleme süresinde')
         }
         break
       case 'ability-market-signal':
         if (this.state.useAbility('market_signal', 600_000)) {
           const dir = this.state.stock.trendDirection
           const hint = dir === 'up' ? '📈 Borsa yükseliyor — al fırsatı!' : dir === 'down' ? '📉 Borsa düşüyor — dikkatli ol!' : '📊 Borsa yatay — değişim bekleniyor'
-          this.modals.showToast(this.root, hint)
+          this.modals.showToast(hint)
           this.renderAbilityBar()
         } else {
-          this.modals.showToast(this.root, '⏳ Borsa Sinyali bekleme süresinde')
+          this.modals.showToast('⏳ Borsa Sinyali bekleme süresinde')
         }
         break
       case 'ability-worker-boost':
         if (this.state.useAbility('worker_boost', 360_000)) {
           this.state.grantPendingBoost('income_2x', 120_000, 'Çalışan Motivasyonu', '⚡')
-          this.modals.showToast(this.root, '⚡ Çalışan Motivasyonu! 2 dakika +15% pasif gelir')
+          this.modals.showToast('⚡ Çalışan Motivasyonu! 2 dakika +15% pasif gelir')
           this.renderAbilityBar()
         } else {
-          this.modals.showToast(this.root, '⏳ Çalışan Motivasyonu bekleme süresinde')
+          this.modals.showToast('⏳ Çalışan Motivasyonu bekleme süresinde')
         }
         break
       case 'ability-press-release':
         if (this.state.reputation <= 20) {
-          this.modals.showToast(this.root, '⚠️ Basın Açıklaması için min. 20 itibar gerekli')
+          this.modals.showToast('⚠️ Basın Açıklaması için min. 20 itibar gerekli')
           break
         }
         if (this.state.useAbility('press_release', 1_200_000)) {
           this.state.reputation = Math.min(100, this.state.reputation + 5)
-          this.modals.showToast(this.root, '📰 Basın Açıklaması! +5 itibar kazandın')
+          this.modals.showToast('📰 Basın Açıklaması! +5 itibar kazandın')
           this.renderAbilityBar()
           this.statsBar.render()
         } else {
-          this.modals.showToast(this.root, '⏳ Basın Açıklaması bekleme süresinde')
+          this.modals.showToast('⏳ Basın Açıklaması bekleme süresinde')
         }
         break
       default:
@@ -3096,7 +3089,7 @@ export class HUD {
       this.lastRankId = rank.id
       if (prev) {
         this.sound.playAchievement()
-        this.modals.showToast(this.root, `${rank.emoji} Yeni rütbe: ${rank.name}!`)
+        this.modals.showToast(`${rank.emoji} Yeni rütbe: ${rank.name}!`)
       }
     }
   }
@@ -3116,7 +3109,7 @@ export class HUD {
   }
 
   toast(message: string, important = false): void {
-    this.modals.showToast(this.root, message, important ? 'important' : 'normal')
+    this.modals.showToast(message, important ? 'important' : 'normal')
   }
 
   showCorruptedSaveNotice(): void {
@@ -3169,7 +3162,7 @@ export class HUD {
     if (this.adPromptShown || this.state.ownedBusinessTiers() !== 1) return
     this.adPromptShown = true
     window.setTimeout(() => {
-      this.modals.showToast(this.root, '📺 İlk işletmen açık! Kazan sekmesinde 2x gelir reklamını dene.')
+      this.modals.showToast('📺 İlk işletmen açık! 2x gelir reklamını deneyebilirsin.')
     }, 1800)
   }
 
@@ -3255,7 +3248,7 @@ export class HUD {
         if (this.state.acceptGoldenEventSmall()) {
           this.clearGoldenEventTimer()
           this.closeModalAndPump()
-          this.modals.showToast(this.root, '🎁 Küçük ödül alındı — Etkinlikler\'den aktifleştir')
+          this.modals.showToast('🎁 Küçük ödül alındı — Etkinlikler\'den aktifleştir')
           this.eventsPanel.render(this.state)
           this.updateNavBadges()
         }
@@ -3292,14 +3285,14 @@ export class HUD {
   private async claimGoldenEventWithAd(): Promise<void> {
     const result = await this.ads.showRewarded('golden_event')
     if (!result.success) {
-      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      this.modals.showToast(result.reason ?? 'Reklam yok')
       return
     }
     this.state.incrementRewardedAdCount()
     if (this.state.claimGoldenEvent()) {
       this.clearGoldenEventTimer()
       this.closeModalAndPump()
-      this.modals.showToast(this.root, '🎁 Bonus envanterine eklendi — Etkinlikler\'den aktifleştir')
+      this.modals.showToast('🎁 Bonus envanterine eklendi — Etkinlikler\'den aktifleştir')
       this.eventsPanel.render(this.state)
       this.updateNavBadges()
     }
@@ -3376,7 +3369,7 @@ export class HUD {
   private showSuccessionPicker(urgent = false, deathIntro?: HTMLElement): void {
     const children = this.state.dynasty.children
     if (children.length === 0) {
-      this.modals.showToast(this.root, 'Miras devri için önce çocuk yetiştirmelisin.')
+      this.modals.showToast('Miras devri için önce çocuk yetiştirmelisin.')
       return
     }
     const body = document.createElement('div')
@@ -3494,7 +3487,7 @@ export class HUD {
       if (points > 0) {
         await this.ads.showInterstitial()
         const cash = preview.startingCash
-        this.modals.showToast(this.root, `IPO! +${points} hisse · ${formatMoney(cash)} başlangıç`)
+        this.modals.showToast(`IPO! +${points} hisse · ${formatMoney(cash)} başlangıç`)
         this.shop.setIpoSubTab('stock')
         this.refreshShop(true)
       }
@@ -3504,45 +3497,45 @@ export class HUD {
   private async handleAdShopBoost(): Promise<void> {
     const result = await this.ads.showRewarded('shop_boost_15m')
     if (!result.success) {
-      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      this.modals.showToast(result.reason ?? 'Reklam yok')
       return
     }
     this.state.incrementRewardedAdCount()
     this.state.activateShopBoost()
-    this.modals.showToast(this.root, '15 dk +50% gelir aktif!')
+    this.modals.showToast('15 dk +50% gelir aktif!')
     this.renderAll()
   }
 
   private async handleAdUpgradeDiscount(): Promise<void> {
     const result = await this.ads.showRewarded('upgrade_discount')
     if (!result.success) {
-      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      this.modals.showToast(result.reason ?? 'Reklam yok')
       return
     }
     this.state.incrementRewardedAdCount()
     this.state.activateUpgradeDiscount()
-    this.modals.showToast(this.root, 'Sonraki yükseltme %30 indirimli!')
+    this.modals.showToast('Sonraki yükseltme %30 indirimli!')
     this.refreshShop(true)
   }
 
   private async handleAdDouble(): Promise<void> {
     const result = await this.ads.showRewarded('double_income')
     if (!result.success) {
-      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      this.modals.showToast(result.reason ?? 'Reklam yok')
       return
     }
     this.state.incrementRewardedAdCount()
     this.state.activateAdBoost()
     this.ads.syncRewardedCount(this.state.rewardedAdsToday, this.state.rewardedAdsDay)
     this.sound.playReward()
-    this.modals.showToast(this.root, '2x gelir 5 dk!')
+    this.modals.showToast('2x gelir 5 dk!')
     this.statsBar.render()
   }
 
   private async handleAdChest(): Promise<void> {
     const result = await this.ads.showRewarded('lucky_chest')
     if (!result.success) {
-      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      this.modals.showToast(result.reason ?? 'Reklam yok')
       return
     }
     this.state.incrementRewardedAdCount()
@@ -3550,7 +3543,7 @@ export class HUD {
     if (!loot) {
       const ipd = this.state.incomePerDay()
       this.state.addMoney(Math.max(80, Math.floor(ipd * 0.85)))
-      this.modals.showToast(this.root, `Sandık: +${formatMoney(Math.max(80, Math.floor(ipd * 0.85)))}`)
+      this.modals.showToast(`Sandık: +${formatMoney(Math.max(80, Math.floor(ipd * 0.85)))}`)
     } else {
       this.showChestToast(loot)
     }
@@ -3561,7 +3554,7 @@ export class HUD {
   private handleOpenFreeChest(): void {
     const loot = this.state.openLuckyChest()
     if (!loot) {
-      this.modals.showToast(this.root, 'Sandık hazır değil')
+      this.modals.showToast('Sandık hazır değil')
       return
     }
     this.showChestToast(loot)
@@ -3572,7 +3565,7 @@ export class HUD {
   private handleOpenPaidChest(): void {
     const loot = this.state.openPaidChest()
     if (!loot) {
-      this.modals.showToast(this.root, 'Sandık bileti yok')
+      this.modals.showToast('Sandık bileti yok')
       return
     }
     this.showChestToast(loot)
@@ -3585,17 +3578,17 @@ export class HUD {
     if (loot.money > 0) parts.push(`+${formatMoney(loot.money)}`)
     if (loot.boostMinutes > 0) parts.push(`${loot.boostMinutes} dk bonus`)
     if (loot.seasonXp > 0) parts.push(`${loot.seasonXp} sezon XP`)
-    this.modals.showToast(this.root, parts.join(' · '))
+    this.modals.showToast(parts.join(' · '))
   }
 
   private async handleIAPSeasonPremium(): Promise<void> {
     const res = await iapManager.purchase('season_premium')
     if (!res.success) {
-      this.modals.showToast(this.root, res.reason ?? 'Satın alma iptal')
+      this.modals.showToast(res.reason ?? 'Satın alma iptal')
       return
     }
     this.state.unlockSeasonPremium()
-    this.modals.showToast(this.root, '⭐ Premium sezon yolu açıldı!')
+    this.modals.showToast('⭐ Premium sezon yolu açıldı!')
     this.eventsPanel.render(this.state)
     this.updateNavBadges()
   }
@@ -3603,11 +3596,11 @@ export class HUD {
   private async handleIAPChestPack(): Promise<void> {
     const res = await iapManager.purchase('chest_pack_5')
     if (!res.success) {
-      this.modals.showToast(this.root, res.reason ?? 'Satın alma iptal')
+      this.modals.showToast(res.reason ?? 'Satın alma iptal')
       return
     }
     this.state.grantChestTickets(5)
-    this.modals.showToast(this.root, '🎫 5 sandık bileti eklendi')
+    this.modals.showToast('🎫 5 sandık bileti eklendi')
     this.eventsPanel.render(this.state)
   }
 
@@ -3618,14 +3611,14 @@ export class HUD {
     }
     const result = await this.ads.showRewarded('offline_bonus')
     if (!result.success) {
-      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      this.modals.showToast(result.reason ?? 'Reklam yok')
       return
     }
     this.state.incrementRewardedAdCount()
     const amount = this.state.claimOfflineViaAd(multiplier)
     this.pendingOffline = 0
     this.closeModalAndPump()
-    this.modals.showToast(this.root, `Offline: +${formatMoney(amount)}`)
+    this.modals.showToast(`Offline: +${formatMoney(amount)}`)
     this.statsBar.render()
     this.renderAll()
   }
@@ -3637,13 +3630,13 @@ export class HUD {
     }
     const result = await this.ads.showRewarded('bankruptcy_recovery')
     if (!result.success) {
-      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      this.modals.showToast(result.reason ?? 'Reklam yok')
       return
     }
     this.state.incrementRewardedAdCount()
     const amount = this.state.claimBankruptcyRecovery(multiplier)
     this.closeModalAndPump()
-    this.modals.showToast(this.root, `İflas kurtarma: +${formatMoney(amount)}`)
+    this.modals.showToast(`İflas kurtarma: +${formatMoney(amount)}`)
     this.renderAll()
   }
 
@@ -3654,20 +3647,20 @@ export class HUD {
     }
     const result = await this.ads.showRewarded('offline_bonus')
     if (!result.success) {
-      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      this.modals.showToast(result.reason ?? 'Reklam yok')
       return
     }
     this.state.incrementRewardedAdCount()
     const amount = this.state.claimComebackViaAd(multiplier)
     this.closeModalAndPump()
-    this.modals.showToast(this.root, `Geri dönüş: +${formatMoney(amount)}`)
+    this.modals.showToast(`Geri dönüş: +${formatMoney(amount)}`)
     this.renderAll()
   }
 
   private async handleRestoreEvent(): Promise<void> {
     const result = await this.ads.showRewarded('restore_event')
     if (!result.success) {
-      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      this.modals.showToast(result.reason ?? 'Reklam yok')
       return
     }
     this.state.incrementRewardedAdCount()
@@ -3678,13 +3671,13 @@ export class HUD {
   private async handleAdWeekly(): Promise<void> {
     const result = await this.ads.showRewarded('weekly_double')
     if (!result.success) {
-      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      this.modals.showToast(result.reason ?? 'Reklam yok')
       return
     }
     this.state.incrementRewardedAdCount()
     this.state.doubleWeeklyWithAd()
     const reward = this.state.claimWeeklyReward(true)
-    this.modals.showToast(this.root, reward > 0 ? `Etkinlik: +${formatMoney(reward)}` : 'Etkinlik bonusu aktif!')
+    this.modals.showToast(reward > 0 ? `Etkinlik: +${formatMoney(reward)}` : 'Etkinlik bonusu aktif!')
     this.renderWeeklyBanner()
     this.eventsPanel.render(this.state)
     this.updateNavBadges()
@@ -3693,49 +3686,49 @@ export class HUD {
   private async handleAdStockHint(): Promise<void> {
     const result = await this.ads.showRewarded('stock_hint')
     if (!result.success) {
-      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      this.modals.showToast(result.reason ?? 'Reklam yok')
       return
     }
     this.state.incrementRewardedAdCount()
     this.state.activateStockHint(1)
-    this.modals.showToast(this.root, 'Piyasa ipucu 1 saat aktif')
+    this.modals.showToast('Piyasa ipucu 1 saat aktif')
     this.refreshShop(true)
   }
 
   private async handleAdManagerDiscount(id?: string): Promise<void> {
     const result = await this.ads.showRewarded('manager_discount')
     if (!result.success) {
-      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      this.modals.showToast(result.reason ?? 'Reklam yok')
       return
     }
     this.state.incrementRewardedAdCount()
     this.state.activateManagerDiscount()
     if (id) this.state.hireManager(id, true)
-    else this.modals.showToast(this.root, 'Sonraki yönetici %50 indirimli')
+    else this.modals.showToast('Sonraki yönetici %50 indirimli')
     this.refreshShop(true)
   }
 
   private async handleAdSeasonXp(): Promise<void> {
     const result = await this.ads.showRewarded('season_xp')
     if (!result.success) {
-      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      this.modals.showToast(result.reason ?? 'Reklam yok')
       return
     }
     this.state.incrementRewardedAdCount()
     this.state.doubleSeasonXpWithAd()
-    this.modals.showToast(this.root, 'Sezon XP 2x aktif!')
+    this.modals.showToast('Sezon XP 2x aktif!')
     this.eventsPanel.render(this.state)
   }
 
   private async handleAdHeatShield(): Promise<void> {
     const result = await this.ads.showRewarded('heat_shield')
     if (!result.success) {
-      this.modals.showToast(this.root, result.reason ?? 'Reklam yok')
+      this.modals.showToast(result.reason ?? 'Reklam yok')
       return
     }
     this.state.incrementRewardedAdCount()
     this.state.activateHeatShield()
-    this.modals.showToast(this.root, '🛡️ Heat kalkanı 15 dk aktif!')
+    this.modals.showToast('🛡️ Heat kalkanı 15 dk aktif!')
     this.undergroundSheet.render(this.state)
     this.renderHeatMeter()
   }
@@ -3758,7 +3751,7 @@ export class HUD {
           formatMoney(preview),
           () => {
             const amount = this.state.claimDailyReward()
-            if (amount > 0) this.modals.showToast(this.root, `+${formatMoney(amount)}`)
+            if (amount > 0) this.modals.showToast(`+${formatMoney(amount)}`)
             this.renderAll()
             this.eventDirector.release()
           },

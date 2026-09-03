@@ -1123,12 +1123,22 @@ html.theme-night body {
   color: var(--text);
   padding: 10px 16px;
   border-radius: 999px;
-  z-index: 60;
+  /* RefApp overlay'i 9500, karar pencereleri 9600. Toast geçici geri bildirim
+     olduğu için ikisinin de üstünde okunur kalır; onboarding/owner (9999) ve
+     RefApp'in kendi toast'ı (10000) hâlâ daha üstte. */
+  z-index: 9700;
   font-weight: 600;
   font-size: 0.85rem;
   animation: toastIn 0.2s ease;
   max-width: 90%;
   text-align: center;
+}
+
+/* RefApp açıkken toast, üstteki header'ı kapatmasın: RefApp'in kendi
+   .ref-toast'ıyla aynı yere (alt nav'ın üstüne) alınır. */
+body.ref-ui-open .toast {
+  top: auto;
+  bottom: calc(var(--r-nav-h, 74px) + 18px);
 }
 
 @keyframes toastIn {

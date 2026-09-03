@@ -117,6 +117,7 @@ export function installRefTestLauncher(state?: GameState): void {
     overlay?.remove()
     overlay = null
     document.body.style.overflow = bodyOverflowPrev
+    document.body.classList.remove('ref-ui-open')
     // Eski oyun #app'i geri göster
     const appEl = document.getElementById('app')
     if (appEl) appEl.style.display = appDisplayPrev
@@ -164,6 +165,9 @@ export function installRefTestLauncher(state?: GameState): void {
     // Arka plan (eski oyun) scroll'unu kilitle
     bodyOverflowPrev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    // Eski HUD toast'ları body'de duruyor; RefApp açıkken üstteki header'ın
+    // önüne binmesinler diye CSS onları RefApp'in kendi toast konumuna alır.
+    document.body.classList.add('ref-ui-open')
 
     btn.style.display = 'none'
     stopWatchers()   // overlay açıkken izleyiciler boşuna çalışmasın
