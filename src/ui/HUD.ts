@@ -526,7 +526,13 @@ export class HUD {
 
     this.goalsSheet.mount(this.root)
     this.undergroundSheet.mount(this.root)
-    this.root.append(header, main, this.adBannerSlot, this.settings.layer, this.modals.layer)
+    this.root.append(header, main, this.adBannerSlot, this.settings.layer)
+    // Modal katmanı #app'in DIŞINDA, doğrudan body'de durur. RefApp (yeni arayüz)
+    // açılırken #app'i display:none yapıyor; katman içeride kalsaydı kriz, hayat
+    // olayı (ör. Trafik Cezası), iflas, yıllık özet gibi tüm karar pencereleri
+    // sıfır boyutlu ve tıklanamaz olurdu — EventDirector kuyruğu da kapatılamayan
+    // pencere yüzünden kalıcı kilitlenirdi.
+    document.body.appendChild(this.modals.layer)
     document.body.appendChild(this.bottomNav.root)
     this.syncAdBanner()
     this.renderDayNightChip()

@@ -1060,7 +1060,9 @@ html.theme-night body {
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 90;
+  /* RefApp overlay'i (#ref-test-overlay) 9500'de; karar pencereleri onun ÜSTÜNDE
+     olmalı. Onboarding / owner paneli (9999) ve toast (10000) hâlâ üstte kalır. */
+  z-index: 9600;
   padding: 16px;
   pointer-events: none;
 }
