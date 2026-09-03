@@ -1148,6 +1148,14 @@ html.theme-night body {
 body.ref-ui-open .toast {
   top: auto;
   bottom: calc(var(--r-nav-h, 74px) + 78px);
+  /* Giriş animasyonu üstten aşağı kayıyordu (top:16px içindi); alta
+     tutturulunca .ref-toast gibi aşağıdan yukarı süzülmeli. */
+  animation: toastInUp 0.2s ease;
+}
+
+@keyframes toastInUp {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
 
 /* Üç bildirim kanalı RefApp'te ayrı satırlarda durur, üst üste binmez:
@@ -1216,7 +1224,10 @@ body.ref-ui-open .achievement-toast {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  /* Karar pencereleri (9600) RefApp üstünde görünür oldu; oradaki "reklam izle"
+     butonu bu katmanı açıyor. 100'de kalsaydı oyuncu 2 sn boş ekran görürdü.
+     Pencerenin üstünde ama toast bandının (9700) altında durur. */
+  z-index: 9650;
 }
 
 .ad-modal {
