@@ -1058,7 +1058,12 @@ export class GameState {
   private _checkingAchievements = false
   private _ensuringWeekly = false
   private lastNearMissToastAt = 0
-  private lastStockTick = Date.now()
+  // DİKKAT: tick döngüsü requestAnimationFrame ile çalışıyor, yani tickStock'a
+  // gelen `now` performance.now() ölçeğinde (sayfa açılışından beri ms).
+  // Date.now() (epoch, ~1.7e12) ile başlatılırsa `now - lastStockTick` daima
+  // eksi milyarlar çıkar ve koşul ASLA sağlanmaz → borsa fiyatları hiç
+  // değişmezdi. Kardeş alanlar (lastDayNightCheck, lastAutoBuyTick, ...) zaten 0.
+  private lastStockTick = 0
   private lastAutoBuyTick = 0
   private lastDayNightCheck = 0
   private lastMarketEventCheck = 0
@@ -4553,11 +4558,16 @@ export class GameState {
     this.emit({ type: 'rival_event', event })
   }
 
-  resolveRivalEvent(eventId: string, responseId: string): void {
+  resolveRivalEvent(eventId: string, responseId: string): boolean {
     const ev = this.activeRivalEvents.find((e) => e.id === eventId)
-    if (!ev) return
+    if (!ev) return false
     const response = ev.responses.find((r) => r.id === responseId)
-    if (!response) return
+    if (!response) return false
+    // ÖNCE ödeme gücü kontrolü: eskiden ücret "parası yetiyorsa" kesiliyordu,
+    // yetmiyorsa SESSİZCE atlanıp etki yine uygulanıyordu → parasız oyuncu
+    // 'buy_out' ile rakibi bedavaya satın alabiliyordu. Ayrıca hasar bu
+    // kontrolden ÖNCE kesildiği için atlanma ihtimali daha da artıyordu.
+    if (response.cost > 0 && !this.canAfford(response.cost)) return false
 
     const guvenlikRed = guvenlikRivalReduction(this.departments['guvenlik'] ?? 0)
     if (ev.reputationDamage > 0) {
@@ -4567,7 +4577,7 @@ export class GameState {
       this.money = Math.max(0, this.money - Math.floor(ev.moneyDamage * (1 - guvenlikRed)))
       this.emit({ type: 'money_changed' })
     }
-    if (response.cost > 0 && this.money >= response.cost) {
+    if (response.cost > 0) {
       this.money -= response.cost
       this.emit({ type: 'money_changed' })
     }
@@ -4577,11 +4587,14 @@ export class GameState {
     const rival = this.rivals.find((r) => r.id === ev.rivalId)
     if (rival) {
       if (responseId === 'buy_out') rival.relation = 'merged'
-      else if (responseId === 'price_war' || responseId === 'legal') rival.attitude = Math.min(0, rival.attitude - 20)
+      // −100 tabanına kenetle: diğer tüm yollar kenetliyor, burası kenetlemeyince
+      // tutum −120/−140'a inip gösterge %0'da takılıyordu.
+      else if (responseId === 'price_war' || responseId === 'legal') rival.attitude = Math.max(-100, Math.min(0, rival.attitude - 20))
       else if (responseId === 'alliance') rival.attitude = Math.min(100, rival.attitude + 30)
     }
     this.activeRivalEvents = this.activeRivalEvents.filter((e) => e.id !== eventId)
     this.addGazette(fmt('gz_rival_resolved', { headline: ev.headline }), 'player')
+    return true
   }
 
   /** İflas etmiş rakibi satın alma maliyeti. Infinity → satın alınamaz. */
@@ -5167,7 +5180,7 @@ export class GameState {
     this.spendMoney(def.cost)
     const day = gameDay(this.gameTimeMs)
     // Apply stress reduction via lifestyle
-    this.lifestyle.stress = Math.max(0, this.lifestyle.stress - def.stressReduction)
+    this.relieveStress(def.stressReduction)
     // Apply income penalty (reuse vacation system)
     this.lifestyle.vacationActiveUntilDay = day + def.incomePenaltyDays
     // Apply bonus
@@ -5440,7 +5453,7 @@ export class GameState {
     switch (action) {
       case 'exercise':
         this.health.health = Math.min(100, this.health.health + 5)
-        this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 5)
+        this.relieveStress(5)
         this.health.exerciseDaysActive = Math.max(this.health.exerciseDaysActive, 2)
         break
       case 'read':
@@ -5457,10 +5470,10 @@ export class GameState {
         for (const c of this.dynasty.children) {
           c.happiness = Math.min(100, (c.happiness ?? 60) + 10)
         }
-        this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 3)
+        this.relieveStress(3)
         break
       case 'meditate':
-        this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 10)
+        this.relieveStress(10)
         break
     }
     this.emit({ type: 'money_changed' })
@@ -5476,7 +5489,7 @@ export class GameState {
     if (!this.canAfford(cost)) return false
     this.money -= cost
     this.dynasty.spouseSatisfaction = Math.min(100, (this.dynasty.spouseSatisfaction ?? 70) + 20)
-    this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 5)
+    this.relieveStress(5)
     this.addGazette(requiredDomainText('gz_spouse_gift'), 'player')
     this.emit({ type: 'money_changed' })
     this.emit({ type: 'dynasty_update', kind: 'spouse_gift', name: this.dynasty.spouseName ?? '' })
@@ -5494,7 +5507,7 @@ export class GameState {
       }
     } else {
       this.dynasty.spouseSatisfaction = Math.min(100, (this.dynasty.spouseSatisfaction ?? 0) + 25)
-      this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 10)
+      this.relieveStress(10)
     }
     // Clear AFTER all effects applied — if guard failed above, pending is preserved
     this.pendingDecisions = this.pendingDecisions.filter(d => d.type !== 'marriage_crisis')
@@ -5515,7 +5528,7 @@ export class GameState {
     const child = this.dynasty.children.find((c) => c.id === childId)
     if (!child) return false
     child.happiness = Math.min(100, (child.happiness ?? 60) + 10)
-    this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 5)
+    this.relieveStress(5)
     void status
     this.emit({ type: 'dynasty_update', kind: 'child_time', name: child.name })
     return true
@@ -5565,7 +5578,7 @@ export class GameState {
     this.annualFocusBonus = focus
     this.annualFocusBonusUntilDay = day + 30
     if (focus === 'family') {
-      this.lifestyle.stress = Math.max(0, this.lifestyle.stress - 15)
+      this.relieveStress(15)
       this.health.health = Math.min(100, this.health.health + 5)
       this.addGazette(requiredDomainText('gz_focus_family'), 'player')
     } else if (focus === 'health') {
@@ -5741,7 +5754,7 @@ export class GameState {
     if (!this.canAfford(act.cost)) return false
     this.money -= act.cost
     this.emit({ type: 'money_changed' })
-    this.lifestyle.stress = Math.max(0, this.lifestyle.stress - act.stressReduction)
+    this.relieveStress(act.stressReduction)
     const currentDay = gameDay(this.gameTimeMs)
     if (id === 'terapi') {
       this.lifestyle.therapyActiveUntilDay = currentDay + act.durationDays
@@ -5771,6 +5784,20 @@ export class GameState {
       this.money -= cost
       this.emit({ type: 'money_changed' })
     }
+  }
+
+  /**
+   * Stres RAHATLAMASI — iki sayacı birden düşürür.
+   * Oyunda iki ayrı stres alanı var: career.stress (Kariyer sayfasında gösterilir
+   * ve pasif geliri %20'ye kadar vergilendirir) ve lifestyle.stress (sağlığı
+   * eritir, Yaşam/Profil sayfalarında gösterilir). Rahatlama yalnız birine
+   * işlenirse oyuncu parayı öder, gösterilen stres hiç kıpırdamaz — Kariyer →
+   * Sağlık sekmesindeki tüm butonlar tam olarak böyle davranıyordu.
+   */
+  private relieveStress(amount: number): void {
+    if (!(amount > 0)) return
+    this.lifestyle.stress = Math.max(0, this.lifestyle.stress - amount)
+    this.career.stress = Math.max(0, this.career.stress - amount)
   }
 
   private tickCommodities(): void {

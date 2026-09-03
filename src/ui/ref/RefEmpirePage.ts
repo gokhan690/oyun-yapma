@@ -242,8 +242,10 @@ export class RefEmpirePage implements RefPage {
       case 'rival_event': {
         const [eventId, responseId] = id.split('@')
         if (eventId && responseId) {
-          s.resolveRivalEvent(eventId, responseId)
-          refToast(i18n.t('ref_empire_rival_event_resolved'), 'ok')
+          // Sonucu kullan: eskiden başarısızlıkta bile yeşil "çözüldü" toast'ı
+          // çıkıyordu (parası yetmeyen oyuncu bunu başarı sanıyordu).
+          const ok = s.resolveRivalEvent(eventId, responseId)
+          refToast(ok ? i18n.t('ref_empire_rival_event_resolved') : i18n.t('ref_action_failed'), ok ? 'ok' : 'err')
         }
         break
       }
