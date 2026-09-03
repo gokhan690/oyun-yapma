@@ -54,6 +54,8 @@ import { applyCountry, type CountryId } from '../game/Countries'
 import { BaronAdvisor } from './components/BaronAdvisor'
 import { VictoryCinematic } from './components/VictoryCinematic'
 import type { RivalEvent } from '../game/Rivals'
+import { BADGES } from '../game/Badges'
+import { THEMES } from '../game/Themes'
 
 export class HUD {
   private root: HTMLElement
@@ -1286,11 +1288,19 @@ export class HUD {
         this.showComebackPopup()
       }
       if (ev.type === 'theme_unlocked') {
-        this.modals.showToast(`🎨 Yeni tema: ${ev.themeId}!`)
+        // İç kimlik yerine görünen ad: eskiden oyuncuya 'night' gibi ham bir
+        // slug gösteriliyordu.
+        const theme = THEMES.find((th) => th.id === ev.themeId)
+        this.modals.showToast(theme ? `${theme.emoji} Yeni tema: ${theme.name}` : '🎨 Yeni tema açıldı')
         applyDocumentTheme(this.state.activeTheme)
       }
       if (ev.type === 'badge_earned') {
-        this.modals.showToast('🏅 Yeni rozet kazandın!')
+        // Rozetin ADI yazılır: eski metin ("Yeni rozet kazandın!") hangi rozet
+        // olduğunu söylemiyordu ve rozet listesi yalnızca #app içindeki baron
+        // panelinde — RefApp açıkken oraya gidilemiyor. En azından bildirim
+        // kendi başına bilgi taşısın.
+        const badge = BADGES.find((b) => b.id === ev.badgeId)
+        this.modals.showToast(badge ? `${badge.emoji} Yeni rozet: ${badge.name}` : '🏅 Yeni rozet kazandın!')
         this.refreshBaronPanel()
       }
       if (ev.type === 'underground_action') {
@@ -3241,7 +3251,7 @@ export class HUD {
     this.modals.openGoldenEvent(
       event.emoji,
       event.title,
-      `${event.description} Ödül envantere gider — Etkinlikler'den aktifleştirmen gerekir.`,
+      `${event.description} Ödül bonus envanterine eklenir.`,
       () => {
         void this.claimGoldenEventWithAd()
       },
@@ -3257,7 +3267,7 @@ export class HUD {
         if (this.state.acceptGoldenEventSmall()) {
           this.clearGoldenEventTimer()
           this.closeModalAndPump()
-          this.modals.showToast('🎁 Küçük ödül alındı — Etkinlikler\'den aktifleştir')
+          this.modals.showToast('🎁 Küçük ödül alındı — bonus envanterine eklendi')
           this.eventsPanel.render(this.state)
           this.updateNavBadges()
         }
@@ -3301,7 +3311,7 @@ export class HUD {
     if (this.state.claimGoldenEvent()) {
       this.clearGoldenEventTimer()
       this.closeModalAndPump()
-      this.modals.showToast('🎁 Bonus envanterine eklendi — Etkinlikler\'den aktifleştir')
+      this.modals.showToast('🎁 Bonus envanterine eklendi')
       this.eventsPanel.render(this.state)
       this.updateNavBadges()
     }

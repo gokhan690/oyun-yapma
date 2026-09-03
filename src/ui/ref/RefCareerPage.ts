@@ -309,7 +309,10 @@ export class RefCareerPage implements RefPage {
     const diseaseId = btn.dataset.disease as DiseaseId | undefined
     if (diseaseId) {
       const ok = (this.state as unknown as { treatDisease: (id: DiseaseId) => boolean }).treatDisease(diseaseId)
-      refToast(ok ? '💊 Tedavi tamamlandı' : '💸 Para yetersiz', ok ? 'ok' : 'err')
+      // Başarıda mesaj YOK: GameState 'disease_treated' yayınlıyor ve HUD toast'ı
+      // hastalığın adını da veriyor. Burada da göstermek çift bildirim olurdu.
+      // Başarısızlıkta hiçbir olay yayınlanmıyor → tek geri bildirim bu.
+      if (!ok) refToast('💸 Para yetersiz', 'err')
       return
     }
 
@@ -330,7 +333,9 @@ export class RefCareerPage implements RefPage {
     if (action.startsWith('fame_action:')) {
       const actionId = action.split(':')[1]!
       const ok = (this.state as unknown as { doFameAction: (id: string) => boolean }).doFameAction(actionId)
-      refToast(ok ? '⭐ Aksiyon tamamlandı!' : '💸 Para yetersiz', ok ? 'ok' : 'err')
+      // Başarıda mesaj YOK: 'fame_action' HUD toast'ı kazanılan şöhreti ve
+      // kariyeri sayıyla veriyor. Başarısızlıkta olay yayınlanmıyor.
+      if (!ok) refToast('💸 Para yetersiz', 'err')
     }
   }
 }
