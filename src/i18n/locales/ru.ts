@@ -2985,4 +2985,5 @@ export const ru: Translations = {
   ref_goal_first_firm_actions_unit: 'действий',
   ref_goal_pick_job: 'Выберите первую работу',
   ref_goal_pick_job_meta: 'Выберите работу на вкладке «Карьера»',
+  ref_career_treat_button: 'Лечить',
 }

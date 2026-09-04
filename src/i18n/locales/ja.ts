@@ -2986,4 +2986,5 @@ export const ja: Translations = {
   ref_goal_first_firm_actions_unit: '回の行動',
   ref_goal_pick_job: '最初の仕事を選ぶ',
   ref_goal_pick_job_meta: '「キャリア」タブから仕事を選ぶ',
+  ref_career_treat_button: '治療',
 }

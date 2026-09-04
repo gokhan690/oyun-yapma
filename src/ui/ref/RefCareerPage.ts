@@ -475,7 +475,10 @@ export class RefCareerPage implements RefPage {
 
   private buildHealthSection(c: RefCareerVM): HTMLElement {
     const wrap = document.createElement('div')
-    const hClass = c.health >= 70 ? 'high' : c.health >= 40 ? 'medium' : 'low'
+    // Eşikler etiket/emoji ile AYNI olmalı (80/50/20). Eskiden bar 70/40
+    // kullanıyordu: sağlık 75'te yazı "Orta" derken bar yeşil, 45'te yazı
+    // "Kötü" derken bar sarı çıkıyor, kart kendi kendisiyle çelişiyordu.
+    const hClass = c.health >= 80 ? 'high' : c.health >= 50 ? 'medium' : 'low'
     const hEmoji = c.health >= 80 ? '💚' : c.health >= 50 ? '💛' : c.health >= 20 ? '🟠' : '❤️'
     wrap.appendChild(sectionTitle(i18n.t('ref_career_health_section_title'), `${c.health}% · ${c.healthLabel}`))
 
@@ -523,8 +526,8 @@ export class RefCareerPage implements RefPage {
             <div class="ref-disease-name">${d.name}</div>
             <div class="ref-disease-dmg">−${d.dailyDamage} ${i18n.t('ref_career_health_per_day_unit')}</div>
           </div>
-          <button class="ref-disease-treat-btn" type="button" data-disease="${d.id}">
-            Tedavi · ${fmtMoney(d.treatCost)}
+          <button class="ref-disease-treat-btn" type="button" data-disease="${d.id}" ${(this.state?.money ?? 0) >= d.treatCost ? '' : 'disabled'}>
+            ${i18n.t('ref_career_treat_button')} · ${fmtMoney(d.treatCost)}
           </button>
         `
         list.appendChild(row)
@@ -842,6 +845,10 @@ export class RefCareerPage implements RefPage {
     if (diseaseId) {
       const ok = (this.state as unknown as { treatDisease: (id: DiseaseId) => boolean }).treatDisease(diseaseId)
       refToast(ok ? '💊 ' + i18n.t('ref_career_toast_treatment_done') : '💸 ' + i18n.t('ref_career_toast_insufficient_funds'), ok ? 'ok' : 'err')
+      // Eskiden ikisi de yoktu: iyileşen hastalığın satırı ekranda kalıyordu
+      // (oyuncu ikinci kez basınca yanıltıcı "para yetersiz" alıyordu) ve
+      // ödeme 15 sn'lik otomatik kayda kadar diske yazılmıyordu.
+      if (ok) { this.refresh(this.state!); this.onPersist?.() }
       return
     }
 

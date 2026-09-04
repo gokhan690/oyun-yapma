@@ -2985,4 +2985,5 @@ export const pt: Translations = {
   ref_goal_first_firm_actions_unit: 'ações',
   ref_goal_pick_job: 'Escolha seu primeiro emprego',
   ref_goal_pick_job_meta: 'Escolha um emprego na aba Carreira',
+  ref_career_treat_button: 'Tratar',
 }

@@ -275,7 +275,11 @@ export function tickRivals(
 
   for (const rival of rivals) {
     if (!isRivalUnlocked(rival.id, playerProgressEarned)) continue
-    if (rival.relation === 'merged') continue
+    // 'bankrupt' de atlanmalı: yoksa iflas etmiş rakip her gün büyümeye devam
+    // ediyordu (üstelik +playerNetWorth*0.00002 terimi geç oyunda günde
+    // yüzbinler ekliyor). Kart "iflas" yazarken serveti tırmanıyor, satın alma
+    // fiyatı da onun yüzdesi olduğu için oyuncudan hızlı kaçıyordu.
+    if (rival.relation === 'merged' || rival.relation === 'bankrupt') continue
 
     // Rival net worth decay when hostile attitude is very negative
     const growthBase = rival.personality === 'conservative' ? 1.001 : rival.personality === 'aggressive' ? 1.004 : 1.002
@@ -284,7 +288,8 @@ export function tickRivals(
     rival.netWorth = Math.floor(rival.netWorth * growth + playerNetWorth * 0.00002)
 
     // Rival bankruptcy when net worth falls very low relative to player
-    if (rival.relation !== 'bankrupt' && rival.netWorth < playerNetWorth * 0.05 && rival.netWorth < 100_000) {
+    // (zaten iflas etmişler döngünün başında atlanıyor)
+    if (rival.netWorth < playerNetWorth * 0.05 && rival.netWorth < 100_000) {
       rival.relation = 'bankrupt'
       events.push({
         rivalId: rival.id,
@@ -541,6 +546,7 @@ export function generateRivalEvent(rival: RivalFamilyState, playerNetWorth: numb
     reputationDamage: cfg.repDmg,
     moneyDamage: cfg.moneyDmg,
     responses: cfg.responses,
-    expiresAtDay: gameDay + 3,
+    // 3 oyun günü = 36 saniye: oyuncu sekmeye bakmadan kaçıyordu. 10 gün = 2 dk.
+    expiresAtDay: gameDay + 10,
   }
 }

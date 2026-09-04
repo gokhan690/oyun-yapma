@@ -4541,8 +4541,22 @@ export class GameState {
     if (day === this.lastRivalEventDay) return
     this.lastRivalEventDay = day
 
-    // Remove expired events
+    // Süresi dolan olaylar: eskiden SESSİZCE siliniyordu (bildirim yok, etki yok).
+    // Cevap vermek ise reputationDamage + moneyDamage + seçenek ücreti demekti →
+    // görmezden gelmek her seçenekten kârlıydı, yani oyunla ilgilenmek cezalıydı.
+    // Artık cevapsız kalan saldırı hasarını uygular ve gazeteye düşer.
+    const expiredEvents = this.activeRivalEvents.filter((e) => e.expiresAtDay <= day)
     this.activeRivalEvents = this.activeRivalEvents.filter((e) => e.expiresAtDay > day)
+    for (const e of expiredEvents) {
+      const red = guvenlikRivalReduction(this.departments['guvenlik'] ?? 0)
+      if (e.reputationDamage > 0) {
+        this.reputation = Math.max(0, this.reputation - e.reputationDamage * (1 - red))
+      }
+      if (e.moneyDamage > 0) {
+        this.debitMoney(Math.floor(e.moneyDamage * (1 - red)), { source: 'expense', metadata: { kind: 'rival_ignored' } })
+      }
+      this.addGazette(`⚔️ ${e.headline}`, 'crisis')
+    }
 
     // Only generate if no active rival event pending
     if (this.activeRivalEvents.length > 0) return

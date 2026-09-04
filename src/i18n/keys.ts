@@ -2181,6 +2181,7 @@ export interface Translations {
   ref_career_toast_activity_done: string
   ref_career_toast_insufficient_funds: string
   ref_career_toast_treatment_done: string
+  ref_career_treat_button: string
   ref_career_toast_fame_quit: string
   ref_career_toast_fame_started: string
   ref_career_toast_fame_already_active: string
