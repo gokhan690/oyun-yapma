@@ -1487,45 +1487,45 @@ export interface Translations {
 
   // RefFirmsPage — B3 sıralama (opsiyonel: yalnız tr.ts'te dolu, diğer 9 dil bu turda
   // dokunulmuyor — i18n.t()'in dict[key] ?? tr[key] ?? key fallback'i TR'ye düşürür)
-  firms_sort_label?: string
-  firms_sort_tier?: string
-  firms_sort_price_asc?: string
-  firms_sort_price_desc?: string
-  firms_sort_net_desc?: string
-  firms_sort_payback_asc?: string
-  firms_sort_affordable_first?: string
+  firms_sort_label: string
+  firms_sort_tier: string
+  firms_sort_price_asc: string
+  firms_sort_price_desc: string
+  firms_sort_net_desc: string
+  firms_sort_payback_asc: string
+  firms_sort_affordable_first: string
 
   // RefFirmsPage — B3 gerçek ekonomi kart satırı + yatırım etiketleri (opsiyonel, bkz. yukarı)
-  eco_net_profit?: string
-  eco_manager_salary?: string
-  firm_label_fastest_payback?: string
-  firm_label_best_net?: string
-  firm_label_affordable?: string
-  firm_label_long_term?: string
-  firm_label_low_reserve?: string
-  firm_label_inefficient?: string
-  firm_label_risk_manager?: string
+  eco_net_profit: string
+  eco_manager_salary: string
+  firm_label_fastest_payback: string
+  firm_label_best_net: string
+  firm_label_affordable: string
+  firm_label_long_term: string
+  firm_label_low_reserve: string
+  firm_label_inefficient: string
+  firm_label_risk_manager: string
 
   // TUR15-C1 — Career ekranı view-only: işsiz yönlendirme, ilk firma hedefi,
   // girişimci açıklaması, dashboard kariyer hedefi (opsiyonel, yalnız tr.ts dolu)
-  ref_career_unemployed_guidance?: string
-  ref_career_first_firm_title?: string
-  ref_career_first_firm_actions_label?: string
-  ref_career_first_firm_income_label?: string
-  ref_career_first_firm_unlocked?: string
-  ref_career_entre_explainer?: string
-  ref_goal_pick_job?: string
-  ref_goal_pick_job_meta?: string
-  ref_goal_first_firm?: string
-  ref_goal_first_firm_actions_unit?: string
+  ref_career_unemployed_guidance: string
+  ref_career_first_firm_title: string
+  ref_career_first_firm_actions_label: string
+  ref_career_first_firm_income_label: string
+  ref_career_first_firm_unlocked: string
+  ref_career_entre_explainer: string
+  ref_goal_pick_job: string
+  ref_goal_pick_job_meta: string
+  ref_goal_first_firm: string
+  ref_goal_first_firm_actions_unit: string
 
   // TUR15-C2 — Career job kartı "yol" chip'i (opsiyonel, yalnız tr.ts dolu)
-  career_path_lojistik?: string
-  career_path_gida?: string
-  career_path_satis?: string
-  career_path_teknoloji?: string
-  career_path_finans?: string
-  career_path_siyaset?: string
+  career_path_lojistik: string
+  career_path_gida: string
+  career_path_satis: string
+  career_path_teknoloji: string
+  career_path_finans: string
+  career_path_siyaset: string
 
   // RefApp Market
   ref_market_title: string
