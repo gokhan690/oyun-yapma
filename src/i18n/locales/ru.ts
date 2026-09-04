@@ -2986,4 +2986,5 @@ export const ru: Translations = {
   ref_goal_pick_job: 'Выберите первую работу',
   ref_goal_pick_job_meta: 'Выберите работу на вкладке «Карьера»',
   ref_career_treat_button: 'Лечить',
+  ref_career_routine_title_fmt: 'Дневной отдых · осталось {left}/{max}',
 }

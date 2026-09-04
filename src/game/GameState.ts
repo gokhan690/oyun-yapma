@@ -4561,7 +4561,12 @@ export class GameState {
     // Only generate if no active rival event pending
     if (this.activeRivalEvents.length > 0) return
 
-    const hostile = this.rivals.filter((r) => r.attitude < 0 && r.relation !== 'bankrupt' && r.relation !== 'merged')
+    // IPO/prestij sonrası totalEarned sıfırlanır, RefEmpirePage tüm rakipleri
+    // isRivalUnlocked ile filtreleyip gizler ('🔒 kilitli' kartı gösterir).
+    // Ama rivals dizisindeki eski attitude/relation verisi kalıyordu, bu yüzden
+    // burası UI'da hiç görünmeyen bir rakipten saldırı üretebiliyordu: oyuncu
+    // "⚔️ X sana savaş açtı" görüyor ama Rakipler sekmesinde X hiç yok.
+    const hostile = this.rivals.filter((r) => isRivalUnlocked(r.id, this.totalEarned) && r.attitude < 0 && r.relation !== 'bankrupt' && r.relation !== 'merged')
     if (hostile.length === 0) return
     const rival = hostile[Math.floor(Math.random() * hostile.length)]!
     const event = generateRivalEvent(rival, this.financeNetWorth(), day)

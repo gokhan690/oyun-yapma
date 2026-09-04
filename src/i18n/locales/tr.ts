@@ -3033,4 +3033,5 @@ export const tr: Translations = {
   notif_passive_income_full_body: 'İşletmelerin gelir üretiyor! Kontrol et.',
   notif_goal_near_full_body: 'Günlük hedefe yaklaşıyorsun — son sprint!',
   ref_career_treat_button: 'Tedavi',
+  ref_career_routine_title_fmt: 'Günlük Dinlenme · {left}/{max} hak',
 }

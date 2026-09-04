@@ -554,7 +554,14 @@ export class RefCareerPage implements RefPage {
   /** Günlük rutin (egzersiz/meditasyon) + stres tedavisi (terapi/meditasyon). */
   private buildRoutineAndWellbeingHtml(s: GameState): string {
     const status = s.getDailyRoutineActions()
-    const limitFull = status.remaining <= 0
+    // Sayfa domain'in 3 hakkının yalnızca 2'sini (exercise/meditate) sunuyor;
+    // read/network/family bu sayfada yok. Eskiden "X/3 hak" yazılıyordu — iki
+    // butonu da kullanan oyuncu "1/3 hak" görüp üçüncü butonun neden hiç
+    // çıkmadığını anlamıyordu (aslında sayfada üçüncü buton hiç yok). Sayaç
+    // artık bu sayfanın GERÇEKTEN sunduğu hakla ölçülüyor.
+    const offeredUsed = ROUTINE_META.filter((r) => status.used.includes(r.id)).length
+    const offeredLeft = ROUTINE_META.length - offeredUsed
+    const limitFull = offeredLeft <= 0
     const routineBtns = ROUTINE_META.map((r) => {
       const used = status.used.includes(r.id)
       const disabled = used || limitFull
@@ -584,7 +591,7 @@ export class RefCareerPage implements RefPage {
     }).join('')
 
     return `
-      <div class="ref-career-section-title">Günlük Dinlenme · ${status.remaining}/${status.max} hak</div>
+      <div class="ref-career-section-title">${fmt('ref_career_routine_title_fmt', { left: String(offeredLeft), max: String(ROUTINE_META.length) })}</div>
       <div class="ref-routine-grid">${routineBtns}</div>
       <div class="ref-career-section-title">Stres Tedavisi</div>
       <div class="ref-wellbeing-list">${wbRows}</div>`

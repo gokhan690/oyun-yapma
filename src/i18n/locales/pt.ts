@@ -2986,4 +2986,5 @@ export const pt: Translations = {
   ref_goal_pick_job: 'Escolha seu primeiro emprego',
   ref_goal_pick_job_meta: 'Escolha um emprego na aba Carreira',
   ref_career_treat_button: 'Tratar',
+  ref_career_routine_title_fmt: 'Descanso diário · {left}/{max} restantes',
 }

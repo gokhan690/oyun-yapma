@@ -87,9 +87,19 @@ function feedRowFromTx(tx: MoneyTransaction) {
   }
 }
 
+// Bu kaynaklar HER oyun gününde (12 gerçek saniyede bir) otomatik yazılır:
+// pasif iş geliri ve maaş ayarlaması. Akışta bırakılırsa 8 satırlık pencere
+// birkaç dakikada tamamen bunlarla dolup gerçek eylemleri (firma alımı,
+// yükseltme, kariyer aksiyonu...) dışarı iter — "son aktivitelerde her şey
+// yazmıyor" şikayetinin sebebi buydu. Toplamları zaten dailySettlementBreakdown
+// + 'day_settled' toast'ında görünüyor; bu akış GERÇEK eylemler için.
+const RECURRING_SETTLEMENT_SOURCES: ReadonlySet<MoneySource> = new Set([
+  'daily_business_income', 'career_salary', 'manager_salary',
+])
+
 /* Aktivite akışı — canlı GameState para hareketi geçmişinden (son işlemler önce). */
 function buildFeed(state?: GameState) {
-  const txs = state?.moneyTransactions
+  const txs = state?.moneyTransactions?.filter((t) => !RECURRING_SETTLEMENT_SOURCES.has(t.source))
   if (!txs || txs.length === 0) {
     return [{ ico: '🏆', cls: 'muted', txt: i18n.t('ref_dash_no_activity'), time: '—' }]
   }

@@ -2986,4 +2986,5 @@ export const zh: Translations = {
   ref_goal_pick_job: '选择你的第一份工作',
   ref_goal_pick_job_meta: '在“职业”标签页选择一份工作',
   ref_career_treat_button: '治疗',
+  ref_career_routine_title_fmt: '每日休息 · 剩余 {left}/{max}',
 }

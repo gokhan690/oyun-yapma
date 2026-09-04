@@ -132,8 +132,15 @@ export class RefEmpirePage implements RefPage {
   }
 
   private rivalsSig(s: GameState): string {
+    // s.money hiç yoktu: oyuncu kazanıp/harcadıkça (netWorth bucket veya
+    // totalEarned/1000 tesadüfen değişmedikçe) bu imza sabit kalıyor, yani
+    // buildRivals() yeniden kurulmuyordu. 'rival_merge' butonunun
+    // karşılanabilirliği ve 'Önde/Geride' rozeti hep s.money'e bağlı olduğu
+    // için buton bayat kalıyor ya da tıklanınca "Satın alma başarısız" diye
+    // tutarsız bir hata veriyordu.
+    const nw = s.financeNetWorth()
     const rivals = s.rivals.map(r => {
-      const base = `${r.id}:${Math.round(r.netWorth / 1000)}:${r.attitude}:${r.relation}`
+      const base = `${r.id}:${Math.round(r.netWorth / 1000)}:${r.attitude}:${r.relation}:${s.money >= mergeRivalCost(r) ? 1 : 0}:${r.netWorth > nw ? 1 : 0}`
       // For bankrupt rivals include exact canAcquire so button enables immediately when affordable
       return r.relation === 'bankrupt' ? `${base}:${s.canAcquireBankruptRival(r.id) ? 1 : 0}` : base
     }).join(',')

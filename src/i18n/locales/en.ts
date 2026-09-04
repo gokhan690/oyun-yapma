@@ -3007,4 +3007,5 @@ export const en: Translations = {
   ref_goal_pick_job: 'Pick your first job',
   ref_goal_pick_job_meta: 'Pick a job from the Career tab',
   ref_career_treat_button: 'Treat',
+  ref_career_routine_title_fmt: 'Daily Rest · {left}/{max} left',
 }

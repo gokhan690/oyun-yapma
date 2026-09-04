@@ -2994,4 +2994,5 @@ export const ar: Translations = {
   ref_goal_pick_job: 'اختر وظيفتك الأولى',
   ref_goal_pick_job_meta: 'اختر وظيفة من تبويب المهنة',
   ref_career_treat_button: 'علاج',
+  ref_career_routine_title_fmt: 'الراحة اليومية · متبقٍ {left}/{max}',
 }

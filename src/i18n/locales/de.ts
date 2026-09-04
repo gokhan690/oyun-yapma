@@ -2986,4 +2986,5 @@ export const de: Translations = {
   ref_goal_pick_job: 'Wähle deinen ersten Job',
   ref_goal_pick_job_meta: 'Wähle einen Job im Karriere-Tab',
   ref_career_treat_button: 'Behandeln',
+  ref_career_routine_title_fmt: 'Tägliche Erholung · {left}/{max} übrig',
 }

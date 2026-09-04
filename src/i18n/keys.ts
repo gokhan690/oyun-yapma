@@ -2141,6 +2141,7 @@ export interface Translations {
   career_routine_meditate_label: string
   career_routine_meditate_effect: string
   career_routine_done: string
+  ref_career_routine_title_fmt: string
 
   // RefCareer — newly migrated labels/tips/toasts/mock
   ref_career_pick_first_job: string
