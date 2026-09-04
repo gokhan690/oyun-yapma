@@ -168,6 +168,32 @@ export class RefEmpirePage implements RefPage {
       }
       return
     }
+    const resBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-buy-research]')
+    if (resBtn && !resBtn.disabled && this.state) {
+      const id = resBtn.dataset.buyResearch!
+      const node = RESEARCH_NODES.find(n => n.id === id)
+      const ok = this.state.buyResearch(id)
+      if (ok) {
+        refToast(`🔬 ${node ? researchNodeName(node) : id} Lv.${this.state.research[id] ?? 1}`, 'ok')
+        this.buildManage()
+      } else {
+        refToast(i18n.t('ref_empire_insufficient_funds'), 'err')
+      }
+      return
+    }
+    const upgBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-buy-upgrade]')
+    if (upgBtn && !upgBtn.disabled && this.state) {
+      const id = upgBtn.dataset.buyUpgrade!
+      const def = UPGRADES.find(u => u.id === id)
+      const ok = this.state.buyUpgrade(id)
+      if (ok) {
+        refToast(`⬆️ ${def ? upgradeName(def) : id}`, 'ok')
+        this.buildManage()
+      } else {
+        refToast(i18n.t('ref_empire_insufficient_funds'), 'err')
+      }
+      return
+    }
     const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-action]')
     if (!btn || !this.state) return
     const action = btn.dataset.action ?? ''
@@ -733,9 +759,14 @@ export class RefEmpirePage implements RefPage {
     const level    = s ? (s.research[node.id] ?? 0) : 0
     const maxed    = level >= node.maxLevel
     const unlocked = s ? researchIsUnlocked(node.id, s.research) : true
-    const cost     = researchCost(node, level)
+    // Haftalık "araştırma indirimi" buyResearch içinde uygulanıyordu ama satır
+    // indirimsiz fiyatı yazıyordu → gösterilen tutar gerçekte ödenenden farklıydı.
+    const cost     = s ? s.researchCostWithWeekly(researchCost(node, level)) : researchCost(node, level)
     const prereq   = researchPrereqName(node.id)
     const curr     = node.currency === 'prestige' ? 'Prestij' : '₺'
+    const isPrestige = node.currency === 'prestige'
+    const affordable = s ? (isPrestige ? s.prestigePoints >= cost : s.money >= cost) : false
+    const canBuy   = !!s && !maxed && unlocked && affordable
 
     const row = document.createElement('div')
     row.className = 'ref-rnd-row' + (maxed ? ' maxed' : !unlocked ? ' locked' : level > 0 ? ' active' : '')
@@ -743,7 +774,11 @@ export class RefEmpirePage implements RefPage {
       ? `<span class="ref-rnd-status max">${i18n.t('ref_empire_research_status_max')}</span>`
       : !unlocked
         ? `<span class="ref-rnd-status lock">🔒 ${prereq ?? '?'}</span>`
-        : `<span class="ref-rnd-cost">${node.currency === 'prestige' ? cost + ' ⭐' : fmtMoney(cost)}</span>`
+        // Eskiden burada yalnız fiyat YAZIYORDU: satır tıklanabilir değildi,
+        // buton da yoktu. Ar-Ge ağacı fiyat gösteren tamamen dekoratif bir
+        // listeydi — oyuncu basıyor, hiçbir şey olmuyordu.
+        : `<button type="button" class="ref-dept-upgrade-btn${canBuy ? '' : ' ref-dept-upgrade-btn--off'}"
+             data-buy-research="${node.id}" ${canBuy ? '' : 'disabled'}>${isPrestige ? cost + ' ⭐' : fmtMoney(cost)}</button>`
 
     row.innerHTML = `
       <div class="ref-rnd-row__main">
@@ -771,7 +806,10 @@ export class RefEmpirePage implements RefPage {
     row.className = 'ref-rnd-row upg' + (owned ? ' maxed' : afford ? ' active' : '')
     const right = owned
       ? `<span class="ref-rnd-status max">${i18n.t('ref_empire_upgrade_owned')}</span>`
-      : `<span class="ref-rnd-cost ${afford ? '' : 'dim'}">${fmtMoney(cost)}</span>`
+      // Ar-Ge ile aynı sorun: yükseltmeler de yalnızca fiyat gösteren ölü
+      // satırlardı, satın alma yolu yoktu.
+      : `<button type="button" class="ref-dept-upgrade-btn${afford ? '' : ' ref-dept-upgrade-btn--off'}"
+           data-buy-upgrade="${upg.id}" ${afford ? '' : 'disabled'}>${fmtMoney(cost)}</button>`
     row.innerHTML = `
       <div class="ref-rnd-row__main">
         <div class="ref-rnd-row__head">
