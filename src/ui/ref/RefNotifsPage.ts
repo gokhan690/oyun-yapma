@@ -43,8 +43,11 @@ export class RefNotifsPage implements RefPage {
   }
 
   private sig(s: GameState): string {
-    const last = s.gazetteEntries[s.gazetteEntries.length - 1]
-    return `${s.gazetteEntries.length}|${last?.id ?? '-'}`
+    // gazetteEntries EN YENİ BAŞTA tutulur (pushGazette: [entry, ...entries]).
+    // Eskiden son eleman (= en ESKİ girdi) anahtarlanıyordu; liste dolduktan
+    // sonra o neredeyse hiç değişmediği için sayfa yeni bildirimde tazelenmiyordu.
+    const newest = s.gazetteEntries[0]
+    return `${s.gazetteEntries.length}|${newest?.id ?? '-'}`
   }
 
   private render(): void {
@@ -53,7 +56,8 @@ export class RefNotifsPage implements RefPage {
       this.listEl.innerHTML = `<div class="ref-notif-empty">${i18n.t('ref_notifs_empty')}</div>`
       return
     }
-    const entries = s.gazetteEntries.slice(-50).reverse()
+    // Dizi zaten en yeni başta; slice(-50).reverse() en yeniyi EN ALTA atıyordu.
+    const entries = s.gazetteEntries.slice(0, 50)
     if (!entries.length) {
       this.listEl.innerHTML = `<div class="ref-notif-empty">${i18n.t('ref_notifs_empty')}</div>`
       return

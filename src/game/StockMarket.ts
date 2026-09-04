@@ -84,7 +84,10 @@ export function createStockState(): StockState {
     macroHeadline: fmt('stock_initial_rate', { rate: '5.5' }),
     bankruptTickerId: null,
     bankruptUntil: 0,
-    lastMacroTick: Date.now(),
+    // performance.now() ölçeğiyle karşılaştırılır (tickMacro'ya rAF `now` gelir),
+    // ayrıca performance.now() her sayfa açılışında sıfırlanır → epoch DEĞERİ
+    // saklamak koşulu kalıcı olarak bozardı: tickMacro hiç çalışmazdı.
+    lastMacroTick: 0,
   }
 }
 
@@ -120,7 +123,9 @@ export function migrateStockState(raw: StockState): StockState {
   state.macroHeadline = raw.macroHeadline ?? fmt('stock_initial_rate', { rate: (state.centralBankRate * 100).toFixed(1) })
   state.bankruptTickerId = raw.bankruptTickerId ?? null
   state.bankruptUntil = raw.bankruptUntil ?? 0
-  state.lastMacroTick = raw.lastMacroTick ?? Date.now()
+  // Kayıttan gelen değer başka bir oturumun performance.now()'u (ya da eski
+  // sürümlerden kalma epoch) → anlamsız. Her yüklemede sıfırlanır.
+  state.lastMacroTick = 0
   return state
 }
 

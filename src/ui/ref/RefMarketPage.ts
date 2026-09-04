@@ -250,7 +250,7 @@ export class RefMarketPage implements RefPage {
       <div class="ref-bank-actions">
         <button class="ref-bank-btn deposit" type="button" data-bank="deposit">${i18n.t('ref_market_deposit_action_btn')}</button>
         <button class="ref-bank-btn withdraw" type="button" data-bank="withdraw" ${deposit <= 0 ? 'disabled' : ''}>${i18n.t('ref_market_withdraw_action_btn')}</button>
-        <button class="ref-bank-btn loan" type="button" data-bank="loan_take" ${maxLoanAvail < 1_000 ? 'disabled' : ''}>${fmt('ref_market_loan_take_action_fmt', { cost: fmtMoney(Math.floor(maxLoanAvail / 2)) })}</button>
+        <button class="ref-bank-btn loan" type="button" data-bank="loan_take" data-loan-amount="${Math.floor(maxLoanAvail / 2)}" ${Math.floor(maxLoanAvail / 2) < 1_000 ? 'disabled' : ''}>${fmt('ref_market_loan_take_action_fmt', { cost: fmtMoney(Math.floor(maxLoanAvail / 2)) })}</button>
         <button class="ref-bank-btn repay" type="button" data-bank="loan_repay" ${loan <= 0 ? 'disabled' : ''}>${i18n.t('ref_market_loan_repay_action_btn')}</button>
       </div>`
   }
@@ -400,7 +400,14 @@ export class RefMarketPage implements RefPage {
         break
       }
       case 'loan_take': {
-        const amount = Math.floor(s.maxAvailableLoan() / 2)
+        // Butonun ÜZERİNDE YAZAN tutar çekilir. Eskiden tıklama anında yeniden
+        // hesaplanıyordu; render ile tıklama arasında net değer değiştiğinde
+        // etiket "₺7.5K" derken gerçekte ₺24K çekiliyordu.
+        // Eşik de butonun disabled koşuluyla aynı: eskiden buton avail>=1000'de
+        // aktifti ama handler avail>=2000 istiyordu → [1000,2000) aralığında
+        // buton aktif görünüp her tıklamada hata veriyordu.
+        const shown = Number(bankBtn.dataset.loanAmount ?? '')
+        const amount = Number.isFinite(shown) && shown > 0 ? shown : Math.floor(s.maxAvailableLoan() / 2)
         if (amount < 1_000) { refToast(i18n.t('ref_market_toast_no_credit'), 'err'); return }
         const ok = s.bankTakeLoan(amount)
         refToast(ok ? fmt('ref_market_toast_loan_taken_fmt', { amount: fmtMoney(amount) }) : i18n.t('ref_market_toast_bank_rejected'), ok ? 'ok' : 'err')

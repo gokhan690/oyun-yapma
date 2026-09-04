@@ -4574,8 +4574,7 @@ export class GameState {
       this.reputation = Math.max(0, this.reputation - ev.reputationDamage * (1 - guvenlikRed))
     }
     if (ev.moneyDamage > 0) {
-      this.money = Math.max(0, this.money - Math.floor(ev.moneyDamage * (1 - guvenlikRed)))
-      this.emit({ type: 'money_changed' })
+      this.debitMoney(Math.floor(ev.moneyDamage * (1 - guvenlikRed)), { source: 'expense', metadata: { kind: 'rival_damage' } })
     }
     if (response.cost > 0) {
       this.money -= response.cost
@@ -4659,8 +4658,7 @@ export class GameState {
       if (!child) continue
       if (crisis.type === 'gambler' && this.money > 100) {
         const drain = Math.floor(Math.min(this.money * 0.008, this.incomePerDay() * 0.15))
-        this.money = Math.max(0, this.money - drain)
-        this.emit({ type: 'money_changed' })
+        this.debitMoney(drain, { source: 'expense', metadata: { kind: 'child_gambling', child: child.name } })
       } else if (crisis.type === 'illegal') {
         this.illegalHeat = Math.min(100, this.illegalHeat + 2)
         this.emit({ type: 'illegal_heat', heat: this.illegalHeat })
@@ -5024,8 +5022,7 @@ export class GameState {
     if (day % 30 === 0 && day > 0 && this.hobby.hobbyId) {
       const cost = hobbyMonthlyCost(this.hobby)
       if (cost > 0 && this.money >= cost) {
-        this.money -= cost
-        this.emit({ type: 'money_changed' })
+        this.debitMoney(cost, { source: 'expense', metadata: { kind: 'hobby' } })
       }
       tickHobbyMonth(this.hobby)
     }
@@ -5781,8 +5778,10 @@ export class GameState {
     const totalBiz = Object.values(this.producers).reduce((a, b) => a + (b ?? 0), 0)
     const cost = insuranceDailyCost(this.insurance, totalBiz, this.ipoCount, this.incomePerDay())
     if (cost > 0 && this.money >= cost) {
-      this.money -= cost
-      this.emit({ type: 'money_changed' })
+      // Defter üzerinden: çıplak `money -= cost` hiçbir iz bırakmıyordu ve
+      // sigorta HER oyun günü kesildiği için oyuncu parasının nereye gittiğini
+      // göremiyordu.
+      this.debitMoney(cost, { source: 'expense', metadata: { kind: 'insurance' } })
     }
   }
 
