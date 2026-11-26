@@ -58,7 +58,7 @@ export class OnboardingOverlay {
     const btn = document.createElement('button')
     btn.type = 'button'
     btn.className = 'onboarding-back-btn'
-    btn.textContent = `← ${i18n.t('ref_back')}`
+    btn.textContent = i18n.t('ref_back')
     btn.addEventListener('click', onClick)
     return btn
   }
@@ -74,7 +74,20 @@ export class OnboardingOverlay {
       row.appendChild(spacer)
     }
     row.appendChild(this.mkProgress(step))
-    return row
+    const wrap = document.createElement('div')
+    wrap.className = 'ob-top-wrap'
+    const bar = document.createElement('div')
+    bar.className = 'ob-progress-bar'
+    bar.setAttribute('role', 'progressbar')
+    bar.setAttribute('aria-valuemin', '1')
+    bar.setAttribute('aria-valuemax', '8')
+    bar.setAttribute('aria-valuenow', String(step))
+    const fill = document.createElement('span')
+    fill.className = 'ob-progress-fill'
+    fill.style.width = `${(step / 8) * 100}%`
+    bar.appendChild(fill)
+    wrap.append(row, bar)
+    return wrap
   }
 
   private renderLangStep(): void {
@@ -112,7 +125,7 @@ export class OnboardingOverlay {
     const next = document.createElement('button')
     next.type = 'button'
     next.className = 'onboarding-next-btn'
-    next.textContent = '→'
+    next.textContent = `${i18n.t('ob_next')} →`
     next.setAttribute('aria-label', i18n.t('ob_next'))
     next.addEventListener('click', () => this.renderCountryStep())
 
@@ -156,7 +169,7 @@ export class OnboardingOverlay {
     const next = document.createElement('button')
     next.type = 'button'
     next.className = 'onboarding-next-btn'
-    next.textContent = '→'
+    next.textContent = `${i18n.t('ob_next')} →`
     next.setAttribute('aria-label', i18n.t('ob_next'))
     next.addEventListener('click', () => this.renderNameGenderStep())
 
@@ -210,7 +223,7 @@ export class OnboardingOverlay {
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = `ob-gender-btn${this.selectedGender === g.id ? ' active' : ''}`
-      btn.innerHTML = `<span style="font-size:22px">${g.emoji}</span>${i18n.t(g.labelKey)}`
+      btn.innerHTML = `<span class="ob-gender-emoji">${g.emoji}</span>${i18n.t(g.labelKey)}`
       btn.addEventListener('click', () => {
         this.selectedGender = g.id
         genderRow.querySelectorAll('.ob-gender-btn').forEach((b) => b.classList.remove('active'))
@@ -223,7 +236,7 @@ export class OnboardingOverlay {
     const next = document.createElement('button')
     next.type = 'button'
     next.className = 'onboarding-next-btn'
-    next.textContent = '→'
+    next.textContent = `${i18n.t('ob_next')} →`
     next.setAttribute('aria-label', i18n.t('ob_next'))
     next.addEventListener('click', () => this.renderBackgroundStep())
 
@@ -482,7 +495,7 @@ export class OnboardingOverlay {
       })
     } else {
       next.className = 'onboarding-next-btn'
-      next.textContent = '→'
+      next.textContent = `${i18n.t('ob_next')} →`
       next.setAttribute('aria-label', i18n.t('ob_next'))
       next.addEventListener('click', opts.onNext)
     }
