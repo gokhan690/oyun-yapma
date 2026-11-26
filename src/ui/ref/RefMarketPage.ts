@@ -161,14 +161,14 @@ export class RefMarketPage implements RefPage {
     const fear = Math.round(s.stock.marketFear)
     const optimism = Math.max(0, Math.min(100, 100 - fear))
     const dir = s.stock.trendDirection
-    const pulseColor = optimism >= 60 ? '#28C76F' : optimism >= 40 ? '#FFB02E' : '#EA5455'
+    const pulseTone = optimism >= 60 ? 'up' : optimism >= 40 ? 'mid' : 'down'
     const pulseLbl = optimism >= 60 ? i18n.t('ref_market_sentiment_optimistic') : optimism >= 40 ? i18n.t('ref_market_sentiment_neutral') : i18n.t('ref_market_sentiment_fearful')
     const arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '◆'
     return `
       <div class="ref-pulse-item">
         <span class="ref-pulse-lbl">${i18n.t('ref_market_pulse_title')}</span>
-        <span class="ref-pulse-val" style="color:${pulseColor}">
-          <span class="ref-pulse-dot" style="background:${pulseColor}"></span>${arrow} ${pulseLbl}
+        <span class="ref-pulse-val ${pulseTone}">
+          <span class="ref-pulse-dot ${pulseTone}"></span>${arrow} ${pulseLbl}
         </span>
         <span class="ref-pulse-sub">${fmt('ref_market_pulse_fear_fmt', { label: fearLabel(s.stock.marketFear), value: String(fear) })}</span>
       </div>
@@ -233,13 +233,22 @@ export class RefMarketPage implements RefPage {
   }
 
   private bankSig(s: GameState): string {
-    return `${Math.round(s.bank.deposit)}|${Math.round(s.bank.bonds)}|${Math.round(s.bank.loan)}|${Math.round(s.bank.creditScore)}|${Math.round(s.maxAvailableLoan())}`
+    return `${Math.round(s.bank.deposit)}|${Math.round(s.bank.bonds)}|${Math.round(s.bank.loan)}|${Math.round(s.bank.creditScore)}|${Math.round(s.maxAvailableLoan())}|${Math.floor(s.money)}`
   }
 
   private bankHtml(s: GameState): string {
     const loan = Math.round(s.bank.loan)
     const deposit = Math.round(s.bank.deposit)
     const maxLoanAvail = Math.round(s.maxAvailableLoan())
+    // Tutarlar tıklama işleyicisiyle aynı formüller: butonda görünen == işlenen.
+    const depositAmt = Math.floor(s.money * 0.25)
+    const withdrawAmt = deposit
+    const repayAmt = Math.min(loan, Math.floor(s.money))
+    const loanAmt = Math.floor(maxLoanAvail / 2)
+    const sub = (v: number) => `<small class="ref-bank-btn__amt">${fmtMoney(v)}</small>`
+    const loanOff = loanAmt < 1_000
+    const whyLoan = loanOff ? ` title="${i18n.t('ref_market_toast_no_credit')}"` : ''
+    const whyRepay = loan > 0 && repayAmt <= 0 ? ` title="${i18n.t('ref_market_toast_no_repay_cash')}"` : ''
     return `
       <div class="ref-fin-grid">
         ${this.finCell('💰', i18n.t('ref_market_deposit_label'), fmtMoney(deposit))}
@@ -248,10 +257,10 @@ export class RefMarketPage implements RefPage {
         ${this.finCell('⭐', i18n.t('ref_market_credit_score_label'), String(Math.round(s.bank.creditScore)))}
       </div>
       <div class="ref-bank-actions">
-        <button class="ref-bank-btn deposit" type="button" data-bank="deposit">${i18n.t('ref_market_deposit_action_btn')}</button>
-        <button class="ref-bank-btn withdraw" type="button" data-bank="withdraw" ${deposit <= 0 ? 'disabled' : ''}>${i18n.t('ref_market_withdraw_action_btn')}</button>
-        <button class="ref-bank-btn loan" type="button" data-bank="loan_take" data-loan-amount="${Math.floor(maxLoanAvail / 2)}" ${Math.floor(maxLoanAvail / 2) < 1_000 ? 'disabled' : ''}>${fmt('ref_market_loan_take_action_fmt', { cost: fmtMoney(Math.floor(maxLoanAvail / 2)) })}</button>
-        <button class="ref-bank-btn repay" type="button" data-bank="loan_repay" ${loan <= 0 ? 'disabled' : ''}>${i18n.t('ref_market_loan_repay_action_btn')}</button>
+        <button class="ref-bank-btn deposit" type="button" data-bank="deposit"><span>${i18n.t('ref_market_deposit_action_btn')}</span>${sub(depositAmt)}</button>
+        <button class="ref-bank-btn withdraw" type="button" data-bank="withdraw" ${deposit <= 0 ? 'disabled' : ''}><span>${i18n.t('ref_market_withdraw_action_btn')}</span>${sub(withdrawAmt)}</button>
+        <button class="ref-bank-btn loan" type="button" data-bank="loan_take" data-loan-amount="${loanAmt}"${whyLoan} ${loanOff ? 'disabled' : ''}><span>${fmt('ref_market_loan_take_action_fmt', { cost: fmtMoney(loanAmt) })}</span></button>
+        <button class="ref-bank-btn repay" type="button" data-bank="loan_repay"${whyRepay} ${loan <= 0 ? 'disabled' : ''}><span>${i18n.t('ref_market_loan_repay_action_btn')}</span>${repayAmt > 0 ? sub(repayAmt) : ''}</button>
       </div>`
   }
 
@@ -598,7 +607,7 @@ export class RefMarketPage implements RefPage {
       </div>
       <div class="ref-trade-qtyrow">${qtyBtns}</div>
       <div class="ref-trade-preview">${previewRows}</div>
-      <button class="ref-trade-confirm ${buyMode ? 'buy' : 'sell'}" type="button" data-trade-confirm ${confirmDisabled ? 'disabled' : ''}>${confirmLabel}</button>`
+      <button class="ref-trade-confirm ${buyMode ? 'buy' : 'sell'}" type="button" data-trade-confirm ${confirmDisabled ? `disabled${buyMode ? ` title="${i18n.t('ref_market_insufficient_cash')}"` : ''}` : ''}>${confirmLabel}</button>`
   }
 
   private tradeRow(label: string, value: string, mod = ''): string {
