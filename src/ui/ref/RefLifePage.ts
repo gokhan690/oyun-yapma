@@ -39,6 +39,13 @@ function traitLabel(id: string): string {
   return `${TRAIT_EMOJI[id]} ${i18n.t(key)}`
 }
 
+/** Erişilebilirlik ölçeri: bakiye / maliyet. Yetmiyorsa oyuncu eksiği bir bakışta görür. */
+function affordMeter(have: number, cost: number): string {
+  if (cost <= 0 || have >= cost) return ''
+  const pct = Math.max(2, Math.min(99, Math.round((have / cost) * 100)))
+  return `<div class="life-afford" aria-hidden="true"><i style="width:${pct}%"></i></div>`
+}
+
 /**
  * YAŞAM sayfası — 5 alt sekme:
  *  👨‍👩‍👧 Hanedan: eş + çocuklar + miras (eski Aile sayfası içeriği)
@@ -126,7 +133,7 @@ export class RefLifePage implements RefPage {
     const veh = ls.ownedVehicles.map(v => `${v.id}:${v.isRenting ? 1 : 0}`).join(',')
     const rooms = (ls.homeRooms ?? []).join(',')
     const afford = [...RESIDENCES, ...VEHICLES].map(d => s.money >= d.buyCost ? 1 : 0).join('')
-    return `${res}|${veh}|${rooms}|${afford}`
+    return `${res}|${veh}|${rooms}|${afford}|${Math.round(Math.log10(Math.max(1, s.money)) * 10)}`
   }
 
   // Yaşam Tarzı = seyahat + hobi + wellbeing + evcil.
@@ -136,7 +143,7 @@ export class RefLifePage implements RefPage {
     const wb = WELLBEING_ACTIVITIES.map(w => s.money >= w.cost ? 1 : 0).join('')
     const pets = (s.lifestyle.ownedPets ?? []).map(p => `${p.id}:${p.adoptedDay}`).join(',')
     const petAfford = PETS.map(p => s.money >= p.buyCost ? 1 : 0).join('')
-    return `${t.lastDestinationId ?? '-'}|${t.travelBonusUntilDay}|${t.totalTrips}|${s.hobby.hobbyId ?? '-'}|${afford}|${wb}|${pets}|${petAfford}|${gameDay(s.gameTimeMs)}`
+    return `${t.lastDestinationId ?? '-'}|${t.travelBonusUntilDay}|${t.totalTrips}|${s.hobby.hobbyId ?? '-'}|${afford}|${wb}|${pets}|${petAfford}|${gameDay(s.gameTimeMs)}|${Math.round(Math.log10(Math.max(1, s.money)) * 10)}`
   }
 
   refresh(state: GameState): void {
@@ -351,12 +358,13 @@ export class RefLifePage implements RefPage {
       const owned = !!entry
       const canBuy = s.money >= def.buyCost
       return `
-        <div class="ref-life-item-row ${owned ? 'owned' : ''}">
+        <div class="ref-life-item-row ${owned ? 'owned' : canBuy ? 'can' : 'short'}">
           <span class="ref-life-item-row__ico">${def.emoji}</span>
           <div class="ref-life-item-row__main">
-            <div class="ref-life-item-row__name">${residenceName(def)}${owned ? ` <span class="ref-life-owned-tag">${i18n.t('ref_life_owned_badge')}</span>` : ''}</div>
+            <div class="ref-life-item-row__name">${residenceName(def)}${owned ? ` <span class="ref-life-owned-tag">✓ ${i18n.t('ref_life_owned_badge')}</span>` : ''}</div>
             <div class="ref-life-item-row__desc">${residenceDesc(def)}</div>
-            <div class="ref-life-item-row__meta">😊 +${def.happinessBonus} · ⭐ +${def.reputationBonus} · 😌 -${def.stressReduction} ${i18n.t('ref_life_stress_unit')}</div>
+            <div class="ref-life-item-row__meta">😊 +${def.happinessBonus} · ⭐ +${def.reputationBonus} · 😌 -${def.stressReduction} ${i18n.t('ref_life_stress_unit')}${def.monthlyRent > 0 ? ` · 🔑 ${fmtMoney(def.monthlyRent)}${i18n.t('ref_life_monthly_unit')}` : ''}</div>
+            ${owned ? '' : affordMeter(s.money, def.buyCost)}
           </div>
           <div class="ref-life-item-row__actions">
             ${owned
@@ -364,7 +372,7 @@ export class RefLifePage implements RefPage {
                  <button class="ref-world-btn sm danger" type="button" data-action="sell_res:${def.id}">${i18n.t('ref_life_sell_action')}</button>`
               : canBuy
                 ? `<button class="ref-world-btn sm" type="button" data-action="buy_res:${def.id}">${i18n.t('ref_life_buy_button_prefix')} · ${fmtMoney(def.buyCost)}</button>`
-                : `<button type="button" class="ref-world-btn sm" disabled>${i18n.t('ref_life_buy_button_prefix')} · ${fmtMoney(def.buyCost)}</button>`}
+                : `<button type="button" class="ref-world-btn sm" disabled title="${fmtMoney(def.buyCost)}">🔒 ${fmtMoney(def.buyCost)}</button>`}
           </div>
         </div>`
     }).join('')
@@ -378,13 +386,13 @@ export class RefLifePage implements RefPage {
       const owned = hasHomeRoom(ls, room.id)
       const canBuy = s.money >= room.cost
       return `
-        <div class="ref-life-room-card ${owned ? 'owned' : ''}">
+        <div class="ref-life-room-card ${owned ? 'owned' : canBuy ? 'can' : 'short'}">
           <span class="ref-life-room-card__ico">${room.emoji}</span>
           <div class="ref-life-room-card__name">${homeRoomName(room)}</div>
           <div class="ref-life-room-card__desc">${homeRoomBonus(room)}</div>
           ${owned
-            ? '<span class="ref-life-owned-tag">✓</span>'
-            : `<button class="ref-world-btn sm" type="button" data-action="buy_room:${room.id}" ${canBuy ? '' : 'disabled'}>${fmtMoney(room.cost)}</button>`}
+            ? `<span class="ref-life-owned-tag">✓ ${i18n.t('ref_life_owned_badge')}</span>`
+            : `${affordMeter(s.money, room.cost)}<button class="ref-world-btn sm" type="button" data-action="buy_room:${room.id}" ${canBuy ? '' : 'disabled'} title="${fmtMoney(room.cost)}">${canBuy ? '' : '🔒 '}${fmtMoney(room.cost)}</button>`}
         </div>`
     }).join('')
     wrap.appendChild(roomGrid)
@@ -398,12 +406,13 @@ export class RefLifePage implements RefPage {
       const owned = !!entry
       const canBuy = s.money >= def.buyCost
       return `
-        <div class="ref-life-item-row ${owned ? 'owned' : ''}">
+        <div class="ref-life-item-row ${owned ? 'owned' : canBuy ? 'can' : 'short'}">
           <span class="ref-life-item-row__ico">${def.emoji}</span>
           <div class="ref-life-item-row__main">
-            <div class="ref-life-item-row__name">${vehicleName(def)}${owned ? ` <span class="ref-life-owned-tag">${i18n.t('ref_life_owned_badge')}</span>` : ''}</div>
+            <div class="ref-life-item-row__name">${vehicleName(def)}${owned ? ` <span class="ref-life-owned-tag">✓ ${i18n.t('ref_life_owned_badge')}</span>` : ''}</div>
             <div class="ref-life-item-row__desc">${vehicleDesc(def)}</div>
             <div class="ref-life-item-row__meta">⭐ +${def.reputationBonus} · ${i18n.t('ref_life_income_multiplier_label')} ×${def.incomeMult} · ${i18n.t('ref_life_maintenance_label')} ${fmtMoney(def.monthlyUpkeep)}${i18n.t('ref_life_monthly_unit')}</div>
+            ${owned ? '' : affordMeter(s.money, def.buyCost)}
           </div>
           <div class="ref-life-item-row__actions">
             ${owned
@@ -411,7 +420,7 @@ export class RefLifePage implements RefPage {
                  <button class="ref-world-btn sm danger" type="button" data-action="sell_veh:${def.id}">${i18n.t('ref_life_sell_action')}</button>`
               : canBuy
                 ? `<button class="ref-world-btn sm" type="button" data-action="buy_veh:${def.id}">${i18n.t('ref_life_buy_button_prefix')} · ${fmtMoney(def.buyCost)}</button>`
-                : `<button type="button" class="ref-world-btn sm" disabled>${i18n.t('ref_life_buy_button_prefix')} · ${fmtMoney(def.buyCost)}</button>`}
+                : `<button type="button" class="ref-world-btn sm" disabled title="${fmtMoney(def.buyCost)}">🔒 ${fmtMoney(def.buyCost)}</button>`}
           </div>
         </div>`
     }).join('')
@@ -447,12 +456,13 @@ export class RefLifePage implements RefPage {
       const unlocked = s.totalEarned >= dest.unlockAt
       const canGo = unlocked && s.money >= dest.cost
       return `
-        <div class="ref-life-item-row ${unlocked ? '' : 'locked'}">
+        <div class="ref-life-item-row ${!unlocked ? 'locked' : canGo ? 'can' : 'short'}">
           <span class="ref-life-item-row__ico">${dest.emoji}</span>
           <div class="ref-life-item-row__main">
             <div class="ref-life-item-row__name">${travelName(dest)}</div>
             <div class="ref-life-item-row__desc">${travelDesc(dest)}</div>
             <div class="ref-life-item-row__meta">😌 -${dest.stressReduction} ${i18n.t('ref_life_stress_unit')} · ${dest.durationDays} ${i18n.t('ref_life_days_unit')} · 🎁 ${travelBonus(dest)}</div>
+            ${unlocked ? affordMeter(s.money, dest.cost) : affordMeter(s.totalEarned, dest.unlockAt)}
           </div>
           <div class="ref-life-item-row__actions">
             ${!unlocked
@@ -473,7 +483,7 @@ export class RefLifePage implements RefPage {
     hobbyGrid.innerHTML = HOBBIES.map(h => {
       const active = s.hobby.hobbyId === h.id
       return `
-        <div class="ref-life-room-card ${active ? 'owned' : ''}">
+        <div class="ref-life-room-card ${active ? 'owned' : 'can'}">
           <span class="ref-life-room-card__ico">${h.emoji}</span>
           <div class="ref-life-room-card__name">${hobbyName(h)}</div>
           <div class="ref-life-room-card__desc">${hobbyBonus(h)} · ${fmtMoney(h.monthlyCost)}${i18n.t('ref_life_monthly_unit')}</div>
@@ -491,12 +501,13 @@ export class RefLifePage implements RefPage {
     wbList.innerHTML = WELLBEING_ACTIVITIES.map(w => {
       const canBuy = s.money >= w.cost
       return `
-        <div class="ref-life-item-row">
+        <div class="ref-life-item-row ${canBuy ? 'can' : 'short'}">
           <span class="ref-life-item-row__ico">${w.emoji}</span>
           <div class="ref-life-item-row__main">
             <div class="ref-life-item-row__name">${wellbeingName(w)}</div>
             <div class="ref-life-item-row__desc">${wellbeingDesc(w)}</div>
             <div class="ref-life-item-row__meta">😌 -${w.stressReduction} ${i18n.t('ref_life_stress_unit')}${w.durationDays ? ` · ${w.durationDays} ${i18n.t('ref_life_days_unit')}` : ''}</div>
+            ${affordMeter(s.money, w.cost)}
           </div>
           <div class="ref-life-item-row__actions">
             ${canBuy
@@ -555,10 +566,11 @@ export class RefLifePage implements RefPage {
     catalog.innerHTML = PETS.map(p => {
       const canBuy = s.money >= p.buyCost
       return `
-        <div class="ref-life-room-card">
+        <div class="ref-life-room-card ${canBuy ? 'can' : 'short'}">
           <span class="ref-life-room-card__ico">${p.emoji}</span>
           <div class="ref-life-room-card__name">${petName(p)}</div>
           <div class="ref-life-room-card__desc">😌 -${p.dailyStressReduction} ${i18n.t('ref_life_stress_per_day_unit')} · ${i18n.t('ref_life_maintenance_label')} ${fmtMoney(p.monthlyUpkeep)}${i18n.t('ref_life_monthly_unit')}</div>
+          ${canBuy ? '' : affordMeter(s.money, p.buyCost)}
           ${canBuy
             ? `<button class="ref-world-btn sm" type="button" data-action="buy_pet:${p.id}">${i18n.t('ref_life_buy_button_prefix')} · ${fmtMoney(p.buyCost)}</button>`
             : `<button class="ref-world-btn sm" type="button" disabled>🔒 ${fmtMoney(p.buyCost)}</button>`}

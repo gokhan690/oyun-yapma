@@ -1,1 +1,384 @@
 /* life — sayfaya özel stiller. Tasarım token sözleşmesi: ref-ui.css :root (--r-*). Token dışı sabit renk KULLANMA. */
+
+/* ── Bölüm başlıkları: gökyüzü üstünde → lacivert, açık-zemin hiyerarşisi ── */
+.ref-life-page .ref-sec-title {
+  padding: var(--r-sp-5) var(--r-page-x) var(--r-sp-2);
+  font-size: var(--r-fs-xl);
+  font-weight: 800;
+  color: var(--r-on-sky);
+}
+.ref-life-page .ref-sec-action {
+  font-size: var(--r-fs-sm);
+  font-weight: 800;
+  color: var(--r-on-sky-muted);
+}
+
+/* ── Alt sekmeler: sığar, kaydırma gerektirmez; aktif = dolu accent ── */
+.ref-life-page .ref-subtabs {
+  display: flex;
+  overflow: visible;
+  margin: var(--r-sp-3) var(--r-page-x) var(--r-sp-2);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg);
+  background: var(--r-card-soft);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+.ref-life-page .ref-subtabs::after { content: none; }
+.ref-life-page .ref-subtabs .ref-main-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 52px;
+  flex-direction: column;
+  gap: var(--r-sp-1);
+  padding: var(--r-sp-2) var(--r-sp-1);
+  font-size: var(--r-fs-xs);
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+  background: transparent;
+  color: var(--r-text2);
+  border-right: 1px solid var(--r-border-lt);
+  transition: background var(--r-dur) var(--r-ease), color var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease);
+}
+.ref-life-page .ref-subtabs .ref-main-tab:last-of-type { border-right: none; }
+.ref-life-page .ref-subtabs .ref-main-tab:active { filter: var(--r-pressed); }
+.ref-life-page .ref-subtabs .ref-main-tab:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-life-page .ref-subtabs .ref-main-tab.active {
+  background: var(--r-accent);
+  color: var(--r-on-dark);
+  box-shadow: none;
+}
+
+/* ── Hanedan başlık kartı ── */
+.ref-life-page .ref-dynasty-head {
+  margin: var(--r-sp-2) var(--r-page-x) 0;
+  padding: var(--r-card-pad);
+  gap: var(--r-sp-3);
+  background: var(--r-card);
+  border: 1px solid var(--r-border-gold);
+  border-radius: var(--r-lg);
+  box-shadow: var(--r-elev-2), var(--r-card-inset);
+}
+.ref-life-page .ref-dynasty-info { flex: 1; min-width: 0; }
+.ref-life-page .ref-dynasty-name {
+  font-size: var(--r-fs-xl);
+  font-weight: 800;
+  color: var(--r-text);
+  line-height: 1.15;
+}
+.ref-life-page .ref-dynasty-sub {
+  font-size: var(--r-fs-sm);
+  font-weight: 700;
+  color: var(--r-muted);
+  margin: var(--r-sp-1) 0;
+}
+.ref-life-page .ref-dynasty-stars .on { color: var(--r-gold-dk); }
+.ref-life-page .ref-dynasty-stars .off { color: var(--r-border); }
+.ref-life-page .ref-dynasty-score {
+  min-width: 64px;
+  padding: var(--r-sp-2) var(--r-sp-3);
+  border-radius: var(--r-md);
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+}
+.ref-life-page .ref-dynasty-score__n {
+  font-size: var(--r-fs-2xl);
+  font-weight: 800;
+  line-height: 1;
+}
+.ref-life-page .ref-dynasty-score__l {
+  font-size: var(--r-fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+  margin-top: var(--r-sp-1);
+}
+
+/* ── Ortak kart yüzeyi ── */
+.ref-life-page .ref-spouse-card,
+.ref-life-page .ref-member-row,
+.ref-life-page .ref-legacy-row,
+.ref-life-page .ref-sibling-row,
+.ref-life-page .ref-pet-row,
+.ref-life-page .ref-life-item-row,
+.ref-life-page .ref-life-room-card {
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+  padding: var(--r-card-pad);
+  gap: var(--r-sp-3);
+  transition: border-color var(--r-dur) var(--r-ease), opacity var(--r-dur) var(--r-ease);
+}
+.ref-life-page .ref-spouse-card { margin: var(--r-sp-2) var(--r-page-x) 0; }
+.ref-life-page .ref-spouse-card.single {
+  opacity: 1;
+  background: var(--r-surface);
+  border-style: dashed;
+  border-color: var(--r-border);
+}
+.ref-life-page .ref-spouse-name,
+.ref-life-page .ref-member-name,
+.ref-life-page .ref-sibling-name,
+.ref-life-page .ref-pet-name,
+.ref-life-page .ref-legacy-name {
+  font-size: var(--r-fs-lg);
+  font-weight: 800;
+  color: var(--r-text);
+}
+.ref-life-page .ref-spouse-meta,
+.ref-life-page .ref-member-role,
+.ref-life-page .ref-sibling-meta,
+.ref-life-page .ref-pet-meta,
+.ref-life-page .ref-legacy-desc {
+  font-size: var(--r-fs-sm);
+  font-weight: 600;
+  color: var(--r-muted);
+}
+.ref-life-page .ref-spouse-sat,
+.ref-life-page .ref-child-edu {
+  font-size: var(--r-fs-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+}
+.ref-life-page .ref-spouse-tag {
+  font-size: var(--r-fs-xs);
+  color: var(--r-on-dark);
+  background: var(--r-accent);
+  padding: 1px var(--r-sp-2);
+}
+.ref-life-page .ref-heir-tag {
+  font-size: var(--r-fs-xs);
+  color: var(--r-gold-dk);
+  background: var(--r-gold-lt);
+  border: 1px solid var(--r-border-gold);
+  padding: 1px var(--r-sp-2);
+}
+.ref-life-page .ref-member-list,
+.ref-life-page .ref-legacy-list,
+.ref-life-page .ref-sibling-list,
+.ref-life-page .ref-pet-list,
+.ref-life-page .ref-life-cat-list {
+  padding: var(--r-sp-1) var(--r-page-x) 0;
+  gap: var(--r-sp-3);
+}
+.ref-life-page .ref-member-chip {
+  font-size: var(--r-fs-xs);
+  color: var(--r-text2);
+  background: var(--r-accent-lt);
+  padding: 2px var(--r-sp-2);
+}
+
+/* Miras: aktif = vurgulu, pasif = sönük ama okunur */
+.ref-life-page .ref-legacy-row.off { opacity: 1; background: var(--r-surface); }
+.ref-life-page .ref-legacy-row.off .ref-legacy-ico-emoji { filter: grayscale(0.9); opacity: 0.7; }
+.ref-life-page .ref-legacy-row:not(.off) {
+  border-color: var(--r-success-brd);
+  background: var(--r-success-bg);
+}
+.ref-life-page .ref-legacy-pct {
+  font-size: var(--r-fs-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+}
+.ref-life-page .ref-legacy-row:not(.off) .ref-legacy-pct { color: var(--r-teal-dk); }
+.ref-life-page .ref-sibling-row.deceased { opacity: var(--r-disabled-opacity); }
+.ref-life-page .ref-sibling-deceased { font-size: var(--r-fs-xs); color: var(--r-muted); }
+
+/* Boş durum */
+.ref-life-page .ref-life-empty {
+  margin: 0 var(--r-page-x);
+  padding: var(--r-card-pad);
+  gap: var(--r-sp-3);
+  background: var(--r-card-soft);
+  border: 1px dashed var(--r-border);
+  border-radius: var(--r-lg);
+}
+.ref-life-page .ref-life-empty__title { font-size: var(--r-fs-lg); font-weight: 800; }
+.ref-life-page .ref-life-empty__desc { font-size: var(--r-fs-md); color: var(--r-muted); }
+
+/* İpucu şeridi (boş mülk / evcil) — gökyüzü üstünde: on-sky */
+.ref-life-page .ref-life-tab-hint {
+  margin: var(--r-sp-3) var(--r-page-x) 0;
+  padding: var(--r-sp-3) var(--r-card-pad);
+  font-size: var(--r-fs-md);
+  font-weight: 700;
+  color: var(--r-text2);
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+  text-align: left;
+}
+.ref-life-page .ref-life-travel-banner {
+  margin: var(--r-sp-3) var(--r-page-x) 0;
+  padding: var(--r-sp-3) var(--r-card-pad);
+  font-size: var(--r-fs-md);
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--r-text);
+  background: var(--r-gold-lt);
+  border: 1px solid var(--r-border-gold);
+  border-radius: var(--r-lg);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+
+/* ── Katalog satırları (konut / araç / seyahat / huzur) ── */
+.ref-life-page .ref-life-item-row { align-items: flex-start; flex-wrap: wrap; }
+.ref-life-page .ref-life-item-row__ico {
+  font-size: var(--r-fs-2xl);
+  width: 40px;
+  line-height: 1.1;
+}
+.ref-life-page .ref-life-item-row__main { flex: 1 1 160px; min-width: 0; }
+.ref-life-page .ref-life-item-row__name {
+  font-size: var(--r-fs-lg);
+  font-weight: 800;
+  color: var(--r-text);
+}
+.ref-life-page .ref-life-item-row__desc {
+  font-size: var(--r-fs-md);
+  font-weight: 600;
+  color: var(--r-text2);
+  margin-top: var(--r-sp-1);
+}
+.ref-life-page .ref-life-item-row__meta {
+  font-size: var(--r-fs-sm);
+  font-weight: 700;
+  color: var(--r-teal-dk);
+  margin-top: var(--r-sp-2);
+  line-height: 1.4;
+}
+.ref-life-page .ref-life-item-row__actions {
+  flex: 1 1 100%;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--r-sp-2);
+}
+.ref-life-page .ref-life-item-row__actions .ref-world-btn { flex: 1 1 0; min-width: 96px; }
+.ref-life-page .ref-world-city-row__reason {
+  flex: 1 1 100%;
+  font-size: var(--r-fs-sm);
+  font-weight: 700;
+  color: var(--r-muted);
+  white-space: normal;
+  text-align: right;
+}
+
+/* Durumlar: sahip / alınabilir / yetmiyor / kilitli — birbirinden net ayrışır */
+.ref-life-page .ref-life-item-row.owned,
+.ref-life-page .ref-life-room-card.owned {
+  border: 1px solid var(--r-success-brd);
+  border-left: 4px solid var(--r-success);
+  background: var(--r-success-bg);
+}
+.ref-life-page .ref-life-item-row.can,
+.ref-life-page .ref-life-room-card.can { border-color: var(--r-accent); }
+.ref-life-page .ref-life-item-row.short,
+.ref-life-page .ref-life-room-card.short { background: var(--r-surface); }
+.ref-life-page .ref-life-item-row.short .ref-life-item-row__ico,
+.ref-life-page .ref-life-room-card.short .ref-life-room-card__ico { filter: grayscale(0.6); opacity: 0.75; }
+.ref-life-page .ref-life-item-row.locked {
+  opacity: 1;
+  background: var(--r-surface);
+  border-style: dashed;
+  border-color: var(--r-border);
+}
+.ref-life-page .ref-life-item-row.locked .ref-life-item-row__ico { filter: grayscale(1); opacity: 0.6; }
+
+.ref-life-page .ref-life-owned-tag {
+  font-size: var(--r-fs-xs);
+  font-weight: 800;
+  letter-spacing: var(--r-ls-label);
+  text-transform: uppercase;
+  color: var(--r-on-dark);
+  background: var(--r-success);
+  padding: 2px var(--r-sp-2);
+  vertical-align: middle;
+}
+
+/* Eksik tutar ölçeri */
+.ref-life-page .life-afford {
+  height: 5px;
+  margin-top: var(--r-sp-2);
+  border-radius: var(--r-pill);
+  background: var(--r-border-lt);
+  overflow: hidden;
+  width: 100%;
+}
+.ref-life-page .life-afford > i {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--r-orange);
+}
+
+/* ── Oda / hobi / evcil ızgarası ── */
+.ref-life-page .ref-life-room-grid {
+  gap: var(--r-sp-3);
+  padding: var(--r-sp-1) var(--r-page-x) 0;
+}
+.ref-life-page .ref-life-room-card {
+  padding: var(--r-card-pad) var(--r-sp-3);
+  gap: var(--r-sp-2);
+  justify-content: flex-start;
+}
+.ref-life-page .ref-life-room-card__ico { font-size: var(--r-fs-2xl); line-height: 1; }
+.ref-life-page .ref-life-room-card__name {
+  font-size: var(--r-fs-md);
+  font-weight: 800;
+  color: var(--r-text);
+}
+.ref-life-page .ref-life-room-card__desc {
+  font-size: var(--r-fs-sm);
+  font-weight: 600;
+  color: var(--r-muted);
+  line-height: 1.35;
+  flex: 1;
+}
+.ref-life-page .ref-life-room-card .life-afford { margin-top: 0; }
+.ref-life-page .ref-life-room-card .ref-world-btn { width: 100%; }
+
+/* ── Butonlar: dolu, dokunulabilir, durumlu ── */
+.ref-life-page .ref-world-btn,
+.ref-life-page .ref-sibling-visit-btn {
+  min-height: 40px;
+  padding: var(--r-sp-2) var(--r-sp-4);
+  font-size: var(--r-fs-md);
+  font-weight: 800;
+  color: var(--r-on-dark);
+  background: var(--r-accent);
+  border: 1px solid var(--r-accent-dk);
+  border-radius: var(--r-pill);
+  box-shadow: var(--r-elev-1);
+  cursor: pointer;
+  transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+.ref-life-page .ref-world-btn.sm { font-size: var(--r-fs-md); padding: var(--r-sp-2) var(--r-sp-4); }
+.ref-life-page .ref-world-btn.warn { background: var(--r-gold-dk); border-color: var(--r-gold-dk); }
+.ref-life-page .ref-world-btn.danger {
+  background: var(--r-surface);
+  color: var(--r-danger);
+  border-color: var(--r-danger-brd);
+}
+.ref-life-page .ref-world-btn:active:not(:disabled),
+.ref-life-page .ref-sibling-visit-btn:active { filter: var(--r-pressed); transform: translateY(1px); opacity: 1; }
+.ref-life-page .ref-world-btn:focus-visible,
+.ref-life-page .ref-sibling-visit-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-life-page .ref-world-btn:disabled,
+.ref-life-page .ref-world-btn[disabled] {
+  opacity: var(--r-disabled-opacity);
+  cursor: not-allowed;
+  color: var(--r-text2);
+  background: var(--r-card);
+  border-color: var(--r-border);
+  box-shadow: none;
+}
+.ref-life-page .ref-sibling-visit-btn { align-self: center; }
