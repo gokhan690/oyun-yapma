@@ -10,6 +10,16 @@ import { ACHIEVEMENTS } from '../../game/Achievements'
 import { reputationLabel } from '../../game/Reputation'
 import { i18n } from '../../i18n'
 
+/** Başarım ilerleme yüzdesi (0-100). */
+function achPct(done: number): number {
+  return ACHIEVEMENTS.length > 0 ? Math.round((done / ACHIEVEMENTS.length) * 100) : 0
+}
+
+/** İtibar halkası yüzdesi (0-100). */
+function ringPct(rep: number): number {
+  return Math.max(0, Math.min(100, Math.round(rep)))
+}
+
 export class RefProfilePage implements RefPage {
   readonly el: HTMLElement
   get title() { return i18n.t('ref_profile_title') }
@@ -33,6 +43,8 @@ export class RefProfilePage implements RefPage {
   private vm?: RefViewModel
   private careerSectionEl?: HTMLElement
   private achHintEl?: HTMLElement
+  private achBarEl?: HTMLElement
+  private ringEl!: HTMLElement
   private lastCareerSig = ''
 
   constructor(vm?: RefViewModel, state?: GameState) {
@@ -69,10 +81,13 @@ export class RefProfilePage implements RefPage {
     achBtn.className = 'ref-profile-ach-btn'
     achBtn.type = 'button'
     const doneInit = state ? ACHIEVEMENTS.filter(a => state.achievements.has(a.id)).length : 0
-    achBtn.innerHTML = `<span class="ref-profile-ach-btn__txt">${i18n.t('ref_profile_achievements')}</span><span class="ref-profile-ach-badge" data-ref="achcount">${doneInit}/${ACHIEVEMENTS.length}</span>`
+    achBtn.innerHTML = `<span class="ref-profile-ach-btn__body"><span class="ref-profile-ach-btn__txt">${i18n.t('ref_profile_achievements')}</span><span class="ref-profile-ach-bar"><span class="ref-profile-ach-bar__fill" data-ref="achbar" style="width:${achPct(doneInit)}%"></span></span></span><span class="ref-profile-ach-badge" data-ref="achcount">${doneInit}/${ACHIEVEMENTS.length}</span><span class="ref-profile-ach-btn__chev" aria-hidden="true">›</span>`
     achBtn.addEventListener('click', () => this.onOpenAchievements?.())
     this.el.appendChild(achBtn)
-    if (state) this.achHintEl = achBtn.querySelector('[data-ref="achcount"]') as HTMLElement
+    if (state) {
+      this.achHintEl = achBtn.querySelector('[data-ref="achcount"]') as HTMLElement
+      this.achBarEl = achBtn.querySelector('[data-ref="achbar"]') as HTMLElement
+    }
 
     // ── Settings button ──
     const settingsBtn = document.createElement('button')
@@ -90,8 +105,8 @@ export class RefProfilePage implements RefPage {
     const avatarSrc = vm?.player.avatarAsset ?? REF_ASSETS_V2_GENERIC.avatars.mainBusinessman
     hero.innerHTML = `
       <div class="ref-profile-avatar-wrap">
+        <div class="ref-profile-avatar-ring" data-ref="ring" style="--ring-pct:${ringPct(vm?.dashboard.reputation ?? 0)}"></div>
         <img src="${ua(avatarSrc)}" alt="" class="ref-profile-avatar">
-        <div class="ref-profile-avatar-ring"></div>
       </div>
       <div class="ref-profile-hero-info">
         <div class="ref-profile-name" data-ref="name">${vm?.player.name ?? 'Mert Karahan'}</div>
@@ -104,6 +119,7 @@ export class RefProfilePage implements RefPage {
       </div>
     `
 
+    this.ringEl = hero.querySelector('[data-ref="ring"]')!
     this.nameEl = hero.querySelector('[data-ref="name"]')!
     this.titleEl = hero.querySelector('[data-ref="title"]')!
     this.ageEl = hero.querySelector('[data-ref="age"]')!
@@ -267,6 +283,8 @@ export class RefProfilePage implements RefPage {
     if (this.achHintEl) {
       const done = ACHIEVEMENTS.filter(a => state.achievements.has(a.id)).length
       this.achHintEl.textContent = `${done}/${ACHIEVEMENTS.length}`
+      if (this.achBarEl) this.achBarEl.style.width = `${achPct(done)}%`
     }
+    this.ringEl.style.setProperty('--ring-pct', String(ringPct(state.reputation)))
   }
 }

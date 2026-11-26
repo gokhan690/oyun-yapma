@@ -1,1 +1,193 @@
 /* profile — sayfaya özel stiller. Tasarım token sözleşmesi: ref-ui.css :root (--r-*). Token dışı sabit renk KULLANMA. */
+
+.ref-profile-page {
+  display: flex; flex-direction: column;
+  padding-bottom: var(--r-sp-6);
+}
+.ref-profile-page > * { flex-shrink: 0; }
+
+/* ── Geri butonu ── */
+.ref-profile-page .ref-back-btn {
+  min-height: 40px;
+  transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease);
+}
+.ref-profile-page .ref-back-btn:active { transform: none; filter: var(--r-pressed); }
+.ref-profile-page .ref-back-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+
+/* ── Hero ── */
+.ref-profile-hero {
+  position: relative;
+  display: flex; align-items: center; gap: var(--r-sp-4);
+  margin: var(--r-sp-3) var(--r-page-x) var(--r-sp-3);
+  padding: var(--r-sp-5) var(--r-card-pad);
+  border-radius: var(--r-lg);
+  background: linear-gradient(135deg, var(--r-card), var(--r-card-soft));
+  border: 1px solid var(--r-border-lt);
+  box-shadow: var(--r-elev-2), var(--r-card-inset);
+  overflow: hidden;
+}
+.ref-profile-hero::before {
+  content: ''; position: absolute; right: calc(-1 * var(--r-sp-8)); top: calc(-1 * var(--r-sp-8));
+  width: 120px; height: 120px; border-radius: 50%;
+  background: radial-gradient(circle, var(--r-teal-lt), transparent 70%);
+  pointer-events: none;
+}
+.ref-profile-avatar-wrap {
+  position: relative; flex-shrink: 0;
+  width: 92px; height: 92px;
+  display: grid; place-items: center;
+}
+.ref-profile-avatar-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(var(--r-gold) calc(var(--ring-pct, 0) * 1%), var(--r-border-lt) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), var(--r-text) calc(100% - 4px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 5px), var(--r-text) calc(100% - 4px));
+  pointer-events: none;
+}
+.ref-profile-avatar {
+  width: 76px; height: 76px; border-radius: 50%; object-fit: cover; display: block;
+  border: 3px solid var(--r-surface);
+  box-shadow: var(--r-elev-1);
+  background: var(--r-teal-lt);
+}
+.ref-profile-hero-info { position: relative; flex: 1; min-width: 0; }
+.ref-profile-name {
+  font-size: var(--r-fs-xl); font-weight: 800; color: var(--r-text);
+  line-height: 1.15; overflow-wrap: anywhere;
+}
+.ref-profile-hero-rank-label {
+  font-size: var(--r-fs-xs); font-weight: 800; color: var(--r-muted);
+  text-transform: uppercase; letter-spacing: var(--r-ls-label);
+  margin: var(--r-sp-2) 0 0;
+}
+.ref-profile-title {
+  font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-accent-dk);
+  text-transform: uppercase; letter-spacing: var(--r-ls-label);
+  margin: 2px 0 var(--r-sp-2); overflow-wrap: anywhere;
+}
+.ref-profile-meta { display: flex; gap: var(--r-sp-2); flex-wrap: wrap; margin: 0; }
+.ref-profile-meta-chip {
+  font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-text2);
+  background: var(--r-surface); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-pill); padding: var(--r-sp-1) var(--r-sp-3);
+  box-shadow: var(--r-card-inset);
+}
+
+/* ── KPI ızgarası (paylaşılan RefKpiStrip, yalnız bu sayfada) ── */
+.ref-profile-page .ref-kpi-strip {
+  padding: 0 var(--r-page-x); margin-bottom: var(--r-sp-3);
+  gap: var(--r-sp-3);
+}
+.ref-profile-page .ref-kpi-card {
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+  padding: var(--r-card-pad);
+  gap: var(--r-sp-1);
+  min-height: 112px;
+}
+.ref-profile-page .ref-kpi-icon { font-size: var(--r-fs-xl); margin-bottom: var(--r-sp-1); }
+.ref-profile-page .ref-kpi-label {
+  font-size: var(--r-fs-xs); font-weight: 800; letter-spacing: var(--r-ls-label); color: var(--r-muted);
+}
+.ref-profile-page .ref-kpi-value {
+  font-size: var(--r-fs-2xl); font-weight: 800; color: var(--r-text);
+  line-height: 1.1; overflow-wrap: anywhere;
+}
+.ref-profile-page .ref-kpi-sub { font-size: var(--r-fs-sm); font-weight: 700; line-height: 1.25; }
+
+/* ── Bölüm kartları (durum, kariyer) ── */
+.ref-profile-info-section {
+  margin: 0 var(--r-page-x) var(--r-sp-3);
+  padding: var(--r-card-pad);
+  border-radius: var(--r-lg);
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+.ref-profile-info-title {
+  font-size: var(--r-fs-xs); font-weight: 800; text-transform: uppercase;
+  letter-spacing: var(--r-ls-label); color: var(--r-muted);
+  margin-bottom: var(--r-sp-3);
+}
+.ref-profile-stat-row {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--r-sp-3);
+  font-size: var(--r-fs-md); font-weight: 700; color: var(--r-text2);
+  min-height: 28px; margin-bottom: var(--r-sp-1);
+}
+.ref-profile-stat-lbl { color: var(--r-text2); min-width: 0; }
+.ref-profile-stat-val {
+  font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text);
+  font-variant-numeric: tabular-nums; text-align: right;
+}
+.ref-profile-karma {
+  margin-top: var(--r-sp-3); padding-top: var(--r-sp-3);
+  border-top: 1px solid var(--r-border-lt); margin-bottom: 0;
+}
+.ref-profile-karma .ref-profile-stat-val { font-size: var(--r-fs-xl); }
+.ref-profile-info-section .ref-perf-track {
+  height: 8px; background: var(--r-border-lt); margin: 0 0 var(--r-sp-3);
+}
+.ref-profile-info-section .ref-perf-fill { transition: width var(--r-dur) var(--r-ease); }
+.ref-profile-career-section { margin-top: 0; }
+.ref-profile-career-section .ref-perf-track { margin: var(--r-sp-1) 0 var(--r-sp-2); }
+.ref-profile-career-hint {
+  font-size: var(--r-fs-sm); font-weight: 600; color: var(--r-muted);
+  margin-top: var(--r-sp-1); padding-bottom: 2px; line-height: 1.4;
+}
+
+/* ── Başarımlar butonu ── */
+.ref-profile-ach-btn {
+  display: flex; align-items: center; gap: var(--r-sp-3);
+  width: calc(100% - 2 * var(--r-page-x)); margin: var(--r-sp-1) var(--r-page-x) var(--r-sp-3);
+  min-height: 56px; padding: var(--r-sp-3) var(--r-card-pad);
+  border-radius: var(--r-lg);
+  background: linear-gradient(135deg, var(--r-gold-lt), var(--r-gold));
+  color: var(--r-text); border: 1px solid var(--r-gold-brd);
+  font-family: inherit; font-size: var(--r-fs-lg); font-weight: 800;
+  cursor: pointer; text-align: left;
+  box-shadow: var(--r-shadow-gold), var(--r-card-inset);
+  transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease);
+}
+.ref-profile-ach-btn:active { filter: var(--r-pressed); }
+.ref-profile-ach-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-profile-ach-btn[disabled] { opacity: var(--r-disabled-opacity); cursor: not-allowed; }
+.ref-profile-ach-btn__ico { font-size: var(--r-fs-2xl); line-height: 1; }
+.ref-profile-ach-btn__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--r-sp-2); }
+.ref-profile-ach-btn__txt { color: var(--r-text); line-height: 1.2; }
+.ref-profile-ach-bar {
+  display: block; height: 6px; border-radius: var(--r-pill);
+  background: var(--r-gold-brd); overflow: hidden;
+}
+.ref-profile-ach-bar__fill {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: var(--r-gold-dk); transition: width var(--r-dur) var(--r-ease);
+}
+.ref-profile-ach-badge {
+  flex: 0 0 auto; font-size: var(--r-fs-md); font-weight: 800;
+  background: var(--r-surface); color: var(--r-text);
+  padding: var(--r-sp-1) var(--r-sp-3); border-radius: var(--r-pill);
+  font-variant-numeric: tabular-nums; box-shadow: var(--r-elev-1);
+}
+.ref-profile-ach-btn__chev { font-size: var(--r-fs-2xl); line-height: 1; color: var(--r-text2); }
+
+/* ── Ayarlar butonu ── */
+.ref-profile-settings-btn {
+  display: flex; align-items: center; justify-content: center; gap: var(--r-sp-2);
+  width: calc(100% - 2 * var(--r-page-x)); margin: 0 var(--r-page-x);
+  min-height: 48px; padding: var(--r-sp-3);
+  border: 1px solid var(--r-border); border-radius: var(--r-lg);
+  background: var(--r-surface); color: var(--r-text);
+  font-family: inherit; font-size: var(--r-fs-md); font-weight: 800; cursor: pointer;
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+  transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease);
+}
+.ref-profile-settings-btn:active { background: var(--r-surface); filter: var(--r-pressed); }
+.ref-profile-settings-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-profile-settings-btn[disabled] { opacity: var(--r-disabled-opacity); cursor: not-allowed; }
+
+@media (max-width: 360px) {
+  .ref-profile-hero { flex-direction: column; text-align: center; }
+  .ref-profile-meta { justify-content: center; }
+}
