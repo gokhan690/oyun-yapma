@@ -258,7 +258,7 @@ export class RefAchievementsPage implements RefPage {
     this.contentEl.innerHTML = `
       <div class="ref-ach-cat-hint">${i18n.t('ref_ach_next_goals_hint')}</div>
       <div class="ref-trow-list">${locked.map(a => `
-        <div class="ref-trow ref-ach-clickable" data-ach="${a.id}">
+        <div class="ref-trow ref-trow--goal ref-ach-clickable" data-ach="${a.id}" role="button" tabindex="0">
           <span class="ref-trow__ico">${a.emoji}</span>
           <div class="ref-trow__main">
             <div class="ref-trow__head"><span class="ref-trow__name">${achievementName(a)}</span><span class="ref-tstatus locked">${i18n.t('ref_ach_goal_badge')}</span></div>
@@ -295,12 +295,13 @@ export class RefAchievementsPage implements RefPage {
       <div class="ref-ach-grid">${sorted.map(a => {
         const isDone = done.has(a.id)
         return `
-          <div class="ref-ach-card ${isDone ? 'done' : 'locked'} ref-ach-clickable" data-ach="${a.id}">
+          <div class="ref-ach-card ${isDone ? 'done' : 'locked'} ref-ach-clickable" data-ach="${a.id}" role="button" tabindex="0">
             <img src="${ua(isDone ? cupForReward(a.reward) : A.cupLocked)}" alt="" class="ref-ach-cup">
             <div class="ref-ach-emoji-badge">${a.emoji}</div>
             <div class="ref-ach-name">${achievementName(a)}</div>
             <div class="ref-ach-desc">${achievementDesc(a)}</div>
             <div class="ref-ach-flag ${isDone ? 'done' : 'locked'}">${isDone ? fmt('ref_ach_flag_open_fmt', { reward: fmtMoney(a.reward) }) : i18n.t('ref_ach_flag_locked')}</div>
+            ${isDone ? '' : `<div class="ref-ach-reward">🎁 ${fmtMoney(a.reward)}</div>`}
           </div>`
       }).join('')}</div>`
 
@@ -329,27 +330,31 @@ export class RefAchievementsPage implements RefPage {
       <div class="ref-badge-grid">${sorted.map((bd: BadgeDef) => {
         const on = earned.has(bd.id)
         return `
-          <div class="ref-badge-tile ${on ? '' : 'off'} ref-ach-clickable" data-badge="${bd.id}">
+          <div class="ref-badge-tile ${on ? '' : 'off'} ref-ach-clickable" data-badge="${bd.id}" role="button" tabindex="0">
             <img src="${ua(on ? A.badgeCompleted : A.badgeLocked)}" alt="" class="ref-badge-img">
             <span class="ref-badge-emoji">${bd.emoji}</span>
             <span class="ref-badge-lbl">${badgeName(bd)}</span>
           </div>`
       }).join('')}</div>`
     this.contentEl.querySelectorAll<HTMLElement>('[data-badge]').forEach(tile => {
-      tile.addEventListener('click', () => {
+      const open = (): void => {
         const bd = BADGES.find(b => b.id === tile.dataset.badge)
         if (bd) this.showBadgeDetail(bd, earned.has(bd.id))
-      })
+      }
+      tile.addEventListener('click', open)
+      tile.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() } })
     })
   }
 
   /* ── Detay paneli ── */
   private wireAchClicks(): void {
     this.contentEl.querySelectorAll<HTMLElement>('[data-ach]').forEach(card => {
-      card.addEventListener('click', () => {
+      const open = (): void => {
         const def = ACHIEVEMENTS.find(a => a.id === card.dataset.ach)
         if (def) this.showAchDetail(def)
-      })
+      }
+      card.addEventListener('click', open)
+      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() } })
     })
   }
 
@@ -362,11 +367,11 @@ export class RefAchievementsPage implements RefPage {
           <div class="ref-ach-detail__name">${achievementName(def)}</div>
           <div class="ref-ach-detail__cat">${catLabel(def.id)}</div>
         </div>
-        <button class="ref-ach-detail__close" type="button">✕</button>
+        <button class="ref-ach-detail__close" type="button" aria-label="close">✕</button>
       </div>
       <div class="ref-ach-detail__desc">${achievementDesc(def)}</div>
       <div class="ref-ach-detail__rows">
-        <div class="ref-ach-detail__row"><span>${i18n.t('ref_ach_detail_reward_label')}</span><b>${fmtMoney(def.reward)}</b></div>
+        <div class="ref-ach-detail__row ref-ach-detail__row--reward"><span>${i18n.t('ref_ach_detail_reward_label')}</span><b>${fmtMoney(def.reward)}</b></div>
         <div class="ref-ach-detail__row"><span>${i18n.t('ref_ach_detail_status_label')}</span><b class="${isDone ? 'ok' : 'lock'}">${isDone ? i18n.t('ref_ach_detail_status_open') : i18n.t('ref_ach_detail_status_locked')}</b></div>
       </div>`, isDone)
   }
@@ -379,7 +384,7 @@ export class RefAchievementsPage implements RefPage {
           <div class="ref-ach-detail__name">${badgeName(bd)}</div>
           <div class="ref-ach-detail__cat">${i18n.t('ref_ach_badge_detail_cat')}</div>
         </div>
-        <button class="ref-ach-detail__close" type="button">✕</button>
+        <button class="ref-ach-detail__close" type="button" aria-label="close">✕</button>
       </div>
       <div class="ref-ach-detail__desc">${badgeDesc(bd)}</div>
       <div class="ref-ach-detail__rows">
