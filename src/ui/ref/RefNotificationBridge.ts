@@ -15,6 +15,7 @@ import {
   type EventPacingMeta,
 } from '../../game/EventPacing'
 import { fmtMoney, refToast } from './refShared'
+import './pages/decision.css'
 import { i18n, fmt } from '../../i18n'
 import { achievementName } from '../../game/Achievements'
 import { diseaseDef, diseaseName } from '../../game/Diseases'
@@ -527,7 +528,7 @@ export class RefNotificationBridge {
   private renderUndoBanner(ev: Extract<GameEvent, { type: 'undo_available' }>, key: string): void {
     this.clearUndoBanner()
     const banner = document.createElement('div')
-    banner.className = 'ref-rival-offer-banner'
+    banner.className = 'ref-rival-offer-banner ref-undo-banner'
     banner.style.position = 'fixed'
     banner.style.left = '50%'
     banner.style.bottom = 'calc(78px + env(safe-area-inset-bottom))'
@@ -585,7 +586,8 @@ export class RefNotificationBridge {
   }
   private render(spec: DecisionSpec, key: string): void {
     const overlay = document.createElement('div')
-    overlay.className = 'ref-decision-overlay'
+    overlay.className = 'ref-decision-overlay is-locked'
+    overlay.style.setProperty('--r-lock-ms', `${DECISION_INPUT_LOCK_MS}ms`)
     this.decisionBusy = false
     this.decisionInputLockedUntilMs = this.now() + DECISION_INPUT_LOCK_MS
     overlay.innerHTML = `
@@ -655,6 +657,7 @@ export class RefNotificationBridge {
     this.decisionUnlockTimer = setTimeout(() => {
       this.decisionUnlockTimer = null
       if (!this.overlay || this.decisionBusy) return
+      this.overlay.classList.remove('is-locked')
       this.setDecisionOptionsDisabled(false)
     }, DECISION_INPUT_LOCK_MS)
   }
