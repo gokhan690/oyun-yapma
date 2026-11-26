@@ -29,6 +29,10 @@ export type MoneySource =
   | 'bankruptcy_liquidation'
   | 'ipo_seed'
   | 'expense'
+  | 'achievement_reward'
+  | 'life_event'
+  | 'fame_income'
+  | 'asset_sell'
   | 'misc'
 
 export interface MoneyTransaction {

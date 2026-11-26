@@ -1485,6 +1485,10 @@ export const ar: Translations = {
   ledger_src_ipo_seed: 'رأس مال الاكتتاب',
   ledger_src_expense: 'مصروف',
   ledger_src_misc: 'أخرى',
+  ledger_src_achievement_reward: 'مكافأة إنجاز',
+  ledger_src_life_event: 'حدث حياتي',
+  ledger_src_fame_income: 'دخل الشهرة',
+  ledger_src_asset_sell: 'بيع أصل',
   // TUR14 — Günlük settlement kırılımı + gün değişim bildirimi
   settle_firms: 'الشركات',
   settle_dynasty: 'السلالة',
@@ -2995,4 +2999,11 @@ export const ar: Translations = {
   ref_goal_pick_job_meta: 'اختر وظيفة من تبويب المهنة',
   ref_career_treat_button: 'علاج',
   ref_career_routine_title_fmt: 'الراحة اليومية · متبقٍ {left}/{max}',
+  ref_career_health_score_label: 'نقاط الصحة',
+  ref_career_stress_therapy_title: 'علاج التوتر',
+  stress_lvl_low: 'منخفض',
+  stress_lvl_mid: 'متوسط',
+  stress_lvl_high: 'مرتفع',
+  stress_lvl_critical: 'حرج',
+  stress_lvl_burnout: 'إنهاك',
 }

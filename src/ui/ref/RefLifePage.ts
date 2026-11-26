@@ -10,7 +10,7 @@ import { VISIT_SIBLING_COST } from '../../game/Siblings'
 import {
   RESIDENCES, VEHICLES, PETS, WELLBEING_ACTIVITIES, HOME_ROOMS,
   lifestyleMonthlyExpense, lifestyleRentalIncome, lifestyleReputationBonus,
-  stressLabel, hasHomeRoom,
+  stressLabelKey, hasHomeRoom,
   residenceName, residenceDesc, vehicleName, vehicleDesc,
   homeRoomName, homeRoomBonus, wellbeingName, wellbeingDesc, petName,
   type ResidenceId, type VehicleId, type PetId, type WellbeingActivityId, type HomeRoomId,
@@ -105,7 +105,7 @@ export class RefLifePage implements RefPage {
     const rental = Math.round(lifestyleRentalIncome(s.lifestyle))
     const repBonus = lifestyleReputationBonus(s.lifestyle)
     return [
-      { icon: '😰', label: i18n.t('ref_life_stress_label'), value: `${stress}%`, sub: stressLabel(stress), subDir: stress >= 50 ? 'down' : 'muted' },
+      { icon: '😰', label: i18n.t('ref_life_stress_label'), value: `${stress}%`, sub: i18n.t(stressLabelKey(stress)), subDir: stress >= 50 ? 'down' : 'muted' },
       { icon: '💳', label: i18n.t('ref_life_expense'), value: fmtMoney(expense), sub: i18n.t('ref_life_monthly_label'), subDir: 'muted' },
       { icon: '🏠', label: i18n.t('ref_life_rental_income_label'), value: rental > 0 ? fmtMoney(rental) : '—', sub: i18n.t('ref_life_monthly_label'), subDir: rental > 0 ? 'up' : 'muted' },
       { icon: '⭐', label: i18n.t('ref_life_rep_bonus'), value: `+${repBonus}`, sub: i18n.t('ref_life_lifestyle_sub'), subDir: 'muted' },

@@ -1719,6 +1719,10 @@ export interface Translations {
   ledger_src_ipo_seed: string
   ledger_src_expense: string
   ledger_src_misc: string
+  ledger_src_achievement_reward: string
+  ledger_src_life_event: string
+  ledger_src_fame_income: string
+  ledger_src_asset_sell: string
 
   // TUR14 — Günlük settlement kırılımı + gün değişim bildirimi
   settle_firms: string
@@ -3343,4 +3347,11 @@ export interface Translations {
   notif_daily_reward_full_body: string
   notif_passive_income_full_body: string
   notif_goal_near_full_body: string
+  ref_career_health_score_label: string
+  ref_career_stress_therapy_title: string
+  stress_lvl_low: string
+  stress_lvl_mid: string
+  stress_lvl_high: string
+  stress_lvl_critical: string
+  stress_lvl_burnout: string
 }

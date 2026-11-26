@@ -1491,6 +1491,10 @@ export const ru: Translations = {
   ledger_src_ipo_seed: 'Капитал IPO',
   ledger_src_expense: 'Расход',
   ledger_src_misc: 'Прочее',
+  ledger_src_achievement_reward: 'Награда за достижение',
+  ledger_src_life_event: 'Жизненное событие',
+  ledger_src_fame_income: 'Доход от славы',
+  ledger_src_asset_sell: 'Продажа актива',
   // TUR14 — Günlük settlement kırılımı + gün değişim bildirimi
   settle_firms: 'Бизнесы',
   settle_dynasty: 'Династия',
@@ -2987,4 +2991,11 @@ export const ru: Translations = {
   ref_goal_pick_job_meta: 'Выберите работу на вкладке «Карьера»',
   ref_career_treat_button: 'Лечить',
   ref_career_routine_title_fmt: 'Дневной отдых · осталось {left}/{max}',
+  ref_career_health_score_label: 'Показатель здоровья',
+  ref_career_stress_therapy_title: 'Терапия стресса',
+  stress_lvl_low: 'Низкий',
+  stress_lvl_mid: 'Умеренный',
+  stress_lvl_high: 'Высокий',
+  stress_lvl_critical: 'Критический',
+  stress_lvl_burnout: 'Выгорание',
 }

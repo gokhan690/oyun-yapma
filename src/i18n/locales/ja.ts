@@ -1491,6 +1491,10 @@ export const ja: Translations = {
   ledger_src_ipo_seed: 'IPO初期資金',
   ledger_src_expense: '支出',
   ledger_src_misc: 'その他',
+  ledger_src_achievement_reward: '実績報酬',
+  ledger_src_life_event: 'ライフイベント',
+  ledger_src_fame_income: '名声収入',
+  ledger_src_asset_sell: '資産売却',
   // TUR14 — Günlük settlement kırılımı + gün değişim bildirimi
   settle_firms: '事業',
   settle_dynasty: '王朝',
@@ -2988,4 +2992,11 @@ export const ja: Translations = {
   ref_goal_pick_job_meta: '「キャリア」タブから仕事を選ぶ',
   ref_career_treat_button: '治療',
   ref_career_routine_title_fmt: 'デイリー休息 · 残り{left}/{max}',
+  ref_career_health_score_label: '健康スコア',
+  ref_career_stress_therapy_title: 'ストレス治療',
+  stress_lvl_low: '低い',
+  stress_lvl_mid: '普通',
+  stress_lvl_high: '高い',
+  stress_lvl_critical: '危険',
+  stress_lvl_burnout: '燃え尽き',
 }

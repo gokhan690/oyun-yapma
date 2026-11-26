@@ -2580,6 +2580,13 @@ export class GameState {
     this.recordMoneyTx(amount, 'credit', opts.source, earned > 0, opts.metadata)
   }
 
+  /** Yaşam olayı / karar sonucu para farkı: + ise kazanç değil transfer olarak
+   *  kredi, - ise gider olarak borç; her iki yön de deftere yazılır. */
+  private applyEventMoneyDelta(delta: number, kind: string): void {
+    if (delta > 0) this.creditMoney(delta, { source: 'life_event', countsAsEarned: false, metadata: { kind } })
+    else if (delta < 0) this.debitMoney(-delta, { source: 'life_event', metadata: { kind } })
+  }
+
   /** AÇIK para çıkışı API'si — totalEarned'e dokunmaz, hareket olarak kaydeder. */
   debitMoney(amount: number, opts: { source: MoneySource; metadata?: Record<string, string | number> }): void {
     if (amount <= 0) return
@@ -2626,7 +2633,7 @@ export class GameState {
     if (this.dailyGoalClaimed || this.dailyGoalEarned < target) return 0
     this.dailyGoalClaimed = true
     const reward = this.dailyGoalRewardPreview()
-    this.addMoney(reward)
+    this.creditMoney(reward, { source: 'reward', countsAsEarned: true, metadata: { kind: 'daily_goal' } })
     this.emit({ type: 'daily_goal_updated', earned: this.dailyGoalEarned, target })
     return reward
   }
@@ -3214,7 +3221,7 @@ export class GameState {
       this.season.claimedTiers.push(tier)
     }
     if (reward.type === 'money') {
-      this.addMoney(reward.value)
+      this.creditMoney(reward.value, { source: 'reward', countsAsEarned: true, metadata: { kind: 'season', tier } })
     } else if (reward.type === 'boost') {
       this.grantPendingBoost('income_2x', reward.value * 60_000, 'Sezon bonusu', '🎖️')
     } else if (reward.type === 'theme') {
@@ -3283,7 +3290,7 @@ export class GameState {
     if (!hasClaimableCampaignStep(this, this.campaign)) return null
     const step = currentCampaignStep(this.campaign)!
     const chapter = chapterById(this.campaign.chapterId)!
-    if (step.rewardMoney > 0) this.addMoney(step.rewardMoney)
+    if (step.rewardMoney > 0) this.creditMoney(step.rewardMoney, { source: 'reward', countsAsEarned: true, metadata: { kind: 'campaign' } })
     if (step.rewardBoostMinutes > 0) {
       this.grantPendingBoost('income_2x', step.rewardBoostMinutes * 60_000, 'Kampanya ödülü', '📜')
     }
@@ -3974,7 +3981,7 @@ export class GameState {
     this.weekly.claimed = true
     if (doubleWithAd) this.weekly.adDoubled = true
     const reward = this.weeklyRewardPreview() * (doubleWithAd ? 2 : 1)
-    this.addMoney(reward)
+    this.creditMoney(reward, { source: 'reward', countsAsEarned: true, metadata: { kind: 'weekly' } })
     return reward
   }
 
@@ -4947,9 +4954,8 @@ export class GameState {
     }
     const income = fameDailyIncome(this.fameState)
     if (income > 0) {
-      this.money += income
       this.fameState.totalEarned += income
-      this.emit({ type: 'money_changed' })
+      this.creditMoney(income, { source: 'fame_income', countsAsEarned: false })
     }
   }
 
@@ -4960,10 +4966,7 @@ export class GameState {
     const died = tickSiblingYear(this.siblings)
     if (died) {
       const inheritance = siblingInheritance(died)
-      if (inheritance > 0) {
-        this.money += inheritance
-        this.emit({ type: 'money_changed' })
-      }
+      if (inheritance > 0) this.creditMoney(inheritance, { source: 'inheritance', countsAsEarned: false, metadata: { kind: 'sibling' } })
       this.emit({ type: 'sibling_died', siblingName: died.name, inheritance })
     }
   }
@@ -5249,10 +5252,7 @@ export class GameState {
     const pending = this.pendingConsequences.filter((c) => c.triggerGameDay <= day)
     for (const pc of pending) {
       const result = resolveConsequence(pc.consequenceId, pc.eventId)
-      if (result.moneyDelta !== 0) {
-        this.money += result.moneyDelta
-        this.emit({ type: 'money_changed' })
-      }
+      this.applyEventMoneyDelta(result.moneyDelta, 'consequence')
       if (result.reputationDelta !== 0) {
         const repDelta = result.reputationDelta < 0 && torpilMediaProtect(this.torpil)
           ? Math.ceil(result.reputationDelta * 0.5)
@@ -5288,10 +5288,7 @@ export class GameState {
     this.scoreAlignment(eventId, choiceId)
     this.playerSkills.lifeEventsResolved++
     this.checkSkillUnlocks()
-    if (choice.moneyDelta !== 0) {
-      this.money += choice.moneyDelta
-      this.emit({ type: 'money_changed' })
-    }
+    this.applyEventMoneyDelta(choice.moneyDelta, 'choice')
     if (choice.reputationDelta !== 0) {
       const repDelta = choice.reputationDelta < 0 && torpilMediaProtect(this.torpil)
         ? Math.ceil(choice.reputationDelta * 0.5)
@@ -5330,10 +5327,7 @@ export class GameState {
     const moneyDelta = won ? risk.winMoneyDelta : risk.lossMoneyDelta
     const repDelta = won ? risk.winReputationDelta : risk.lossReputationDelta
     const headline = won ? risk.winHeadline : risk.lossHeadline
-    if (moneyDelta !== 0) {
-      this.money += moneyDelta
-      this.emit({ type: 'money_changed' })
-    }
+    this.applyEventMoneyDelta(moneyDelta, won ? 'risk_win' : 'risk_loss')
     if (repDelta !== 0) {
       this.reputation = Math.max(0, Math.min(100, this.reputation + repDelta))
     }
@@ -5476,8 +5470,7 @@ export class GameState {
         this.dailyReadBonusUntilDay = gameDay(this.gameTimeMs) + 1
         break
       case 'network':
-        this.money += Math.floor(this.incomePerDay() * 0.5)
-        this.emit({ type: 'money_changed' })
+        this.creditMoney(Math.floor(this.incomePerDay() * 0.5), { source: 'reward', countsAsEarned: false, metadata: { kind: 'network' } })
         break
       case 'family':
         if (this.dynasty.spouseId) {
@@ -5658,7 +5651,7 @@ export class GameState {
         removed++
       }
     }
-    if (gained > 0) { this.money += gained; this.emit({ type: 'money_changed' }) }
+    if (gained > 0) this.creditMoney(gained, { source: 'asset_sell', countsAsEarned: false, metadata: { kind: 'residence', id } })
     if (!this.lifestyle.ownedResidences.some((e) => e.id === this.lifestyle.residence)) {
       this.lifestyle.residence = 'kira'
     }
@@ -5723,7 +5716,7 @@ export class GameState {
         removed++
       }
     }
-    if (gained > 0) { this.money += gained; this.emit({ type: 'money_changed' }) }
+    if (gained > 0) this.creditMoney(gained, { source: 'asset_sell', countsAsEarned: false, metadata: { kind: 'vehicle', id } })
     if (!this.lifestyle.ownedVehicles.some((e) => e.id === this.lifestyle.vehicle)) {
       this.lifestyle.vehicle = 'yuruyus'
     }
@@ -6611,7 +6604,7 @@ export class GameState {
       const newOnes = checkNewAchievements(ctx)
       for (const a of newOnes) {
         this.achievements.add(a.id)
-        this.money += a.reward
+        this.creditMoney(a.reward, { source: 'achievement_reward', countsAsEarned: false, metadata: { id: a.id } })
         this.emit({ type: 'achievement', def: a })
       }
     } finally {
@@ -7024,7 +7017,7 @@ export class GameState {
     const def = TASK_DEFS.find(d => d.id === taskId)
     if (!def || (plan.progress[taskId] ?? 0) < def.target) return false
     plan.claimed.push(taskId)
-    this.addMoney(def.reward, false)
+    this.creditMoney(def.reward, { source: 'reward', countsAsEarned: true, metadata: { kind: 'daily_task', id: taskId } })
     this.emit({ type: 'daily_plan_updated' })
     return true
   }

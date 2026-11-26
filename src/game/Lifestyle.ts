@@ -505,6 +505,15 @@ export function stressIncomePenalty(stress: number, burnoutDays: number): number
   return 1
 }
 
+/** Stres seviyesi i18n anahtarı (RefApp için; metin i18n.t ile çözülür). */
+export function stressLabelKey(stress: number): 'stress_lvl_low' | 'stress_lvl_mid' | 'stress_lvl_high' | 'stress_lvl_critical' | 'stress_lvl_burnout' {
+  if (stress >= 90) return 'stress_lvl_burnout'
+  if (stress >= 70) return 'stress_lvl_critical'
+  if (stress >= 50) return 'stress_lvl_high'
+  if (stress >= 30) return 'stress_lvl_mid'
+  return 'stress_lvl_low'
+}
+
 export function stressLabel(stress: number): string {
   if (stress >= 90) return 'Tükenmişlik'
   if (stress >= 70) return 'Kritik'

@@ -1491,6 +1491,10 @@ export const zh: Translations = {
   ledger_src_ipo_seed: 'IPO 启动资金',
   ledger_src_expense: '支出',
   ledger_src_misc: '其他',
+  ledger_src_achievement_reward: '成就奖励',
+  ledger_src_life_event: '人生事件',
+  ledger_src_fame_income: '名声收入',
+  ledger_src_asset_sell: '资产出售',
   // TUR14 — Günlük settlement kırılımı + gün değişim bildirimi
   settle_firms: '企业',
   settle_dynasty: '王朝',
@@ -2987,4 +2991,11 @@ export const zh: Translations = {
   ref_goal_pick_job_meta: '在“职业”标签页选择一份工作',
   ref_career_treat_button: '治疗',
   ref_career_routine_title_fmt: '每日休息 · 剩余 {left}/{max}',
+  ref_career_health_score_label: '健康分数',
+  ref_career_stress_therapy_title: '压力治疗',
+  stress_lvl_low: '低',
+  stress_lvl_mid: '中等',
+  stress_lvl_high: '高',
+  stress_lvl_critical: '危急',
+  stress_lvl_burnout: '倦怠',
 }

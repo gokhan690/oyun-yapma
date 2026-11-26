@@ -72,7 +72,7 @@ const FEED_SOURCE_ICON: Record<MoneySource, string> = {
   bank_deposit: '🏦', bank_withdraw: '🏦', loan_received: '💳', loan_repaid: '💳',
   bond_buy: '📜', bond_sell: '📜', reward: '🎁', inheritance: '🪦',
   football_bonus: '⚽', offline_reward: '🌙', bankruptcy_liquidation: '⚠️',
-  ipo_seed: '🚀', expense: '🧾', misc: '💱',
+  ipo_seed: '🚀', expense: '🧾', achievement_reward: '🏆', life_event: '🎲', fame_income: '🌟', asset_sell: '🏷️', misc: '💱',
 }
 
 /** Tek bir para hareketini görsel feed satırına çevirir. */

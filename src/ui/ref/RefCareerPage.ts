@@ -492,7 +492,7 @@ export class RefCareerPage implements RefPage {
         <div class="ref-health-stat">
           <span class="ref-health-stat__ico">${hEmoji}</span>
           <div>
-            <div class="ref-health-stat__lbl">Sağlık Puanı</div>
+            <div class="ref-health-stat__lbl">${i18n.t('ref_career_health_score_label')}</div>
             <div class="ref-perf-track sm"><div class="ref-perf-fill ${hClass}" style="width:${c.health}%"></div></div>
           </div>
           <span class="ref-health-val ref-health-val--${hClass}">${c.health}%</span>
@@ -603,7 +603,7 @@ export class RefCareerPage implements RefPage {
       <div class="ref-career-section-title on-sky">${fmt('ref_career_routine_title_fmt', { left: String(offeredLeft), max: String(ROUTINE_META.length) })}</div>
       <div class="ref-career-pips" aria-hidden="true">${ROUTINE_META.map((r) => `<span class="ref-career-pip${status.used.includes(r.id) ? ' is-used' : ''}"></span>`).join('')}</div>
       <div class="ref-routine-grid">${routineBtns}</div>
-      <div class="ref-career-section-title on-sky">Stres Tedavisi</div>
+      <div class="ref-career-section-title on-sky">${i18n.t('ref_career_stress_therapy_title')}</div>
       <div class="ref-wellbeing-list">${wbRows}</div>`
   }
 

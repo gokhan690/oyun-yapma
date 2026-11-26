@@ -1539,6 +1539,10 @@ export const tr: Translations = {
   ledger_src_ipo_seed: 'Halka arz sermayesi',
   ledger_src_expense: 'Gider',
   ledger_src_misc: 'Diğer',
+  ledger_src_achievement_reward: 'Başarım ödülü',
+  ledger_src_life_event: 'Yaşam olayı',
+  ledger_src_fame_income: 'Şöhret geliri',
+  ledger_src_asset_sell: 'Varlık satışı',
   // TUR14 — Günlük settlement kırılımı + gün değişim bildirimi
   settle_firms: 'Firmalar',
   settle_dynasty: 'Hanedan',
@@ -3034,4 +3038,11 @@ export const tr: Translations = {
   notif_goal_near_full_body: 'Günlük hedefe yaklaşıyorsun — son sprint!',
   ref_career_treat_button: 'Tedavi',
   ref_career_routine_title_fmt: 'Günlük Dinlenme · {left}/{max} hak',
+  ref_career_health_score_label: 'Sağlık Puanı',
+  ref_career_stress_therapy_title: 'Stres Tedavisi',
+  stress_lvl_low: 'Düşük',
+  stress_lvl_mid: 'Orta',
+  stress_lvl_high: 'Yüksek',
+  stress_lvl_critical: 'Kritik',
+  stress_lvl_burnout: 'Tükenmişlik',
 }

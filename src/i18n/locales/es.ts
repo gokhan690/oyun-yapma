@@ -1491,6 +1491,10 @@ export const es: Translations = {
   ledger_src_ipo_seed: 'Capital inicial de OPV',
   ledger_src_expense: 'Gasto',
   ledger_src_misc: 'Otro',
+  ledger_src_achievement_reward: 'Recompensa de logro',
+  ledger_src_life_event: 'Evento de vida',
+  ledger_src_fame_income: 'Ingresos por fama',
+  ledger_src_asset_sell: 'Venta de activo',
   // TUR14 — Günlük settlement kırılımı + gün değişim bildirimi
   settle_firms: 'Empresas',
   settle_dynasty: 'Dinastía',
@@ -2987,4 +2991,11 @@ export const es: Translations = {
   ref_goal_pick_job_meta: 'Elige un trabajo en la pestaña Carrera',
   ref_career_treat_button: 'Tratar',
   ref_career_routine_title_fmt: 'Descanso diario · {left}/{max} restantes',
+  ref_career_health_score_label: 'Puntuación de salud',
+  ref_career_stress_therapy_title: 'Terapia de estrés',
+  stress_lvl_low: 'Bajo',
+  stress_lvl_mid: 'Moderado',
+  stress_lvl_high: 'Alto',
+  stress_lvl_critical: 'Crítico',
+  stress_lvl_burnout: 'Agotamiento',
 }
