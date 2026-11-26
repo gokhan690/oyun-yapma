@@ -142,7 +142,7 @@ export class RefCareerPage implements RefPage {
     const hasJob = !!career?.jobId && !isEntrepreneur
     const isUnemployed = !!this.state && !career?.jobId && !isEntrepreneur
 
-    const rankColor = isEntrepreneur ? '#7c3aed' : hasJob ? '#0369a1' : '#475569'
+    const tone = isEntrepreneur ? 'entre' : hasJob ? 'job' : 'none'
 
     // Ana başlık / alt yazı / sağ-üst badge = oyuncunun GERÇEK durumu (PlayerRank değil).
     let mainTitle: string
@@ -168,12 +168,12 @@ export class RefCareerPage implements RefPage {
     }
 
     const banner = `
-      <div class="ref-job-card__banner" style="background:linear-gradient(135deg,${rankColor}22,${rankColor}08)">
+      <div class="ref-job-card__banner ref-job-card__banner--${tone}">
         <div class="ref-job-card__banner-left">
           <div class="ref-job-card__title">${mainTitle}</div>
           <div class="ref-job-card__company">${mainSub}</div>
         </div>
-        <div class="ref-job-card__lvl-pill" style="background:${rankColor}">${badge}</div>
+        <div class="ref-job-card__lvl-pill ref-job-card__lvl-pill--${tone}">${badge}</div>
       </div>`
 
     // Girişimci modu: maaş/rütbe/XP yerine firma odaklı panel.
@@ -209,13 +209,13 @@ export class RefCareerPage implements RefPage {
       </div>
       <div class="ref-job-bars">
         <div class="ref-job-bar">
-          <div class="ref-job-bar__lbl"><span>📈 ${i18n.t('ref_career_progress_label')}</span><span>${c.xpText}</span></div>
+          <div class="ref-job-bar__lbl"><span>📈 ${i18n.t('ref_career_progress_label')}</span><span class="ref-job-bar__val">${c.xpText} · ${c.xpPct}%</span></div>
           <div class="ref-perf-track"><div class="ref-perf-fill high" style="width:${c.xpPct}%"></div></div>
         </div>
         <div class="ref-job-bar">
           <div class="ref-job-bar__lbl">
             <span>😤 ${i18n.t('ref_career_stress_label')} ${c.stress >= 70 ? '⚠️' : ''}</span>
-            <span>${c.stress}%</span>
+            <span class="ref-job-bar__val">${c.stress}%</span>
           </div>
           <div class="ref-perf-track"><div class="ref-perf-fill ${c.stress >= 70 ? 'low' : c.stress >= 45 ? 'medium' : 'high'}" style="width:${c.stress}%"></div></div>
         </div>
@@ -322,12 +322,13 @@ export class RefCareerPage implements RefPage {
         : earnLine
       return `
         <button class="ref-career-action-btn${used ? ' used' : ''}" type="button"
-                data-career-action="${actId}" ${used ? 'disabled' : ''}>
+                data-career-action="${actId}" title="${meta.desc}" ${used ? 'disabled' : ''}>
           <span class="ref-career-action-btn__ico">${meta.emoji}</span>
           <span class="ref-career-action-btn__main">
             <span class="ref-career-action-btn__label">${meta.label}</span>
             ${sub}
           </span>
+          <span class="ref-career-action-btn__go" aria-hidden="true">${used ? '✓' : '›'}</span>
         </button>`
     }).join('')
     const doneCount = BINDABLE_CAREER_ACTION_IDS.filter((id) => career.actionsUsedToday.includes(id)).length
@@ -335,12 +336,14 @@ export class RefCareerPage implements RefPage {
     const xpLine = career.level >= 10
       ? `<div class="ref-entre-note">📚 ${i18n.t('ref_career_level_label')} ${career.level} · MAX</div>`
       : `<div class="ref-entre-note">📚 ${i18n.t('ref_career_level_label')} ${career.level} · ${career.xp}/${career.xpToNext} XP</div>`
+    const donePct = Math.round((doneCount / totalCount) * 100)
     return `
-      ${jobsHtml}
       <div class="ref-career-section-title">${jobName} · ${i18n.t('ref_career_daily_actions_section')} (${doneCount}/${totalCount})</div>
+      <div class="ref-perf-track sm ref-career-daily-track"><div class="ref-perf-fill ${doneCount >= totalCount ? 'medium' : 'high'}" style="width:${donePct}%"></div></div>
       <div class="ref-career-action-grid">${buttons}</div>
       ${xpLine}
       ${this.buildFirstFirmGoalHtml(s)}
+      ${jobsHtml}
       <button class="ref-career-leave-btn" type="button" data-career-leave>${i18n.t('ref_career_leave_job_button')}</button>`
   }
 
@@ -406,7 +409,7 @@ export class RefCareerPage implements RefPage {
     const pathChip = pathKey ? `<span class="ref-career-job-card__path">→ ${i18n.t(pathKey as Parameters<typeof i18n.t>[0])}</span>` : ''
     return `
       <button class="ref-career-job-card${active ? ' is-active' : ''}${locked ? ' is-locked' : ''}" type="button"
-              data-career-job="${job.id}" ${active || locked ? 'disabled' : ''}>
+              data-career-job="${job.id}" ${locked && !active ? `title="${i18n.t('ref_career_requirements_not_met')}"` : ''} ${active || locked ? 'disabled' : ''}>
         <span class="ref-career-job-card__top">
           <span class="ref-career-job-card__ico">${job.emoji}</span>
           <span class="ref-career-job-card__name">${careerJobName(job)}</span>
@@ -492,7 +495,7 @@ export class RefCareerPage implements RefPage {
             <div class="ref-health-stat__lbl">Sağlık Puanı</div>
             <div class="ref-perf-track sm"><div class="ref-perf-fill ${hClass}" style="width:${c.health}%"></div></div>
           </div>
-          <span class="ref-health-val">${c.health}%</span>
+          <span class="ref-health-val ref-health-val--${hClass}">${c.health}%</span>
         </div>
         <div class="ref-health-stat">
           <span class="ref-health-stat__ico">😤</span>
@@ -500,7 +503,7 @@ export class RefCareerPage implements RefPage {
             <div class="ref-health-stat__lbl">${i18n.t('ref_career_stress_label')}</div>
             <div class="ref-perf-track sm"><div class="ref-perf-fill ${c.stress >= 70 ? 'low' : c.stress >= 45 ? 'medium' : 'high'}" style="width:${c.stress}%"></div></div>
           </div>
-          <span class="ref-health-val">${c.stress}%</span>
+          <span class="ref-health-val ref-health-val--${c.stress >= 70 ? 'low' : c.stress >= 45 ? 'medium' : 'high'}">${c.stress}%</span>
         </div>
       </div>
       <div class="ref-health-tips">
@@ -526,9 +529,12 @@ export class RefCareerPage implements RefPage {
             <div class="ref-disease-name">${d.name}</div>
             <div class="ref-disease-dmg">−${d.dailyDamage} ${i18n.t('ref_career_health_per_day_unit')}</div>
           </div>
-          <button class="ref-disease-treat-btn" type="button" data-disease="${d.id}" ${(this.state?.money ?? 0) >= d.treatCost ? '' : 'disabled'}>
-            ${i18n.t('ref_career_treat_button')} · ${fmtMoney(d.treatCost)}
-          </button>
+          <div class="ref-treat-wrap">
+            <button class="ref-disease-treat-btn" type="button" data-disease="${d.id}" ${(this.state?.money ?? 0) >= d.treatCost ? '' : `disabled title="${i18n.t('ref_career_toast_insufficient_funds')}"`}>
+              ${i18n.t('ref_career_treat_button')} · ${fmtMoney(d.treatCost)}
+            </button>
+            ${(this.state?.money ?? 0) >= d.treatCost ? '' : `<span class="ref-treat-hint">${i18n.t('ref_career_toast_insufficient_funds')}</span>`}
+          </div>
         `
         list.appendChild(row)
       }
@@ -577,23 +583,27 @@ export class RefCareerPage implements RefPage {
       const act = WELLBEING_ACTIVITIES.find((a) => a.id === id)
       if (!act) return ''
       const canBuy = s.money >= act.cost
+      const stressNow = Math.round(s.career.stress)
+      const stressAfter = Math.max(0, stressNow - act.stressReduction)
       return `
         <div class="ref-wellbeing-row">
           <span class="ref-routine-btn__ico">${act.emoji}</span>
           <div class="ref-wellbeing-row__main">
             <div class="ref-wellbeing-row__name">${wellbeingName(act)}</div>
-            <div class="ref-wellbeing-row__effect">😌 -${act.stressReduction} ${i18n.t('ref_career_stress_unit')}</div>
+            <div class="ref-wellbeing-row__effect">😌 -${act.stressReduction} ${i18n.t('ref_career_stress_unit')} <span class="ref-wellbeing-row__after">· ${stressNow}% → ${stressAfter}%</span></div>
+            ${canBuy ? '' : `<div class="ref-treat-hint">${i18n.t('ref_career_toast_insufficient_funds')}</div>`}
           </div>
-          <button class="ref-disease-treat-btn" type="button" data-wellbeing="${id}" ${canBuy ? '' : 'disabled'}>
+          <button class="ref-disease-treat-btn" type="button" data-wellbeing="${id}" ${canBuy ? '' : `disabled title="${i18n.t('ref_career_toast_insufficient_funds')}"`}>
             ${fmtMoney(act.cost)}
           </button>
         </div>`
     }).join('')
 
     return `
-      <div class="ref-career-section-title">${fmt('ref_career_routine_title_fmt', { left: String(offeredLeft), max: String(ROUTINE_META.length) })}</div>
+      <div class="ref-career-section-title on-sky">${fmt('ref_career_routine_title_fmt', { left: String(offeredLeft), max: String(ROUTINE_META.length) })}</div>
+      <div class="ref-career-pips" aria-hidden="true">${ROUTINE_META.map((r) => `<span class="ref-career-pip${status.used.includes(r.id) ? ' is-used' : ''}"></span>`).join('')}</div>
       <div class="ref-routine-grid">${routineBtns}</div>
-      <div class="ref-career-section-title">Stres Tedavisi</div>
+      <div class="ref-career-section-title on-sky">Stres Tedavisi</div>
       <div class="ref-wellbeing-list">${wbRows}</div>`
   }
 
