@@ -1,3 +1,4 @@
+import './pages/dashboard.css'
 import { RefKpiStrip, type KpiItem } from './RefKpiStrip'
 import { sectionTitle, ua, areaChartSvg, donutSvg, fmtMoney } from './refShared'
 import { REF_ASSETS_V2_GENERIC } from './refAssetsV2Generic'
@@ -82,7 +83,8 @@ function feedRowFromTx(tx: MoneyTransaction) {
   return {
     ico: FEED_SOURCE_ICON[tx.source] ?? (tx.direction === 'credit' ? '💰' : '💸'),
     cls: tx.direction === 'credit' ? 'up' : 'down',
-    txt: `${amount} · ${label}`,
+    amt: amount,
+    txt: label,
     time: `${i18n.t('game_day')} ${tx.gameDay}`,
   }
 }
@@ -101,7 +103,7 @@ const RECURRING_SETTLEMENT_SOURCES: ReadonlySet<MoneySource> = new Set([
 function buildFeed(state?: GameState) {
   const txs = state?.moneyTransactions?.filter((t) => !RECURRING_SETTLEMENT_SOURCES.has(t.source))
   if (!txs || txs.length === 0) {
-    return [{ ico: '🏆', cls: 'muted', txt: i18n.t('ref_dash_no_activity'), time: '—' }]
+    return [{ ico: '🏆', cls: 'muted', amt: '', txt: i18n.t('ref_dash_no_activity'), time: '—' }]
   }
   return txs.slice(-8).reverse().map(feedRowFromTx)
 }
@@ -120,6 +122,7 @@ export class RefDashboardPage implements RefPage {
   private kpi!: RefKpiStrip
   private heroValEl?: HTMLElement
   private heroMetaEl?: HTMLElement
+  private heroIncomeEl?: HTMLElement
   private donutTotalEl?: HTMLElement
   private todayIncomeEl?: HTMLElement
   private todayFirmEl?: HTMLElement
@@ -143,15 +146,17 @@ export class RefDashboardPage implements RefPage {
       <div class="ref-dash-hero__lbl">${i18n.t('ref_dash_total_empire_value')}</div>
       <div class="ref-dash-hero__val">${fmtMoney(d.netWorth)}</div>
       <div class="ref-dash-hero__row">
+        <span class="ref-dash-hero__chip ref-dash-hero__chip--income">▲ ${fmtMoney(d.dailyIncome)} ${i18n.t('ref_dash_per_day_unit')}</span>
         <span class="ref-dash-hero__chip up">⭐ ${repInfo}</span>
-        <span class="ref-dash-hero__chip">${fmt('ref_dash_firms_cities_fmt', { firms: String(d.firmCount), cities: String(d.cityCount) })}</span>
+        <span class="ref-dash-hero__chip ref-dash-hero__chip--meta">${fmt('ref_dash_firms_cities_fmt', { firms: String(d.firmCount), cities: String(d.cityCount) })}</span>
       </div>
       <div class="ref-dash-hero__chart">${areaChartSvg(d.netWorthTrend, '#ffffff', 320, 70)}</div>
       <div class="ref-dash-hero__chart-cap">${i18n.t('ref_dash_income_trend')}</div>
     `
     this.el.appendChild(hero)
     this.heroValEl = hero.querySelector<HTMLElement>('.ref-dash-hero__val') ?? undefined
-    this.heroMetaEl = hero.querySelector<HTMLElement>('.ref-dash-hero__chip:not(.up)') ?? undefined
+    this.heroMetaEl = hero.querySelector<HTMLElement>('.ref-dash-hero__chip--meta') ?? undefined
+    this.heroIncomeEl = hero.querySelector<HTMLElement>('.ref-dash-hero__chip--income') ?? undefined
 
     // KPI strip (gerçek değerler — canlı tazelenir)
     this.kpi = new RefKpiStrip(this.kpiItems(d))
@@ -160,7 +165,6 @@ export class RefDashboardPage implements RefPage {
     // Gelir kaynakları (donut tam genişlik, dengeli legend + toplam)
     const donutCard = document.createElement('div')
     donutCard.className = 'ref-card-soft ref-dash-donut'
-    donutCard.style.margin = '8px 14px 0'
     donutCard.innerHTML = `
       <div class="ref-card-soft__title-row">
         <span class="ref-card-soft__title">${i18n.t('ref_dash_income_sources')}</span>
@@ -186,7 +190,6 @@ export class RefDashboardPage implements RefPage {
     if (d.goals.length) {
       const goal = document.createElement('div')
       goal.className = 'ref-card-soft ref-dash-goal'
-      goal.style.margin = '10px 14px 0'
       goal.innerHTML = `
         <div class="ref-card-soft__title">${i18n.t('ref_dash_next_goals')}</div>
         ${d.goals.map((g) => `
@@ -289,8 +292,11 @@ export class RefDashboardPage implements RefPage {
     this.feedEl.innerHTML = buildFeed(this.state).map(f => `
       <div class="ref-feed-row">
         <span class="ref-feed-ico">${f.ico}</span>
-        <span class="ref-feed-txt ref-feed-txt--${f.cls}">${f.txt}</span>
-        <span class="ref-feed-time">${f.time}</span>
+        <span class="ref-feed-main">
+          <span class="ref-feed-txt ref-feed-txt--${f.cls}">${f.txt}</span>
+          <span class="ref-feed-time">${f.time}</span>
+        </span>
+        ${f.amt ? `<span class="ref-feed-amt ref-feed-amt--${f.cls}">${f.amt}</span>` : ''}
       </div>
     `).join('')
   }
@@ -329,6 +335,7 @@ export class RefDashboardPage implements RefPage {
     ])
     if (this.heroValEl)    this.heroValEl.textContent = fmtMoney(netWorth)
     if (this.heroMetaEl)   this.heroMetaEl.textContent = fmt('ref_dash_firms_cities_fmt', { firms: String(firmCount), cities: String(cityCount) })
+    if (this.heroIncomeEl) this.heroIncomeEl.textContent = `▲ ${fmtMoney(income)} ${i18n.t('ref_dash_per_day_unit')}`
     if (this.donutTotalEl) this.donutTotalEl.textContent = `${fmtMoney(income)} ${i18n.t('ref_dash_per_day_unit')}`
     if (this.todayIncomeEl) this.todayIncomeEl.textContent = fmtMoney(income)
     if (this.todayFirmEl)   this.todayFirmEl.textContent = String(firmCount)
@@ -419,7 +426,7 @@ export class RefDashboardPage implements RefPage {
           ? plan.completionBonusClaimed
             ? `<button class="ref-btn ref-daily-btn ref-daily-btn--done" disabled>${i18n.t('ref_daily_bonus_claimed_btn')}</button>`
             : `<button class="ref-btn ref-daily-btn ref-daily-btn--claim" data-action="daily-bonus">${i18n.t('ref_daily_bonus_action_btn')}</button>`
-          : `<button class="ref-btn ref-daily-btn ref-daily-btn--done" disabled>${doneCount}/4</button>`
+          : `<button class="ref-btn ref-daily-btn ref-daily-btn--done" disabled title="${fmt('ref_daily_bonus_all_fmt', { amount: String(bonusAmt), rep: String(DAILY_BONUS_REPUTATION) })}">${doneCount}/4</button>`
         }
       </div>`
 
@@ -428,6 +435,7 @@ export class RefDashboardPage implements RefPage {
         <span class="ref-card-soft__title">${i18n.t('ref_daily_today_moves_title')}</span>
         <span class="ref-daily-counter">${doneCount}/4</span>
       </div>
+      <div class="ref-perf-track ref-daily-prog"><div class="ref-perf-fill high" style="width:${Math.min(100, Math.round(doneCount / 4 * 100))}%"></div></div>
       ${taskRows}
       ${bonusHtml}`
   }
