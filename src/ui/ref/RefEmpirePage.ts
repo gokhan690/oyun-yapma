@@ -389,7 +389,7 @@ export class RefEmpirePage implements RefPage {
         const badgeTxt   = isMaxed ? i18n.t('ref_empire_dept_badge_max') : isStrong ? i18n.t('ref_empire_dept_badge_strong') : isMid ? `Lv.${level}` : isLow ? i18n.t('ref_empire_dept_badge_weak') : i18n.t('ref_empire_dept_badge_critical')
         const btnTxt     = maxed ? `✓ ${i18n.t('ref_empire_dept_max_level_button')}` : canUp ? `${i18n.t('ref_empire_dept_upgrade_prefix')} · ${fmtMoney(cost)}` : `🔒 ${fmtMoney(cost)}`
         return `
-          <div class="ref-dept-card2 ${isCritical ? 'critical' : isStrong ? 'strong' : ''}">
+          <div class="ref-dept-card2 ${isCritical ? 'critical' : isStrong ? 'strong' : ''}${canUp ? ' can-buy' : ''}${maxed ? ' is-max' : ''}">
             <div class="ref-dept-card2__head">
               <span class="ref-dept-card2__icon">${d.emoji}</span>
               <div class="ref-dept-card2__info">
@@ -403,7 +403,7 @@ export class RefEmpirePage implements RefPage {
                 `<span class="ref-dept-lvl-pip${i < level ? ' on' : ''}"></span>`).join('')}
             </div>
             <button type="button" class="ref-dept-upgrade-btn${canUp ? '' : ' ref-dept-upgrade-btn--off'}"
-              data-upgrade-dept="${d.id}" ${canUp ? '' : 'disabled'}>
+              data-upgrade-dept="${d.id}" ${canUp ? '' : 'disabled'}${!canUp && !maxed ? ` title="${i18n.t('ref_empire_insufficient_funds')}"` : ''}>
               ${btnTxt}
             </button>
           </div>`
@@ -547,7 +547,7 @@ export class RefEmpirePage implements RefPage {
             <span class="ref-city-locked-cost">${fmtMoney(c.unlockCost)}</span>
           </div>
           <button class="ref-city-mgmt-btn${check.ok ? ' ref-city-mgmt-btn--unlock' : ' ref-city-mgmt-btn--off'}"
-            type="button" data-action="unlock_city:${c.id}" ${check.ok ? '' : 'disabled'}>
+            type="button" data-action="unlock_city:${c.id}" ${check.ok ? '' : `disabled title="${check.reason ?? ''}"`}>
             ${fmt('ref_empire_city_unlock_button_fmt', { cost: fmtMoney(c.unlockCost) })}
           </button>
         </div>`
@@ -704,7 +704,7 @@ export class RefEmpirePage implements RefPage {
                 const acquireCost = s.bankruptRivalAcquireCost(rival.id)
                 const canAcquire = s.canAcquireBankruptRival(rival.id)
                 return `<div class="ref-rival-card__actions">
-                  <button class="ref-world-btn sm acquire" type="button" data-action="rival_acquire:${rival.id}" ${canAcquire ? '' : 'disabled'}>
+                  <button class="ref-world-btn sm acquire" type="button" data-action="rival_acquire:${rival.id}" ${canAcquire ? '' : `disabled title="${i18n.t('ref_empire_insufficient_funds')}"`}>
                     ${canAcquire
                       ? fmt('rival_action_acquire', { cost: fmtMoney(acquireCost) })
                       : fmt('rival_action_no_funds', { cost: fmtMoney(acquireCost) })}
@@ -720,7 +720,7 @@ export class RefEmpirePage implements RefPage {
           <div class="ref-rival-card__actions">
             <button class="ref-world-btn sm danger" type="button" data-action="rival_lobby:${rival.id}">${fmt('rival_action_lobby', { cost: fmtMoney(Math.round(Math.max(5000, s.incomePerDay() * 0.2))) })}</button>
             <button class="ref-world-btn sm" type="button" data-action="rival_coop:${rival.id}">${fmt('rival_action_cooperate', { cost: fmtMoney(Math.round(Math.max(3000, s.incomePerDay() * 0.1))) })}</button>
-            <button class="ref-world-btn sm gold" type="button" data-action="rival_merge:${rival.id}" ${s.money >= mergeRivalCost(rival) ? '' : 'disabled'}>${fmt('rival_action_buy', { cost: fmtMoney(mergeRivalCost(rival)) })}</button>
+            <button class="ref-world-btn sm gold" type="button" data-action="rival_merge:${rival.id}" ${s.money >= mergeRivalCost(rival) ? '' : `disabled title="${i18n.t('ref_empire_insufficient_funds')}"`}>${fmt('rival_action_buy', { cost: fmtMoney(mergeRivalCost(rival)) })}</button>
           </div>`}
       `
       list.appendChild(card)
@@ -776,7 +776,7 @@ export class RefEmpirePage implements RefPage {
     const canBuy   = !!s && !maxed && unlocked && affordable
 
     const row = document.createElement('div')
-    row.className = 'ref-rnd-row' + (maxed ? ' maxed' : !unlocked ? ' locked' : level > 0 ? ' active' : '')
+    row.className = 'ref-rnd-row' + (maxed ? ' maxed' : !unlocked ? ' locked' : level > 0 ? ' active' : '') + (canBuy ? ' can-buy' : '')
     const statusRight = maxed
       ? `<span class="ref-rnd-status max">${i18n.t('ref_empire_research_status_max')}</span>`
       : !unlocked
@@ -785,7 +785,7 @@ export class RefEmpirePage implements RefPage {
         // buton da yoktu. Ar-Ge ağacı fiyat gösteren tamamen dekoratif bir
         // listeydi — oyuncu basıyor, hiçbir şey olmuyordu.
         : `<button type="button" class="ref-dept-upgrade-btn${canBuy ? '' : ' ref-dept-upgrade-btn--off'}"
-             data-buy-research="${node.id}" ${canBuy ? '' : 'disabled'}>${isPrestige ? cost + ' ⭐' : fmtMoney(cost)}</button>`
+             data-buy-research="${node.id}" ${canBuy ? '' : `disabled title="${i18n.t('ref_empire_insufficient_funds')}"`}>${isPrestige ? cost + ' ⭐' : fmtMoney(cost)}</button>`
 
     row.innerHTML = `
       <div class="ref-rnd-row__main">
@@ -810,13 +810,13 @@ export class RefEmpirePage implements RefPage {
     const afford = s ? s.money >= cost : false
 
     const row = document.createElement('div')
-    row.className = 'ref-rnd-row upg' + (owned ? ' maxed' : afford ? ' active' : '')
+    row.className = 'ref-rnd-row upg' + (owned ? ' maxed' : afford ? ' active can-buy' : '')
     const right = owned
       ? `<span class="ref-rnd-status max">${i18n.t('ref_empire_upgrade_owned')}</span>`
       // Ar-Ge ile aynı sorun: yükseltmeler de yalnızca fiyat gösteren ölü
       // satırlardı, satın alma yolu yoktu.
       : `<button type="button" class="ref-dept-upgrade-btn${afford ? '' : ' ref-dept-upgrade-btn--off'}"
-           data-buy-upgrade="${upg.id}" ${afford ? '' : 'disabled'}>${fmtMoney(cost)}</button>`
+           data-buy-upgrade="${upg.id}" ${afford ? '' : `disabled title="${i18n.t('ref_empire_insufficient_funds')}"`}>${fmtMoney(cost)}</button>`
     row.innerHTML = `
       <div class="ref-rnd-row__main">
         <div class="ref-rnd-row__head">

@@ -1,1 +1,349 @@
-/* empire — sayfaya özel stiller. Tasarım token sözleşmesi: ref-ui.css :root (--r-*). Token dışı sabit renk KULLANMA. */
+/* empire — sayfaya özel stiller. Tasarım token sözleşmesi: ref-ui.css :root (--r-*). Token dışı sabit renk KULLANMA.
+   Tüm kurallar .ref-empire-page altında kapsanır (ref-ui.css'teki tek-sınıf kurallarını özgüllükle ezer). */
+
+.ref-empire-page { padding-bottom: var(--r-sp-6); }
+
+/* ── Bölüm başlıkları: gökyüzü üstünde → lacivert ── */
+.ref-empire-page .ref-sec-title {
+  padding: var(--r-sp-5) var(--r-page-x) var(--r-sp-2);
+  font-size: var(--r-fs-xl); font-weight: 800; color: var(--r-on-sky);
+  letter-spacing: -0.01em;
+}
+.ref-empire-page .ref-sec-title { gap: var(--r-sp-3); align-items: center; }
+.ref-empire-page .ref-sec-title > span:first-child { min-width: 0; }
+.ref-empire-page .ref-sec-action {
+  font-size: var(--r-fs-sm); font-weight: 800; color: var(--r-on-sky-muted);
+  text-align: right; flex: 0 1 45%; line-height: 1.25;
+}
+.ref-empire-page .ref-demo-banner { color: var(--r-on-sky-muted); background: var(--r-card-soft); border-color: var(--r-border); }
+.ref-empire-page .ref-demo-banner b { color: var(--r-text); }
+.ref-empire-page .ref-preview-note { color: var(--r-on-sky-muted); opacity: 1; font-size: var(--r-fs-sm); margin: var(--r-sp-3) var(--r-page-x) 0; }
+
+/* ── Alt sekmeler ── */
+.ref-empire-page .ref-subtabs { margin: var(--r-sp-3) var(--r-page-x) var(--r-sp-1); }
+.ref-empire-page .ref-main-tab {
+  min-height: 44px; font-size: var(--r-fs-md); color: var(--r-text2);
+  transition: background var(--r-dur) var(--r-ease), color var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease);
+}
+.ref-empire-page .ref-main-tab:active { filter: var(--r-pressed); }
+.ref-empire-page .ref-main-tab:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-empire-page .ref-main-tab.active { background: var(--r-accent); color: var(--r-on-dark); }
+
+/* ── Ortak kart yüzeyi ── */
+.ref-empire-page .ref-empire-summary__item,
+.ref-empire-page .ref-empire-cat-card,
+.ref-empire-page .ref-dept-card2,
+.ref-empire-page .ref-rnd-row,
+.ref-empire-page .ref-cities-kpi__item,
+.ref-empire-page .ref-city-mgmt-card,
+.ref-empire-page .ref-city-bonus-row,
+.ref-empire-page .ref-torpil-row,
+.ref-empire-page .ref-rushvet-panel,
+.ref-empire-page .ref-rival-card,
+.ref-empire-page .ref-cities-manage-note {
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg); box-shadow: var(--r-elev-1), var(--r-card-inset);
+  color: var(--r-text);
+}
+
+/* ── KPI şeridi (özet + şehir) ── */
+.ref-empire-page .ref-empire-summary,
+.ref-empire-page .ref-cities-kpi {
+  gap: var(--r-sp-2); padding: var(--r-sp-3) var(--r-page-x) var(--r-sp-1);
+}
+.ref-empire-page .ref-empire-summary__item,
+.ref-empire-page .ref-cities-kpi__item {
+  padding: var(--r-sp-3) var(--r-sp-1); gap: var(--r-sp-1); min-width: 0;
+}
+.ref-empire-page .ref-empire-summary__item span,
+.ref-empire-page .ref-cities-kpi__item > span { font-size: var(--r-fs-xl); line-height: 1; }
+.ref-empire-page .ref-empire-summary__item b,
+.ref-empire-page .ref-cities-kpi__item > b {
+  font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text);
+  max-width: 100%; white-space: nowrap;
+}
+.ref-empire-page .ref-empire-summary__item small,
+.ref-empire-page .ref-cities-kpi__item > small {
+  font-size: var(--r-fs-xs); font-weight: 800; color: var(--r-muted); text-align: center;
+  max-width: 100%; line-height: 1.15;
+}
+
+/* ── Yatırım kategorileri ── */
+.ref-empire-page .ref-empire-cat-grid { gap: var(--r-sp-2); padding: var(--r-sp-2) var(--r-page-x) 0; }
+.ref-empire-page .ref-empire-cat-card { padding: var(--r-sp-3) var(--r-sp-2); min-width: 0; }
+.ref-empire-page .ref-empire-cat-card.inactive {
+  opacity: 1; filter: none; background: var(--r-card-soft); border-style: dashed; border-color: var(--r-border);
+}
+.ref-empire-page .ref-empire-cat-card.inactive .ref-empire-cat-card__ico { opacity: 0.55; filter: grayscale(0.6); }
+.ref-empire-page .ref-empire-cat-card.inactive .ref-empire-cat-card__name { color: var(--r-text2); }
+.ref-empire-page .ref-empire-cat-card:not(.inactive) { border-color: var(--r-border-gold); background: var(--r-card); }
+.ref-empire-page .ref-empire-cat-card__ico { font-size: var(--r-fs-2xl); line-height: 1.1; }
+.ref-empire-page .ref-empire-cat-card__name { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text); margin-top: var(--r-sp-1); }
+.ref-empire-page .ref-empire-cat-card__meta {
+  font-size: var(--r-fs-xs); font-weight: 700; color: var(--r-muted);
+  margin-top: var(--r-sp-1); line-height: 1.25; overflow-wrap: anywhere;
+}
+.ref-empire-page .ref-empire-cat-card:not(.inactive) .ref-empire-cat-card__meta { color: var(--r-teal-dk); }
+
+/* ── Siyaset / polis ısısı ── */
+.ref-empire-page .ref-politics-card,
+.ref-empire-page .ref-dark-card {
+  margin: var(--r-sp-3) var(--r-page-x) 0; padding: var(--r-card-pad); border-radius: var(--r-lg);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+.ref-empire-page .ref-politics-card { background: var(--r-card-soft); border: 1px solid var(--r-blue-brd); }
+.ref-empire-page .ref-dark-card { background: var(--r-card-soft); border: 1px solid var(--r-danger-brd); }
+.ref-empire-page .ref-politics-card__level { font-size: var(--r-fs-lg); color: var(--r-blue); font-weight: 800; }
+.ref-empire-page .ref-politics-tag {
+  font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-blue);
+  background: var(--r-blue-bg); border: 1px solid var(--r-blue-brd); padding: var(--r-sp-1) var(--r-sp-3);
+}
+.ref-empire-page .ref-dark-tag {
+  font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-danger);
+  background: var(--r-danger-bg); border: 1px solid var(--r-danger-brd); padding: var(--r-sp-1) var(--r-sp-3);
+}
+.ref-empire-page .ref-dark-card__row {
+  font-size: var(--r-fs-xs); font-weight: 800; text-transform: uppercase;
+  letter-spacing: var(--r-ls-label); color: var(--r-muted); margin-bottom: var(--r-sp-2);
+}
+.ref-empire-page .ref-dark-card__row span:last-child { font-size: var(--r-fs-lg); color: var(--r-text); letter-spacing: 0; }
+.ref-empire-page .ref-perf-track { height: var(--r-sp-2); background: var(--r-border-lt); }
+.ref-empire-page .ref-perf-track.sm { height: var(--r-sp-2); }
+.ref-empire-page .ref-perf-fill { transition: width var(--r-dur) var(--r-ease); }
+
+/* ── Ortak ana buton (departman / Ar-Ge / yükseltme) ── */
+.ref-empire-page .ref-dept-upgrade-btn {
+  display: flex; align-items: center; justify-content: center; gap: var(--r-sp-1);
+  width: 100%; min-height: 44px; padding: var(--r-sp-2) var(--r-sp-4);
+  border: 1px solid var(--r-accent-dk); border-radius: var(--r-md);
+  background: var(--r-accent); color: var(--r-on-dark);
+  font-family: inherit; font-size: var(--r-fs-md); font-weight: 800; white-space: nowrap;
+  box-shadow: var(--r-elev-1), var(--r-card-inset); cursor: pointer;
+  transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+.ref-empire-page .ref-dept-upgrade-btn:active:not([disabled]) { filter: var(--r-pressed); transform: translateY(1px); }
+.ref-empire-page .ref-dept-upgrade-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-empire-page .ref-dept-upgrade-btn[disabled],
+.ref-empire-page .ref-dept-upgrade-btn--off {
+  background: var(--r-surface); color: var(--r-text2); border: 1px dashed var(--r-border);
+  box-shadow: none; opacity: var(--r-disabled-opacity); cursor: not-allowed;
+}
+
+/* ── Departman kartları ── */
+.ref-empire-page .ref-dept-grid2 { gap: var(--r-sp-3); padding: 0 var(--r-page-x) var(--r-sp-3); }
+.ref-empire-page .ref-dept-card2 { padding: var(--r-card-pad); }
+.ref-empire-page .ref-dept-card2.can-buy { border-color: var(--r-accent); }
+.ref-empire-page .ref-dept-card2.critical { background: var(--r-card-soft); border-color: var(--r-danger-brd); }
+.ref-empire-page .ref-dept-card2.strong { background: var(--r-card-soft); border-color: var(--r-success-brd); }
+.ref-empire-page .ref-dept-card2.can-buy.critical { border-color: var(--r-accent); }
+.ref-empire-page .ref-dept-card2__head { gap: var(--r-sp-3); margin-bottom: var(--r-sp-3); }
+.ref-empire-page .ref-dept-card2__icon { font-size: var(--r-fs-2xl); line-height: 1; }
+.ref-empire-page .ref-dept-card2__name { font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text); }
+.ref-empire-page .ref-dept-card2__bonus { font-size: var(--r-fs-sm); color: var(--r-muted); margin-top: var(--r-sp-1); font-weight: 600; }
+.ref-empire-page .ref-dept-badge2 {
+  font-size: var(--r-fs-xs); font-weight: 800; text-transform: uppercase; letter-spacing: var(--r-ls-label);
+  background: var(--r-border-lt); color: var(--r-text2); border-radius: var(--r-pill);
+  padding: var(--r-sp-1) var(--r-sp-3); white-space: nowrap; flex-shrink: 0;
+}
+.ref-empire-page .ref-dept-badge2--strong   { background: var(--r-success-bg); color: var(--r-text); border: 1px solid var(--r-success-brd); }
+.ref-empire-page .ref-dept-badge2--mid      { background: var(--r-blue-bg);    color: var(--r-blue); border: 1px solid var(--r-blue-brd); }
+.ref-empire-page .ref-dept-badge2--low      { background: var(--r-gold-lt);    color: var(--r-gold-dk); border: 1px solid var(--r-gold-brd); }
+.ref-empire-page .ref-dept-badge2--critical { background: var(--r-danger-bg);  color: var(--r-danger); border: 1px solid var(--r-danger-brd); }
+.ref-empire-page .ref-dept-lvl-bar { gap: var(--r-sp-1); margin-bottom: var(--r-sp-3); }
+.ref-empire-page .ref-dept-lvl-pip { height: var(--r-sp-2); border-radius: var(--r-pill); background: var(--r-border-lt); transition: background var(--r-dur) var(--r-ease); }
+.ref-empire-page .ref-dept-lvl-pip.on { background: var(--r-accent); }
+.ref-empire-page .ref-dept-card2.critical .ref-dept-lvl-pip.on { background: var(--r-danger); }
+.ref-empire-page .ref-dept-card2.strong .ref-dept-lvl-pip.on { background: var(--r-success); }
+
+/* ── Ar-Ge / Yükseltme satırları: satın alınabilir görünüm ── */
+.ref-empire-page .ref-rnd-list { gap: var(--r-sp-3); padding: 0 var(--r-page-x) var(--r-sp-2); }
+.ref-empire-page .ref-rnd-row { padding: var(--r-card-pad); gap: var(--r-sp-3); align-items: center; }
+.ref-empire-page .ref-rnd-row.active { border-color: var(--r-border); }
+.ref-empire-page .ref-rnd-row.can-buy { border-color: var(--r-accent); background: var(--r-surface); }
+.ref-empire-page .ref-rnd-row.maxed { border-color: var(--r-success-brd); background: var(--r-card-soft); }
+.ref-empire-page .ref-rnd-row.locked { opacity: 1; background: var(--r-card-soft); border-style: dashed; }
+.ref-empire-page .ref-rnd-row.locked .ref-rnd-row__name { color: var(--r-text2); }
+.ref-empire-page .ref-rnd-row__head { flex-wrap: wrap; gap: var(--r-sp-2); }
+.ref-empire-page .ref-rnd-row__name { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text); }
+.ref-empire-page .ref-rnd-branch {
+  font-size: var(--r-fs-xs); font-weight: 800; text-transform: uppercase; letter-spacing: var(--r-ls-label);
+  color: var(--r-muted); background: var(--r-border-lt); border-radius: var(--r-pill); padding: var(--r-sp-1) var(--r-sp-2);
+}
+.ref-empire-page .ref-rnd-row__desc { font-size: var(--r-fs-sm); color: var(--r-text2); margin: var(--r-sp-1) 0 var(--r-sp-2); line-height: 1.35; font-weight: 600; }
+.ref-empire-page .ref-rnd-levels { gap: var(--r-sp-1); flex-wrap: wrap; }
+.ref-empire-page .ref-rnd-pip { width: var(--r-sp-4); height: var(--r-sp-1); background: var(--r-border-lt); }
+.ref-empire-page .ref-rnd-pip.on { background: var(--r-accent); }
+.ref-empire-page .ref-rnd-lvl-txt { font-size: var(--r-fs-xs); font-weight: 800; color: var(--r-muted); margin-left: var(--r-sp-1); }
+.ref-empire-page .ref-rnd-row__right { min-width: 88px; display: flex; justify-content: flex-end; }
+.ref-empire-page .ref-rnd-row__right .ref-dept-upgrade-btn { width: auto; min-width: 88px; padding: var(--r-sp-2) var(--r-sp-3); }
+.ref-empire-page .ref-rnd-status {
+  font-size: var(--r-fs-xs); font-weight: 800; text-transform: uppercase; letter-spacing: var(--r-ls-label);
+  padding: var(--r-sp-2) var(--r-sp-3); border-radius: var(--r-pill); white-space: normal; text-align: center;
+}
+.ref-empire-page .ref-rnd-status.max { background: var(--r-success-bg); color: var(--r-text); border: 1px solid var(--r-success-brd); }
+.ref-empire-page .ref-rnd-status.lock {
+  background: var(--r-border-lt); color: var(--r-text2); max-width: 120px;
+  text-transform: none; letter-spacing: 0; font-size: var(--r-fs-sm); line-height: 1.2; border-radius: var(--r-md);
+}
+
+/* ── Şehir yolculuğu ── */
+.ref-empire-page .ref-cities-journey { padding: var(--r-sp-1) var(--r-page-x) var(--r-sp-4); }
+.ref-empire-page .ref-journey-stop { opacity: 1; width: 64px; gap: var(--r-sp-2); }
+.ref-empire-page .ref-journey-node {
+  background: var(--r-card-soft); border: 2px solid var(--r-border); box-shadow: var(--r-elev-1);
+  filter: grayscale(0.5);
+}
+.ref-empire-page .ref-journey-stop--unlocked .ref-journey-node { background: var(--r-accent); border-color: var(--r-accent-dk); filter: none; }
+.ref-empire-page .ref-journey-label { font-size: var(--r-fs-xs); font-weight: 800; color: var(--r-on-sky-muted); }
+.ref-empire-page .ref-journey-stop--unlocked .ref-journey-label { color: var(--r-on-sky); }
+.ref-empire-page .ref-journey-connector { background: var(--r-border); opacity: 1; }
+.ref-empire-page .ref-journey-connector.on { background: var(--r-accent); }
+
+/* ── Şehir kartları ── */
+.ref-empire-page .ref-city-mgmt-list { gap: var(--r-sp-3); padding: 0 var(--r-page-x) var(--r-sp-2); }
+.ref-empire-page .ref-city-mgmt-card { padding: var(--r-card-pad); display: flex; flex-direction: column; gap: var(--r-sp-3); }
+.ref-empire-page .ref-city-mgmt-card--locked { opacity: 1; border-style: dashed; border-color: var(--r-border); }
+.ref-empire-page .ref-city-mgmt-card--unlocked { background: var(--r-card); border-color: var(--r-border-gold); }
+.ref-empire-page .ref-city-mgmt-card__emoji { font-size: var(--r-fs-2xl); line-height: 1; }
+.ref-empire-page .ref-city-mgmt-card__name { font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text); }
+.ref-empire-page .ref-city-mgmt-card__req { font-size: var(--r-fs-sm); color: var(--r-text2); font-weight: 600; }
+.ref-empire-page .ref-city-mgmt-card__reason { font-size: var(--r-fs-sm); color: var(--r-danger); font-weight: 700; }
+.ref-empire-page .ref-city-locked-cost { font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text); }
+.ref-empire-page .ref-city-bonus-chip {
+  font-size: var(--r-fs-xs); font-weight: 800; padding: var(--r-sp-1) var(--r-sp-2); border-radius: var(--r-pill);
+  background: var(--r-accent-lt); color: var(--r-accent-dk); border: 1px solid var(--r-border-lt);
+}
+.ref-empire-page .ref-city-active-badge {
+  font-size: var(--r-fs-xs); font-weight: 800; text-transform: uppercase; letter-spacing: var(--r-ls-label);
+  background: var(--r-accent); color: var(--r-on-dark); border-radius: var(--r-pill); padding: var(--r-sp-1) var(--r-sp-3); white-space: nowrap;
+}
+.ref-empire-page .ref-city-mgmt-btn {
+  min-height: 44px; border-radius: var(--r-md); font-family: inherit; font-size: var(--r-fs-md); font-weight: 800;
+  background: var(--r-surface); color: var(--r-accent-dk); border: 1.5px solid var(--r-accent);
+  box-shadow: var(--r-elev-1); transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease);
+}
+.ref-empire-page .ref-city-mgmt-btn--unlock { background: var(--r-accent); color: var(--r-on-dark); border-color: var(--r-accent-dk); }
+.ref-empire-page .ref-city-mgmt-btn:active:not([disabled]) { filter: var(--r-pressed); transform: translateY(1px); }
+.ref-empire-page .ref-city-mgmt-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-empire-page .ref-city-mgmt-btn--off,
+.ref-empire-page .ref-city-mgmt-btn[disabled] {
+  background: var(--r-surface); color: var(--r-text2); border: 1px dashed var(--r-border);
+  box-shadow: none; opacity: var(--r-disabled-opacity); cursor: not-allowed;
+}
+
+/* ── Bölgesel bonus tablosu ── */
+.ref-empire-page .ref-city-bonus-table { gap: var(--r-sp-2); padding: 0 var(--r-page-x) var(--r-sp-4); }
+.ref-empire-page .ref-city-bonus-row { padding: var(--r-sp-3) var(--r-card-pad); gap: var(--r-sp-3); border-radius: var(--r-md); box-shadow: var(--r-elev-1); }
+.ref-empire-page .ref-city-bonus-row:not(.ref-city-bonus-row--owned) { border-style: dashed; border-color: var(--r-border); }
+.ref-empire-page .ref-city-bonus-row--owned { background: var(--r-card); border-color: var(--r-border-gold); }
+.ref-empire-page .ref-city-bonus-row__city { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text); }
+.ref-empire-page .ref-city-bonus-row__cat {
+  font-size: var(--r-fs-xs); font-weight: 800; text-transform: uppercase; letter-spacing: var(--r-ls-label); color: var(--r-muted);
+}
+.ref-empire-page .ref-city-bonus-row__val { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-accent-dk); text-align: right; }
+.ref-empire-page .ref-cities-manage-note {
+  margin: var(--r-sp-3) var(--r-page-x) 0; padding: var(--r-sp-3) var(--r-card-pad);
+  font-size: var(--r-fs-md); font-weight: 700; color: var(--r-text2);
+}
+
+/* ── Ortak aksiyon butonları (torpil, rüşvet, rakip) ── */
+.ref-empire-page .ref-world-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--r-sp-1);
+  min-height: 44px; padding: var(--r-sp-2) var(--r-sp-4); border-radius: var(--r-md);
+  font-family: inherit; font-size: var(--r-fs-md); font-weight: 800; line-height: 1.2;
+  white-space: normal; text-align: center;
+  background: var(--r-accent); color: var(--r-on-dark); border: 1px solid var(--r-accent-dk);
+  box-shadow: var(--r-elev-1), var(--r-card-inset); text-shadow: none;
+  transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+.ref-empire-page .ref-world-btn.sm { font-size: var(--r-fs-sm); padding: var(--r-sp-2) var(--r-sp-3); }
+.ref-empire-page .ref-world-btn.danger { background: var(--r-danger); border-color: var(--r-danger); color: var(--r-on-dark); }
+.ref-empire-page .ref-world-btn.warn { background: var(--r-gold); border-color: var(--r-gold-dk); color: var(--r-text); }
+.ref-empire-page .ref-world-btn.gold { background: var(--r-gold); border-color: var(--r-gold-dk); color: var(--r-text); }
+.ref-empire-page .ref-world-btn.acquire { background: var(--r-success); border-color: var(--r-success); color: var(--r-text); text-shadow: none; }
+.ref-empire-page .ref-world-btn:hover:not(:disabled) { filter: none; }
+.ref-empire-page .ref-world-btn:active:not(:disabled) { filter: var(--r-pressed); transform: translateY(1px); }
+.ref-empire-page .ref-world-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-empire-page .ref-world-btn:disabled,
+.ref-empire-page .ref-world-btn.acquire:disabled {
+  background: var(--r-surface); color: var(--r-text2); border: 1px dashed var(--r-border);
+  box-shadow: none; opacity: var(--r-disabled-opacity); cursor: not-allowed;
+}
+
+/* ── Torpil ağı ── */
+.ref-empire-page .ref-torpil-panel { gap: var(--r-sp-3); padding: var(--r-sp-2) var(--r-page-x) 0; }
+.ref-empire-page .ref-torpil-row { padding: var(--r-card-pad); gap: var(--r-sp-3); border-left-width: 1px; }
+.ref-empire-page .ref-torpil-row:not(.active) { border-style: dashed; border-color: var(--r-border); }
+.ref-empire-page .ref-torpil-row.active { border-color: var(--r-success-brd); background: var(--r-card-soft); }
+.ref-empire-page .ref-torpil-row.gift-due { border-color: var(--r-gold-dk); background: var(--r-gold-lt); }
+.ref-empire-page .ref-torpil-row__ico { font-size: var(--r-fs-2xl); line-height: 1; }
+.ref-empire-page .ref-torpil-row__name { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text); }
+.ref-empire-page .ref-torpil-row__name small { font-size: var(--r-fs-sm); color: var(--r-muted); }
+.ref-empire-page .ref-torpil-row__desc { font-size: var(--r-fs-sm); color: var(--r-text2); font-weight: 600; margin-top: var(--r-sp-1); line-height: 1.35; }
+.ref-empire-page .ref-torpil-row .ref-world-btn { flex-shrink: 0; max-width: 40%; }
+.ref-empire-page .ref-torpil-ok {
+  font-size: var(--r-fs-xs); font-weight: 800; text-transform: uppercase; letter-spacing: var(--r-ls-label);
+  color: var(--r-text); background: var(--r-success-bg); border: 1px solid var(--r-success-brd);
+  border-radius: var(--r-pill); padding: var(--r-sp-2) var(--r-sp-3);
+}
+.ref-empire-page .ref-world-city-row__reason { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text2); white-space: nowrap; }
+
+/* ── Rüşvet & koruma ── */
+.ref-empire-page .ref-rushvet-panel { margin: var(--r-sp-2) var(--r-page-x) 0; padding: var(--r-card-pad); }
+.ref-empire-page .ref-rushvet-actions { gap: var(--r-sp-3); margin-top: var(--r-sp-4); }
+.ref-empire-page .ref-rushvet-note { font-size: var(--r-fs-sm); color: var(--r-muted); font-weight: 600; margin-top: var(--r-sp-3); line-height: 1.4; }
+
+/* ── Rakipler ── */
+.ref-empire-page .ref-rival-list { gap: var(--r-sp-3); padding: var(--r-sp-2) var(--r-page-x) 0; }
+.ref-empire-page .ref-rival-card { padding: var(--r-card-pad); }
+.ref-empire-page .ref-rival-card.gone { opacity: 1; filter: none; background: var(--r-card-soft); border-style: dashed; border-color: var(--r-border); }
+.ref-empire-page .ref-rival-card.gone.bankrupt { border-style: solid; border-color: var(--r-gold-dk); border-left-width: 1px; background: var(--r-gold-lt); }
+.ref-empire-page .ref-rival-card.allied { border-color: var(--r-success-brd); border-left-width: 1px; }
+.ref-empire-page .ref-rival-card.hostile { border-color: var(--r-danger-brd); border-left-width: 1px; }
+.ref-empire-page .ref-rival-card.locked-next { opacity: 1; margin: var(--r-sp-3) var(--r-page-x) 0; border-style: dashed; border-color: var(--r-border); }
+.ref-empire-page .ref-rival-card__head { gap: var(--r-sp-3); }
+.ref-empire-page .ref-rival-card__emoji { font-size: var(--r-fs-2xl); line-height: 1; }
+.ref-empire-page .ref-rival-card__name { font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text); }
+.ref-empire-page .ref-rival-card__meta { font-size: var(--r-fs-sm); font-weight: 600; color: var(--r-muted); margin-top: var(--r-sp-1); line-height: 1.3; }
+.ref-empire-page .ref-rival-card__worth { font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text); white-space: nowrap; flex-shrink: 0; }
+.ref-empire-page .ref-rival-card__worth small {
+  font-size: var(--r-fs-xs); font-weight: 800; text-transform: uppercase; letter-spacing: var(--r-ls-label); color: var(--r-muted); margin-top: var(--r-sp-1);
+}
+.ref-empire-page .ref-rival-card__worth.ahead { color: var(--r-danger); }
+.ref-empire-page .ref-rival-relation { gap: var(--r-sp-3); margin-top: var(--r-sp-3); }
+.ref-empire-page .ref-rival-relation__lbl {
+  font-size: var(--r-fs-xs); font-weight: 800; text-transform: uppercase; letter-spacing: var(--r-ls-label);
+  color: var(--r-muted); width: auto; min-width: 64px;
+}
+.ref-empire-page .ref-rival-card__actions { gap: var(--r-sp-2); margin-top: var(--r-sp-3); }
+.ref-empire-page .ref-rival-card__actions .ref-world-btn { min-width: 0; flex: 1 1 calc(33% - var(--r-sp-2)); }
+.ref-empire-page .ref-rival-card__actions .ref-world-btn.acquire { flex: 1 1 100%; }
+
+/* ── Teklif / olay kartları ── */
+.ref-empire-page .ref-rival-offer-banner {
+  margin: var(--r-sp-3) var(--r-page-x) 0; padding: var(--r-card-pad); border-radius: var(--r-lg);
+  background: var(--r-card-soft); border: 1px solid var(--r-success-brd);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+.ref-empire-page .ref-rival-offer-banner.attack { background: var(--r-card-soft); border-color: var(--r-danger-brd); }
+.ref-empire-page .ref-rival-offer-banner__head { font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text); }
+.ref-empire-page .ref-rival-offer-banner__msg { font-size: var(--r-fs-md); font-weight: 600; color: var(--r-text2); margin-top: var(--r-sp-2); line-height: 1.4; }
+.ref-empire-page .ref-rival-offer-banner__actions { gap: var(--r-sp-2); margin-top: var(--r-sp-3); }
+.ref-empire-page .ref-rival-offer-banner__actions .ref-world-btn { min-width: 0; flex: 1 1 calc(50% - var(--r-sp-2)); }
+
+/* ── Boş durum ── */
+.ref-empire-page .ref-empire-empty-state {
+  margin: var(--r-sp-3) var(--r-page-x) 0; padding: var(--r-sp-8) var(--r-sp-5);
+  background: var(--r-card-soft); border: 1px dashed var(--r-border); border-radius: var(--r-lg);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+.ref-empire-page .ref-empire-empty-state__ico { font-size: var(--r-fs-hero); }
+.ref-empire-page .ref-empire-empty-state__title { font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text); }
+.ref-empire-page .ref-empire-empty-state__desc { font-size: var(--r-fs-md); color: var(--r-muted); }
+
+/* Kısa ekran: KPI başlıkları 4 sütunda taşmasın */
+@media (max-width: 360px) {
+  .ref-empire-page .ref-empire-summary,
+  .ref-empire-page .ref-cities-kpi { grid-template-columns: repeat(2, 1fr); }
+  .ref-empire-page .ref-empire-cat-grid { grid-template-columns: repeat(2, 1fr); }
+}
