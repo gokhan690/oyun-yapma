@@ -1,1 +1,84 @@
 /* notifs — sayfaya özel stiller. Tasarım token sözleşmesi: ref-ui.css :root (--r-*). Token dışı sabit renk KULLANMA. */
+
+.ref-notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-sp-4);
+  padding: var(--r-sp-2) var(--r-page-x) var(--r-sp-6);
+}
+
+.ref-notif-day { display: flex; flex-direction: column; gap: var(--r-sp-2); }
+
+/* Gün etiketi gökyüzü üstünde → on-sky rengi */
+.ref-notif-day__label {
+  margin: 0;
+  padding: 0 var(--r-sp-1);
+  font-size: var(--r-fs-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-on-sky-muted);
+}
+
+.ref-notif-row {
+  --notif-accent: var(--r-muted-lt);
+  display: flex;
+  align-items: center;
+  gap: var(--r-sp-3);
+  min-height: 52px;
+  padding: var(--r-sp-3) var(--r-card-pad);
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-left: 4px solid var(--notif-accent);
+  border-radius: var(--r-lg);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+.ref-notif-row.cat-crisis   { --notif-accent: var(--r-danger); }
+.ref-notif-row.cat-rival    { --notif-accent: var(--r-warning); }
+.ref-notif-row.cat-market   { --notif-accent: var(--r-blue); }
+.ref-notif-row.cat-politics { --notif-accent: var(--r-gold-dk); }
+.ref-notif-row.cat-player   { --notif-accent: var(--r-success); }
+.ref-notif-row.cat-calendar { --notif-accent: var(--r-teal); }
+
+/* RefApp'in rtl kuralı crisis için ayrıca ezer; diğer kategoriler için de ayna */
+[dir="rtl"] .ref-notif-row { border-left: 1px solid var(--r-border-lt); border-right: 4px solid var(--notif-accent); }
+
+.ref-notif-row__ico {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-size: var(--r-fs-xl);
+  background: var(--r-surface);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md);
+}
+
+.ref-notif-row__main { flex: 1; min-width: 0; }
+
+.ref-notif-row__headline {
+  font-size: var(--r-fs-md);
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--r-text);
+  overflow-wrap: anywhere;
+}
+
+.ref-notif-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--r-sp-2);
+  padding: var(--r-sp-8) var(--r-card-pad);
+  font-size: var(--r-fs-md);
+  font-weight: 700;
+  text-align: center;
+  color: var(--r-text2);
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+.ref-notif-empty__ico { font-size: var(--r-fs-hero); opacity: 0.7; }
