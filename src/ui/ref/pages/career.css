@@ -1,1 +1,454 @@
 /* career — sayfaya özel stiller. Tasarım token sözleşmesi: ref-ui.css :root (--r-*). Token dışı sabit renk KULLANMA. */
+
+/* ── Sayfa ritmi ── */
+.ref-career-page { padding-bottom: var(--r-sp-4); }
+
+/* Gökyüzü üstündeki bölüm başlıkları (Sağlık sekmesi) */
+.ref-career-page .ref-sec-title {
+  padding: var(--r-sp-4) var(--r-page-x) var(--r-sp-2);
+  font-size: var(--r-fs-xl);
+  font-weight: 800;
+  color: var(--r-on-sky);
+}
+.ref-career-page .ref-sec-title .ref-sec-action {
+  font-size: var(--r-fs-sm);
+  font-weight: 800;
+  color: var(--r-on-sky);
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-pill);
+  padding: var(--r-sp-1) var(--r-sp-3);
+  box-shadow: var(--r-elev-1);
+}
+
+/* ── Ana iş kartı ── */
+.ref-career-page .ref-job-card {
+  margin: var(--r-sp-2) var(--r-page-x) 0;
+  padding: var(--r-card-pad);
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+
+.ref-career-page .ref-job-card__banner {
+  display: flex; align-items: center; gap: var(--r-sp-3);
+  padding: var(--r-sp-3) var(--r-card-pad);
+  margin-bottom: var(--r-sp-3);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md);
+  background: var(--r-surface);
+}
+.ref-career-page .ref-job-card__banner--job   { background: var(--r-blue-bg);  border-color: var(--r-blue-brd); }
+.ref-career-page .ref-job-card__banner--entre { background: var(--r-gold-lt);  border-color: var(--r-gold-brd); }
+.ref-career-page .ref-job-card__banner--none  { background: var(--r-card);     border-color: var(--r-border); }
+.ref-career-page .ref-job-card__banner-left { flex: 1; min-width: 0; }
+.ref-career-page .ref-job-card__title {
+  font-size: var(--r-fs-xl); font-weight: 800; color: var(--r-text);
+  line-height: 1.15; overflow-wrap: anywhere;
+}
+.ref-career-page .ref-job-card__company {
+  margin-top: var(--r-sp-1);
+  font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-text2);
+}
+.ref-career-page .ref-job-card__lvl-pill {
+  flex-shrink: 0; align-self: flex-start;
+  padding: var(--r-sp-1) var(--r-sp-3);
+  border-radius: var(--r-pill);
+  font-size: var(--r-fs-sm); font-weight: 800; white-space: nowrap;
+  color: var(--r-on-dark);
+  background: var(--r-muted);
+  box-shadow: var(--r-elev-1);
+}
+.ref-career-page .ref-job-card__lvl-pill--job   { background: var(--r-blue); }
+.ref-career-page .ref-job-card__lvl-pill--entre { background: var(--r-gold-dk); }
+
+/* Üç ana değer */
+.ref-career-page .ref-job-stats {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--r-sp-2); margin-bottom: var(--r-sp-3);
+}
+.ref-career-page .ref-job-stat {
+  display: flex; flex-direction: column; justify-content: space-between; gap: var(--r-sp-1);
+  min-width: 0; min-height: 64px;
+  padding: var(--r-sp-3) var(--r-sp-2);
+  background: var(--r-surface);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md);
+  box-shadow: var(--r-card-inset);
+}
+.ref-career-page .ref-job-stat__lbl {
+  font-size: var(--r-fs-xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--r-ls-label);
+  color: var(--r-muted); line-height: 1.2;
+}
+.ref-career-page .ref-job-stat__val {
+  font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text);
+  line-height: 1.15; overflow-wrap: anywhere;
+}
+.ref-career-page .ref-job-stat__val.income { color: var(--r-teal-dk); font-size: var(--r-fs-xl); }
+
+/* İlerleme / stres çubukları */
+.ref-career-page .ref-job-bars {
+  display: flex; flex-direction: column; gap: var(--r-sp-3);
+  padding: var(--r-sp-3);
+  background: var(--r-surface);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md);
+}
+.ref-career-page .ref-job-bar__lbl {
+  display: flex; justify-content: space-between; align-items: baseline; gap: var(--r-sp-2);
+  margin-bottom: var(--r-sp-1);
+  font-size: var(--r-fs-xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+}
+.ref-career-page .ref-job-bar__val {
+  font-size: var(--r-fs-md); font-weight: 800; letter-spacing: 0;
+  text-transform: none; color: var(--r-text); white-space: nowrap;
+}
+.ref-career-page .ref-perf-track { height: 10px; background: var(--r-border-lt); box-shadow: inset 0 1px 2px var(--r-border); }
+.ref-career-page .ref-perf-track.sm { height: 8px; }
+.ref-career-page .ref-perf-fill { transition: width var(--r-dur) var(--r-ease); }
+
+/* İpuçları */
+.ref-career-page .ref-career-tips { display: flex; flex-direction: column; gap: var(--r-sp-2); padding: 0; margin-top: var(--r-sp-3); }
+.ref-career-page .ref-career-tips:empty { display: none; }
+.ref-career-page .ref-career-tip,
+.ref-career-page .ref-health-tip {
+  padding: var(--r-sp-2) var(--r-sp-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--r-border-lt);
+  font-size: var(--r-fs-sm); font-weight: 700; line-height: 1.35;
+}
+.ref-career-page .ref-career-tip--warn,
+.ref-career-page .ref-health-tip.warn { background: var(--r-danger-bg); border-color: var(--r-danger-brd); color: var(--r-text); }
+.ref-career-page .ref-career-tip--good,
+.ref-career-page .ref-health-tip.good { background: var(--r-success-bg); border-color: var(--r-success-brd); color: var(--r-text); }
+
+.ref-career-page .ref-career-guidance {
+  margin-bottom: var(--r-sp-3);
+  padding: var(--r-sp-3);
+  background: var(--r-blue-bg);
+  border: 1px solid var(--r-blue-brd);
+  border-radius: var(--r-md);
+  font-size: var(--r-fs-md); font-weight: 700; line-height: 1.4; color: var(--r-text);
+}
+
+/* Bölüm başlığı (kart içi) */
+.ref-career-page .ref-career-section-title {
+  margin: var(--r-sp-4) 0 var(--r-sp-2);
+  font-size: var(--r-fs-xs); font-weight: 800;
+  text-transform: uppercase; letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+}
+/* Sağlık sekmesinde başlıklar doğrudan gökyüzünde */
+.ref-career-page .ref-career-section-title.on-sky {
+  margin: var(--r-sp-5) var(--r-page-x) var(--r-sp-2);
+  font-size: var(--r-fs-sm); color: var(--r-on-sky);
+}
+.ref-career-page .ref-career-daily-track { margin: 0 0 var(--r-sp-3); }
+
+/* ── Günlük aksiyonlar ── */
+.ref-career-page .ref-career-action-grid { display: flex; flex-direction: column; gap: var(--r-sp-2); }
+.ref-career-page .ref-career-action-btn {
+  display: flex; align-items: center; gap: var(--r-sp-3);
+  width: 100%; min-height: 56px; padding: var(--r-sp-3);
+  background: var(--r-surface);
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-md);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+  text-align: left; cursor: pointer;
+  font-family: inherit;
+  transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+.ref-career-page .ref-career-action-btn:active { filter: var(--r-pressed); transform: translateY(1px); background: var(--r-surface); }
+.ref-career-page .ref-career-action-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-career-page .ref-career-action-btn[disabled] {
+  opacity: var(--r-disabled-opacity); cursor: not-allowed; box-shadow: none;
+  background: var(--r-card);
+}
+.ref-career-page .ref-career-action-btn.used { opacity: var(--r-disabled-opacity); cursor: not-allowed; }
+.ref-career-page .ref-career-action-btn__ico {
+  display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; flex-shrink: 0;
+  font-size: var(--r-fs-xl);
+  background: var(--r-accent-lt); border-radius: var(--r-md);
+}
+.ref-career-page .ref-career-action-btn__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ref-career-page .ref-career-action-btn__label { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text); }
+.ref-career-page .ref-career-action-btn__earn { font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-teal-dk); line-height: 1.3; }
+.ref-career-page .ref-career-action-btn__xp { font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-blue); line-height: 1.3; }
+.ref-career-page .ref-career-action-btn__done { font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-muted); }
+.ref-career-page .ref-career-action-btn__go {
+  flex-shrink: 0; width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill);
+  background: var(--r-accent); color: var(--r-on-dark);
+  font-size: var(--r-fs-xl); font-weight: 800; line-height: 1;
+}
+.ref-career-page .ref-career-action-btn.used .ref-career-action-btn__go { background: var(--r-muted); font-size: var(--r-fs-md); }
+
+.ref-career-page .ref-entre-note {
+  margin: var(--r-sp-3) 0 0;
+  font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-muted);
+}
+
+/* ── İş seçimi ── */
+.ref-career-page .ref-career-job-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--r-sp-2); }
+.ref-career-page .ref-career-job-card {
+  display: flex; flex-direction: column; align-items: stretch; gap: var(--r-sp-2);
+  min-width: 0; width: 100%; padding: var(--r-sp-3);
+  background: var(--r-surface);
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-md);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+  text-align: left; cursor: pointer; font-family: inherit;
+  transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+.ref-career-page .ref-career-job-card:active:not(:disabled) { filter: var(--r-pressed); transform: translateY(1px); opacity: 1; }
+.ref-career-page .ref-career-job-card:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-career-page .ref-career-job-card:disabled { cursor: not-allowed; }
+.ref-career-page .ref-career-job-card.is-active {
+  border: 2px solid var(--r-accent); background: var(--r-accent-lt); cursor: default;
+}
+.ref-career-page .ref-career-job-card.is-locked { background: var(--r-card); box-shadow: none; }
+.ref-career-page .ref-career-job-card.is-locked .ref-career-job-card__ico { opacity: var(--r-disabled-opacity); }
+.ref-career-page .ref-career-job-card__top { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px var(--r-sp-2); align-items: center; }
+.ref-career-page .ref-career-job-card__ico { font-size: var(--r-fs-2xl); grid-row: span 2; }
+.ref-career-page .ref-career-job-card__name { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text); overflow-wrap: anywhere; line-height: 1.2; }
+.ref-career-page .ref-career-job-card.is-locked .ref-career-job-card__status { color: var(--r-danger); }
+.ref-career-page .ref-career-job-card__status {
+  font-size: var(--r-fs-xs); font-weight: 800; overflow-wrap: anywhere;
+  text-transform: uppercase; letter-spacing: var(--r-ls-label); color: var(--r-muted);
+}
+.ref-career-page .ref-career-job-card.is-active .ref-career-job-card__status { color: var(--r-teal-dk); }
+.ref-career-page .ref-career-job-card__desc { font-size: var(--r-fs-sm); font-weight: 600; color: var(--r-text2); line-height: 1.3; overflow-wrap: anywhere; }
+.ref-career-page .ref-career-job-card__path {
+  display: inline-flex; align-items: center; width: fit-content; max-width: 100%;
+  padding: 2px var(--r-sp-2); border-radius: var(--r-pill);
+  background: var(--r-accent-lt); border: 1px solid var(--r-success-brd);
+  font-size: var(--r-fs-xs); font-weight: 700; color: var(--r-teal-dk); overflow-wrap: anywhere;
+}
+.ref-career-page .ref-career-job-card__facts {
+  display: flex; flex-wrap: wrap; gap: var(--r-sp-1) var(--r-sp-2);
+  font-size: var(--r-fs-sm); font-weight: 800; color: var(--r-teal-dk);
+}
+.ref-career-page .ref-career-job-card__facts span:last-child { color: var(--r-text2); }
+.ref-career-page .ref-career-job-card__req { font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-text2); overflow-wrap: anywhere; }
+.ref-career-page .ref-career-job-card__missing {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--r-sp-1) var(--r-sp-2);
+  background: var(--r-danger-bg); border: 1px solid var(--r-danger-brd); border-radius: var(--r-sm);
+  font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-text); overflow-wrap: anywhere;
+}
+.ref-career-page .ref-career-job-card__button {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 40px; margin-top: auto; padding: var(--r-sp-2);
+  border-radius: var(--r-md);
+  background: var(--r-text); color: var(--r-on-dark);
+  font-size: var(--r-fs-sm); font-weight: 800; text-align: center;
+}
+.ref-career-page .ref-career-job-card.is-active .ref-career-job-card__button { background: var(--r-accent); }
+.ref-career-page .ref-career-job-card.is-locked .ref-career-job-card__button { background: var(--r-border); color: var(--r-text2); }
+
+.ref-career-page .ref-career-leave-btn {
+  display: block; width: 100%; min-height: 44px; margin-top: var(--r-sp-4);
+  padding: var(--r-sp-3);
+  background: var(--r-danger-bg); color: var(--r-text);
+  border: 1px solid var(--r-danger-brd); border-radius: var(--r-md);
+  font-family: inherit; font-size: var(--r-fs-md); font-weight: 800; cursor: pointer;
+  transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease);
+}
+.ref-career-page .ref-career-leave-btn:active { filter: var(--r-pressed); transform: translateY(1px); background: var(--r-danger-bg); }
+.ref-career-page .ref-career-leave-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+
+/* ── İlk firma hedefi / girişimci ── */
+.ref-career-page .ref-firm-goal {
+  display: flex; flex-direction: column; gap: var(--r-sp-1);
+  padding: var(--r-sp-3);
+  background: var(--r-surface); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md); box-shadow: var(--r-card-inset);
+}
+.ref-career-page .ref-firm-goal__row {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--r-sp-1);
+  font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-muted);
+}
+.ref-career-page .ref-firm-goal__val { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text); }
+.ref-career-page .ref-firm-goal .ref-perf-track { margin: var(--r-sp-1) 0 var(--r-sp-2); }
+.ref-career-page .ref-firm-goal__unlocked-text { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-teal-dk); }
+.ref-career-page .ref-career-entre-explainer {
+  margin: 0 0 var(--r-sp-3); font-size: var(--r-fs-md); font-weight: 600; line-height: 1.4; color: var(--r-text2);
+}
+.ref-career-page .ref-career-entrepreneur-badge {
+  padding: var(--r-sp-3); border-radius: var(--r-md);
+  background: var(--r-gold-lt); border: 1px solid var(--r-gold-brd);
+  font-size: var(--r-fs-md); font-weight: 700; color: var(--r-text);
+}
+.ref-career-page .ref-entre-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--r-sp-2); }
+.ref-career-page .ref-entre-stat {
+  display: flex; flex-direction: column; gap: var(--r-sp-1);
+  padding: var(--r-sp-3);
+  background: var(--r-surface); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md); box-shadow: var(--r-card-inset);
+}
+.ref-career-page .ref-entre-stat__lbl {
+  font-size: var(--r-fs-xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: var(--r-ls-label); color: var(--r-muted);
+}
+.ref-career-page .ref-entre-stat__val { font-size: var(--r-fs-xl); font-weight: 800; color: var(--r-text); overflow-wrap: anywhere; }
+.ref-career-page .ref-entre-stat__val.income { color: var(--r-teal-dk); }
+.ref-career-page .ref-entre-best {
+  display: flex; align-items: center; gap: var(--r-sp-3); margin-top: var(--r-sp-2);
+  padding: var(--r-sp-3);
+  background: var(--r-blue-bg); border: 1px solid var(--r-blue-brd); border-radius: var(--r-md);
+}
+.ref-career-page .ref-entre-best__lbl {
+  font-size: var(--r-fs-xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: var(--r-ls-label); color: var(--r-muted);
+}
+.ref-career-page .ref-entre-best__name { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text); }
+.ref-career-page .ref-entre-best__income { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-teal-dk); white-space: nowrap; }
+.ref-career-page .ref-entre-cta {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; min-height: 44px; margin: var(--r-sp-2) 0 0;
+  padding: var(--r-sp-3);
+  background: var(--r-accent); color: var(--r-on-dark);
+  border: none; border-radius: var(--r-md);
+  box-shadow: var(--r-elev-1);
+  font-family: inherit; font-size: var(--r-fs-md); font-weight: 800; cursor: pointer;
+  transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease);
+}
+.ref-career-page .ref-entre-cta:active { filter: var(--r-pressed); transform: translateY(1px); opacity: 1; }
+.ref-career-page .ref-entre-cta:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-career-page .ref-entre-cta[disabled] { opacity: var(--r-disabled-opacity); cursor: not-allowed; }
+
+/* ── Karakter profili (çipler gökyüzü üstünde, kart içinde değil) ── */
+.ref-career-page .ref-career-profile { margin: var(--r-sp-4) var(--r-page-x) 0; }
+.ref-career-page .ref-career-profile__title {
+  margin-bottom: var(--r-sp-2);
+  font-size: var(--r-fs-xs); font-weight: 800; text-transform: uppercase;
+  letter-spacing: var(--r-ls-label); color: var(--r-on-sky-muted);
+}
+.ref-career-page .ref-career-profile__chips { display: flex; flex-wrap: wrap; gap: var(--r-sp-2); }
+.ref-career-page .ref-career-profile .ref-member-chip {
+  padding: var(--r-sp-1) var(--r-sp-3);
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-pill); box-shadow: var(--r-elev-1);
+  font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-text);
+}
+
+/* ── Sağlık sekmesi ── */
+.ref-career-page .ref-health-card {
+  margin: 0 var(--r-page-x) var(--r-sp-3);
+  padding: var(--r-card-pad);
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg); box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+.ref-career-page .ref-health-stats { display: flex; flex-direction: column; gap: var(--r-sp-4); padding: 0; }
+.ref-career-page .ref-health-stat { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--r-sp-3); }
+.ref-career-page .ref-health-stat__ico { font-size: var(--r-fs-2xl); }
+.ref-career-page .ref-health-stat__lbl {
+  margin-bottom: var(--r-sp-1);
+  font-size: var(--r-fs-xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: var(--r-ls-label); color: var(--r-muted);
+}
+.ref-career-page .ref-health-val { min-width: 3.2ch; text-align: right; font-size: var(--r-fs-2xl); font-weight: 800; color: var(--r-text); white-space: nowrap; }
+.ref-career-page .ref-health-val--high { color: var(--r-teal-dk); }
+.ref-career-page .ref-health-val--medium { color: var(--r-gold-dk); }
+.ref-career-page .ref-health-val--low { color: var(--r-danger); }
+.ref-career-page .ref-health-tips { display: flex; flex-direction: column; gap: var(--r-sp-2); margin-top: var(--r-sp-3); }
+.ref-career-page .ref-health-tips:empty { display: none; }
+
+.ref-career-page .ref-disease-list-title {
+  margin: var(--r-sp-4) 0 var(--r-sp-2);
+  font-size: var(--r-fs-xs); font-weight: 800; text-transform: uppercase;
+  letter-spacing: var(--r-ls-label); color: var(--r-danger);
+}
+.ref-career-page .ref-disease-list { display: flex; flex-direction: column; gap: var(--r-sp-2); }
+.ref-career-page .ref-disease-row {
+  display: flex; align-items: center; gap: var(--r-sp-3);
+  padding: var(--r-sp-3);
+  background: var(--r-danger-bg); border: 1px solid var(--r-danger-brd);
+  border-radius: var(--r-md);
+}
+.ref-career-page .ref-disease-emoji { font-size: var(--r-fs-2xl); }
+.ref-career-page .ref-disease-name { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text); }
+.ref-career-page .ref-disease-dmg { margin-top: 2px; font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-danger); }
+.ref-career-page .ref-disease-ok {
+  margin-top: var(--r-sp-3); padding: var(--r-sp-3);
+  background: var(--r-success-bg); border: 1px solid var(--r-success-brd); border-radius: var(--r-md);
+  font-size: var(--r-fs-md); font-weight: 700; color: var(--r-text); text-align: center;
+}
+
+/* Satın alma / tedavi butonu + "neden kapalı" ipucu */
+.ref-career-page .ref-treat-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: var(--r-sp-1); flex-shrink: 0; }
+.ref-career-page .ref-treat-hint { font-size: var(--r-fs-xs); font-weight: 700; color: var(--r-danger); line-height: 1.2; }
+.ref-career-page .ref-disease-treat-btn {
+  flex-shrink: 0; min-height: 40px; padding: var(--r-sp-2) var(--r-sp-4);
+  background: var(--r-accent); color: var(--r-on-dark);
+  border: none; border-radius: var(--r-pill); box-shadow: var(--r-elev-1);
+  font-family: inherit; font-size: var(--r-fs-sm); font-weight: 800; white-space: nowrap; cursor: pointer;
+  transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease);
+}
+.ref-career-page .ref-disease-row .ref-disease-treat-btn { background: var(--r-danger); }
+.ref-career-page .ref-disease-treat-btn:active:not([disabled]) { filter: var(--r-pressed); transform: translateY(1px); opacity: 1; }
+.ref-career-page .ref-disease-treat-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-career-page .ref-disease-treat-btn[disabled] { opacity: var(--r-disabled-opacity); cursor: not-allowed; box-shadow: none; }
+
+/* Günlük rutin */
+.ref-career-page .ref-career-pips { display: flex; gap: var(--r-sp-2); margin: 0 0 var(--r-sp-2); }
+.ref-career-page .ref-career-pip {
+  flex: 1; height: 6px; border-radius: var(--r-pill);
+  background: var(--r-accent); box-shadow: var(--r-elev-1);
+}
+.ref-career-page .ref-career-pip.is-used { background: var(--r-border); box-shadow: none; }
+.ref-career-page .ref-routine-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--r-sp-2); }
+.ref-career-page .ref-routine-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--r-sp-1);
+  min-height: 96px; padding: var(--r-sp-3);
+  background: var(--r-surface); border: 1px solid var(--r-border);
+  border-radius: var(--r-md); box-shadow: var(--r-elev-1), var(--r-card-inset);
+  text-align: center; cursor: pointer; font-family: inherit;
+  transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease);
+}
+.ref-career-page .ref-routine-btn:active:not([disabled]) { filter: var(--r-pressed); transform: translateY(1px); opacity: 1; }
+.ref-career-page .ref-routine-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-career-page .ref-routine-btn[disabled] { opacity: var(--r-disabled-opacity); cursor: not-allowed; box-shadow: none; background: var(--r-card); }
+.ref-career-page .ref-routine-btn__ico { font-size: var(--r-fs-2xl); }
+.ref-career-page .ref-routine-btn__label { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text); }
+.ref-career-page .ref-routine-btn__effect { font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-teal-dk); line-height: 1.25; }
+.ref-career-page .ref-routine-btn[disabled] .ref-routine-btn__effect { color: var(--r-muted); }
+
+/* Stres tedavisi */
+.ref-career-page .ref-wellbeing-list { display: flex; flex-direction: column; gap: var(--r-sp-2); }
+.ref-career-page .ref-wellbeing-row {
+  display: flex; align-items: center; gap: var(--r-sp-3);
+  padding: var(--r-sp-3);
+  background: var(--r-surface); border: 1px solid var(--r-border);
+  border-radius: var(--r-md); box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+.ref-career-page .ref-wellbeing-row .ref-routine-btn__ico { font-size: var(--r-fs-2xl); }
+.ref-career-page .ref-wellbeing-row__main { flex: 1; min-width: 0; }
+.ref-career-page .ref-wellbeing-row__name { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text); }
+.ref-career-page .ref-wellbeing-row__effect { margin-top: 2px; font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-teal-dk); }
+.ref-career-page .ref-wellbeing-row__after { color: var(--r-text2); white-space: nowrap; }
+
+/* Karma */
+.ref-career-page .ref-karma-row {
+  margin: var(--r-sp-4) var(--r-page-x) 0;
+  padding: var(--r-sp-3) var(--r-card-pad);
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md); box-shadow: var(--r-elev-1), var(--r-card-inset);
+  font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text);
+}
+.ref-career-page .ref-karma-good { background: var(--r-success-bg); border-color: var(--r-success-brd); color: var(--r-text); }
+.ref-career-page .ref-karma-bad  { background: var(--r-danger-bg);  border-color: var(--r-danger-brd);  color: var(--r-text); }
+.ref-career-page .ref-karma-val { font-size: var(--r-fs-xl); font-weight: 800; }
+.ref-career-page .ref-karma-good .ref-karma-val { color: var(--r-teal-dk); }
+.ref-career-page .ref-karma-bad .ref-karma-val { color: var(--r-danger); }
+
+/* Sağlık sekmesinde rutin/tedavi blokları sayfa kenar boşluğu alsın */
+.ref-career-page .ref-routine-grid,
+.ref-career-page .ref-wellbeing-list,
+.ref-career-page .ref-career-pips { margin-left: var(--r-page-x); margin-right: var(--r-page-x); }
