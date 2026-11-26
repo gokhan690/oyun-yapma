@@ -41,16 +41,16 @@ export class RefSettingsPage implements RefPage {
     this.el.appendChild(title)
 
     // ── Section 1: Language ──
-    this.el.appendChild(this.buildSection(i18n.t('ref_settings_lang_title'), this.buildLangSection()))
+    this.el.appendChild(this.buildSection(i18n.t('ref_settings_lang_title'), this.buildLangSection(), '🌐'))
 
     // ── Section 2: Appearance ──
-    this.el.appendChild(this.buildSection(i18n.t('ref_settings_appearance_title'), this.buildAppearanceSection(state)))
+    this.el.appendChild(this.buildSection(i18n.t('ref_settings_appearance_title'), this.buildAppearanceSection(state), '🎨'))
 
     // ── Section 3: Notifications ──
-    this.el.appendChild(this.buildSection(i18n.t('ref_settings_notif_title'), this.buildNotifSection(state)))
+    this.el.appendChild(this.buildSection(i18n.t('ref_settings_notif_title'), this.buildNotifSection(state), '🔔'))
 
     // ── Section 4: Game Data ──
-    this.el.appendChild(this.buildSection(i18n.t('ref_settings_data_title'), this.buildDataSection(state, saveManager)))
+    this.el.appendChild(this.buildSection(i18n.t('ref_settings_data_title'), this.buildDataSection(state, saveManager), '💾'))
 
     // ── Reset (danger zone) — only when callback is provided ──
     if (this.opts.onResetConfirmed) {
@@ -65,12 +65,12 @@ export class RefSettingsPage implements RefPage {
     this.el.appendChild(ver)
   }
 
-  private buildSection(heading: string, content: HTMLElement): HTMLElement {
+  private buildSection(heading: string, content: HTMLElement, icon = ''): HTMLElement {
     const section = document.createElement('div')
     section.className = 'ref-settings-section'
     const h = document.createElement('div')
     h.className = 'ref-settings-section-title'
-    h.textContent = heading
+    h.textContent = icon ? `${icon}  ${heading}` : heading
     section.appendChild(h)
     section.appendChild(content)
     return section
@@ -86,6 +86,7 @@ export class RefSettingsPage implements RefPage {
       btn.type = 'button'
       btn.className = 'ref-settings-lang-btn' + (code === current ? ' active' : '')
       btn.textContent = meta.nativeLabel
+      btn.setAttribute('aria-pressed', String(code === current))
       btn.addEventListener('click', async () => {
         if (code === i18n.getLang()) return
         this.opts.onPersist()
@@ -114,14 +115,23 @@ export class RefSettingsPage implements RefPage {
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = 'ref-settings-theme-btn' + (theme.id === state.activeTheme ? ' active' : '')
-      btn.title = theme.id
-      btn.style.background = (theme.colors?.[2]) ?? '#888'
+      btn.title = theme.name
+      btn.setAttribute('aria-label', theme.name)
+      btn.setAttribute('aria-pressed', String(theme.id === state.activeTheme))
+      btn.textContent = theme.emoji ?? ''
+      // Tema rengi veri kaynaklı (Themes.ts); yoksa token rengi
+      btn.style.background = (theme.colors?.[1]) ?? 'var(--r-muted-lt)'
+      btn.style.borderColor = ''
       btn.addEventListener('click', () => {
         state.setActiveTheme(theme.id)
         applyDocumentTheme(theme.id)
         this.opts.onPersist()
-        themeRow.querySelectorAll('.ref-settings-theme-btn').forEach(b => b.classList.remove('active'))
+        themeRow.querySelectorAll('.ref-settings-theme-btn').forEach(b => {
+          b.classList.remove('active')
+          b.setAttribute('aria-pressed', 'false')
+        })
         btn.classList.add('active')
+        btn.setAttribute('aria-pressed', 'true')
       })
       themeRow.appendChild(btn)
     }
@@ -273,6 +283,7 @@ export class RefSettingsPage implements RefPage {
     restoreBtn.type = 'button'
     restoreBtn.className = 'ref-settings-action-btn'
     restoreBtn.disabled = !hasBackup
+    if (!hasBackup) restoreBtn.title = i18n.t('ref_settings_no_backup')
     restoreBtn.textContent = hasBackup
       ? i18n.t('ref_settings_restore_backup')
       : i18n.t('ref_settings_no_backup')
@@ -309,7 +320,7 @@ export class RefSettingsPage implements RefPage {
     const resetBtn = document.createElement('button')
     resetBtn.type = 'button'
     resetBtn.className = 'ref-settings-reset-btn'
-    resetBtn.textContent = i18n.t('ref_settings_reset_btn')
+    resetBtn.textContent = `⚠️  ${i18n.t('ref_settings_reset_btn')}`
 
     // Modal overlay (hidden initially)
     const modal = document.createElement('div')
