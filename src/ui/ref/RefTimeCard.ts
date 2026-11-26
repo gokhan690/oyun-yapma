@@ -63,7 +63,7 @@ export class RefTimeCard {
           <span class="ref-timebar__income"></span>
         </div>
       </div>
-      <button class="ref-timebar__btn" type="button">⏸</button>
+      <button class="ref-timebar__btn" type="button" aria-label="${i18n.t('ref_time_pause')}">⏸</button>
     `
     this.clockEl    = this.el.querySelector('.ref-timebar__clock')!
     this.ageEl      = this.el.querySelector('.ref-timebar__age')!
@@ -160,17 +160,20 @@ export class RefTimeCard {
         this.btnEl.classList.add('resume')
         this.btnEl.classList.remove('restart')
         this.btnEl.title = i18n.t('ref_time_resume')
+        this.btnEl.setAttribute('aria-label', this.btnEl.title)
         this.btnEl.disabled = false
       } else if (stopped) {
         this.btnEl.textContent = '▶'
         this.btnEl.classList.remove('resume')
         this.btnEl.classList.add('restart')
         this.btnEl.title = i18n.t('ref_time_resume')
+        this.btnEl.setAttribute('aria-label', this.btnEl.title)
         this.btnEl.disabled = !s.isIntroFlowReady()
       } else {
         this.btnEl.textContent = '⏸'
         this.btnEl.classList.remove('resume', 'restart')
         this.btnEl.title = i18n.t('ref_time_pause')
+        this.btnEl.setAttribute('aria-label', this.btnEl.title)
         this.btnEl.disabled = false
       }
     }
