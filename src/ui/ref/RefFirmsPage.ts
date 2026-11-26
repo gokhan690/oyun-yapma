@@ -226,17 +226,20 @@ export class RefFirmsPage implements RefPage {
       <button class="ref-buy-mode-btn" data-buy-mode="10">10×</button>
       <button class="ref-buy-mode-btn" data-buy-mode="100">100×</button>
       <button class="ref-buy-mode-btn" data-buy-mode="max">${i18n.t('firms_buy_max')}</button>`
-    wrap.appendChild(this.buyModeRow)
+    const controls = document.createElement('div')
+    controls.className = 'ref-firms-controls'
+    controls.appendChild(this.buyModeRow)
 
     // Tier filter
     this.tierFilterRow = document.createElement('div')
     this.tierFilterRow.className = 'ref-tier-filter-row'
     this.tierFilterRow.innerHTML = `
+      <span class="ref-tier-lbl">${i18n.t('firms_stat_tier')}</span>
       <button class="ref-tier-btn active" data-tier-filter="tumu">${i18n.t('firms_tier_all')}</button>
       <button class="ref-tier-btn" data-tier-filter="small">T1–3</button>
       <button class="ref-tier-btn" data-tier-filter="medium">T4–6</button>
       <button class="ref-tier-btn" data-tier-filter="large">T7+</button>`
-    wrap.appendChild(this.tierFilterRow)
+    controls.appendChild(this.tierFilterRow)
 
     // Tur 3 (B3): sıralama çip satırı
     this.sortRow = document.createElement('div')
@@ -244,7 +247,8 @@ export class RefFirmsPage implements RefPage {
     this.sortRow.innerHTML = `
       <span class="ref-sort-lbl">${i18n.t('firms_sort_label')}</span>
       <div class="ref-sort-scroll">${this.buildSortRowHtml()}</div>`
-    wrap.appendChild(this.sortRow)
+    controls.appendChild(this.sortRow)
+    wrap.appendChild(controls)
 
     // Erken oyun firma-alımı kilidi ilerleme bandı (kilitliyken görünür)
     this.lockBannerEl = document.createElement('div')
@@ -523,6 +527,10 @@ export class RefFirmsPage implements RefPage {
         </button>`
       : ''
 
+    const lvHint = owned > 0 && !lv.atMax
+      ? `<div class="ref-prod-lvl-hint">${fmtMoney(lv.currentIncome)}→${fmtMoney(lv.nextIncome)} · ${fmt('firms_levelup_income_pct_fmt', { pct: String(lv.incomePct) })}</div>`
+      : ''
+
     const manLabel = assignedManagerDef
       ? `${assignedManagerDef.emoji} ${managerDisplayName(assignedManagerDef)} - ${i18n.t('firms_manager_owned')}`
       : genericManagerHired
@@ -560,10 +568,11 @@ export class RefFirmsPage implements RefPage {
       </div>
       <div class="ref-prod-econ-line">${unlocked ? this.economyLineHtml(owned, breakdown) : ''}</div>
       <div class="ref-prod-labels">${unlocked ? this.labelsHtml(breakdown) : ''}</div>
-      ${owned === 0 && canBuy ? `<div class="ref-prod-buy-gain">${fmt('firms_buy_gain_fmt', { amount: fmtMoney(buyDelta) })}${this.buyMode !== 1 ? ` (${qty}×)` : ''}</div>` : ''}
+      ${unlocked && !purchaseLocked ? `<div class="ref-prod-buy-gain${canBuy ? '' : ' ref-prod-buy-gain--muted'}">${fmt('firms_buy_gain_fmt', { amount: fmtMoney(buyDelta) })}${this.buyMode !== 1 && qty > 1 ? ` (${qty}×)` : ''}</div>` : ''}
       <div class="ref-prod-card__foot">
         ${footRight}
         ${lvBtn}
+        ${lvHint}
       </div>
       ${(manBtn || modBtn) ? `<div class="ref-prod-action-row">${manBtn}${modBtn}</div>` : ''}
     `

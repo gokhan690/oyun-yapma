@@ -1,1 +1,386 @@
-/* firms — sayfaya özel stiller. Tasarım token sözleşmesi: ref-ui.css :root (--r-*). Token dışı sabit renk KULLANMA. */
+/* firms — sayfaya özel stiller. Tasarım token sözleşmesi: ref-ui.css :root (--r-*). Token dışı sabit renk KULLANMA.
+   Tüm kurallar .ref-firms-page altında kapsamlanır (ref-ui.css'teki eski kuralları özgüllükle ezer). */
+
+/* ── Gökyüzü üstü metinler: kontrast ─────────────────────────────────── */
+.ref-firms-page .ref-summary-strip {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--r-sp-3);
+  padding: var(--r-sp-2) var(--r-page-x) var(--r-sp-1);
+}
+.ref-firms-page .ref-summary-count {
+  font-size: var(--r-fs-sm); font-weight: 800; color: var(--r-on-sky-muted);
+}
+.ref-firms-page .ref-summary-total {
+  font-size: var(--r-fs-sm); font-weight: 800; color: var(--r-on-sky);
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-pill); padding: var(--r-sp-1) var(--r-sp-3);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+.ref-firms-page .ref-preview-note {
+  color: var(--r-on-sky-muted); font-size: var(--r-fs-sm); font-weight: 700;
+  text-align: center; padding: var(--r-sp-2) var(--r-page-x) 0; opacity: 1;
+}
+.ref-firms-page .ref-live-biz .ref-preview-note.live-mode,
+.ref-firms-page .ref-preview-note.live-mode {
+  color: var(--r-accent-dk); background: var(--r-accent-lt);
+  border: 1px solid var(--r-border-lt); border-radius: var(--r-md);
+  margin: var(--r-sp-3) var(--r-page-x) 0; padding: var(--r-sp-2) var(--r-sp-3);
+  font-size: var(--r-fs-sm);
+}
+
+/* ── Ana sekmeler (Normal / İmparatorluk) ────────────────────────────── */
+.ref-firms-page .ref-main-tabs {
+  display: flex; gap: var(--r-sp-1); margin: var(--r-sp-4) var(--r-page-x) 0;
+  padding: var(--r-sp-1); border-radius: var(--r-lg);
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  box-shadow: var(--r-elev-1), var(--r-card-inset); overflow: visible;
+}
+.ref-firms-page .ref-main-tab {
+  flex: 1; min-height: 44px; border: none; border-right: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: var(--r-sp-2);
+  padding: var(--r-sp-2); border-radius: var(--r-md);
+  background: transparent; color: var(--r-text2);
+  font-size: var(--r-fs-md); font-weight: 800; box-shadow: none;
+  transition: background var(--r-dur) var(--r-ease), color var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease);
+}
+.ref-firms-page .ref-main-tab.active {
+  background: var(--r-accent); color: var(--r-on-dark); box-shadow: var(--r-elev-1);
+}
+.ref-firms-page .ref-main-tab:active { filter: var(--r-pressed); }
+.ref-firms-page .ref-main-tab:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+
+/* ── Kontrol paneli: adet / kademe / sıralama ────────────────────────── */
+.ref-firms-page .ref-firms-controls {
+  margin: var(--r-sp-3) var(--r-page-x) var(--r-sp-1);
+  padding: var(--r-sp-3) var(--r-card-pad);
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg); box-shadow: var(--r-elev-1), var(--r-card-inset);
+  display: flex; flex-direction: column; gap: var(--r-sp-2);
+}
+.ref-firms-page .ref-buy-mode-row,
+.ref-firms-page .ref-tier-filter-row,
+.ref-firms-page .ref-sort-row {
+  display: flex; align-items: center; gap: var(--r-sp-2); padding: 0; max-width: 100%;
+}
+.ref-firms-page .ref-buy-mode-lbl,
+.ref-firms-page .ref-tier-lbl,
+.ref-firms-page .ref-sort-lbl {
+  flex: 0 0 56px; width: 56px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--r-fs-xs); font-weight: 800; text-transform: uppercase;
+  letter-spacing: var(--r-ls-label); color: var(--r-muted);
+}
+.ref-firms-page .ref-buy-mode-btn,
+.ref-firms-page .ref-tier-btn,
+.ref-firms-page .ref-sort-btn {
+  min-height: 40px; padding: var(--r-sp-2) var(--r-sp-3);
+  font-size: var(--r-fs-sm); font-weight: 800; line-height: 1.1; cursor: pointer;
+  border-radius: var(--r-md); border: 1.5px solid var(--r-border);
+  background: var(--r-surface); color: var(--r-text2);
+  transition: background var(--r-dur) var(--r-ease), color var(--r-dur) var(--r-ease),
+              border-color var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease);
+}
+.ref-firms-page .ref-buy-mode-btn,
+.ref-firms-page .ref-tier-btn { flex: 1 1 0; min-width: 0; }
+.ref-firms-page .ref-sort-btn { flex: 0 0 auto; white-space: nowrap; }
+.ref-firms-page .ref-buy-mode-btn.active,
+.ref-firms-page .ref-tier-btn.active,
+.ref-firms-page .ref-sort-btn.active {
+  background: var(--r-accent); border-color: var(--r-accent-dk); color: var(--r-on-dark);
+  box-shadow: var(--r-elev-1);
+}
+.ref-firms-page .ref-buy-mode-btn:active,
+.ref-firms-page .ref-tier-btn:active,
+.ref-firms-page .ref-sort-btn:active { filter: var(--r-pressed); }
+.ref-firms-page .ref-buy-mode-btn:focus-visible,
+.ref-firms-page .ref-tier-btn:focus-visible,
+.ref-firms-page .ref-sort-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-firms-page .ref-sort-scroll {
+  flex: 1 1 0; min-width: 0; display: flex; gap: var(--r-sp-2); overflow-x: auto;
+  padding: 2px var(--r-sp-4) 2px 0; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent); /* #000: yalnız maske alfa kanalı, görünür renk değil */
+  mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+}
+
+/* ── Kilit bandı ─────────────────────────────────────────────────────── */
+.ref-firms-page .ref-firms-lock-banner {
+  margin: var(--r-sp-3) var(--r-page-x) 0; padding: var(--r-card-pad);
+  background: var(--r-gold-lt); border: 1px solid var(--r-gold-brd);
+  border-radius: var(--r-lg); box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+.ref-firms-page .ref-firms-lock-banner__title {
+  font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text);
+}
+.ref-firms-page .ref-firms-lock-banner__msg {
+  margin-top: var(--r-sp-1); font-size: var(--r-fs-md); font-weight: 600; color: var(--r-text2); line-height: 1.4;
+}
+.ref-firms-page .ref-firms-lock-banner__progress {
+  margin-top: var(--r-sp-2); display: inline-block; padding: var(--r-sp-1) var(--r-sp-3);
+  background: var(--r-surface); border: 1px solid var(--r-border-lt); border-radius: var(--r-pill);
+  font-size: var(--r-fs-sm); font-weight: 800; color: var(--r-text);
+}
+
+/* ── Üretici (firma) kartları ────────────────────────────────────────── */
+.ref-firms-page .ref-prod-list {
+  padding: var(--r-sp-2) var(--r-page-x) var(--r-sp-4);
+  display: flex; flex-direction: column; gap: var(--r-sp-3);
+}
+.ref-firms-page .ref-prod-card {
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg); padding: var(--r-card-pad);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+  display: flex; flex-direction: column; gap: var(--r-sp-3);
+  transition: border-color var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+.ref-firms-page .ref-prod-card.owned {
+  background: var(--r-card-soft);
+  border-color: color-mix(in srgb, var(--r-accent) 45%, var(--r-border-lt));
+  box-shadow: var(--r-elev-1), var(--r-card-inset), inset 4px 0 0 var(--r-accent);
+}
+.ref-firms-page .ref-prod-card.available {
+  border-color: var(--r-success-brd);
+  box-shadow: var(--r-elev-2), var(--r-card-inset), inset 4px 0 0 var(--r-success);
+}
+.ref-firms-page .ref-prod-card.no-cash { opacity: 1; }
+.ref-firms-page .ref-prod-card.locked {
+  opacity: 0.72; background: var(--r-card);
+}
+.ref-firms-page .ref-prod-card.locked .ref-prod-emoji { filter: grayscale(0.7); }
+
+.ref-firms-page .ref-prod-card__head {
+  display: flex; align-items: center; gap: var(--r-sp-3); margin: 0;
+  min-height: 44px;
+}
+.ref-firms-page .ref-prod-emoji { font-size: var(--r-fs-2xl); line-height: 1; }
+.ref-firms-page .ref-prod-name {
+  flex-wrap: wrap; gap: var(--r-sp-2); row-gap: var(--r-sp-1);
+  font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text); line-height: 1.2;
+}
+.ref-firms-page .ref-prod-owned-badge {
+  background: var(--r-accent); color: var(--r-on-dark); border-radius: var(--r-pill);
+  font-size: var(--r-fs-xs); font-weight: 800; padding: 2px var(--r-sp-2); line-height: 1.4;
+}
+.ref-firms-page .ref-prod-lv-badge {
+  background: var(--r-blue-bg); color: var(--r-blue); border: 1px solid var(--r-blue-brd);
+  border-radius: var(--r-pill); font-size: var(--r-fs-xs); font-weight: 800;
+  padding: 2px var(--r-sp-2); margin: 0; line-height: 1.4;
+}
+.ref-firms-page .ref-prod-lv-badge--max {
+  background: var(--r-gold-lt); color: var(--r-text); border-color: var(--r-gold-brd);
+}
+.ref-firms-page .ref-prod-desc {
+  font-size: var(--r-fs-sm); font-weight: 600; color: var(--r-muted); margin-top: var(--r-sp-1);
+  white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.ref-firms-page .ref-prod-lv-mult {
+  display: inline-block; margin-left: var(--r-sp-2); color: var(--r-success); font-weight: 800;
+  font-size: var(--r-fs-xs);
+}
+.ref-firms-page .ref-prod-card__head--clickable {
+  cursor: pointer; border-radius: var(--r-md);
+  transition: background var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease);
+}
+.ref-firms-page .ref-prod-card__head--clickable:active { filter: var(--r-pressed); }
+.ref-firms-page .ref-prod-card__head--clickable::after {
+  color: var(--r-accent-dk); font-size: var(--r-fs-xl); padding: 0 var(--r-sp-1);
+}
+
+/* Seviye ilerleme noktaları */
+.ref-firms-page .ref-prod-lvl-pips { display: flex; gap: var(--r-sp-1); padding: 0; }
+.ref-firms-page .ref-prod-lvl-pip {
+  flex: 1 1 0; width: auto; height: 6px; border-radius: var(--r-pill);
+  background: var(--r-border-lt);
+}
+.ref-firms-page .ref-prod-lvl-pip.on { background: var(--r-accent); }
+
+/* İstatistik ızgarası: ana değer = gelir */
+.ref-firms-page .ref-prod-stats {
+  display: flex; gap: var(--r-sp-2); padding: 0; margin: 0;
+}
+.ref-firms-page .ref-prod-stat {
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+  background: var(--r-surface); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md); padding: var(--r-sp-2);
+}
+.ref-firms-page .ref-prod-stat:has(b.inc) {
+  flex: 1.9 1 0; background: var(--r-success-bg); border-color: var(--r-success-brd);
+}
+.ref-firms-page .ref-prod-stat small {
+  font-size: var(--r-fs-xs); font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.02em; color: var(--r-muted); line-height: 1.2;
+  white-space: normal; overflow-wrap: break-word; hyphens: auto;
+}
+.ref-firms-page .ref-prod-stat b {
+  font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text); line-height: 1.2;
+  white-space: nowrap; margin-top: auto;
+}
+.ref-firms-page .ref-prod-stat b.inc { font-size: var(--r-fs-xl); color: var(--r-text); }
+
+/* Ekonomi satırı + etiketler */
+.ref-firms-page .ref-prod-econ-line {
+  display: flex; flex-wrap: wrap; gap: var(--r-sp-2) var(--r-sp-4); padding: 0; margin: 0;
+  font-size: var(--r-fs-sm); font-weight: 800;
+}
+.ref-firms-page .ref-prod-econ-line:empty,
+.ref-firms-page .ref-prod-labels:empty { display: none; }
+.ref-firms-page .ref-prod-econ-item { color: var(--r-muted); }
+.ref-firms-page .ref-prod-econ-item.pos { color: var(--r-text); }
+.ref-firms-page .ref-prod-econ-item.neg { color: var(--r-danger); }
+.ref-firms-page .ref-prod-labels { display: flex; flex-wrap: wrap; gap: var(--r-sp-2); padding: 0; }
+.ref-firms-page .ref-prod-label-chip {
+  font-size: var(--r-fs-xs); font-weight: 800; padding: 2px var(--r-sp-2);
+  border-radius: var(--r-pill); color: var(--r-on-dark); line-height: 1.4;
+}
+.ref-firms-page .ref-prod-label-chip--fastest_payback { background: var(--r-success-bg); color: var(--r-text); border: 1px solid var(--r-success-brd); }
+.ref-firms-page .ref-prod-label-chip--best_net { background: var(--r-gold-lt); color: var(--r-text); border: 1px solid var(--r-gold-brd); }
+.ref-firms-page .ref-prod-label-chip--affordable { background: var(--r-accent-lt); color: var(--r-accent-dk); border: 1px solid var(--r-border-lt); }
+.ref-firms-page .ref-prod-label-chip--long_term { background: var(--r-surface); color: var(--r-text2); border: 1px solid var(--r-border); }
+.ref-firms-page .ref-prod-label-chip--low_reserve { background: var(--r-card); color: var(--r-orange-dk); border: 1px solid var(--r-gold-brd); }
+.ref-firms-page .ref-prod-label-chip--inefficient { background: var(--r-danger-bg); color: var(--r-danger); border: 1px solid var(--r-danger-brd); }
+.ref-firms-page .ref-prod-label-chip--risk_manager { background: var(--r-blue-bg); color: var(--r-blue); border: 1px solid var(--r-blue-brd); }
+
+/* Satın alma kazancı: karar öncesi görünür */
+.ref-firms-page .ref-prod-buy-gain {
+  font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text);
+  background: var(--r-success-bg); border: 1px solid var(--r-success-brd);
+  border-radius: var(--r-md); padding: var(--r-sp-2) var(--r-sp-3); text-align: center;
+}
+.ref-firms-page .ref-prod-buy-gain--muted {
+  color: var(--r-muted); background: var(--r-surface); border-color: var(--r-border-lt);
+}
+
+/* Alt eylem alanı: satın al = birincil */
+.ref-firms-page .ref-prod-card__foot {
+  display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+  gap: var(--r-sp-2); padding: 0;
+}
+.ref-firms-page .ref-prod-btn {
+  width: 100%; min-height: 48px; padding: var(--r-sp-3) var(--r-sp-4);
+  border: 1.5px solid transparent; border-radius: var(--r-md); cursor: pointer;
+  font-size: var(--r-fs-md); font-weight: 800; white-space: normal; line-height: 1.2;
+  transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+.ref-firms-page .ref-prod-btn.buyable {
+  background: var(--r-success); color: var(--r-on-dark); border-color: var(--r-success);
+  box-shadow: var(--r-shadow-btn);
+}
+.ref-firms-page .ref-prod-btn.buyable:active { filter: var(--r-pressed); transform: translateY(2px); box-shadow: none; }
+.ref-firms-page .ref-prod-btn:focus-visible,
+.ref-firms-page .ref-prod-lvl-btn:focus-visible,
+.ref-firms-page .ref-prod-action-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-firms-page .ref-prod-btn.disabled,
+.ref-firms-page .ref-prod-btn[disabled] {
+  background: var(--r-surface); color: var(--r-text2); border: 1.5px dashed var(--r-border);
+  box-shadow: none; opacity: var(--r-disabled-opacity); cursor: not-allowed;
+}
+.ref-firms-page .ref-prod-locked-lbl {
+  display: block; text-align: center; padding: var(--r-sp-3);
+  background: var(--r-surface); border: 1px dashed var(--r-border); border-radius: var(--r-md);
+  font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text2);
+}
+
+/* Seviye yükselt: ikincil eylem, kazanç görünür */
+.ref-firms-page .ref-prod-lvl-btn {
+  display: block; width: 100%; margin: 0; min-height: 44px; padding: var(--r-sp-2) var(--r-sp-3);
+  background: var(--r-surface); border: 1.5px solid var(--r-border); border-radius: var(--r-md);
+  color: var(--r-text2); font-size: var(--r-fs-md); font-weight: 800; text-align: center;
+  cursor: not-allowed; opacity: var(--r-disabled-opacity);
+  transition: filter var(--r-dur) var(--r-ease), transform var(--r-dur) var(--r-ease);
+}
+.ref-firms-page .ref-prod-lvl-btn--active {
+  background: var(--r-accent); color: var(--r-on-dark); border-color: var(--r-accent-dk);
+  opacity: 1; cursor: pointer; box-shadow: var(--r-elev-1);
+}
+.ref-firms-page .ref-prod-lvl-btn--active:active { filter: var(--r-pressed); transform: translateY(1px); opacity: 1; }
+.ref-firms-page .ref-prod-lvl-hint {
+  text-align: center; font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-muted);
+}
+
+/* Yönetici / modernize */
+.ref-firms-page .ref-prod-action-row { display: flex; gap: var(--r-sp-2); padding: 0; }
+.ref-firms-page .ref-prod-action-btn {
+  flex: 1 1 0; min-width: 0; min-height: 44px; padding: var(--r-sp-2) var(--r-sp-3);
+  border-radius: var(--r-md); border: 1.5px solid var(--r-border); cursor: pointer;
+  background: var(--r-surface); color: var(--r-text); font-size: var(--r-fs-sm); font-weight: 800;
+  line-height: 1.2; text-align: center;
+  transition: background var(--r-dur) var(--r-ease), color var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease);
+}
+.ref-firms-page .ref-prod-action-btn.manager { background: var(--r-blue-bg); color: var(--r-blue); border-color: var(--r-blue-brd); }
+.ref-firms-page .ref-prod-action-btn.manager:not(.disabled):hover { background: var(--r-blue); color: var(--r-on-dark); }
+.ref-firms-page .ref-prod-action-btn.modernize { background: var(--r-accent-lt); color: var(--r-accent-dk); border-color: var(--r-border-lt); }
+.ref-firms-page .ref-prod-action-btn.modernize:not(.disabled):hover { background: var(--r-accent); color: var(--r-on-dark); }
+.ref-firms-page .ref-prod-action-btn:not(.disabled):active { filter: var(--r-pressed); }
+.ref-firms-page .ref-prod-action-btn.disabled,
+.ref-firms-page .ref-prod-action-btn[disabled] { opacity: var(--r-disabled-opacity); cursor: not-allowed; }
+.ref-firms-page .ref-prod-badge-ok {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--r-sp-3);
+  font-size: var(--r-fs-sm); font-weight: 800; color: var(--r-success);
+}
+
+/* ── İmparatorluk sekmesi ────────────────────────────────────────────── */
+.ref-firms-page .ref-empire-inv { padding-bottom: var(--r-sp-4); }
+.ref-firms-page .ref-empire-tabs {
+  display: flex; gap: var(--r-sp-2); padding: var(--r-sp-3) var(--r-page-x) var(--r-sp-1);
+  overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.ref-firms-page .ref-empire-tab {
+  flex: 0 0 auto; min-height: 40px; display: flex; align-items: center; gap: var(--r-sp-2);
+  padding: var(--r-sp-2) var(--r-sp-4); border-radius: var(--r-pill);
+  background: var(--r-surface); border: 1.5px solid var(--r-border); color: var(--r-text2);
+  font-size: var(--r-fs-sm); font-weight: 800; cursor: pointer; box-shadow: var(--r-elev-1);
+  transition: background var(--r-dur) var(--r-ease), color var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease);
+}
+.ref-firms-page .ref-empire-tab.active {
+  background: var(--r-accent); color: var(--r-on-dark); border-color: var(--r-accent-dk);
+}
+.ref-firms-page .ref-empire-tab:active { filter: var(--r-pressed); }
+.ref-firms-page .ref-empire-tab:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-firms-page .ref-empire-inv-content { padding: var(--r-sp-2) var(--r-page-x) var(--r-sp-1); }
+.ref-firms-page .ref-empire-cards { display: flex; flex-direction: column; gap: var(--r-sp-3); }
+.ref-firms-page .ref-empire-empty {
+  font-size: var(--r-fs-md); font-weight: 700; color: var(--r-on-sky-muted); text-align: center; padding: var(--r-sp-6) 0;
+}
+.ref-firms-page .ref-empire-card {
+  background: var(--r-card-soft); border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg); padding: var(--r-card-pad);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+  display: flex; flex-direction: column; gap: var(--r-sp-3);
+}
+.ref-firms-page .ref-empire-card.owned {
+  background: var(--r-card-soft); border-color: var(--r-border-gold);
+}
+.ref-firms-page .ref-empire-card.locked { opacity: 0.72; background: var(--r-card); }
+.ref-firms-page .ref-empire-card__head { margin: 0; gap: var(--r-sp-3); min-height: 44px; }
+.ref-firms-page .ref-empire-card__emoji { font-size: var(--r-fs-2xl); line-height: 1; }
+.ref-firms-page .ref-empire-card__name {
+  font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text); line-height: 1.25;
+}
+.ref-firms-page .ref-empire-card__tier {
+  margin-top: var(--r-sp-1); font-size: var(--r-fs-sm); font-weight: 600; color: var(--r-muted);
+}
+.ref-firms-page .ref-empire-card__tier b { color: var(--r-text); font-weight: 800; }
+.ref-firms-page .ref-empire-card__badge {
+  background: var(--r-gold-lt); color: var(--r-text); border: 1px solid var(--r-gold-brd);
+  font-size: var(--r-fs-sm); font-weight: 800; border-radius: var(--r-pill); padding: 2px var(--r-sp-2);
+}
+.ref-firms-page .ref-empire-card__foot { display: flex; flex-direction: column; align-items: stretch; }
+.ref-firms-page .ref-empire-cat-chip {
+  font-size: var(--r-fs-xs); font-weight: 800; letter-spacing: var(--r-ls-label);
+  padding: 2px var(--r-sp-2); margin-left: var(--r-sp-2); border-radius: var(--r-pill);
+}
+.ref-firms-page .ref-empire-cat-chip--sport    { background: var(--r-card); color: var(--r-orange-dk); }
+.ref-firms-page .ref-empire-cat-chip--politics { background: var(--r-blue-bg); color: var(--r-blue); }
+.ref-firms-page .ref-empire-cat-chip--dark     { background: var(--r-danger-bg); color: var(--r-danger); }
+.ref-firms-page .ref-empire-cat-chip--luxury   { background: var(--r-gold-lt); color: var(--r-text); }
+.ref-firms-page .ref-empire-cat-chip--science  { background: var(--r-accent-lt); color: var(--r-accent-dk); }
+.ref-firms-page .ref-empire-cat-chip--finance  { background: var(--r-success-bg); color: var(--r-text); }
+
+/* ── Önizleme (mock) kategori sekmeleri ──────────────────────────────── */
+.ref-firms-page .ref-cat-tab {
+  min-height: 40px; cursor: pointer;
+  transition: background var(--r-dur) var(--r-ease), color var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease);
+}
+.ref-firms-page .ref-cat-tab:active { filter: var(--r-pressed); }
+.ref-firms-page .ref-cat-tab:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ref-firms-page * { transition: none !important; }
+}
