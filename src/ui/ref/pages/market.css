@@ -1,1 +1,390 @@
 /* market — sayfaya özel stiller. Tasarım token sözleşmesi: ref-ui.css :root (--r-*). Token dışı sabit renk KULLANMA. */
+
+/* ── Bölüm başlıkları: gökyüzü üstünde → lacivert, net hiyerarşi ── */
+.ref-market-page .ref-sec-title {
+  padding: var(--r-sp-5) var(--r-page-x) var(--r-sp-2);
+  font-size: var(--r-fs-xl);
+  font-weight: 800;
+  color: var(--r-on-sky);
+}
+.ref-market-page .ref-sec-action {
+  font-size: var(--r-fs-sm);
+  font-weight: 800;
+  color: var(--r-on-sky-muted);
+}
+
+/* ── Ortak kart yüzeyi ── */
+.ref-market-page .ref-pulse-strip,
+.ref-market-page .ref-portfolio-card,
+.ref-market-page .ref-fin-cell,
+.ref-market-page .ref-ipo-card,
+.ref-market-page .ref-stock-row {
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+
+/* ── Piyasa nabzı ── */
+.ref-market-page .ref-pulse-strip {
+  margin: var(--r-sp-3) var(--r-page-x) 0;
+  padding: var(--r-card-pad);
+  gap: var(--r-sp-3) var(--r-sp-5);
+}
+.ref-market-page .ref-pulse-item { gap: var(--r-sp-1); }
+.ref-market-page .ref-pulse-lbl {
+  font-size: var(--r-fs-xs);
+  font-weight: 700;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+}
+.ref-market-page .ref-pulse-val {
+  font-size: var(--r-fs-xl);
+  font-weight: 800;
+  gap: var(--r-sp-2);
+  color: var(--r-text);
+}
+.ref-market-page .ref-pulse-val.up   { color: var(--r-success); }
+.ref-market-page .ref-pulse-val.mid  { color: var(--r-gold-dk); }
+.ref-market-page .ref-pulse-val.down { color: var(--r-danger); }
+.ref-market-page .ref-pulse-dot { width: 10px; height: 10px; background: var(--r-muted-lt); }
+.ref-market-page .ref-pulse-dot.up   { background: var(--r-success); }
+.ref-market-page .ref-pulse-dot.mid  { background: var(--r-warning); }
+.ref-market-page .ref-pulse-dot.down { background: var(--r-danger); }
+.ref-market-page .ref-pulse-sub { font-size: var(--r-fs-sm); color: var(--r-muted); }
+.ref-market-page .ref-pulse-news {
+  font-size: var(--r-fs-md);
+  font-weight: 600;
+  color: var(--r-text2);
+  padding-top: var(--r-sp-3);
+}
+
+/* ── Portföy özeti ── */
+.ref-market-page .ref-portfolio-card {
+  margin: var(--r-sp-3) var(--r-page-x) 0;
+  padding: var(--r-card-pad);
+}
+.ref-market-page .ref-portfolio-card__head { margin-bottom: var(--r-sp-3); }
+.ref-market-page .ref-portfolio-card__title {
+  font-size: var(--r-fs-lg);
+  font-weight: 800;
+  color: var(--r-text);
+}
+.ref-market-page .ref-portfolio-card__assets {
+  font-size: var(--r-fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+}
+.ref-market-page .ref-portfolio-grid { gap: var(--r-sp-3) var(--r-sp-4); }
+.ref-market-page .ref-portfolio-cell { gap: var(--r-sp-1); min-width: 0; }
+.ref-market-page .ref-portfolio-cell span {
+  font-size: var(--r-fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+}
+.ref-market-page .ref-portfolio-cell b {
+  font-size: var(--r-fs-lg);
+  font-weight: 800;
+  color: var(--r-text);
+  overflow-wrap: anywhere;
+}
+/* Ana değer (portföy değeri) en ağır */
+.ref-market-page .ref-portfolio-cell:first-child b {
+  font-size: var(--r-fs-2xl);
+  font-weight: 800;
+}
+.ref-market-page .ref-portfolio-cell b.ref-pl-up   { color: var(--r-success); }
+.ref-market-page .ref-portfolio-cell b.ref-pl-down { color: var(--r-danger); }
+
+/* ── Hisse listesi ── */
+.ref-market-page .ref-stock-list {
+  padding: 0 var(--r-page-x);
+  gap: var(--r-sp-2);
+}
+.ref-market-page .ref-stock-row {
+  gap: var(--r-sp-3);
+  padding: var(--r-sp-3) var(--r-card-pad);
+  min-height: 56px;
+  transition: transform var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+.ref-market-page button.ref-stock-row:active { transform: none; filter: var(--r-pressed); }
+.ref-market-page button.ref-stock-row:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-market-page .ref-stock-ticker {
+  font-size: var(--r-fs-lg);
+  font-weight: 800;
+  color: var(--r-text);
+}
+.ref-market-page .ref-stock-name {
+  font-size: var(--r-fs-sm);
+  font-weight: 600;
+  color: var(--r-muted);
+}
+.ref-market-page .ref-stock-owned {
+  font-size: var(--r-fs-sm);
+  font-weight: 700;
+  color: var(--r-accent-dk);
+  white-space: normal;
+}
+.ref-market-page .ref-spark { width: 44px; height: 24px; }
+.ref-market-page .ref-stock-num { gap: var(--r-sp-1); }
+.ref-market-page .ref-stock-price {
+  font-size: var(--r-fs-lg);
+  font-weight: 800;
+  color: var(--r-text);
+}
+/* Yön rozeti: yeşil/kırmızı zemin + metin (renk tek başına taşımaz, ok işareti de var) */
+.ref-market-page .ref-stock-chg {
+  font-size: var(--r-fs-sm);
+  font-weight: 800;
+  padding: 1px var(--r-sp-2);
+  border-radius: var(--r-pill);
+}
+.ref-market-page .ref-stock-chg.up   { color: var(--r-success); background: var(--r-success-bg); }
+.ref-market-page .ref-stock-chg.down { color: var(--r-danger);  background: var(--r-danger-bg); }
+.ref-market-page .ref-stock-chevron { color: var(--r-muted); }
+
+/* ── Banka: bilgi hücreleri ── */
+.ref-market-page .ref-fin-grid {
+  padding: 0 var(--r-page-x);
+  gap: var(--r-sp-2);
+}
+.ref-market-page .ref-fin-cell {
+  padding: var(--r-card-pad);
+  gap: var(--r-sp-1);
+  min-width: 0;
+}
+.ref-market-page .ref-fin-cell__ico { font-size: var(--r-fs-xl); }
+.ref-market-page .ref-fin-cell__lbl {
+  font-size: var(--r-fs-xs);
+  font-weight: 700;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+}
+.ref-market-page .ref-fin-cell__val {
+  font-size: var(--r-fs-2xl);
+  font-weight: 800;
+  color: var(--r-text);
+  overflow-wrap: anywhere;
+}
+.ref-market-page .ref-fin-grid.ins .ref-fin-cell__val { font-size: var(--r-fs-lg); }
+
+/* ── Banka: işlem butonları (tutar daima görünür) ── */
+.ref-market-page .ref-bank-actions {
+  padding: var(--r-sp-3) var(--r-page-x) var(--r-sp-1);
+  gap: var(--r-sp-2);
+}
+.ref-market-page .ref-bank-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--r-sp-1);
+  min-height: 56px;
+  padding: var(--r-sp-3) var(--r-sp-2);
+  border-radius: var(--r-md);
+  border: 1px solid var(--r-border-lt);
+  font-size: var(--r-fs-md);
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--r-on-dark);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+  transition: transform var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+.ref-market-page .ref-bank-btn__amt {
+  font-size: var(--r-fs-sm);
+  font-weight: 700;
+  opacity: 1;
+  color: var(--r-on-dark-muted);
+}
+.ref-market-page .ref-bank-btn.deposit  { background: var(--r-accent); border-color: var(--r-accent-dk); }
+.ref-market-page .ref-bank-btn.withdraw { background: var(--r-text2); border-color: var(--r-text); }
+.ref-market-page .ref-bank-btn.loan     { background: var(--r-gold-dk); border-color: var(--r-orange-dk); }
+.ref-market-page .ref-bank-btn.repay    { background: var(--r-success); border-color: var(--r-accent-dk); }
+.ref-market-page .ref-bank-btn:active:not(:disabled) { opacity: 1; filter: var(--r-pressed); transform: none; }
+.ref-market-page .ref-bank-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-market-page .ref-bank-btn:disabled {
+  opacity: var(--r-disabled-opacity);
+  cursor: not-allowed;
+}
+
+/* ── Sigorta ── */
+.ref-market-page .ref-fin-grid.ins { gap: var(--r-sp-2); }
+.ref-market-page .ref-fin-cell.ins { padding: var(--r-sp-3) var(--r-sp-2); }
+.ref-market-page .ref-fin-cell.ins.on  { border-color: var(--r-success-brd); background: var(--r-card-soft); }
+.ref-market-page .ref-fin-cell.ins.off { opacity: 1; }
+.ref-market-page .ref-fin-cell.ins.on  .ref-fin-cell__val { color: var(--r-success); }
+.ref-market-page .ref-fin-cell.ins.off .ref-fin-cell__val { color: var(--r-muted); }
+.ref-market-page .ref-ins-toggle-btn {
+  min-height: 40px;
+  margin-top: var(--r-sp-2);
+  padding: var(--r-sp-2);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md);
+  font-size: var(--r-fs-sm);
+  font-weight: 800;
+  transition: transform var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+/* Kapalıyken "aç" eylemi dolu vurgu rengi; açıkken kontur */
+.ref-market-page .ref-fin-cell.ins.off .ref-ins-toggle-btn {
+  background: var(--r-accent);
+  border-color: var(--r-accent-dk);
+  color: var(--r-on-dark);
+}
+.ref-market-page .ref-fin-cell.ins.on .ref-ins-toggle-btn {
+  background: var(--r-danger-bg);
+  border-color: var(--r-danger-brd);
+  color: var(--r-danger);
+}
+.ref-market-page .ref-ins-toggle-btn:active { filter: var(--r-pressed); }
+.ref-market-page .ref-ins-toggle-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-market-page .ref-ins-toggle-btn:disabled { opacity: var(--r-disabled-opacity); cursor: not-allowed; }
+
+/* ── IPO ── */
+.ref-market-page .ref-ipo-card {
+  margin: 0 var(--r-page-x);
+  padding: var(--r-card-pad);
+  background: var(--r-card);
+  border: 1px solid var(--r-border-gold);
+}
+.ref-market-page .ref-ipo-card__row {
+  font-size: var(--r-fs-md);
+  font-weight: 700;
+  color: var(--r-text2);
+  margin-bottom: var(--r-sp-2);
+  gap: var(--r-sp-3);
+}
+.ref-market-page .ref-ipo-card__row b {
+  font-size: var(--r-fs-xl);
+  font-weight: 800;
+  color: var(--r-text);
+}
+.ref-market-page .ref-ipo-card__row b.ready { color: var(--r-success); }
+.ref-market-page .ref-ipo-card .ref-perf-track {
+  height: 10px;
+  margin: var(--r-sp-1) 0 var(--r-sp-2);
+}
+.ref-market-page .ref-ipo-card .ref-perf-fill { transition: width var(--r-dur) var(--r-ease); }
+.ref-market-page .ref-ipo-card__meta {
+  font-size: var(--r-fs-sm);
+  font-weight: 700;
+  color: var(--r-muted);
+}
+.ref-market-page .ref-ipo-confirm-btn {
+  min-height: 48px;
+  margin-top: var(--r-sp-3);
+  border-radius: var(--r-md);
+  font-size: var(--r-fs-lg);
+  font-weight: 800;
+  background: var(--r-accent);
+  color: var(--r-on-dark);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+  transition: transform var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+.ref-market-page .ref-ipo-confirm-btn:active:not(:disabled) { filter: var(--r-pressed); }
+.ref-market-page .ref-ipo-confirm-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-market-page .ref-ipo-confirm-btn:disabled {
+  background: var(--r-muted-lt);
+  color: var(--r-on-dark);
+  opacity: var(--r-disabled-opacity);
+  cursor: not-allowed;
+}
+/* Onay bekleyen durum: uyarı rengi + koyu metin (kontrast) */
+.ref-market-page .ref-ipo-confirm-btn.confirming {
+  background: var(--r-warning);
+  color: var(--r-text);
+  opacity: 1;
+}
+
+/* ── Alım/satım paneli (body'ye eklenir; sınıf adlarıyla hedeflenir) ── */
+.ref-trade-sheet {
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  padding-left: var(--r-page-x);
+  padding-right: var(--r-page-x);
+}
+.ref-trade-title {
+  font-size: var(--r-fs-xl);
+  font-weight: 800;
+  color: var(--r-text);
+}
+.ref-trade-close {
+  min-width: 40px;
+  min-height: 40px;
+  border: 1px solid var(--r-border-lt);
+  background: var(--r-card-soft);
+  color: var(--r-muted);
+  transition: filter var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+.ref-trade-close:active { filter: var(--r-pressed); }
+.ref-trade-close:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-trade-price {
+  font-size: var(--r-fs-hero);
+  font-weight: 800;
+  color: var(--r-text);
+}
+.ref-trade-sheet .ref-stock-chg {
+  font-size: var(--r-fs-md);
+  font-weight: 800;
+  padding: 2px var(--r-sp-2);
+  border-radius: var(--r-pill);
+}
+.ref-trade-sheet .ref-stock-chg.up   { color: var(--r-success); background: var(--r-success-bg); }
+.ref-trade-sheet .ref-stock-chg.down { color: var(--r-danger);  background: var(--r-danger-bg); }
+.ref-trade-position,
+.ref-trade-preview {
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md);
+  box-shadow: var(--r-card-inset);
+  padding: var(--r-sp-2) var(--r-card-pad);
+}
+.ref-trade-row { font-size: var(--r-fs-md); padding: var(--r-sp-1) 0; gap: var(--r-sp-3); }
+.ref-trade-row span { font-weight: 600; color: var(--r-muted); }
+.ref-trade-row b { font-weight: 800; color: var(--r-text); text-align: right; }
+.ref-trade-row .ref-pl-up   { color: var(--r-success); }
+.ref-trade-row .ref-pl-down { color: var(--r-danger); }
+.ref-trade-row.strong b { font-size: var(--r-fs-xl); }
+
+.ref-trade-mode-btn,
+.ref-trade-qty-btn {
+  min-height: 44px;
+  transition: transform var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease), background var(--r-dur) var(--r-ease);
+}
+.ref-trade-mode-btn {
+  border: 1px solid var(--r-border);
+  background: var(--r-card-soft);
+  color: var(--r-text2);
+  font-size: var(--r-fs-lg);
+  font-weight: 800;
+}
+.ref-trade-mode-btn.buy.active  { background: var(--r-success); border-color: var(--r-success); color: var(--r-on-dark); }
+.ref-trade-mode-btn.sell.active { background: var(--r-danger);  border-color: var(--r-danger);  color: var(--r-on-dark); }
+.ref-trade-qty-btn {
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-md);
+  background: var(--r-surface);
+  font-size: var(--r-fs-md);
+  font-weight: 800;
+  color: var(--r-text);
+}
+.ref-trade-qty-btn:active { background: var(--r-accent); border-color: var(--r-accent-dk); color: var(--r-on-dark); filter: var(--r-pressed); }
+.ref-trade-mode-btn:active:not(:disabled) { filter: var(--r-pressed); }
+.ref-trade-mode-btn:focus-visible,
+.ref-trade-qty-btn:focus-visible,
+.ref-trade-confirm:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-trade-mode-btn:disabled { opacity: var(--r-disabled-opacity); cursor: not-allowed; }
+.ref-trade-qtyrow { gap: var(--r-sp-2); }
+.ref-trade-confirm {
+  min-height: 52px;
+  font-size: var(--r-fs-lg);
+  font-weight: 800;
+  color: var(--r-on-dark);
+  box-shadow: var(--r-elev-2), var(--r-card-inset);
+  transition: transform var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+.ref-trade-confirm:active:not(:disabled) { filter: var(--r-pressed); }
+.ref-trade-confirm:disabled { opacity: var(--r-disabled-opacity); cursor: not-allowed; }
