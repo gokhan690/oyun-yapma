@@ -41,10 +41,10 @@ export interface FirmDetailLiveCtx {
 
 // Tipik sektör gider dağılımı (gerçek gider kalemleri tutulmuyor → tahmini yüzde)
 const EXPENSE_SPLIT = [
-  { labelKey: 'ref_detail_expense_staff',  value: 42, color: '#2563EB' },
-  { labelKey: 'ref_detail_expense_supply', value: 31, color: '#F6A609' },
-  { labelKey: 'ref_detail_expense_rent',   value: 18, color: '#13B8A6' },
-  { labelKey: 'ref_detail_expense_other',  value: 9,  color: '#94B4C2' },
+  { labelKey: 'ref_detail_expense_staff',  value: 42, color: 'var(--r-blue)' },
+  { labelKey: 'ref_detail_expense_supply', value: 31, color: 'var(--r-gold)' },
+  { labelKey: 'ref_detail_expense_rent',   value: 18, color: 'var(--r-teal)' },
+  { labelKey: 'ref_detail_expense_other',  value: 9,  color: 'var(--r-muted-lt)' },
 ]
 
 function firmStatusLabel(status: FirmStatus): string {
@@ -57,7 +57,7 @@ function fmtMoney(n: number): string {
   if (n >= 1e9) return `₺${(n / 1e9).toFixed(1)}Mr`
   if (n >= 1e6) return `₺${(n / 1e6).toFixed(1)}M`
   if (n >= 1e3) return `₺${(n / 1e3).toFixed(0)}K`
-  return `₺${n}`
+  return `₺${Math.round(n)}`
 }
 
 function stars(count: number, max = 5): string {
@@ -231,20 +231,23 @@ export class RefFirmDetailPage {
           </div>
         </div>
 
+        ${this.live ? this.liveManageHtml() : ''}
+        ${this.live ? this.liveUpgradeHtml() : ''}
+
         <!-- Gelir trendi (firmaya özgü tahmini eğri) -->
         <div class="ref-card-soft ref-detail-chart">
           <div class="ref-card-soft__title-row">
             <span class="ref-card-soft__title">${i18n.t('ref_detail_income_trend_title')} <span class="ref-est-tag">${i18n.t('ref_detail_est_tag')}</span></span>
             <span class="ref-chart-up">▲ ${f.growth.toFixed(1)}%</span>
           </div>
-          ${areaChartSvg(trend, '#13B8A6', 320, 80)}
+          ${areaChartSvg(trend, 'var(--r-teal)', 320, 80)}
         </div>
 
         <!-- Memnuniyet gauge + Gider donut -->
         <div class="ref-detail-2col">
           <div class="ref-card-soft ref-detail-gauge">
             <div class="ref-card-soft__title">${i18n.t('ref_detail_customer_satisfaction_title')} <span class="ref-est-tag">${i18n.t('ref_detail_est_tag')}</span></div>
-            ${gaugeSvg(satisfaction, '#28C76F')}
+            ${gaugeSvg(satisfaction, 'var(--r-success)')}
           </div>
           <div class="ref-card-soft ref-detail-expense">
             <div class="ref-card-soft__title">${i18n.t('ref_detail_expense_distribution_title')} <span class="ref-est-tag">${i18n.t('ref_detail_est_tag')}</span></div>
@@ -262,8 +265,6 @@ export class RefFirmDetailPage {
           </div>
         </div>
 
-        ${this.live ? this.liveUpgradeHtml() : ''}
-
         <!-- Şubeler (gerçek gelirden tahmini bölüşüm) -->
         <div class="ref-detail-section-title">${i18n.t('ref_detail_branches_section')} <span class="ref-est-tag">${i18n.t('ref_detail_est_tag')}</span></div>
         <div class="ref-branch-list">
@@ -279,7 +280,7 @@ export class RefFirmDetailPage {
           `).join('')}
         </div>
 
-        ${this.live ? this.liveManageHtml() : `
+        ${this.live ? '' : `
         <!-- Actions (ÖNİZLEME — işlem yapmaz) -->
         <div class="ref-detail-actions">
           <button class="ref-btn develop" type="button" disabled>${i18n.t('ref_detail_develop_button')}</button>
@@ -382,12 +383,11 @@ export class RefFirmDetailPage {
     const lvDisabledReason = (!maxed && !canLevel && lvStatus.reason === 'insufficient')
       ? `<span class="ref-detail-develop-reason">${i18n.t('firms_insufficient')}</span>` : ''
     const lvBtn = maxed
-      ? `<button class="ref-btn develop" type="button" disabled>${i18n.t('ref_detail_max_level_button')}</button>`
-      : `<button class="ref-btn develop" type="button" data-act="level" ${canLevel ? '' : 'disabled'}>
+      ? `<div class="ref-detail-develop-wrap"><button class="ref-btn develop" type="button" disabled>${i18n.t('ref_detail_max_level_button')}</button></div>`
+      : `<div class="ref-detail-develop-wrap"><button class="ref-btn develop" type="button" data-act="level" ${canLevel ? '' : 'disabled'}>
           <span class="ref-detail-develop-main">${fmt('ref_detail_develop_level_fmt', { lv: lvStatus.nextLevel, cost: fmtMoney(lvStatus.cost) })}</span>
           <span class="ref-detail-develop-preview">${fmt('firms_levelup_arrow_fmt', { from: String(lv), to: String(lvStatus.nextLevel) })} · ${fmtMoney(lvStatus.currentIncome)}→${fmtMoney(lvStatus.nextIncome)} · ${fmt('firms_levelup_income_pct_fmt', { pct: String(lvStatus.incomePct) })}</span>
-          ${lvDisabledReason}
-        </button>`
+        </button>${lvDisabledReason}</div>`
 
     const modBtn = !modAvailable
       ? `<button class="ref-btn modernize" type="button" disabled>${i18n.t('ref_detail_modernize_ipo_required')}</button>`
@@ -449,12 +449,12 @@ export class RefFirmDetailPage {
     return `
       <div class="ref-detail-section-title">${fmt('ref_detail_management_fmt', { lv, max: FIRM_MAX_LEVEL })} ${lv > 1 ? `<span class="ref-detail-mult">×${firmLevelIncomeMult(lv).toFixed(2)} ${i18n.t('ref_detail_income_mult_suffix')}</span>` : ''}</div>
       <div class="ref-detail-lvl-pips">${pips}</div>
-      ${incomeBreakdown}
       <div class="ref-detail-actions live two">
         ${lvBtn}
         ${modBtn}
       </div>
       <div class="ref-mgr-block">${manBlock}</div>
+      ${incomeBreakdown}
       ${owned > 0 ? `<button class="ref-btn sell-firm" type="button" data-act="sell">${fmt('ref_detail_sell_button_fmt', { count: String(owned) })}</button>` : ''}
       <div class="ref-preview-note live">${i18n.t('ref_detail_live_note')}</div>`
   }
@@ -523,9 +523,9 @@ export class RefFirmDetailPage {
   private openManagerPanel(s: GameState, def: ProducerDef): void {
     this.closeManagerPanel()
     const overlay = document.createElement('div')
-    overlay.className = 'ref-trade-overlay'
+    overlay.className = 'ref-trade-overlay ref-firm-overlay'
     const sheet = document.createElement('div')
-    sheet.className = 'ref-trade-sheet ref-mgr-sheet'
+    sheet.className = 'ref-trade-sheet ref-mgr-sheet ref-firm-sheet'
     overlay.appendChild(sheet)
     this.mgrOverlay = overlay
     this.mgrDismiss = registerSheetDismiss(() => this.closeManagerPanel())
@@ -695,9 +695,9 @@ export class RefFirmDetailPage {
     let confirmingLast = false
 
     const overlay = document.createElement('div')
-    overlay.className = 'ref-trade-overlay'
+    overlay.className = 'ref-trade-overlay ref-firm-overlay'
     const sheet = document.createElement('div')
-    sheet.className = 'ref-trade-sheet'
+    sheet.className = 'ref-trade-sheet ref-firm-sheet ref-sale-sheet'
     overlay.appendChild(sheet)
     this.saleOverlay = overlay
     this.saleDismiss = registerSheetDismiss(() => this.closeSalePanel())
@@ -737,7 +737,9 @@ export class RefFirmDetailPage {
       { key: '1', label: '1' }, { key: '10', label: '10' },
       { key: 'all', label: i18n.t('ref_detail_sell_all') },
     ]
-    const qtyBtns = presets.map((p) => `<button class="ref-trade-qty-btn" type="button" data-sale-qty="${p.key}">${p.label}</button>`).join('')
+    // Seçili miktar ön ayarı vurgulanır (aynı değere düşen ilk ön ayar aktif sayılır).
+    const activeKey = presets.find((p) => this.resolveSaleQty(s, def, p.key) === qty)?.key
+    const qtyBtns = presets.map((p) => `<button class="ref-trade-qty-btn${p.key === activeKey ? ' active' : ''}" type="button" data-sale-qty="${p.key}" aria-pressed="${p.key === activeKey}">${p.label}</button>`).join('')
     const confirmLabel = confirmingLast
       ? i18n.t('ref_detail_sell_confirm_last')
       : fmt('ref_detail_sell_confirm_fmt', { count: String(pv.count) })
