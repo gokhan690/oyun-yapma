@@ -53,24 +53,34 @@ export class RefNotifsPage implements RefPage {
   private render(): void {
     const s = this.state
     if (!s) {
-      this.listEl.innerHTML = `<div class="ref-notif-empty">${i18n.t('ref_notifs_empty')}</div>`
+      this.listEl.innerHTML = `<div class="ref-notif-empty"><span class="ref-notif-empty__ico" aria-hidden="true">🔔</span>${i18n.t('ref_notifs_empty')}</div>`
       return
     }
     // Dizi zaten en yeni başta; slice(-50).reverse() en yeniyi EN ALTA atıyordu.
     const entries = s.gazetteEntries.slice(0, 50)
     if (!entries.length) {
-      this.listEl.innerHTML = `<div class="ref-notif-empty">${i18n.t('ref_notifs_empty')}</div>`
+      this.listEl.innerHTML = `<div class="ref-notif-empty"><span class="ref-notif-empty__ico" aria-hidden="true">🔔</span>${i18n.t('ref_notifs_empty')}</div>`
       return
     }
-    this.listEl.innerHTML = entries.map(e => `
-      <div class="ref-notif-row cat-${e.category}">
-        <span class="ref-notif-row__ico">${CATEGORY_EMOJI[e.category] ?? '📰'}</span>
-        <div class="ref-notif-row__main">
-          <div class="ref-notif-row__headline">${e.headline}</div>
-          <div class="ref-notif-row__date">${fmt('ref_notifs_day_fmt', { day: String(e.gameDay) })}</div>
-        </div>
-      </div>
-    `).join('')
+    // Güne göre grupla (dizi zaten en yeni başta → gruplar da en yeni gün başta).
+    let html = ''
+    let curDay: number | null = null
+    for (const e of entries) {
+      if (e.gameDay !== curDay) {
+        if (curDay !== null) html += '</section>'
+        curDay = e.gameDay
+        html += `<section class="ref-notif-day"><h3 class="ref-notif-day__label">${fmt('ref_notifs_day_fmt', { day: String(e.gameDay) })}</h3>`
+      }
+      html += `
+        <div class="ref-notif-row cat-${e.category}">
+          <span class="ref-notif-row__ico" aria-hidden="true">${CATEGORY_EMOJI[e.category] ?? '📰'}</span>
+          <div class="ref-notif-row__main">
+            <div class="ref-notif-row__headline">${e.headline}</div>
+          </div>
+        </div>`
+    }
+    if (curDay !== null) html += '</section>'
+    this.listEl.innerHTML = html
   }
 
   refresh(state: GameState): void {
