@@ -1,1 +1,593 @@
-/* firm-detail — sayfaya özel stiller. Tasarım token sözleşmesi: ref-ui.css :root (--r-*). Token dışı sabit renk KULLANMA. */
+/* firm-detail — sayfaya özel stiller. Tasarım token sözleşmesi: ref-ui.css :root (--r-*). Token dışı sabit renk KULLANMA.
+ *
+ * Kapsam: firma detay ekranı (.ref-detail) + ondan açılan menajer / satış panelleri
+ * (body'ye eklenen .ref-firm-overlay > .ref-firm-sheet). Ortak .ref-trade-* kuralları
+ * Pazar sayfasıyla paylaşıldığı için panel kuralları .ref-firm-* ile sınırlandırıldı.
+ *
+ * Yarı saydam katmanlar (scrim / perde) sabit rgba yerine token'dan color-mix ile türetilir.
+ */
+
+/* ───────────────────────── Ekran iskeleti ───────────────────────── */
+.ref-detail { background: var(--r-sky-base); }
+
+/* Hero = yapışkan üst başlık (gövde kayar, hero sabit kalır) */
+.ref-detail .ref-detail-hero {
+  height: 176px;
+  background: linear-gradient(135deg, var(--r-teal) 0%, var(--r-teal-dk) 100%);
+  border-bottom: 1px solid var(--r-border-gold);
+  box-shadow: var(--r-elev-2);
+  z-index: 2;
+}
+.ref-detail .ref-detail-hero__img { transition: opacity var(--r-dur) var(--r-ease); }
+.ref-detail .ref-detail-hero__scrim {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--r-text) 30%, transparent) 0%,
+    color-mix(in srgb, var(--r-text) 4%, transparent) 38%,
+    color-mix(in srgb, var(--r-text) 78%, transparent) 100%);
+}
+.ref-detail .ref-detail-back {
+  top: var(--r-sp-3);
+  left: var(--r-page-x);
+  width: 44px;
+  height: 44px;
+  background: var(--r-surface);
+  color: var(--r-text);
+  box-shadow: var(--r-elev-2);
+  transition: transform var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+.ref-detail .ref-detail-back:active { transform: translateY(1px) scale(0.96); filter: brightness(0.94); }
+.ref-detail .ref-detail-back:focus-visible { outline: none; box-shadow: var(--r-focus-ring); }
+.ref-detail .ref-detail-hero__badge {
+  top: var(--r-sp-4);
+  right: var(--r-page-x);
+  font-size: var(--r-fs-xs);
+  letter-spacing: var(--r-ls-label);
+  text-transform: uppercase;
+  padding: var(--r-sp-1) var(--r-sp-3);
+  background: var(--r-surface);
+  box-shadow: var(--r-elev-1);
+}
+.ref-detail .ref-detail-hero__title { left: var(--r-page-x); right: var(--r-page-x); bottom: var(--r-sp-3); }
+/* Koyu hero bandı üzerinde beyaz metin serbest */
+.ref-detail .ref-detail-name {
+  font-size: var(--r-fs-xl);
+  font-weight: 800;
+  color: var(--r-on-dark);
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--r-text) 70%, transparent);
+}
+.ref-detail .ref-detail-slogan {
+  font-size: var(--r-fs-md);
+  font-weight: 600;
+  color: var(--r-on-dark-muted);
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--r-text) 70%, transparent);
+}
+
+.ref-detail .ref-detail-body {
+  padding: var(--r-sp-4) var(--r-page-x) calc(var(--r-nav-h) + env(safe-area-inset-bottom, 0px) + var(--r-sp-6));
+  display: flex;
+  flex-direction: column;
+  gap: var(--r-sp-3);
+}
+.ref-detail .ref-detail-body > * { flex-shrink: 0; min-width: 0; }
+
+/* ───────────────────────── Kimlik satırı ───────────────────────── */
+.ref-detail .ref-detail-id { margin-bottom: 0; gap: var(--r-sp-3); flex-wrap: wrap; }
+.ref-detail .ref-detail-lvl {
+  font-size: var(--r-fs-sm);
+  font-weight: 800;
+  color: var(--r-gold-dk);
+  background: var(--r-gold-lt);
+  border: 1px solid var(--r-border-gold);
+  padding: var(--r-sp-1) var(--r-sp-3);
+}
+.ref-detail .ref-stars .on  { color: var(--r-gold); }
+.ref-detail .ref-stars .off { color: var(--r-border); }
+.ref-detail .ref-detail-id__city {
+  font-size: var(--r-fs-md);
+  font-weight: 700;
+  color: var(--r-on-sky-muted);   /* doğrudan gökyüzü zemininde */
+}
+
+.ref-detail .ref-detail-risk {
+  margin-bottom: 0;
+  padding: var(--r-sp-3) var(--r-card-pad);
+  border: 1px solid var(--r-danger-brd);
+  border-radius: var(--r-lg);
+  background: var(--r-danger-bg);
+  color: var(--r-danger);
+  font-size: var(--r-fs-md);
+  font-weight: 800;
+}
+
+/* ───────────────────────── Net gelir şeridi (ana sayı) ───────────────────────── */
+.ref-detail .ref-detail-net {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "lbl growth" "val val";
+  align-items: baseline;
+  gap: var(--r-sp-1) var(--r-sp-3);
+  margin: 0;
+  padding: var(--r-card-pad);
+  border-radius: var(--r-lg);
+  background: linear-gradient(135deg, var(--r-teal) 0%, var(--r-teal-dk) 100%);
+  border: 1px solid var(--r-teal-dk);
+  box-shadow: var(--r-elev-2), var(--r-card-inset);
+}
+.ref-detail .ref-detail-net__lbl {
+  grid-area: lbl;
+  font-size: var(--r-fs-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-on-dark-muted);
+}
+.ref-detail .ref-detail-net__val {
+  grid-area: val;
+  margin: 0;
+  font-size: var(--r-fs-hero);
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--r-on-dark);
+  font-variant-numeric: tabular-nums;
+}
+.ref-detail .ref-detail-net__growth {
+  grid-area: growth;
+  font-size: var(--r-fs-sm);
+  font-weight: 800;
+  color: var(--r-on-dark);
+  background: color-mix(in srgb, var(--r-on-dark) 18%, transparent);
+  padding: var(--r-sp-1) var(--r-sp-2);
+  border-radius: var(--r-pill);
+}
+
+/* ───────────────────────── Kartlar ───────────────────────── */
+.ref-detail .ref-detail-stats { margin: 0; gap: var(--r-sp-2); }
+.ref-detail .ref-detail-stat,
+.ref-detail .ref-detail-perf,
+.ref-detail .ref-card-soft,
+.ref-detail .ref-branch-row,
+.ref-detail .ref-mgr-current,
+.ref-detail .ref-detail-upg.live,
+.ref-detail .ref-detail-income-breakdown {
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+.ref-detail .ref-detail-stat { padding: var(--r-card-pad); gap: var(--r-sp-1); min-width: 0; }
+.ref-detail .ref-stat-lbl {
+  font-size: var(--r-fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+  line-height: 1.3;
+}
+.ref-detail .ref-detail-stat .ref-stat-val {
+  font-size: var(--r-fs-2xl);
+  font-weight: 800;
+  color: var(--r-text);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.ref-detail .ref-stat-val.income  { color: var(--r-success); }
+.ref-detail .ref-stat-val.expense { color: var(--r-danger); }
+.ref-detail .ref-stat-val.growth  { color: var(--r-teal-dk); }
+
+.ref-detail .ref-detail-perf { padding: var(--r-card-pad); margin: 0; }
+.ref-detail .ref-perf-lbl {
+  font-size: var(--r-fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+}
+.ref-detail .ref-perf-pct { font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text); }
+.ref-detail .ref-perf-track { background: var(--r-border-lt); border-radius: var(--r-pill); }
+.ref-detail .ref-perf-fill { border-radius: var(--r-pill); transition: width var(--r-dur) var(--r-ease); }
+
+.ref-detail .ref-card-soft { padding: var(--r-card-pad); }
+.ref-detail .ref-detail-chart { margin-bottom: 0; }
+.ref-detail .ref-card-soft__title {
+  font-size: var(--r-fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+  margin-bottom: var(--r-sp-2);
+}
+.ref-detail .ref-card-soft__title-row { margin-bottom: var(--r-sp-2); gap: var(--r-sp-2); }
+.ref-detail .ref-card-soft__title-row .ref-card-soft__title { margin-bottom: 0; }
+.ref-detail .ref-chart-up { font-size: var(--r-fs-sm); font-weight: 800; color: var(--r-success); }
+.ref-detail .ref-est-tag {
+  font-size: var(--r-fs-xs);
+  font-weight: 700;
+  letter-spacing: var(--r-ls-label);
+  padding: 0 var(--r-sp-2);
+  opacity: 1;
+  color: var(--r-muted);
+  background: var(--r-card);
+  border: 1px solid var(--r-border-lt);
+}
+.ref-detail .ref-detail-2col { margin-bottom: 0; gap: var(--r-sp-2); grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.ref-detail .ref-mini-donut { flex-direction: column; align-items: stretch; gap: var(--r-sp-2); }
+.ref-detail .ref-mini-donut .ref-donut-svg { align-self: center; }
+.ref-detail .ref-legend-row { gap: var(--r-sp-1); font-size: var(--r-fs-sm); min-width: 0; }
+.ref-detail .ref-legend-lbl { color: var(--r-text2); min-width: 0; overflow-wrap: anywhere; }
+.ref-detail .ref-legend-val { color: var(--r-text); font-weight: 800; }
+.ref-detail .ref-area-svg { display: block; width: 100%; height: auto; }
+
+/* ───────────────────────── Bölüm başlıkları (gökyüzü zemini) ───────────────────────── */
+.ref-detail .ref-detail-section-title {
+  margin: var(--r-sp-3) var(--r-sp-1) 0;
+  font-size: var(--r-fs-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-on-sky-muted);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--r-sp-2);
+}
+.ref-detail .ref-detail-mult {
+  margin-left: auto;
+  font-size: var(--r-fs-xs);
+  font-weight: 800;
+  color: var(--r-success);
+  background: var(--r-success-bg);
+  border: 1px solid var(--r-success-brd);
+  border-radius: var(--r-pill);
+  padding: 0 var(--r-sp-2);
+  letter-spacing: var(--r-ls-label);
+}
+
+/* Seviye ilerleme çubukları */
+.ref-detail .ref-detail-lvl-pips { padding: 0 var(--r-sp-1); gap: var(--r-sp-1); justify-content: stretch; }
+.ref-detail .ref-detail-lvl-pips .ref-prod-lvl-pip {
+  flex: 1;
+  width: auto;
+  height: var(--r-sp-2);
+  border-radius: var(--r-pill);
+  background: var(--r-border);
+  transition: background var(--r-dur) var(--r-ease);
+}
+.ref-detail .ref-detail-lvl-pips .ref-prod-lvl-pip.on { background: var(--r-accent); }
+
+/* ───────────────────────── Gelir kırılımı ───────────────────────── */
+.ref-detail .ref-detail-income-breakdown {
+  margin: 0;
+  padding: var(--r-card-pad);
+  gap: var(--r-sp-2);
+  background: var(--r-card-soft);
+}
+.ref-detail .ref-detail-ib-title {
+  font-size: var(--r-fs-xs);
+  font-weight: 700;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+  margin-bottom: 0;
+}
+.ref-detail .ref-detail-ib-row { font-size: var(--r-fs-md); gap: var(--r-sp-3); }
+.ref-detail .ref-detail-ib-row span { color: var(--r-text2); }
+.ref-detail .ref-detail-ib-row b { color: var(--r-text); font-weight: 800; text-align: right; overflow-wrap: anywhere; }
+.ref-detail .ref-detail-ib-row--total {
+  margin-top: var(--r-sp-1);
+  padding-top: var(--r-sp-3);
+  border-top: 1px solid var(--r-border-lt);
+}
+.ref-detail .ref-detail-ib-row--total span { color: var(--r-muted); font-weight: 700; }
+.ref-detail .ref-detail-ib-row--total b { font-size: var(--r-fs-2xl); font-weight: 800; color: var(--r-success); line-height: 1.1; }
+
+/* ───────────────────────── Butonlar (ortak durumlar) ───────────────────────── */
+.ref-detail .ref-btn,
+.ref-firm-sheet .ref-btn {
+  min-height: 44px;
+  padding: var(--r-sp-3) var(--r-sp-4);
+  border-radius: var(--r-md);
+  font-size: var(--r-fs-md);
+  font-weight: 800;
+  letter-spacing: 0;
+  white-space: normal;
+  border: 1px solid transparent;
+  box-shadow: var(--r-elev-1);
+  transition: transform var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease), box-shadow var(--r-dur) var(--r-ease);
+}
+.ref-detail .ref-btn:active:not(:disabled),
+.ref-firm-sheet .ref-btn:active:not(:disabled) { transform: none; opacity: 1; filter: var(--r-pressed); }
+.ref-detail .ref-btn:focus-visible,
+.ref-firm-sheet .ref-btn:focus-visible,
+.ref-firm-sheet .ref-trade-qty-btn:focus-visible,
+.ref-firm-sheet .ref-trade-confirm:focus-visible,
+.ref-firm-sheet .ref-trade-close:focus-visible {
+  outline: none;
+  box-shadow: var(--r-focus-ring);
+}
+.ref-detail .ref-btn[disabled],
+.ref-firm-sheet .ref-btn[disabled] {
+  opacity: var(--r-disabled-opacity);
+  cursor: not-allowed;
+  filter: none;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Birincil: dolu vurgu (geliştir / satın al) */
+.ref-detail .ref-btn.develop {
+  background: var(--r-accent-dk);
+  color: var(--r-on-dark);
+  border-color: var(--r-accent-dk);
+  box-shadow: var(--r-elev-2), var(--r-card-inset);
+}
+/* İkincil: çerçeveli, yüzey zemin */
+.ref-detail .ref-btn.modernize,
+.ref-detail .ref-btn.manager,
+.ref-firm-sheet .ref-btn.manager {
+  background: var(--r-surface);
+  color: var(--r-accent-dk);
+  border-color: var(--r-accent);
+}
+/* Tehlikeli: satış */
+.ref-detail .ref-btn.sell-firm {
+  width: 100%;
+  margin-top: 0;
+  background: var(--r-danger-bg);
+  color: var(--r-danger);
+  border: 1px solid var(--r-danger);
+  box-shadow: none;
+}
+.ref-firm-sheet .ref-btn.manager.mgr-assign {
+  background: var(--r-accent-dk);
+  color: var(--r-on-dark);
+  border-color: var(--r-accent-dk);
+  margin-top: var(--r-sp-3);
+}
+.ref-firm-sheet .ref-btn.manager.mgr-dismiss {
+  background: var(--r-danger-bg);
+  color: var(--r-danger);
+  border: 1px solid var(--r-danger);
+  box-shadow: none;
+}
+.ref-detail .ref-btn.manager.sm { min-height: 40px; padding: var(--r-sp-2) var(--r-sp-4); width: auto; }
+
+/* ───────────────────────── Birincil eylem alanı (yönetim başlığının hemen altında) ───────────────────────── */
+.ref-detail .ref-detail-actions { gap: var(--r-sp-2); margin: 0; }
+.ref-detail .ref-detail-actions .ref-btn { padding: var(--r-sp-3) var(--r-sp-3); font-size: var(--r-fs-md); }
+.ref-detail .ref-detail-actions.live > .ref-detail-develop-wrap,
+.ref-detail .ref-detail-actions.live > .ref-btn.modernize { grid-column: 1 / -1; }
+.ref-detail .ref-detail-actions.live > .ref-detail-develop-wrap { display: flex; flex-direction: column; gap: var(--r-sp-1); min-width: 0; }
+.ref-detail .ref-detail-actions.live .ref-btn { opacity: 1; }
+.ref-detail .ref-detail-actions.live .ref-btn[disabled] { opacity: var(--r-disabled-opacity); }
+.ref-detail .ref-detail-develop-wrap .ref-btn { width: 100%; flex-direction: column; gap: var(--r-sp-1); }
+.ref-detail .ref-detail-develop-main { font-size: var(--r-fs-lg); font-weight: 800; }
+.ref-detail .ref-detail-develop-preview { font-size: var(--r-fs-sm); font-weight: 600; opacity: 1; margin-top: 0; overflow-wrap: anywhere; }
+/* Devre dışı nedeni düğmenin DIŞINDA: soluk düğmede kaybolmaz */
+.ref-detail .ref-detail-develop-reason {
+  font-size: var(--r-fs-sm);
+  font-weight: 800;
+  color: var(--r-danger);
+  text-align: center;
+  margin: 0;
+}
+
+/* ───────────────────────── Menajer + satış blokları ───────────────────────── */
+.ref-detail .ref-mgr-block { margin: 0; }
+.ref-detail .ref-mgr-current { padding: var(--r-card-pad); gap: var(--r-sp-3); }
+.ref-detail .ref-mgr-current__info { gap: var(--r-sp-3); }
+.ref-detail .ref-mgr-current__name { font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text); }
+.ref-detail .ref-mgr-current__bonus { font-size: var(--r-fs-sm); font-weight: 700; color: var(--r-success); overflow-wrap: anywhere; }
+.ref-detail .ref-mgr-block > .ref-btn.manager { width: 100%; }
+.ref-detail .ref-preview-note,
+.ref-detail .ref-preview-note.live {
+  margin: 0;
+  padding: 0 var(--r-sp-2);
+  font-size: var(--r-fs-sm);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--r-on-sky-muted);   /* gökyüzü zemininde okunur */
+  opacity: 1;
+}
+
+/* ───────────────────────── Yükseltmeler ───────────────────────── */
+.ref-detail .ref-detail-upgrades { gap: var(--r-sp-2); margin-bottom: 0; }
+.ref-detail .ref-detail-upg.live { padding: var(--r-card-pad); gap: var(--r-sp-3); }
+.ref-detail .ref-detail-upg.live.owned { border-color: var(--r-success-brd); background: var(--r-success-bg); }
+.ref-detail .ref-detail-upg__head { gap: var(--r-sp-3); }
+.ref-detail .ref-detail-upg__lbl { font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text); }
+.ref-detail .ref-detail-upg__desc { font-size: var(--r-fs-sm); line-height: 1.4; color: var(--r-muted); }
+.ref-detail .ref-detail-upg__emoji { font-size: var(--r-fs-xl); }
+.ref-detail .ref-detail-upg__metrics { gap: var(--r-sp-2); }
+.ref-detail .ref-detail-upg__metrics div {
+  padding: var(--r-sp-2) var(--r-sp-3);
+  background: var(--r-surface);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-md);
+}
+.ref-detail .ref-detail-upg__metrics span {
+  font-size: var(--r-fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+}
+.ref-detail .ref-detail-upg__metrics b { margin-top: var(--r-sp-1); font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text); }
+.ref-detail .ref-detail-upg__metrics b.inc { color: var(--r-success); }
+.ref-detail .ref-detail-upg__foot { grid-template-columns: auto minmax(0, 1fr); gap: var(--r-sp-3); }
+.ref-detail .ref-detail-upg__price { font-size: var(--r-fs-xl); font-weight: 800; color: var(--r-gold-dk); margin: 0; }
+.ref-detail .ref-detail-upg__buy { line-height: 1.25; }
+
+/* ───────────────────────── Şubeler ───────────────────────── */
+.ref-detail .ref-branch-list { gap: var(--r-sp-2); margin-bottom: 0; }
+.ref-detail .ref-branch-row { padding: var(--r-sp-3) var(--r-card-pad); gap: var(--r-sp-3); min-height: 44px; }
+.ref-detail .ref-branch-name { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-text); margin-bottom: var(--r-sp-1); }
+.ref-detail .ref-branch-income { font-size: var(--r-fs-md); font-weight: 800; color: var(--r-success); white-space: nowrap; }
+
+/* ───────────────────────── Paneller (menajer / satış): opak sheet ───────────────────────── */
+.ref-firm-overlay {
+  background: color-mix(in srgb, var(--r-text) 62%, transparent);
+  animation-duration: var(--r-dur);
+}
+.ref-firm-sheet {
+  background: var(--r-bg);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  padding: 0 var(--r-page-x) calc(var(--r-sp-4) + env(safe-area-inset-bottom, 0px));
+  box-shadow: var(--r-elev-3);
+  color: var(--r-text);
+}
+.ref-firm-sheet .ref-trade-handle { background: var(--r-border); margin-top: var(--r-sp-2); }
+.ref-firm-sheet .ref-trade-head {
+  background: var(--r-bg);   /* tam opak sticky başlık */
+  padding: var(--r-sp-2) 0 var(--r-sp-3);
+  border-bottom: 1px solid var(--r-border-lt);
+  margin-bottom: var(--r-sp-3);
+}
+.ref-firm-sheet .ref-trade-title { font-size: var(--r-fs-xl); font-weight: 800; color: var(--r-text); overflow-wrap: anywhere; }
+.ref-firm-sheet .ref-trade-close {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--r-surface);
+  border: 1px solid var(--r-border-lt);
+  color: var(--r-text2);
+  font-size: var(--r-fs-lg);
+  box-shadow: var(--r-elev-1);
+  transition: transform var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease);
+}
+.ref-firm-sheet .ref-trade-close:active { filter: var(--r-pressed); }
+
+/* Menajer listesi */
+.ref-firm-sheet .ref-mgr-list { gap: var(--r-sp-3); }
+.ref-firm-sheet .ref-mgr-current-section,
+.ref-firm-sheet .ref-mgr-group { gap: var(--r-sp-3); }
+.ref-firm-sheet .ref-mgr-group-title {
+  font-size: var(--r-fs-xs);
+  font-weight: 800;
+  letter-spacing: var(--r-ls-label);
+  color: var(--r-muted);
+  margin: var(--r-sp-2) var(--r-sp-1) 0;
+}
+.ref-firm-sheet .ref-mgr-card {
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg);
+  padding: var(--r-card-pad);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+.ref-firm-sheet .ref-mgr-card__head { gap: var(--r-sp-3); margin-bottom: var(--r-sp-3); }
+.ref-firm-sheet .ref-mgr-card__emoji { font-size: var(--r-fs-2xl); }
+.ref-firm-sheet .ref-mgr-card__name { font-size: var(--r-fs-lg); font-weight: 800; color: var(--r-text); }
+.ref-firm-sheet .ref-mgr-card__spec { font-size: var(--r-fs-sm); color: var(--r-muted); }
+.ref-firm-sheet .ref-mgr-card__status {
+  font-size: var(--r-fs-xs);
+  font-weight: 800;
+  letter-spacing: var(--r-ls-label);
+  text-transform: uppercase;
+  padding: var(--r-sp-1) var(--r-sp-2);
+  border: 1px solid transparent;
+}
+.ref-firm-sheet .ref-mgr-card__status.here  { background: var(--r-success-bg); color: var(--r-success); border-color: var(--r-success-brd); }
+.ref-firm-sheet .ref-mgr-card__status.other { background: var(--r-gold-lt);    color: var(--r-gold-dk);  border-color: var(--r-border-gold); }
+.ref-firm-sheet .ref-mgr-card__status.idle  { background: var(--r-border-lt);  color: var(--r-muted);    border-color: var(--r-border); }
+.ref-firm-sheet .ref-mgr-card__status.new   { background: var(--r-blue-bg);    color: var(--r-blue);     border-color: var(--r-blue-brd); }
+.ref-firm-sheet .ref-mgr-card__rows { gap: var(--r-sp-2); }
+.ref-firm-sheet .ref-mgr-row { font-size: var(--r-fs-md); color: var(--r-text2); }
+.ref-firm-sheet .ref-mgr-row.firm { color: var(--r-text); }
+.ref-firm-sheet .ref-mgr-row.net {
+  padding-top: var(--r-sp-2);
+  border-top: 1px solid var(--r-border-lt);
+}
+.ref-firm-sheet .ref-mgr-row.net b { font-size: var(--r-fs-lg); font-weight: 800; }
+.ref-firm-sheet .ref-mgr-row.gross b { font-weight: 800; }
+.ref-firm-sheet .ref-mgr-appl.specific { color: var(--r-teal-dk); }
+.ref-firm-sheet .ref-mgr-appl.general  { color: var(--r-blue); }
+.ref-firm-sheet .ref-mgr-card__reason {
+  font-size: var(--r-fs-sm);
+  font-weight: 700;
+  color: var(--r-danger);
+  margin-top: var(--r-sp-2);
+}
+.ref-firm-sheet .ref-mgr-card__loss {
+  font-size: var(--r-fs-sm);
+  font-weight: 700;
+  color: var(--r-danger);
+  background: var(--r-danger-bg);
+  border: 1px solid var(--r-danger-brd);
+  border-radius: var(--r-md);
+  padding: var(--r-sp-2) var(--r-sp-3);
+  margin-top: var(--r-sp-3);
+}
+.ref-firm-sheet .ref-mgr-toosmall {
+  font-size: var(--r-fs-md);
+  font-weight: 700;
+  color: var(--r-gold-dk);
+  background: var(--r-gold-lt);
+  border: 1px solid var(--r-border-gold);
+  border-radius: var(--r-md);
+  padding: var(--r-sp-3);
+  margin: 0 0 var(--r-sp-3);
+}
+.ref-firm-sheet .ref-mgr-empty { font-size: var(--r-fs-md); color: var(--r-muted); padding: var(--r-sp-6) var(--r-sp-3); }
+
+/* Satış paneli */
+.ref-firm-sheet .ref-trade-position,
+.ref-firm-sheet .ref-trade-preview {
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg);
+  padding: var(--r-sp-2) var(--r-card-pad);
+  margin-bottom: var(--r-sp-3);
+  box-shadow: var(--r-elev-1), var(--r-card-inset);
+}
+.ref-firm-sheet .ref-trade-row { font-size: var(--r-fs-md); padding: var(--r-sp-2) 0; gap: var(--r-sp-3); }
+.ref-firm-sheet .ref-trade-row span { color: var(--r-muted); font-weight: 700; }
+.ref-firm-sheet .ref-trade-row b { color: var(--r-text); font-weight: 800; text-align: right; }
+.ref-firm-sheet .ref-trade-row.strong { border-top: 1px solid var(--r-border-lt); margin-top: var(--r-sp-1); padding-top: var(--r-sp-3); }
+.ref-firm-sheet .ref-trade-row.strong b { font-size: var(--r-fs-2xl); font-weight: 800; color: var(--r-success); }
+.ref-firm-sheet .ref-trade-qtyrow.three { gap: var(--r-sp-2); margin-bottom: var(--r-sp-3); }
+.ref-firm-sheet .ref-trade-qty-btn {
+  min-height: 44px;
+  padding: var(--r-sp-2);
+  border-radius: var(--r-md);
+  border: 1px solid var(--r-border);
+  background: var(--r-surface);
+  color: var(--r-text);
+  font-size: var(--r-fs-md);
+  font-weight: 800;
+  box-shadow: var(--r-elev-1);
+  transition: transform var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease);
+}
+.ref-firm-sheet .ref-trade-qty-btn.active { background: var(--r-accent); border-color: var(--r-accent); color: var(--r-on-dark); }
+.ref-firm-sheet .ref-trade-qty-btn:active { background: var(--r-accent); border-color: var(--r-accent); color: var(--r-on-dark); filter: var(--r-pressed); }
+.ref-firm-sheet .ref-sale-warn {
+  font-size: var(--r-fs-md);
+  font-weight: 700;
+  color: var(--r-danger);
+  background: var(--r-danger-bg);
+  border: 1px solid var(--r-danger-brd);
+  border-radius: var(--r-md);
+  padding: var(--r-sp-3);
+  margin-bottom: var(--r-sp-3);
+}
+.ref-firm-sheet .ref-trade-confirm {
+  min-height: 48px;
+  padding: var(--r-sp-3) var(--r-sp-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--r-danger);
+  background: var(--r-danger);
+  color: var(--r-on-dark);
+  font-size: var(--r-fs-lg);
+  font-weight: 800;
+  box-shadow: var(--r-elev-2);   /* opak yüzey: sticky altında sızıntı yok */
+  transition: transform var(--r-dur) var(--r-ease), filter var(--r-dur) var(--r-ease);
+}
+.ref-firm-sheet .ref-trade-confirm:active:not(:disabled) { filter: var(--r-pressed); }
+.ref-firm-sheet .ref-trade-confirm[disabled] { opacity: var(--r-disabled-opacity); cursor: not-allowed; box-shadow: none; }
+
+@media (min-width: 720px) {
+  .ref-firm-sheet { border-radius: var(--r-xl); }
+}
