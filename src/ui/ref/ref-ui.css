@@ -72,6 +72,56 @@
   /* Layout */
   --r-nav-h: 74px;
   --r-hdr-h: 110px;
+
+  /* ════════════════════════════════════════════════════════════════════
+     TASARIM SİSTEMİ v2 — tek kaynak. Sayfa CSS'leri (pages/*.css) yalnız
+     bu tokenları kullanır; sabit renk/boyut yazmaz.
+     ════════════════════════════════════════════════════════════════════ */
+
+  /* Accent — ESKİDEN TANIMSIZDI: 4 kuralda kullanılıyordu (aktif çipler:
+     buy-mode, sort...), tanımsız olduğu için arka plan şeffaf kalıyor ve
+     beyaz yazı açık gökyüzü üstünde görünmez oluyordu. */
+  --r-accent:     var(--r-teal);
+  --r-accent-dk:  var(--r-teal-dk);
+  --r-accent-lt:  var(--r-teal-lt);
+
+  /* Gökyüzü ÜSTÜNDE yazı: shell zemini üstte koyu mavi, altta neredeyse beyaz.
+     Üst bantta (header) beyaz; onun altındaki her şeyde lacivert kullan. */
+  --r-on-sky:        var(--r-text);
+  --r-on-sky-muted:  rgba(18,58,82,0.68);
+  --r-on-dark:       #FFFFFF;
+  --r-on-dark-muted: rgba(255,255,255,0.78);
+
+  /* Tip ölçeği (px) — başlık/etiket/değer hiyerarşisi her sayfada aynı */
+  --r-fs-xs:   10.5px;   /* ETİKET (uppercase, letter-spacing) */
+  --r-fs-sm:   12px;     /* yardımcı metin */
+  --r-fs-md:   13.5px;   /* gövde */
+  --r-fs-lg:   15.5px;   /* kart başlığı */
+  --r-fs-xl:   19px;     /* bölüm başlığı */
+  --r-fs-2xl:  24px;     /* KPI değeri */
+  --r-fs-hero: 30px;     /* hero değeri */
+  --r-ls-label: 0.06em;
+
+  /* Boşluk ölçeği */
+  --r-sp-1: 4px;  --r-sp-2: 8px;  --r-sp-3: 12px;  --r-sp-4: 16px;
+  --r-sp-5: 20px; --r-sp-6: 24px; --r-sp-8: 32px;
+  --r-page-x: 14px;      /* sayfa yatay kenar boşluğu */
+  --r-card-pad: 14px;
+
+  /* Durumlar */
+  --r-focus-ring: 0 0 0 3px rgba(19,184,166,0.35);
+  --r-pressed:    brightness(0.94) translateY(1px);
+  --r-disabled-opacity: 0.45;
+  --r-card-inset: inset 0 1px 0 rgba(255,255,255,0.65);   /* üst ışık kenarı */
+
+  /* Yükseklik katmanları */
+  --r-elev-1: var(--r-shadow-sm);
+  --r-elev-2: var(--r-shadow);
+  --r-elev-3: var(--r-shadow-lg);
+
+  /* Geçişler */
+  --r-ease: cubic-bezier(.2,.8,.2,1);
+  --r-dur:  160ms;
 }
 
 /* ── Shell ── */
@@ -3275,7 +3325,9 @@ body.ref-sheet-open { overflow: hidden !important; }
   transition: width 0.6s linear;
 }
 .ref-timebar__next-day {
-  font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.75);
+  /* ESKİDEN beyaz %75: açık zaman kartı üstünde okunmuyordu ("4s to next day"
+     görünmezdi). Gökyüzü-üstü lacivert token'ı kullan. */
+  font-size: 10px; font-weight: 700; color: var(--r-on-sky-muted);
   white-space: nowrap; min-width: 60px; text-align: right;
 }
 .ref-timebar--stopped .ref-timebar__progress-fill { background: var(--r-danger, #ea5455); }
