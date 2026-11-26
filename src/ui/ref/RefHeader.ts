@@ -47,8 +47,8 @@ export class RefHeader {
           ${data.onProfile ? '<span class="ref-header__profile-chevron">›</span>' : ''}
         </div>
         <div class="ref-header__actions">
-          <button class="ref-hdr-btn" data-hdr="ach" title="${i18n.t('ref_achievements_title')}">🏆</button>
-          <button class="ref-hdr-btn" data-hdr="notifs" title="${i18n.t('ref_header_notifs')}">
+          <button class="ref-hdr-btn" data-hdr="ach" type="button" title="${i18n.t('ref_achievements_title')}" aria-label="${i18n.t('ref_achievements_title')}">🏆</button>
+          <button class="ref-hdr-btn" data-hdr="notifs" type="button" title="${i18n.t('ref_header_notifs')}" aria-label="${i18n.t('ref_header_notifs')}">
             🔔
             ${(data.notifCount ?? 0) > 0 ? '<span class="ref-hdr-btn__dot"></span>' : ''}
           </button>
