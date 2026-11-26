@@ -1,1 +1,233 @@
-/* decision — sayfaya özel stiller. Tasarım token sözleşmesi: ref-ui.css :root (--r-*). Token dışı sabit renk KULLANMA. */
+/* ===== Decision / Reward modals + undo banner =====
+   Yalnız --r-* tokenları. Henüz ref-ui.css'te tanımlı olmayan token'larda
+   (--r-fs-*, --r-sp-*, --r-accent...) fallback mevcut token/ölçüdür.
+   Seçiciler ref-ui.css'teki eski kuralları yenmek için kapsayıcıyla güçlendirildi. */
+
+/* ── Overlays ── */
+.ref-reward-overlay,
+.ref-decision-overlay {
+  padding: var(--r-page-x, 16px);
+  background: color-mix(in srgb, var(--r-text) 64%, transparent);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+/* ── Cards (opak, tam kontrast) ── */
+.ref-reward-overlay .ref-reward-card,
+.ref-decision-overlay .ref-decision-card {
+  background: var(--r-bg);
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--r-shadow-lg), var(--r-card-inset, 0 1px 0 var(--r-surface) inset);
+  color: var(--r-text);
+  overflow: hidden;
+}
+.ref-reward-overlay .ref-reward-card { padding: var(--r-sp-6, 28px) var(--r-card-pad, 18px) var(--r-card-pad, 18px); }
+.ref-decision-overlay .ref-decision-card {
+  padding: var(--r-sp-5, 22px) var(--r-card-pad, 18px) var(--r-card-pad, 18px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ── Close buttons (>= 40px hedef) ── */
+.ref-reward-overlay .ref-reward-close,
+.ref-decision-overlay .ref-decision-close {
+  top: var(--r-sp-1, 6px);
+  right: var(--r-sp-1, 6px);
+  width: 40px;
+  height: 40px;
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  color: var(--r-text2);
+  font-size: var(--r-fs-lg, 16px);
+  transition: filter var(--r-dur, 0.15s) var(--r-ease, ease), box-shadow var(--r-dur, 0.15s) var(--r-ease, ease);
+}
+.ref-reward-overlay .ref-reward-close:active,
+.ref-decision-overlay .ref-decision-close:active { filter: var(--r-pressed, brightness(0.94)); background: var(--r-card-soft); }
+.ref-reward-close:focus-visible,
+.ref-decision-close:focus-visible,
+.ref-reward-primary:focus-visible,
+.ref-reward-discard:focus-visible,
+.ref-decision-opt:focus-visible,
+.ref-undo-banner .ref-world-btn:focus-visible { outline: none; box-shadow: var(--r-focus-ring, 0 0 0 3px var(--r-blue-brd)); }
+.ref-decision-close:disabled { opacity: var(--r-disabled-opacity, 0.5); cursor: not-allowed; }
+
+/* ── Reward content hiyerarşisi ── */
+.ref-reward-overlay .ref-reward-emoji { font-size: 48px; margin-bottom: var(--r-sp-2, 8px); }
+.ref-reward-overlay .ref-reward-title {
+  margin: 0 0 var(--r-sp-3, 12px);
+  font-size: var(--r-fs-xs, 11px);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: var(--r-ls-label, 0.08em);
+  color: var(--r-muted);
+}
+.ref-reward-overlay .ref-reward-amount {
+  margin: 0 0 var(--r-sp-3, 12px);
+  padding: var(--r-sp-3, 12px) var(--r-card-pad, 16px);
+  font-size: var(--r-fs-2xl, 28px);
+  font-weight: 800;
+  letter-spacing: 0;
+  color: var(--r-text);
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg);
+  box-shadow: var(--r-elev-1, var(--r-shadow-sm)), var(--r-card-inset, 0 1px 0 var(--r-surface) inset);
+  overflow-wrap: anywhere;
+}
+.ref-reward-card--bankruptcy .ref-reward-amount { border-color: var(--r-danger-brd); background: var(--r-danger-bg); }
+.ref-reward-overlay .ref-reward-desc { font-size: var(--r-fs-md, 14px); color: var(--r-text2); line-height: 1.45; }
+.ref-reward-overlay .ref-reward-warn {
+  margin: var(--r-sp-2, 8px) 0 0;
+  padding: var(--r-sp-2, 8px) var(--r-sp-3, 12px);
+  font-size: var(--r-fs-sm, 12.5px);
+  font-weight: 700;
+  color: var(--r-text);
+  background: var(--r-danger-bg);
+  border: 1px solid var(--r-danger-brd);
+  border-radius: var(--r-md);
+}
+
+/* ── Buttons ── */
+.ref-reward-overlay .ref-reward-primary {
+  min-height: 48px;
+  margin-top: var(--r-sp-4, 16px);
+  border-radius: var(--r-md);
+  background: var(--r-accent, var(--r-teal-dk));
+  color: var(--r-on-dark, var(--r-surface)); /* düz beyaz: koyu dolgu üstünde */
+  font-size: var(--r-fs-lg, 16px);
+  font-weight: 800;
+  box-shadow: var(--r-shadow-btn), var(--r-card-inset, 0 1px 0 var(--r-surface) inset);
+  transition: transform var(--r-dur, 0.15s) var(--r-ease, ease), filter var(--r-dur, 0.15s) var(--r-ease, ease);
+}
+.ref-reward-overlay .ref-reward-primary:active:not(:disabled) { transform: translateY(2px); filter: var(--r-pressed, brightness(0.94)); box-shadow: var(--r-shadow-sm); }
+.ref-reward-overlay .ref-reward-primary:disabled { opacity: var(--r-disabled-opacity, 0.55); cursor: not-allowed; box-shadow: none; }
+.ref-reward-overlay .ref-reward-discard {
+  min-height: 44px;
+  margin-top: var(--r-sp-2, 8px);
+  border: 1px solid var(--r-border);
+  border-radius: var(--r-md);
+  background: var(--r-surface);
+  color: var(--r-text2);
+  font-size: var(--r-fs-md, 14px);
+  font-weight: 700;
+  transition: filter var(--r-dur, 0.15s) var(--r-ease, ease);
+}
+.ref-reward-overlay .ref-reward-discard:active { filter: var(--r-pressed, brightness(0.94)); }
+.ref-reward-overlay .ref-reward-discard:disabled { opacity: var(--r-disabled-opacity, 0.55); cursor: not-allowed; }
+
+/* ── Decision content ── */
+.ref-decision-overlay .ref-decision-emoji { font-size: 44px; margin-bottom: var(--r-sp-2, 8px); }
+.ref-decision-overlay .ref-decision-title {
+  margin: 0 var(--r-sp-6, 28px) var(--r-sp-2, 8px);
+  font-size: var(--r-fs-xl, 20px);
+  font-weight: 800;
+  color: var(--r-text);
+  line-height: 1.2;
+}
+.ref-decision-overlay .ref-decision-body {
+  margin: 0 0 var(--r-sp-4, 16px);
+  font-size: var(--r-fs-md, 14px);
+  color: var(--r-text2);
+  line-height: 1.5;
+}
+.ref-decision-overlay .ref-decision-options { gap: var(--r-sp-2, 8px); }
+
+/* ── Seçenekler: tıklanabilir görünür, etkisi alt satırda ── */
+.ref-decision-overlay .ref-decision-opt {
+  min-height: 52px;
+  justify-content: center;
+  gap: var(--r-sp-1, 4px);
+  padding: var(--r-sp-3, 12px) var(--r-card-pad, 14px);
+  background: var(--r-surface);
+  border: 1.5px solid var(--r-border);
+  border-radius: var(--r-md);
+  box-shadow: var(--r-shadow-btn), var(--r-card-inset, 0 1px 0 var(--r-surface) inset);
+  color: var(--r-text);
+  font-size: var(--r-fs-md, 14px);
+  font-weight: 800;
+  line-height: 1.3;
+  transition: transform var(--r-dur, 0.15s) var(--r-ease, ease), filter var(--r-dur, 0.15s) var(--r-ease, ease),
+    border-color var(--r-dur, 0.15s) var(--r-ease, ease), opacity var(--r-dur, 0.15s) var(--r-ease, ease);
+}
+.ref-decision-overlay .ref-decision-opt:not(:disabled) { border-color: var(--r-teal); }
+.ref-decision-overlay .ref-decision-opt:active:not(:disabled) {
+  transform: translateY(2px);
+  filter: var(--r-pressed, brightness(0.94));
+  background: var(--r-teal-lt);
+  border-color: var(--r-teal-dk);
+  box-shadow: var(--r-shadow-sm);
+}
+.ref-decision-overlay .ref-decision-opt:disabled {
+  opacity: var(--r-disabled-opacity, 0.55);
+  cursor: not-allowed;
+  border-color: var(--r-border-lt);
+  box-shadow: none;
+}
+.ref-decision-overlay .ref-decision-opt__sub {
+  font-size: var(--r-fs-sm, 12.5px);
+  font-weight: 700;
+  color: var(--r-muted);
+  line-height: 1.35;
+}
+
+/* ── 1 sn giriş kilidi göstergesi: kart üstünde dolan çubuk, açılınca kaybolur ── */
+.ref-decision-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0;
+  height: 4px;
+  width: 100%;
+  background: var(--r-teal);
+  transform-origin: left center;
+  transform: scaleX(0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--r-dur, 0.15s) var(--r-ease, ease);
+}
+.ref-decision-overlay.is-locked .ref-decision-card::before {
+  opacity: 1;
+  animation: ref-decision-lock var(--r-lock-ms, 1s) linear forwards;
+}
+@keyframes ref-decision-lock { to { transform: scaleX(1); } }
+
+/* ── Undo banner (alt sabit) ── */
+.ref-undo-banner {
+  padding: var(--r-card-pad, 14px);
+  background: var(--r-card-soft);
+  border: 1px solid var(--r-border-lt);
+  border-radius: var(--r-lg);
+  box-shadow: var(--r-shadow-lg), var(--r-card-inset, 0 1px 0 var(--r-surface) inset);
+}
+.ref-undo-banner .ref-rival-offer-banner__head {
+  font-size: var(--r-fs-xs, 11px);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: var(--r-ls-label, 0.08em);
+  color: var(--r-muted);
+}
+.ref-undo-banner .ref-rival-offer-banner__msg {
+  margin-top: var(--r-sp-1, 4px);
+  font-size: var(--r-fs-md, 14px);
+  font-weight: 700;
+  color: var(--r-text);
+  line-height: 1.4;
+}
+.ref-undo-banner .ref-rival-offer-banner__actions { gap: var(--r-sp-2, 8px); margin-top: var(--r-sp-3, 12px); flex-wrap: nowrap; }
+.ref-undo-banner .ref-world-btn {
+  min-height: 44px;
+  min-width: 0;
+  padding: var(--r-sp-2, 8px) var(--r-sp-3, 12px);
+  border-radius: var(--r-md);
+  font-size: var(--r-fs-sm, 12.5px);
+  font-weight: 800;
+  line-height: 1.2;
+  transition: transform var(--r-dur, 0.15s) var(--r-ease, ease), filter var(--r-dur, 0.15s) var(--r-ease, ease);
+}
+.ref-undo-banner .ref-world-btn:first-child { flex: 2; background: var(--r-accent, var(--r-teal-dk)); color: var(--r-on-dark, var(--r-surface)); }
+.ref-undo-banner .ref-world-btn:active:not(:disabled) { transform: translateY(1px); filter: var(--r-pressed, brightness(0.94)); }
+.ref-undo-banner .ref-world-btn:disabled { opacity: var(--r-disabled-opacity, 0.55); cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ref-decision-overlay.is-locked .ref-decision-card::before { animation-duration: 0.01s; }
+}

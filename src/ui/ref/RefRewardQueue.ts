@@ -2,6 +2,7 @@ import type { GameState } from '../../game/GameState'
 import type { AdManager, RewardedAdType } from '../../ads/AdManager'
 import { fmtMoney, refToast } from './refShared'
 import { i18n } from '../../i18n'
+import './pages/decision.css'
 
 /**
  * RefApp reward kuyruğu — legacy HUD'un offline/daily/bankruptcy claim
@@ -154,7 +155,7 @@ export class RefRewardQueue {
     const settlementAttr = spec.settlementAt != null ? String(spec.settlementAt) : ''
     overlay.className = 'ref-reward-overlay'
     overlay.innerHTML = `
-      <div class="ref-reward-card" role="dialog" aria-modal="true">
+      <div class="ref-reward-card ref-reward-card--${spec.id}" role="dialog" aria-modal="true">
         <button class="ref-reward-close" type="button" aria-label="${i18n.t('ref_reward_close')}">✕</button>
         <div class="ref-reward-emoji">${spec.emoji}</div>
         <h2 class="ref-reward-title">${spec.title}</h2>
